@@ -11,4 +11,3 @@ COPY . .
 
 EXPOSE 4034
 CMD ["node", "main.js"]
-

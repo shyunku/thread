@@ -15,4 +15,3 @@ USER memorial
 
 EXPOSE 4033
 CMD ["./memorial-app-server"]
-
