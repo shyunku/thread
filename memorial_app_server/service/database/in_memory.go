@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"github.com/redis/go-redis/v9"
+	"os"
+	"strconv"
 	"time"
 )
 
@@ -26,10 +28,21 @@ type Redis struct {
 
 func NewRedis() *Redis {
 	r := &Redis{}
+	addr := os.Getenv("REDIS_ADDR")
+	if addr == "" {
+		addr = "localhost:6379"
+	}
+	password := os.Getenv("REDIS_PASSWORD")
+	database := 0
+	if rawDatabase := os.Getenv("REDIS_DB"); rawDatabase != "" {
+		if parsedDatabase, err := strconv.Atoi(rawDatabase); err == nil {
+			database = parsedDatabase
+		}
+	}
 	r.client = redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "",
-		DB:       0,
+		Addr:     addr,
+		Password: password,
+		DB:       database,
 	})
 	return r
 }

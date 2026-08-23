@@ -24,7 +24,7 @@ func main() {
 
 	// Load environment variables
 	log.Info("Initializing environments...")
-	if err := godotenv.Load(); err != nil {
+	if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {
 		log.Error(err)
 		os.Exit(-1)
 	}

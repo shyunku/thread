@@ -1,7 +1,6 @@
 const express = require("express");
 const busboy = require("connect-busboy");
 const app = express();
-const pbip = require("public-ip");
 const fs = require("fs");
 const cors = require("cors");
 require("dotenv").config();
@@ -31,9 +30,8 @@ app.all("/*", (req, res, next) => {
 });
 
 const PORT = parseInt(process.env.SERVER_PORT);
-const server = app.listen(PORT, async () => {
-  let ipv4 = await pbip.v4();
-  console.info(`server opened at: http://${ipv4}:${PORT}`);
+const server = app.listen(PORT, () => {
+  console.info(`server opened at: http://0.0.0.0:${PORT}`);
 });
 
 app.use(express.json());

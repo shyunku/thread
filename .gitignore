@@ -1,0 +1,18 @@
+# Local environment overrides
+.env
+.env.*
+!.env.example
+
+# Migration and local caches
+/.monorepo-build/
+/pkg/
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Service runtime data
+/memorial_rms/releases/
+
