@@ -8,7 +8,9 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o /out/memorial-app-server ./core
 
 FROM alpine:3.20
 
-RUN addgroup -S memorial && adduser -S memorial -G memorial
+RUN apk add --no-cache tzdata \
+    && addgroup -S memorial \
+    && adduser -S memorial -G memorial
 WORKDIR /app
 COPY --from=builder /out/memorial-app-server ./memorial-app-server
 USER memorial
