@@ -6,6 +6,7 @@
 # Migration and local caches
 /.monorepo-build/
 /pkg/
+/node_modules/
 
 # OS and editor files
 .DS_Store

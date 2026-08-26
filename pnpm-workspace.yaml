@@ -1,0 +1,6 @@
+packages:
+  - memorial
+  - memorial_mobile
+  - memorial_site
+  - memorial_admin_site
+  - memorial_rms

@@ -1,0 +1,15 @@
+{
+  "name": "memorial-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@8.15.9",
+  "scripts": {
+    "dev:desktop": "pnpm --dir memorial win-all",
+    "dev:mobile": "pnpm --dir memorial_mobile android",
+    "dev:site": "pnpm --dir memorial_site start",
+    "dev:admin": "pnpm --dir memorial_admin_site start",
+    "build:web": "pnpm --filter memorial_site build && pnpm --filter memorial-admin build",
+    "build:desktop": "pnpm --dir memorial win-pack",
+    "lint:mobile": "pnpm --dir memorial_mobile lint"
+  }
+}

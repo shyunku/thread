@@ -47,20 +47,31 @@ docker compose down --volumes
 
 ## Native clients
 
-The desktop app uses npm:
+All Node.js projects use the root pnpm workspace and lockfile. Install dependencies once from the repository root:
 
 ```powershell
-Set-Location memorial
-npm install
-npm run win-all
+corepack enable
+pnpm install --frozen-lockfile
 ```
 
-The mobile app retains its existing React Native scripts:
+Run the desktop app on Windows:
 
 ```powershell
-Set-Location memorial_mobile
-npm install
-npm run android
+pnpm dev:desktop
+```
+
+Run the Android app with Metro in a separate terminal:
+
+```powershell
+pnpm --dir memorial_mobile start
+pnpm dev:mobile
+```
+
+Run the web clients locally:
+
+```powershell
+pnpm dev:site
+pnpm dev:admin
 ```
 
 ## Imported history
