@@ -4,11 +4,16 @@
   "private": true,
   "packageManager": "pnpm@8.15.9",
   "scripts": {
+    "install:desktop": "pnpm --dir memorial install --frozen-lockfile",
+    "install:mobile": "pnpm --dir memorial_mobile install --frozen-lockfile",
+    "install:site": "pnpm --dir memorial_site install --frozen-lockfile",
+    "install:admin": "pnpm --dir memorial_admin_site install --frozen-lockfile",
+    "install:rms": "pnpm --dir memorial_rms install --frozen-lockfile",
     "dev:desktop": "pnpm --dir memorial win-all",
     "dev:mobile": "pnpm --dir memorial_mobile android",
     "dev:site": "pnpm --dir memorial_site start",
     "dev:admin": "pnpm --dir memorial_admin_site start",
-    "build:web": "pnpm --filter memorial_site build && pnpm --filter memorial-admin build",
+    "build:web": "pnpm --dir memorial_site build && pnpm --dir memorial_admin_site build",
     "build:desktop": "pnpm --dir memorial win-pack",
     "lint:mobile": "pnpm --dir memorial_mobile lint"
   }

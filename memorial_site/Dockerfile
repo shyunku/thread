@@ -2,13 +2,12 @@ FROM node:16-alpine AS builder
 
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
-RUN corepack enable
-WORKDIR /workspace
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
-COPY memorial_site/package.json ./memorial_site/package.json
-RUN pnpm --config.node-linker=isolated install --frozen-lockfile --ignore-scripts --filter memorial_site...
-COPY memorial_site ./memorial_site
-RUN pnpm --dir memorial_site build
+RUN corepack enable && corepack prepare pnpm@8.15.9 --activate
+WORKDIR /workspace/memorial_site
+COPY memorial_site/package.json memorial_site/pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile --ignore-scripts
+COPY memorial_site ./
+RUN pnpm build
 
 FROM nginx:1.27-alpine
 COPY memorial_site/nginx.conf /etc/nginx/conf.d/default.conf

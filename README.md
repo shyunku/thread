@@ -47,11 +47,11 @@ docker compose down --volumes
 
 ## Native clients
 
-All Node.js projects use the root pnpm workspace and lockfile. Install dependencies once from the repository root:
+Each Node.js project has its own pnpm lockfile so installing one application does not run lifecycle scripts from another service. Enable pnpm once, then install only the application you need from the repository root:
 
 ```powershell
 corepack enable
-pnpm install --frozen-lockfile
+pnpm install:desktop
 ```
 
 Run the desktop app on Windows:
@@ -63,6 +63,7 @@ pnpm dev:desktop
 Run the Android app with Metro in a separate terminal:
 
 ```powershell
+pnpm install:mobile
 pnpm --dir memorial_mobile start
 pnpm dev:mobile
 ```
@@ -70,6 +71,8 @@ pnpm dev:mobile
 Run the web clients locally:
 
 ```powershell
+pnpm install:site
+pnpm install:admin
 pnpm dev:site
 pnpm dev:admin
 ```
