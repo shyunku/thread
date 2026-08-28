@@ -26,6 +26,7 @@ import {
 } from '@/constants/common.const';
 import Category from '@/objects/Category';
 import {removeAuth} from '@/store/accountSlice';
+import LeftSidebar from '@/molecules/LeftSidebar';
 
 const Home = (): JSX.Element => {
   const dispatch = useDispatch();
@@ -204,6 +205,9 @@ const Home = (): JSX.Element => {
 
   return (
     <View style={HomeStyle.homeContainer}>
+      <LeftSidebar>
+        <Text>Menu</Text>
+      </LeftSidebar>
       <ScrollView stickyHeaderIndices={[0]} style={{width: '100%'}}>
         <View testID="header" style={HomeStyle.header}>
           <View testID="sync-section" style={HomeStyle.syncSection}>

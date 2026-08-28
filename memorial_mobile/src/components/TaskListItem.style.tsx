@@ -3,7 +3,7 @@ import {StyleSheet} from 'react-native';
 
 const TaskListItemStyle = StyleSheet.create({
   taskListItem: {
-    backgroundColor: 'gray',
+    // backgroundColor: 'gray',
     borderRadius: 2,
     overflow: 'hidden',
   },
