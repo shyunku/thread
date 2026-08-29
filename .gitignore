@@ -2,6 +2,8 @@
 .env
 .env.*
 !.env.example
+!/apps/desktop/.env.development
+!/apps/desktop/.env.production
 
 # Migration and local caches
 /.monorepo-build/
@@ -15,4 +17,4 @@ Thumbs.db
 .vscode/
 
 # Service runtime data
-/memorial_rms/releases/
+/services/rms/releases/

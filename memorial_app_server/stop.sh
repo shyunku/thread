@@ -1,1 +1,0 @@
-sudo supervisorctl stop memorial
