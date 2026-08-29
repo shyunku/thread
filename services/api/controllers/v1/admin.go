@@ -1,11 +1,10 @@
 package v1
 
 import (
-	"database/sql"
 	"github.com/gin-gonic/gin"
+	"net/http"
 	"thread_api/log"
 	"thread_api/service/database"
-	"net/http"
 )
 
 func alertNewVersion(c *gin.Context) {
@@ -30,22 +29,15 @@ func userCount(c *gin.Context) {
 }
 
 func AdminMiddleware(c *gin.Context) {
-	// get uid from context
-	uid, ok := c.Get("uid")
+	rawIsAdmin, ok := c.Get("is_admin")
 	if !ok {
 		c.AbortWithStatus(http.StatusForbidden)
 		return
 	}
 
-	var adminEntity database.AdminEntity
-	if err := database.DB.QueryRowx("SELECT * FROM admin_master WHERE uid = ?", uid).StructScan(&adminEntity); err != nil {
-		if err == sql.ErrNoRows {
-			// user not found
-			c.AbortWithStatus(http.StatusForbidden)
-			return
-		}
-		log.Error(err)
-		c.AbortWithStatus(http.StatusInternalServerError)
+	isAdmin, ok := rawIsAdmin.(bool)
+	if !ok || !isAdmin {
+		c.AbortWithStatus(http.StatusForbidden)
 		return
 	}
 

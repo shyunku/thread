@@ -2,6 +2,9 @@
 
 | Index | Tag | Updated | Status | Completed | Deps | 항목 | 완료 조건 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
+| 11 | desktop | 2026-08-30 05:30 | 🟢 DONE | 2026-08-30 05:30 |  | 데스크톱 앱 버전을 1.0.2로 상향 | `apps/desktop/package.json` 버전을 1.0.2로 변경했고 데스크톱 production 빌드를 통과했다. 기존 ESLint 경고는 남아 있으나 빌드 오류는 없다. |
+| 10 | api | 2026-08-30 05:20 | 🟢 DONE | 2026-08-30 05:20 | #9 | 관리자 인증을 DB 계정에서 env 고정 계정으로 전환 | 루트 `.env`의 실제 관리자 값을 Compose API에 적용했다. `app-server` 재빌드·재생성 후 실제 env 자격 증명 로그인 성공, 오답 401, 관리자 API 200, refresh 성공 및 전체 서비스 상태를 확인했다. |
+| 9 | admin | 2026-08-30 04:48 | 🟢 DONE | 2026-08-30 04:48 |  | 관리자 로그인 버튼의 React 이벤트 직렬화 오류 수정 | 로그인 핸들러가 component state만 사용하도록 수정했다. React production 빌드와 Compose 재배포를 완료했고, 새 번들 HTTP 200, 전체 서비스 실행·health, 구조화된 무효 로그인 요청의 API 401 응답을 확인했다. |
 | 8 | desktop | 2026-08-30 03:53 | 🟢 DONE | 2026-08-30 03:53 | #6 | 현재 Thread 로고로 데스크톱 tray 아이콘 갱신 | 현재 `logo512.png`를 원본으로 투명 배경의 16·32·48·512px tray PNG를 생성했다. 이미지 규격·시각 검증, Desktop 빌드·Electron 패키징 및 `extraResources`의 원본 SHA-256 일치 검증을 통과했다. |
 | 7 | security | 2026-08-30 04:08 | 🟢 DONE | 2026-08-30 04:08 | #6 | 노출된 Electron env를 Git 전체 이력에서 제거하고 Desktop env로 이전 | `public/electron/.env`의 모든 과거 경로와 blob이 로컬 전체 refs 및 GitHub `master`에서 제거되고, Apple notarization 값은 Git 제외된 Desktop `.env.local`, RMS endpoint는 Desktop `.env` 및 `.env.production`에서 로드되며 각 키 사용처와 패키징이 검증된다. |
 | 6 | repository | 2026-08-30 03:22 | 🟢 DONE | 2026-08-30 03:22 | #4 | 환경 변수 소유 범위를 Compose와 네이티브 앱별로 분리 | Docker Compose 대상은 루트 `.env`를 사용하고, 데스크톱과 모바일은 각 앱 디렉터리의 환경 파일에서 endpoint 및 클라이언트 설정을 읽는다. Compose 구문, 데스크톱 production 빌드·Electron 패키징·ASAR env 포함, 모바일 Android JS 번들과 env 주입 검증을 통과했다. 모바일 전체 TSC/ESLint는 기존 TypeScript 의존성 및 CRLF 오류가 남아 있다. |

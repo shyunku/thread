@@ -21,7 +21,8 @@ class Login extends Component {
     }
   }
 
-  authenticate = (email = this.state.email_input, pw = this.state.pw_input) => {
+  authenticate = () => {
+    const { email_input: email, pw_input: pw } = this.state;
     const encrypted_key = sha256(sha256(sha256(email) + pw));
     const data = { auth_id: email, encrypted_password: encrypted_key };
     axios

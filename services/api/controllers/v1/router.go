@@ -8,11 +8,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
 	"io"
+	"net/http"
+	"strings"
 	"thread_api/libs/crypto"
 	"thread_api/log"
 	"thread_api/service/database"
-	"net/http"
-	"strings"
 )
 
 func UseRouterV1(r *gin.Engine) {
@@ -117,7 +117,9 @@ func AuthMiddleware(c *gin.Context) {
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if ok && token.Valid {
 			userId := claims["uid"].(string)
+			isAdmin, _ := claims["admin"].(bool)
 			c.Set("uid", userId)
+			c.Set("is_admin", isAdmin)
 			c.Next()
 		} else {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
