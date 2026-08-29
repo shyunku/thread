@@ -1,21 +1,21 @@
-name: memorial
+name: thread
 
 services:
   mysql:
     image: mysql:8.0
     restart: unless-stopped
     environment:
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-memorial}
-      MYSQL_USER: ${MYSQL_USER:-memorial}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-memorial-dev-password}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-memorial-dev-root-password}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-thread}
+      MYSQL_USER: ${MYSQL_USER:-thread}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-thread-dev-password}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-thread-dev-root-password}
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
     volumes:
       - mysql-data:/var/lib/mysql
-      - ./memorial_app_server/memorial.ddl:/docker-entrypoint-initdb.d/10-memorial.sql:ro
-      - ./memorial_rms/scheme.ddl:/docker-entrypoint-initdb.d/20-memorial-rms.sql:ro
+      - ./services/api/thread.ddl:/docker-entrypoint-initdb.d/10-thread.sql:ro
+      - ./services/rms/scheme.ddl:/docker-entrypoint-initdb.d/20-thread-rms.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
       interval: 5s
@@ -37,17 +37,17 @@ services:
 
   app-server:
     build:
-      context: ./memorial_app_server
+      context: ./services/api
     restart: unless-stopped
     environment:
       GOOGLE_OAUTH2_CLIENT_ID: ${GOOGLE_OAUTH2_CLIENT_ID:-local-google-oauth-disabled}
       GOOGLE_OAUTH2_CLIENT_SECRET: ${GOOGLE_OAUTH2_CLIENT_SECRET:-local-google-oauth-disabled}
-      GOOGLE_OAUTH2_REDIRECT_URL: ${GOOGLE_OAUTH2_REDIRECT_URL:-http://localhost:4033/v1/google-auth/login_callback}
-      DB_USER: ${MYSQL_USER:-memorial}
-      DB_PASSWORD: ${MYSQL_PASSWORD:-memorial-dev-password}
+      GOOGLE_OAUTH2_REDIRECT_URL: ${GOOGLE_OAUTH2_REDIRECT_URL:-http://localhost:4033/v1/google_auth/login_callback}
+      DB_USER: ${MYSQL_USER:-thread}
+      DB_PASSWORD: ${MYSQL_PASSWORD:-thread-dev-password}
       DB_HOST: mysql
       DB_PORT: 3306
-      DB_NAME: ${MYSQL_DATABASE:-memorial}
+      DB_NAME: ${MYSQL_DATABASE:-thread}
       REDIS_ADDR: redis:6379
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-replace-with-a-long-random-access-secret}
       JWT_ACCESS_EXPIRE: ${JWT_ACCESS_EXPIRE:-3h}
@@ -71,14 +71,14 @@ services:
   rms:
     build:
       context: .
-      dockerfile: memorial_rms/Dockerfile
+      dockerfile: services/rms/Dockerfile
     restart: unless-stopped
     environment:
       SERVER_PORT: 4034
       DB_HOST: mysql
-      DB_USER: ${MYSQL_USER:-memorial}
-      DB_DATABASE: ${MYSQL_DATABASE:-memorial}
-      DB_PASSWORD: ${MYSQL_PASSWORD:-memorial-dev-password}
+      DB_USER: ${MYSQL_USER:-thread}
+      DB_DATABASE: ${MYSQL_DATABASE:-thread}
+      DB_PASSWORD: ${MYSQL_PASSWORD:-thread-dev-password}
       DB_PORT: 3306
       APP_SERVER_ENTRY: http://app-server:4033
     ports:
@@ -99,7 +99,7 @@ services:
   site:
     build:
       context: .
-      dockerfile: memorial_site/Dockerfile
+      dockerfile: apps/web/site/Dockerfile
     restart: unless-stopped
     ports:
       - "${SITE_PORT:-3000}:80"
@@ -107,7 +107,7 @@ services:
   admin-site:
     build:
       context: .
-      dockerfile: memorial_admin_site/Dockerfile
+      dockerfile: apps/web/admin/Dockerfile
       args:
         REACT_APP_APP_SERVER_ENTRY: http://localhost:${APP_SERVER_PORT:-4033}
         REACT_APP_RMS_ENTRY: http://localhost:${RMS_PORT:-4034}

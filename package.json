@@ -1,20 +1,20 @@
 {
-  "name": "memorial-monorepo",
+  "name": "thread-monorepo",
   "version": "1.0.0",
   "private": true,
   "packageManager": "pnpm@8.15.9",
   "scripts": {
-    "install:desktop": "pnpm --dir memorial install --frozen-lockfile",
-    "install:mobile": "pnpm --dir memorial_mobile install --frozen-lockfile",
-    "install:site": "pnpm --dir memorial_site install --frozen-lockfile",
-    "install:admin": "pnpm --dir memorial_admin_site install --frozen-lockfile",
-    "install:rms": "pnpm --dir memorial_rms install --frozen-lockfile",
-    "dev:desktop": "pnpm --dir memorial win-all",
-    "dev:mobile": "pnpm --dir memorial_mobile android",
-    "dev:site": "pnpm --dir memorial_site start",
-    "dev:admin": "pnpm --dir memorial_admin_site start",
-    "build:web": "pnpm --dir memorial_site build && pnpm --dir memorial_admin_site build",
-    "build:desktop": "pnpm --dir memorial win-pack",
-    "lint:mobile": "pnpm --dir memorial_mobile lint"
+    "install:desktop": "pnpm --dir apps/desktop install --frozen-lockfile",
+    "install:mobile": "pnpm --dir apps/mobile install --frozen-lockfile",
+    "install:site": "pnpm --dir apps/web/site install --frozen-lockfile",
+    "install:admin": "pnpm --dir apps/web/admin install --frozen-lockfile",
+    "install:rms": "pnpm --dir services/rms install --frozen-lockfile",
+    "dev:desktop": "pnpm --dir apps/desktop win-all",
+    "dev:mobile": "pnpm --dir apps/mobile android",
+    "dev:site": "pnpm --dir apps/web/site start",
+    "dev:admin": "pnpm --dir apps/web/admin start",
+    "build:web": "pnpm --dir apps/web/site build && pnpm --dir apps/web/admin build",
+    "build:desktop": "pnpm --dir apps/desktop win-pack",
+    "lint:mobile": "pnpm --dir apps/mobile lint"
   }
 }

@@ -1,19 +1,21 @@
-# Memorial
+# Thread
 
-Memorial is a task and schedule manager with native desktop and mobile clients, cloud synchronization, release management, and administration services. This repository combines the former component repositories into one monorepo while retaining their Git histories.
+Thread is a task and schedule manager with native desktop and mobile clients, cloud synchronization, release management, and administration services. This repository combines the former component repositories into one monorepo while retaining their Git histories.
+
+**Track. Handle. Remember. Execute. And Deliver.**
+
+Website: `https://threadapp.kr`
 
 ## Repository layout
 
-| Path | Purpose | Docker Compose |
-| --- | --- | --- |
-| `memorial/` | Electron and React desktop client | No |
-| `memorial_mobile/` | React Native mobile client | No |
-| `memorial_app_server/` | Go and Gin authentication/synchronization server | Yes |
-| `memorial_rms/` | Node.js release management server | Yes |
-| `memorial_admin_site/` | React administration site | Yes |
-| `memorial_site/` | React public site | Yes |
-
-The obsolete `memorial_test` prototype was intentionally removed during the monorepo migration.
+| Path              | Purpose                                          | Docker Compose |
+| ----------------- | ------------------------------------------------ | -------------- |
+| `apps/desktop/`   | Electron and React desktop client                | No             |
+| `apps/mobile/`    | React Native mobile client                       | No             |
+| `apps/web/site/`  | React public site                                | Yes            |
+| `apps/web/admin/` | React administration site                        | Yes            |
+| `services/api/`   | Go and Gin authentication/synchronization server | Yes            |
+| `services/rms/`   | Node.js release management server                | Yes            |
 
 ## Docker Compose quick start
 
@@ -32,6 +34,14 @@ Local endpoints:
 - RMS: `http://localhost:4034`
 
 The example credentials are development-only defaults. Replace the database and JWT secrets before using the stack outside a local machine. Google OAuth also requires real client credentials and a matching redirect URL.
+
+The root `.env` belongs exclusively to the Compose stack. Native clients do not read it. Desktop public endpoints live in `apps/desktop/.env.development` and `apps/desktop/.env.production`; use an ignored `.env.development.local` for a machine-specific override. Mobile reads `apps/mobile/.env`, which must be created from its local template:
+
+```powershell
+Copy-Item apps/mobile/.env.example apps/mobile/.env
+```
+
+When Android Emulator connects to an API running on the Windows host, set `APP_SERVER_ENDPOINT=http://10.0.2.2:4033`. Use `http://localhost:4033` for an iOS simulator, or the host's LAN address for a physical device. Client env files are bundled into applications, so never place server secrets in them.
 
 Stop the stack with:
 
@@ -64,7 +74,7 @@ Run the Android app with Metro in a separate terminal:
 
 ```powershell
 pnpm install:mobile
-pnpm --dir memorial_mobile start
+pnpm --dir apps/mobile start
 pnpm dev:mobile
 ```
 
