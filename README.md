@@ -35,7 +35,19 @@ Local endpoints:
 
 The example credentials are development-only defaults. Replace the database and JWT secrets before using the stack outside a local machine. Google OAuth also requires real client credentials and a matching redirect URL.
 
-The root `.env` belongs exclusively to the Compose stack. Native clients do not read it. Desktop public endpoints live in `apps/desktop/.env.development` and `apps/desktop/.env.production`; use an ignored `.env.development.local` for a machine-specific override. Mobile reads `apps/mobile/.env`, which must be created from its local template:
+The root `.env` belongs exclusively to the Compose stack. Native clients do not read it. Desktop uses an ignored `apps/desktop/.env` for development and the packaged `apps/desktop/.env.production` for production. Create the development file from its template:
+
+```powershell
+Copy-Item apps/desktop/.env.example apps/desktop/.env
+```
+
+Mobile reads `apps/mobile/.env`, which must be created from its local template.
+
+macOS notarization credentials are private Desktop build settings. Create the ignored local file before packaging for macOS:
+
+```powershell
+Copy-Item apps/desktop/.env.local.example apps/desktop/.env.local
+```
 
 ```powershell
 Copy-Item apps/mobile/.env.example apps/mobile/.env

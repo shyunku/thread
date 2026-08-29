@@ -2,8 +2,8 @@
 .env
 .env.*
 !.env.example
-!/apps/desktop/.env.development
 !/apps/desktop/.env.production
+!/apps/desktop/.env.local.example
 
 # Migration and local caches
 /.monorepo-build/

@@ -3,7 +3,7 @@ const dotenv = require("dotenv");
 const path = require("path");
 const PackageJson = require("../../../package.json");
 
-dotenv.config({ path: path.resolve(__dirname, "../.env") });
+dotenv.config({ path: path.resolve(__dirname, "../../../.env.local") });
 
 module.exports = async function _notarize(context) {
   const { electronPlatformName, appOutDir } = context;
