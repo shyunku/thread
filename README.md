@@ -33,7 +33,7 @@ Local endpoints:
 - Application server: `http://localhost:4033`
 - RMS: `http://localhost:4034`
 
-The example credentials are development-only defaults. Replace the database and JWT secrets before using the stack outside a local machine. Google OAuth also requires real client credentials and a matching redirect URL.
+The example credentials are development-only placeholders. Set `ADMIN_ID` and `ADMIN_PASSWORD`, replace the database and JWT secrets, and configure real Google OAuth credentials with a matching redirect URL before starting the stack outside a local machine.
 
 The root `.env` belongs exclusively to the Compose stack. Native clients do not read it. Desktop uses an ignored `apps/desktop/.env` for development and the packaged `apps/desktop/.env.production` for production. Create the development file from its template:
 

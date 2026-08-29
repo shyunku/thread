@@ -51,6 +51,8 @@ services:
       REDIS_ADDR: redis:6379
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-replace-with-a-long-random-access-secret}
       JWT_ACCESS_EXPIRE: ${JWT_ACCESS_EXPIRE:-3h}
+      ADMIN_ID: ${ADMIN_ID:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-replace-with-a-different-long-random-refresh-secret}
       JWT_REFRESH_EXPIRE: ${JWT_REFRESH_EXPIRE:-7d}
       STATE_SCHEME_VERSION: 2

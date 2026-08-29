@@ -6,11 +6,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
+	"net/http"
+	"os"
 	"thread_api/log"
 	"thread_api/service/database"
 	"thread_api/util"
-	"net/http"
-	"os"
 	"time"
 )
 
@@ -74,55 +74,28 @@ func AdminLogin(c *gin.Context) {
 		return
 	}
 
-	// check if user registered in database
-	var userEntity database.UserEntity
-	if err := database.DB.QueryRowx("SELECT * FROM user_master WHERE auth_id = ? AND auth_encrypted_pw = ?", body.AuthId, body.EncryptedPassword).StructScan(&userEntity); err != nil {
-		if err == sql.ErrNoRows {
-			// user not found
-			log.Debugf("user not found: %s, %s", body.AuthId, body.EncryptedPassword)
-			c.AbortWithStatus(http.StatusUnauthorized)
-			return
-		}
-		log.Error(err)
-		c.AbortWithStatus(http.StatusInternalServerError)
+	if !validateAdminCredentials(body) {
+		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
 
-	if userEntity.UserId == nil {
-		log.Error(errors.New("user_id is nil"))
-		c.AbortWithStatus(http.StatusInternalServerError)
-		return
-	}
-
-	userId := *userEntity.UserId
-
-	var adminEntity database.AdminEntity
-	if err := database.DB.QueryRowx("SELECT * FROM admin_master WHERE uid = ?", userId).StructScan(&adminEntity); err != nil {
-		if err == sql.ErrNoRows {
-			// user not found
-			c.AbortWithStatus(http.StatusUnauthorized)
-			return
-		}
-		log.Error(err)
-		c.AbortWithStatus(http.StatusInternalServerError)
-		return
-	}
+	adminId := os.Getenv("ADMIN_ID")
 
 	// set auth token with jwt
-	authToken, err := createAuthToken(userId)
+	authToken, err := createAdminAuthToken()
 	if err != nil {
 		log.Error(err)
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
 
-	if err := saveRefreshToken(userId, authToken.RefreshToken); err != nil {
+	if err := saveRefreshToken(adminTokenSubject, authToken.RefreshToken); err != nil {
 		log.Error(err)
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
 
-	userDto := UserDtoFromEntity(userEntity)
+	userDto := NewUserDto(adminTokenSubject, &adminId, &adminId, nil, nil, nil, nil)
 	authDto := NewAuthTokenDto(authToken.AccessToken, authToken.RefreshToken)
 	authResult := &authResultDto{
 		User: userDto,
@@ -193,6 +166,25 @@ func RefreshToken(c *gin.Context) {
 		return
 	}
 
+	if userId == adminTokenSubject {
+		authToken, err := createAdminAuthToken()
+		if err != nil {
+			log.Error(err)
+			c.AbortWithStatus(http.StatusInternalServerError)
+			return
+		}
+
+		if err := saveRefreshToken(adminTokenSubject, authToken.RefreshToken); err != nil {
+			log.Error(err)
+			c.AbortWithStatus(http.StatusInternalServerError)
+			return
+		}
+
+		authDto := NewAuthTokenDto(authToken.AccessToken, authToken.RefreshToken)
+		c.JSON(http.StatusOK, authDto)
+		return
+	}
+
 	// check if user exists
 	var userEntity database.UserEntity
 	if err := database.DB.QueryRowx("SELECT * FROM user_master WHERE uid = ?", userId).StructScan(&userEntity); err != nil {
@@ -225,6 +217,14 @@ func RefreshToken(c *gin.Context) {
 }
 
 func createAuthToken(uid string) (*authTokenDto, error) {
+	return createAuthTokenWithRole(uid, false)
+}
+
+func createAdminAuthToken() (*authTokenDto, error) {
+	return createAuthTokenWithRole(adminTokenSubject, true)
+}
+
+func createAuthTokenWithRole(uid string, isAdmin bool) (*authTokenDto, error) {
 	var err error
 	atd := &authTokenDto{}
 
@@ -248,6 +248,7 @@ func createAuthToken(uid string) (*authTokenDto, error) {
 	atd.AccessToken.Uuid = uuid.New().String()
 	accessTokenClaims := jwt.MapClaims{}
 	accessTokenClaims["uid"] = uid
+	accessTokenClaims["admin"] = isAdmin
 	accessTokenClaims["exp"] = atd.AccessToken.ExpiresAt
 	accessTokenClaims["uuid"] = atd.AccessToken.Uuid
 	accessTokenClaims["authorized"] = true
@@ -262,6 +263,7 @@ func createAuthToken(uid string) (*authTokenDto, error) {
 	atd.RefreshToken.Uuid = uuid.New().String()
 	refreshTokenClaims := jwt.MapClaims{}
 	refreshTokenClaims["uid"] = uid
+	refreshTokenClaims["admin"] = isAdmin
 	refreshTokenClaims["exp"] = atd.RefreshToken.ExpiresAt
 	refreshTokenClaims["uuid"] = atd.RefreshToken.Uuid
 	signedRefreshClaims := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshTokenClaims)
