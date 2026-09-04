@@ -8,7 +8,7 @@
     "start": "node main.js"
   },
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "axios": "0.25.0",
     "connect-busboy": "1.0.0",
