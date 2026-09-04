@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"os"
 	"thread_api/configs"
 	"thread_api/controllers/v1"
 	"thread_api/log"
-	"os"
 )
 
 func ping(c *gin.Context) {
@@ -34,20 +34,20 @@ func SetupRouter() *gin.Engine {
 	return r
 }
 
-func RunGin(debugMode bool) {
+func RunGin(useHTTPS bool) {
 	log.Infof("Starting server on port on %d...", configs.AppServerPort)
 	r := SetupRouter()
 
-	if debugMode {
-		if err := r.Run(fmt.Sprintf(":%d", configs.AppServerPort)); err != nil {
-			log.Fatal(err)
-			os.Exit(-3)
-		}
-	} else {
+	if useHTTPS {
 		if err := r.RunTLS(
 			fmt.Sprintf(":%d", configs.AppServerPort),
 			"certificates/cert.pem",
 			"certificates/key.pem"); err != nil {
+			log.Fatal(err)
+			os.Exit(-3)
+		}
+	} else {
+		if err := r.Run(fmt.Sprintf(":%d", configs.AppServerPort)); err != nil {
 			log.Fatal(err)
 			os.Exit(-3)
 		}

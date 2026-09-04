@@ -56,9 +56,9 @@ services:
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-replace-with-a-different-long-random-refresh-secret}
       JWT_REFRESH_EXPIRE: ${JWT_REFRESH_EXPIRE:-7d}
       STATE_SCHEME_VERSION: 2
-      DEBUG: "true"
+      USE_HTTPS: ${USE_HTTPS:-false}
     ports:
-      - "${APP_SERVER_PORT:-4033}:4033"
+      - "127.0.0.1:${APP_SERVER_PORT:-4033}:4033"
     depends_on:
       mysql:
         condition: service_healthy
@@ -84,7 +84,7 @@ services:
       DB_PORT: 3306
       APP_SERVER_ENTRY: http://app-server:4033
     ports:
-      - "${RMS_PORT:-4034}:4034"
+      - "127.0.0.1:${RMS_PORT:-4034}:4034"
     volumes:
       - rms-releases:/app/releases
     depends_on:
@@ -104,18 +104,18 @@ services:
       dockerfile: apps/web/site/Dockerfile
     restart: unless-stopped
     ports:
-      - "${SITE_PORT:-3000}:80"
+      - "127.0.0.1:${SITE_PORT:-3000}:80"
 
   admin-site:
     build:
       context: .
       dockerfile: apps/web/admin/Dockerfile
       args:
-        REACT_APP_APP_SERVER_ENTRY: http://localhost:${APP_SERVER_PORT:-4033}
-        REACT_APP_RMS_ENTRY: http://localhost:${RMS_PORT:-4034}
+        REACT_APP_APP_SERVER_ENTRY: ${ADMIN_APP_SERVER_ENTRY:-http://localhost:4033}
+        REACT_APP_RMS_ENTRY: ${ADMIN_RMS_ENTRY:-http://localhost:4034}
     restart: unless-stopped
     ports:
-      - "${ADMIN_SITE_PORT:-3001}:80"
+      - "127.0.0.1:${ADMIN_SITE_PORT:-3001}:80"
     depends_on:
       app-server:
         condition: service_healthy

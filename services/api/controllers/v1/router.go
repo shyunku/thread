@@ -5,14 +5,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt"
 	"io"
 	"net/http"
 	"strings"
 	"thread_api/libs/crypto"
 	"thread_api/log"
 	"thread_api/service/database"
+
+	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt"
 )
 
 func UseRouterV1(r *gin.Engine) {
@@ -39,7 +40,7 @@ func AuthMiddleware(c *gin.Context) {
 		return
 	}
 
-	log.Debug("rawToken: ", rawToken)
+	log.Debug("access token: ", "redacted")
 
 	var unauthorizedErr error
 

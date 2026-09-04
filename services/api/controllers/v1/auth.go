@@ -3,15 +3,16 @@ package v1
 import (
 	"database/sql"
 	"errors"
-	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt"
-	"github.com/google/uuid"
 	"net/http"
 	"os"
 	"thread_api/log"
 	"thread_api/service/database"
 	"thread_api/util"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt"
+	"github.com/google/uuid"
 )
 
 // Login handle login without Google auth
@@ -280,7 +281,7 @@ func saveRefreshToken(uid string, refreshToken authToken) error {
 	refreshTokenExpiresUnix := time.Unix(refreshToken.ExpiresAt, 0)
 	now := time.Now()
 
-	log.Debug("save refresh token", refreshToken.Token, uid, refreshTokenExpiresUnix.Sub(now))
+	log.Debug("save refresh token", "redacted", uid, refreshTokenExpiresUnix.Sub(now))
 	if err := database.InMemoryDB.SetExp(refreshToken.Token, uid, refreshTokenExpiresUnix.Sub(now)); err != nil {
 		return err
 	}

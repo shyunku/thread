@@ -2,6 +2,8 @@
 
 | Index | Tag | Updated | Status | Completed | Deps | 항목 | 완료 조건 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
+| 13 | security | 2026-09-04 12:39 | 🟢 DONE | 2026-09-04 12:39 |  | 인증 토큰 원문 로그 제거 | access token과 refresh token 로그를 redacted 값으로 대체했다. 원문 토큰 로그 정적 검사 0건, API 전체 테스트 및 `app-server` Docker 이미지 빌드를 통과했다. |
+| 12 | deployment | 2026-09-04 12:39 | 🟢 DONE | 2026-09-04 12:39 |  | Cloudflare Tunnel 기반 local/production Compose 설정 분리 | 관리자 웹 build args의 local/production 분기, `USE_HTTPS`, 네 서비스의 loopback 바인딩을 반영했다. Compose config, API 전체 테스트, 관리자 production 빌드와 `app-server`·`admin-site` Docker 이미지 빌드를 통과했으며 실제 `.env`와 `.env.production`은 수정하지 않았다. |
 | 11 | desktop | 2026-08-30 05:30 | 🟢 DONE | 2026-08-30 05:30 |  | 데스크톱 앱 버전을 1.0.2로 상향 | `apps/desktop/package.json` 버전을 1.0.2로 변경했고 데스크톱 production 빌드를 통과했다. 기존 ESLint 경고는 남아 있으나 빌드 오류는 없다. |
 | 10 | api | 2026-08-30 05:20 | 🟢 DONE | 2026-08-30 05:20 | #9 | 관리자 인증을 DB 계정에서 env 고정 계정으로 전환 | 루트 `.env`의 실제 관리자 값을 Compose API에 적용했다. `app-server` 재빌드·재생성 후 실제 env 자격 증명 로그인 성공, 오답 401, 관리자 API 200, refresh 성공 및 전체 서비스 상태를 확인했다. |
 | 9 | admin | 2026-08-30 04:48 | 🟢 DONE | 2026-08-30 04:48 |  | 관리자 로그인 버튼의 React 이벤트 직렬화 오류 수정 | 로그인 핸들러가 component state만 사용하도록 수정했다. React production 빌드와 Compose 재배포를 완료했고, 새 번들 HTTP 200, 전체 서비스 실행·health, 구조화된 무효 로그인 요청의 API 401 응답을 확인했다. |

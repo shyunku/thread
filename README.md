@@ -35,6 +35,14 @@ Local endpoints:
 
 The example credentials are development-only placeholders. Set `ADMIN_ID` and `ADMIN_PASSWORD`, replace the database and JWT secrets, and configure real Google OAuth credentials with a matching redirect URL before starting the stack outside a local machine.
 
+Compose injects the administration site's public API endpoints at build time. Keep local values in `.env`, and set `ADMIN_APP_SERVER_ENTRY=https://api.threadapp.kr` and `ADMIN_RMS_ENTRY=https://rms.threadapp.kr` in the ignored root `.env.production`. Because Create React App embeds these values in the browser bundle, rebuild `admin-site` after changing them. Start the production stack with:
+
+```bash
+docker compose --env-file .env.production up -d --build
+```
+
+All published Compose ports bind to `127.0.0.1`. A host-installed Cloudflare Tunnel can publish the site, administration site, API, and RMS from ports `3000`, `3001`, `4033`, and `4034` without exposing those origin ports directly. Set `USE_HTTPS=false` when Cloudflare terminates public TLS and connects to the private API origin over HTTP. Set it to `true` only when the Go API itself has readable `certificates/cert.pem` and `certificates/key.pem` files.
+
 The root `.env` belongs exclusively to the Compose stack. Native clients do not read it. Desktop uses an ignored `apps/desktop/.env` for development and the packaged `apps/desktop/.env.production` for production. Create the development file from its template:
 
 ```powershell
