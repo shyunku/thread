@@ -2,6 +2,7 @@
 
 | Index | Tag | Updated | Status | Completed | Deps | 항목 | 완료 조건 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
+| 16 | admin/rms | 2026-09-05 03:39 | 🟢 DONE | 2026-09-05 03:39 |  | Cloudflare 제한을 우회하는 릴리스 청크 업로드 구현 | 관리자 웹의 8MiB 순차 전송과 RMS의 메타데이터 검증·임시 저장·순서 결합·크기 검증·실패 정리를 구현했다. 실제 119MB 설치 파일 15청크 SHA-256 일치, 관리자 빌드, Compose 설정, RMS·관리자 Docker 빌드와 격리된 HTTP/MySQL 통합 검증에서 파일 저장 및 `win=1` 갱신을 확인했다. |
 | 15 | repository | 2026-09-04 22:18 | 🟢 DONE | 2026-09-04 22:18 |  | 프로젝트 라이선스를 MIT로 명시 | 저작권자를 shyunku로 명시한 표준 MIT LICENSE를 루트에 추가하고 루트 및 RMS 패키지 라이선스 표기를 MIT로 통일했다. JSON 파싱과 라이선스 원문을 검증했다. |
 | 14 | desktop | 2026-09-04 22:17 | 🟢 DONE | 2026-09-04 22:17 |  | 업데이트 확인 실패 시 경고 후 앱 실행 및 1.0.3-beta 배포 준비 | `react-cssfx-loading`의 CircularProgress를 적용하고 요청을 10초로 제한했다. 실패 시 종료 대신 앱 내부 경고 모달의 계속 응답을 기다리도록 변경했으며 production 빌드와 Electron 패키징을 통과하고 1.0.3-beta 설치 파일 내 반영을 확인했다. |
 | 13 | security | 2026-09-04 12:39 | 🟢 DONE | 2026-09-04 12:39 |  | 인증 토큰 원문 로그 제거 | access token과 refresh token 로그를 redacted 값으로 대체했다. 원문 토큰 로그 정적 검사 0건, API 전체 테스트 및 `app-server` Docker 이미지 빌드를 통과했다. |

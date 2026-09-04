@@ -9,8 +9,11 @@ const resolver = require("../utils/expressResolver");
 const db = require("../modules/mysql");
 const axios = require("axios");
 const DiskUsage = require("diskusage");
+const chunkUpload = require("../modules/chunkUpload");
 
 const serverPort = process.env.SERVER_PORT;
+const getReleaseDirPath = () =>
+  path.resolve(process.env.PWD || process.cwd(), "releases");
 
 router.get("/disk-status", async (req, res) => {
   DiskUsage.check("/", (err, info) => {
@@ -114,6 +117,83 @@ router.post("/alert-new-version", async (req, res) => {
   } catch (err) {
     console.error(err);
     resolver.fail(res, 300);
+  }
+});
+
+router.put("/release/chunk", async (req, res) => {
+  let metadata;
+
+  try {
+    metadata = chunkUpload.parseChunkMetadata(req.query);
+  } catch (err) {
+    resolver.fail(res, 400, null, err.message);
+    return;
+  }
+
+  let receivedFile = false;
+  req.pipe(req.busboy);
+
+  req.busboy.on("file", (fieldName, file) => {
+    if (receivedFile) {
+      file.resume();
+      return;
+    }
+    receivedFile = true;
+
+    chunkUpload
+      .storeChunk(getReleaseDirPath(), file, metadata)
+      .then((size) => {
+        if (!res.headersSent) {
+          resolver.ok(res, { chunk_index: metadata.chunkIndex, size });
+        }
+      })
+      .catch((err) => {
+        console.error(err);
+        if (!res.headersSent) resolver.fail(res, 300, null, err.message);
+      });
+  });
+
+  req.busboy.on("finish", () => {
+    if (!receivedFile && !res.headersSent) {
+      resolver.fail(res, 400, null, "Chunk file not found");
+    }
+  });
+
+  req.busboy.on("error", (err) => {
+    console.error(err);
+    if (!res.headersSent) resolver.fail(res, 300, null, err.message);
+  });
+});
+
+router.post("/release/complete", async (req, res) => {
+  try {
+    const result = await chunkUpload.combineChunks(
+      getReleaseDirPath(),
+      req.query.upload_id
+    );
+    await db.query(`UPDATE version_master SET ${result.category}=? WHERE version=?;`, [
+      true,
+      result.version,
+    ]);
+    resolver.ok(res, {
+      version: result.version,
+      category: result.category,
+      filename: result.filename,
+      size: result.fileSize,
+    });
+  } catch (err) {
+    console.error(err);
+    resolver.fail(res, 300, null, err.message);
+  }
+});
+
+router.delete("/release/chunks", async (req, res) => {
+  try {
+    await chunkUpload.abortUpload(getReleaseDirPath(), req.query.upload_id);
+    resolver.ok(res);
+  } catch (err) {
+    console.error(err);
+    resolver.fail(res, 400, null, err.message);
   }
 });
 
