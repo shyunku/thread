@@ -2,7 +2,7 @@
 
 | Index | Tag | Updated | Status | Completed | Deps | 항목 | 완료 조건 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 15 | repository | 2026-09-04 21:53 | 🟡 WIP |  |  | 프로젝트 라이선스를 MIT로 명시 | 루트에 표준 MIT LICENSE를 추가하고 기존 패키지 라이선스 표기를 MIT로 통일한다. |
+| 15 | repository | 2026-09-04 22:18 | 🟢 DONE | 2026-09-04 22:18 |  | 프로젝트 라이선스를 MIT로 명시 | 저작권자를 shyunku로 명시한 표준 MIT LICENSE를 루트에 추가하고 루트 및 RMS 패키지 라이선스 표기를 MIT로 통일했다. JSON 파싱과 라이선스 원문을 검증했다. |
 | 14 | desktop | 2026-09-04 22:17 | 🟢 DONE | 2026-09-04 22:17 |  | 업데이트 확인 실패 시 경고 후 앱 실행 및 1.0.3-beta 배포 준비 | `react-cssfx-loading`의 CircularProgress를 적용하고 요청을 10초로 제한했다. 실패 시 종료 대신 앱 내부 경고 모달의 계속 응답을 기다리도록 변경했으며 production 빌드와 Electron 패키징을 통과하고 1.0.3-beta 설치 파일 내 반영을 확인했다. |
 | 13 | security | 2026-09-04 12:39 | 🟢 DONE | 2026-09-04 12:39 |  | 인증 토큰 원문 로그 제거 | access token과 refresh token 로그를 redacted 값으로 대체했다. 원문 토큰 로그 정적 검사 0건, API 전체 테스트 및 `app-server` Docker 이미지 빌드를 통과했다. |
 | 12 | deployment | 2026-09-04 12:39 | 🟢 DONE | 2026-09-04 12:39 |  | Cloudflare Tunnel 기반 local/production Compose 설정 분리 | 관리자 웹 build args의 local/production 분기, `USE_HTTPS`, 네 서비스의 loopback 바인딩을 반영했다. Compose config, API 전체 테스트, 관리자 production 빌드와 `app-server`·`admin-site` Docker 이미지 빌드를 통과했으며 실제 `.env`와 `.env.production`은 수정하지 않았다. |
