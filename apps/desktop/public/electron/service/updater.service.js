@@ -1,4 +1,4 @@
-const { app } = require("electron");
+const { app, ipcMain } = require("electron");
 const Util = require("../modules/util");
 const FileSystem = require("../modules/filesystem");
 const ArchCategory = require("../constants/ArchCategory.constants");
@@ -76,13 +76,43 @@ class UpdaterService {
         app.exit();
         return;
       case UPDATER_RESULT_FLAG.UPDATE_CHECK_FAIL:
-        console.error(`Couldn't check update. Exiting program...`);
-        app.exit();
-        return;
+        console.error(`Couldn't check update. Continuing program...`, data);
+        await this.showUpdateCheckFailure(window);
+        break;
     }
     await Util.sleep(1000);
 
-    window.close();
+    if (!window.isDestroyed()) window.close();
+  }
+
+  async showUpdateCheckFailure(window) {
+    const continueTopic = "update_check@continue";
+
+    await new Promise((resolve) => {
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        ipcMain.removeListener(continueTopic, onContinue);
+        window.removeListener("closed", finish);
+        resolve();
+      };
+      const onContinue = (event) => {
+        if (event.sender.id !== window.webContents.id) return;
+        finish();
+      };
+
+      ipcMain.on(continueTopic, onContinue);
+      window.once("closed", finish);
+      window.webContents.send("update_check@failed", null, {
+        success: false,
+        data: {
+          title: "업데이트를 확인할 수 없습니다",
+          message:
+            "업데이트 서버에 등록된 최신 버전이 없거나 일시적으로 연결할 수 없습니다. 현재 버전으로 계속 실행할 수 있습니다.",
+        },
+      });
+    });
   }
 
   getFileExtensionByCategory(category) {
@@ -103,7 +133,8 @@ class UpdaterService {
       const currentClientVersion = PackageJson.version;
       const latestVersionResult = await Request.get(
         serverHost,
-        `/default/latest-version?exclude_beta=${!PackageJson.enableBetaUpdate}&only_verified=true&category=${category}`
+        `/default/latest-version?exclude_beta=${!PackageJson.enableBetaUpdate}&only_verified=true&category=${category}`,
+        { timeout: 10000 }
       );
 
       if (latestVersionResult.code === Request.ok) {

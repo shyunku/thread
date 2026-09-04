@@ -50,6 +50,7 @@ const silentSender = (topic, param, ...arg) => {
 };
 
 const IpcSender = {
+  silentSender,
   system: {
     terminateSignal: () => {
       sender("system/terminate_signal", null, currentWindow.id);

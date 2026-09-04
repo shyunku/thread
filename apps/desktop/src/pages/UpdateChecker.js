@@ -2,13 +2,7 @@ import React, { useEffect } from "react";
 import "./UpdateChecker.scss";
 import IpcSender from "../utils/IpcSender";
 import { shortenSize } from "../utils/Common";
-import {
-  BarWave,
-  FadingDots,
-  FillingBottle,
-  FlippingSquare,
-  Hypnosis,
-} from "react-cssfx-loading";
+import { CircularProgress } from "react-cssfx-loading";
 
 const STATE_LABEL = {
   initial: `업데이트 확인 중...`,
@@ -24,6 +18,7 @@ const STATE_LABEL = {
 const UpdateChecker = () => {
   const [state, setState] = React.useState("initial");
   const [current, setCurrent] = React.useState(null);
+  const [failure, setFailure] = React.useState(null);
 
   const label = STATE_LABEL[state];
 
@@ -51,21 +46,36 @@ const UpdateChecker = () => {
       setCurrent(null);
     });
 
+    IpcSender.onAll("update_check@failed", ({ data }) => {
+      setFailure(data);
+    });
+
     return () => {
       IpcSender.offAll("release_download@initial");
       IpcSender.offAll("release_download@state");
       IpcSender.offAll("release_download@done");
       IpcSender.offAll("release_download@skip");
       IpcSender.offAll("release_install@state");
+      IpcSender.offAll("update_check@failed");
     };
   }, []);
+
+  const continueWithoutUpdate = () => {
+    IpcSender.silentSender("update_check@continue", true);
+  };
 
   return (
     <div className="updater">
       <div className="content-wrapper">
         <div className="name">Thread</div>
         <div className="loading">
-          <FillingBottle />
+          <CircularProgress
+            color="rgb(73, 168, 255)"
+            width="38px"
+            height="38px"
+            duration="0.8s"
+            aria-label="업데이트 확인 중"
+          />
         </div>
         <div className="text">{label}</div>
         {current && (
@@ -87,6 +97,18 @@ const UpdateChecker = () => {
           </>
         )}
       </div>
+      {failure && (
+        <div className="update-warning" role="dialog" aria-modal="true">
+          <div className="update-warning__card">
+            <div className="update-warning__icon">!</div>
+            <div className="update-warning__title">{failure.title}</div>
+            <div className="update-warning__message">{failure.message}</div>
+            <button type="button" onClick={continueWithoutUpdate}>
+              계속
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
