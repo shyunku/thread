@@ -2,19 +2,17 @@ package main
 
 import (
 	"github.com/joho/godotenv"
+	"os"
+	"strconv"
+	"strings"
 	"thread_api/controllers"
 	"thread_api/libs/crypto"
 	"thread_api/log"
 	"thread_api/service/database"
 	"thread_api/service/state"
-	"os"
-	"strconv"
-	"strings"
 )
 
 const VERSION = "1.0.1"
-
-var DebugMode = false
 
 func main() {
 	log.Infof("Starting Thread App Server v%s...", VERSION)
@@ -46,7 +44,7 @@ func main() {
 		"JWT_REFRESH_SECRET",
 		"JWT_REFRESH_EXPIRE",
 		"STATE_SCHEME_VERSION",
-		"DEBUG",
+		"USE_HTTPS",
 	}
 	missingVariables := make([]string, 0)
 	for _, key := range envCheckKeys {
@@ -61,12 +59,12 @@ func main() {
 		os.Exit(-1)
 	}
 
-	// Setting extra environment variables
-	// debug
-	debug := os.Getenv("DEBUG")
-	if debug == "true" {
-		DebugMode = true
-		log.Info("debug mode activated")
+	// Decide whether the API server terminates TLS itself. Cloudflare Tunnel
+	// deployments use HTTP between cloudflared and this private origin.
+	useHTTPS, err := strconv.ParseBool(os.Getenv("USE_HTTPS"))
+	if err != nil {
+		log.Error("Invalid USE_HTTPS value: ", os.Getenv("USE_HTTPS"))
+		os.Exit(-1)
 	}
 
 	// scheme version
@@ -104,5 +102,5 @@ func main() {
 	}
 
 	// Run web server with gin
-	controllers.RunGin(DebugMode)
+	controllers.RunGin(useHTTPS)
 }
