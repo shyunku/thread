@@ -5,7 +5,8 @@
   "main": "main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node main.js"
+    "start": "node main.js",
+    "test:chunk-upload": "node src/modules/chunkUpload.test.js"
   },
   "author": "",
   "license": "MIT",

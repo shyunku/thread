@@ -43,6 +43,8 @@ docker compose --env-file .env.production up -d --build
 
 All published Compose ports bind to `127.0.0.1`. A host-installed Cloudflare Tunnel can publish the site, administration site, API, and RMS from ports `3000`, `3001`, `4033`, and `4034` without exposing those origin ports directly. Set `USE_HTTPS=false` when Cloudflare terminates public TLS and connects to the private API origin over HTTP. Set it to `true` only when the Go API itself has readable `certificates/cert.pem` and `certificates/key.pem` files.
 
+The administration site uploads desktop release files to RMS in sequential 8 MiB chunks, allowing installers larger than Cloudflare's per-request upload limit. RMS assembles and validates the chunks before marking the platform release as available. Completed releases persist in the `rms-releases` Compose volume.
+
 The root `.env` belongs exclusively to the Compose stack. Native clients do not read it. Desktop uses an ignored `apps/desktop/.env` for development and the packaged `apps/desktop/.env.production` for production. Create the development file from its template:
 
 ```powershell

@@ -9,6 +9,8 @@ import { IoCheckmarkSharp } from "react-icons/io5";
 import { ImCheckmark } from "react-icons/im";
 import { AiFillAlert } from "react-icons/ai";
 
+const RELEASE_CHUNK_SIZE = 8 * 1024 * 1024;
+
 class Version extends Component {
   constructor(props) {
     super(props);
@@ -616,6 +618,78 @@ class Version extends Component {
     );
   }
 
+  uploadReleaseInChunks = async (
+    file,
+    version,
+    category,
+    isBeta,
+    onProgress
+  ) => {
+    const uploadId =
+      window.crypto?.randomUUID?.() ??
+      `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const totalChunks = Math.ceil(file.size / RELEASE_CHUNK_SIZE);
+    const commonParams = new URLSearchParams({
+      upload_id: uploadId,
+      version,
+      category,
+      beta: isBeta,
+      filename: file.name,
+      file_size: String(file.size),
+      total_chunks: String(totalChunks),
+    });
+
+    try {
+      for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+        const start = chunkIndex * RELEASE_CHUNK_SIZE;
+        const end = Math.min(start + RELEASE_CHUNK_SIZE, file.size);
+        const chunk = file.slice(start, end);
+        const formData = new FormData();
+        formData.append("file", chunk, file.name);
+
+        const chunkParams = new URLSearchParams(commonParams);
+        chunkParams.set("chunk_index", String(chunkIndex));
+        const response = await axios.put(
+          `${process.env.REACT_APP_RMS_ENTRY}/admin/release/chunk?${chunkParams}`,
+          formData,
+          {
+            headers: { "Content-Type": "multipart/form-data" },
+            onUploadProgress: (event) => {
+              const chunkProgress = Math.min(event.loaded, chunk.size);
+              onProgress(Math.min(start + chunkProgress, file.size));
+            },
+          }
+        );
+
+        if (response.data?.code !== 200) {
+          throw new Error(
+            response.data?.msg ?? `Chunk ${chunkIndex + 1} upload failed`
+          );
+        }
+        onProgress(end);
+      }
+
+      const completeResponse = await axios.post(
+        `${process.env.REACT_APP_RMS_ENTRY}/admin/release/complete?upload_id=${encodeURIComponent(
+          uploadId
+        )}`
+      );
+      if (completeResponse.data?.code !== 200) {
+        throw new Error(completeResponse.data?.msg ?? "Release assembly failed");
+      }
+      return completeResponse.data;
+    } catch (err) {
+      await axios
+        .delete(
+          `${process.env.REACT_APP_RMS_ENTRY}/admin/release/chunks?upload_id=${encodeURIComponent(
+            uploadId
+          )}`
+        )
+        .catch((cleanupError) => console.error(cleanupError));
+      throw err;
+    }
+  };
+
   releaseNewVersion = async () => {
     const {
       new_version_input,
@@ -684,7 +758,7 @@ class Version extends Component {
     }
 
     const version = new_version_input;
-    let formData, url, res, resp, config, filesize;
+    let url, res, resp, filesize;
 
     try {
       if (edit_mode && win_release_will_delete) {
@@ -694,30 +768,22 @@ class Version extends Component {
         console.log("delete win", url, resp);
       } else if (win_release_file && win_release_file.dummy === false) {
         filesize = win_release_file.size;
-        formData = new FormData();
-        formData.append("file", win_release_file);
-        config = {
-          onUploadProgress: (e) => {
-            this.setState({
-              win_release_upload_current: e.loaded,
-              win_release_upload_total: e.total,
-            });
-          },
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        };
-
         this.setState({
           win_release_upload_current: 0,
           win_release_upload_total: filesize,
           win_release_upload_state: "uploading",
         });
 
-        url = `${process.env.REACT_APP_RMS_ENTRY}/admin/release?version=${version}&category=win&beta=${isBeta}`;
-        res = await axios.put(url, formData, config);
-        resp = res.data;
-        console.log("update win", url, resp);
+        resp = await this.uploadReleaseInChunks(
+          win_release_file,
+          version,
+          "win",
+          isBeta,
+          (uploaded) => {
+            this.setState({ win_release_upload_current: uploaded });
+          }
+        );
+        console.log("update win", resp);
 
         this.setState({
           win_release_upload_state: "uploaded",
@@ -744,30 +810,22 @@ class Version extends Component {
         console.log("delete mac", url, resp);
       } else if (mac_release_file && mac_release_file.dummy === false) {
         filesize = mac_release_file.size;
-        formData = new FormData();
-        formData.append("file", mac_release_file);
-        config = {
-          onUploadProgress: (e) => {
-            this.setState({
-              mac_release_upload_current: e.loaded,
-              mac_release_upload_total: e.total,
-            });
-          },
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        };
-
         this.setState({
           mac_release_upload_current: 0,
           mac_release_upload_total: filesize,
           mac_release_upload_state: "uploading",
         });
 
-        url = `${process.env.REACT_APP_RMS_ENTRY}/admin/release?version=${version}&category=mac&beta=${isBeta}`;
-        res = await axios.put(url, formData, config);
-        resp = res.data;
-        console.log("update mac", url, resp);
+        resp = await this.uploadReleaseInChunks(
+          mac_release_file,
+          version,
+          "mac",
+          isBeta,
+          (uploaded) => {
+            this.setState({ mac_release_upload_current: uploaded });
+          }
+        );
+        console.log("update mac", resp);
 
         this.setState({
           mac_release_upload_state: "uploaded",

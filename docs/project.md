@@ -44,3 +44,5 @@ Thread는 데스크톱과 모바일에서 사용할 수 있는 개인 할 일 �
 공개 사이트와 관리자 사이트는 API 및 RMS와 함께 Docker Compose에 유지한다. 관리자 React 빌드의 공개 endpoint는 루트 env의 `ADMIN_APP_SERVER_ENTRY`와 `ADMIN_RMS_ENTRY`를 Compose build args로 전달해 local 및 production 값을 분리한다. 이 값은 정적 브라우저 번들에 포함되는 공개 설정이며 비밀값을 저장하지 않는다.
 
 운영 환경에서는 EC2 호스트에서 실행하는 Cloudflare Tunnel이 `127.0.0.1`에만 게시된 site, admin-site, API 및 RMS 포트로 연결한다. 외부 TLS는 Cloudflare가 종료하고 private origin은 HTTP를 사용하므로 `USE_HTTPS=false`를 사용한다. `USE_HTTPS=true`는 Go API가 인증서 파일을 직접 읽고 TLS를 종료하는 배포에서만 사용한다. 실제 `.env`와 `.env.production`은 저장소에 커밋하지 않는다.
+
+관리자 사이트의 릴리스 업로드는 Cloudflare의 단일 요청 크기 제한을 넘지 않도록 파일을 8MiB 청크로 순차 전송한다. RMS는 업로드별 메타데이터와 청크를 임시 저장하고 전체 청크의 존재 및 결합 파일 크기를 검증한 뒤 최종 릴리스 경로로 원자적으로 이동한다. 실패한 업로드의 임시 청크는 관리자 사이트의 정리 요청으로 삭제하며, 최종 릴리스는 Compose의 `rms-releases` 볼륨에 영속화한다.

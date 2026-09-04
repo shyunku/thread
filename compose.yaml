@@ -86,7 +86,7 @@ services:
     ports:
       - "127.0.0.1:${RMS_PORT:-4034}:4034"
     volumes:
-      - rms-releases:/app/releases
+      - rms-releases:/workspace/service/releases
     depends_on:
       mysql:
         condition: service_healthy
