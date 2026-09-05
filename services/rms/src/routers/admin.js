@@ -3,15 +3,12 @@ const fs = require("fs");
 const util = require("../utils/util");
 const router = express.Router();
 const path = require("path");
-const pbip = require("public-ip");
-const queryString = require("query-string");
 const resolver = require("../utils/expressResolver");
 const db = require("../modules/mysql");
 const axios = require("axios");
 const DiskUsage = require("diskusage");
 const chunkUpload = require("../modules/chunkUpload");
 
-const serverPort = process.env.SERVER_PORT;
 const getReleaseDirPath = () =>
   path.resolve(process.env.PWD || process.cwd(), "releases");
 
@@ -36,7 +33,6 @@ router.get("/versions", async (req, res) => {
 
     const rootPath = process.env.PWD;
     const releaseDirPath = path.resolve(rootPath, "releases");
-    const ipv4 = await pbip.v4();
 
     for (let version in versionInfoMap) {
       const versionInfo = versionInfoMap[version];
@@ -63,7 +59,7 @@ router.get("/versions", async (req, res) => {
               versionInfo.releases.push({
                 category,
                 filename: file,
-                link: `http://${ipv4}:${serverPort}/default/release?version=${version}&category=${category}`,
+                link: `/default/release?version=${encodeURIComponent(version)}&category=${encodeURIComponent(category)}`,
               });
             }
           }
@@ -108,15 +104,28 @@ router.post("/alert-new-version", async (req, res) => {
 
   const { version } = req.body;
 
+  const authorization = req.get("Authorization");
+  if (!authorization || !/^Bearer\s+\S+$/i.test(authorization)) {
+    resolver.fail(res, 401, null, "관리자 로그인이 필요합니다.");
+    return;
+  }
+
   try {
     const { APP_SERVER_ENTRY } = process.env;
     const url = `${APP_SERVER_ENTRY}/v1/admin/alert-new-version`;
-    let result = await axios.post(url, { version });
+    let result = await axios.post(url, { version }, {
+      headers: { Authorization: authorization },
+      timeout: 10000,
+    });
     await db.query(`UPDATE version_master SET alerted=true WHERE version=?`, [version]);
     resolver.ok(res, result.data);
   } catch (err) {
-    console.error(err);
-    resolver.fail(res, 300);
+    const status = err.response?.status;
+    console.error("Release alert failed", status || err.code || "unknown");
+    const authFailure = status === 401 || status === 403;
+    resolver.fail(res, authFailure ? status : 300, null,
+      authFailure ? "관리자 인증이 만료되었거나 권한이 없습니다. 다시 로그인해주세요."
+        : "알림 요청을 처리하지 못했습니다. API 연결 상태를 확인해주세요.");
   }
 });
 

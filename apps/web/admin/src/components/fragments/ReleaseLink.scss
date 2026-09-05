@@ -1,0 +1,41 @@
+.release-link {
+  position: relative;
+  margin-right: 5px;
+
+  .release-link-menu, .release-link-notice {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 20;
+    min-width: 120px;
+    border: 1px solid #555;
+    border-radius: 5px;
+    background: #252a2d;
+    color: #eee;
+    box-shadow: 0 4px 12px #0008;
+  }
+
+  .release-link-menu {
+    padding: 4px;
+    a, button {
+      display: block;
+      box-sizing: border-box;
+      width: 100%;
+      padding: 8px 12px;
+      border: 0;
+      background: transparent;
+      color: #eee;
+      font-size: 13px;
+      text-align: left;
+      white-space: nowrap;
+      cursor: pointer;
+      &:hover, &:focus-visible { background: #39444b; }
+    }
+  }
+
+  .release-link-notice {
+    width: 190px;
+    padding: 8px;
+    font-size: 12px;
+  }
+}
