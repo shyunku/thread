@@ -8,6 +8,8 @@
 
 ## 1. 범위와 현재 확인 수준
 
+정책 변경(#31): account opt-in 대신 v2 일괄 배포로 확정했다. 운영자가 전체 이관 도구를 직접 실행하고 구버전 sync는 차단한다. 아래 과거 단계적 rollout 설명 중 상충하는 내용은 [최신 운영 절차](../v2-rollout.md)로 대체한다. 계정별 DB transaction은 원자성/재실행 단위일 뿐 opt-in 선택지가 아니다.
+
 Electron은 유지한다. 이번 변경은 저장·동기화 설계이며 Tauri 전환, 인증 방식 변경, 협업 편집, alert 전달 기능은 범위 밖이다.
 기존 사용자 ID, Task/Subtask/Category ID, 내용, 완료·반복 정보, 순서, 카테고리 관계와 미전송 오프라인 변경을 보존한다.
 서버 데이터 초기화나 기존 DB/table 삭제를 전제로 하지 않는다.
@@ -256,7 +258,7 @@ WebSocket/메모리 eventQueue를 durable pending queue로 착각하지 않는�
 
 ### 9.1 운영 호환 정책: 사용자 승인 완료
 
-확정: account 단위 opt-in cutover. 미전환 계정은 v1을 그대로 사용하고, 전환한 계정만 v2가 유일한 writer가 된다.
+확정(변경): v2 일괄 배포. 운영자가 전체 계정을 이관하고, 새 서버는 미전환 계정을 v1으로 fallback시키지 않는다.
 전환 계정의 구 클라이언트 v1 sync 요청은 UPDATE_REQUIRED로 거절한다. 인증까지 차단하거나 로컬 DB를 지우지 않는다.
 업데이트 뒤 legacy outbox/import 도구로 미전송 변경을 v2에 가져온다. 구 클라이언트 자체에 새 경고 UI가 없으면 일반 sync 오류로 보일 수 있다.
 사전 bridge release에서 capabilities 확인·업데이트 안내·안전 export를 먼저 제공해 이 문제를 완화한다.
@@ -331,7 +333,7 @@ v1 계정은 기존 조회, v2 계정은 새 조회 adapter를 사용한다. 구
 | P4 desktop | database.context, syncer.context, executor.service, executors, websocket.context, IPC, Root.layout, task 정렬 consumers | 새 SQLite/adapter, 기존 데이터·pending 보존, offline→online 다기기 확인 |
 | P5 mobile 조회 adapter | hooks/websocket, hooks/executor, Home, stateSlice, persistence | v2 snapshot/delta 표시, 삭제·순서 반영, 재접속·계정별 cursor 검증. 편집/outbox 제외 |
 | P6 rehearsal | 격리 MySQL + SQLite 사본, failpoints, metrics | 사용자별 내용·관계·순서 parity, migration crash/resume, 롤백 경계 검증 |
-| P7 opt-in rollout | bridge release, per-user migration CLI, mode fence | 운영자 별도 실행 승인, 구버전 재연결 보호, 관측 후 확대 |
+| P7 일괄 rollout | 전체 계정 migration CLI, v2 전용 서버 | 운영자가 비공개 환경에서 직접 실행·검증, 구버전 sync 차단 |
 
 기존 도메인 action 명칭은 UI와 IPC adapter에서 최대한 유지한다. canonical 엔진이 안정화되기 전 old state package를 삭제하지 않는다.
 legacy user는 old path, v2 user는 new path이며 하나의 계정에서 두 writer가 경쟁하지 않게 한다.
@@ -372,7 +374,7 @@ snapshot은 [Consistent Nonlocking Reads](https://dev.mysql.com/doc/refman/8.0/e
 
 ## 13. 승인된 실행 경계
 
-사용자가 account별 opt-in 및 구버전 sync 차단·업데이트 후 pending import 방식을 승인했다.
+사용자가 opt-in을 폐기하고 v2 일괄 배포·구버전 sync 차단·업데이트 후 pending import를 확정했다. 운영 DB 작업은 개인정보 보호를 위해 사용자가 직접 수행한다.
 추가 요청에 따라 서버와 desktop의 schema version을 앱·동기화 protocol 버전과 분리하고, 연결 준비 시 자동 migration을 실행한다.
 구조적 schema 준비는 자동화하되 account 데이터 backfill·v2 writer 개방은 preflight/rehearsal 이후 운영자가 승인한다.
 구현과 운영 적용은 별개다. 현재 사용자 DB/운영 서버에 migration을 실행하지 않았다.

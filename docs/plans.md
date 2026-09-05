@@ -7,6 +7,8 @@
 
 ## 진행 원칙
 
+현재 확정 정책(#31): opt-in 없이 v2를 일괄 배포한다. 운영 DB 백업·검사·이관·배포는 사용자가 직접 수행하며 Codex는 가짜 데이터로 도구만 검증한다. 구버전 sync는 일괄 차단한다. 아래 단계표의 계정별 전환 표현보다 [최신 운영 절차](v2-rollout.md)를 우선한다.
+
 현재 런타임은 v1이다. 이 계획 작성은 운영 DB 이관이나 파괴적 정리를 실행했다는 뜻이 아니다.
 Electron 유지, Desktop offline-first 쓰기·다중 기기 sync 보존, Mobile은 조회 프로토콜만 v2로 변경한다.
 실제 상태와 완료 이력은 [tasks.md](tasks.md)에서 관리한다.
@@ -22,7 +24,7 @@ Electron 유지, Desktop offline-first 쓰기·다중 기기 sync 보존, Mobile
 | 4 | desktop SQLite migration·outbox·adapter | local-only 계정, 기존 데이터와 미전송 변경 보존, 재시작·복구 | 사용자 확인 후 테스트 기기 |
 | 5 | mobile read adapter | 동일 v2 snapshot/delta/삭제/정렬·재접속 갱신 | 조회 전용. 새 편집 기능 없음 |
 | 6 | 사본 rehearsal·성능 비교 | backup restore, migration resume, entity parity, 1k/10k/50k fixture 지표 | 계정 단위 전환 후보 선정 |
-| 7 | bridge 배포·사용자별 cutover | legacy writer fence, 모든 API 인스턴스 교체, rollback 경계·운영 승인 | 운영자가 지정한 계정만 전환 |
+| 7 | 운영자 실행 일괄 cutover | 백업/복원 확인, 구 API writer 종료, 전체 이관/verify, rollback 경계 | 사용자가 직접 전체 계정을 이관하고 v2 서버 배포 |
 
 ## 미확정 정책
 

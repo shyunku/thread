@@ -108,11 +108,7 @@ func main() {
 
 	// TODO :: check redis connection
 
-	// Initialize state service
-	if err = state.InitializeService(database.DB); err != nil {
-		log.Error(err)
-		os.Exit(-3)
-	}
+	// v2-only release: never load legacy block chains into memory.
 
 	// Run web server with gin
 	controllers.RunGin(useHTTPS)

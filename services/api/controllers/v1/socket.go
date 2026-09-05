@@ -476,6 +476,8 @@ func printStat(connectionId string, uid string, text string) {
 
 func UseSocketRouter(g *gin.RouterGroup) {
 	sg := g.Group("/websocket")
-	sg.Use(AuthMiddleware)
-	sg.Any("/connect", SocketV1)
+	// Static retirement response: do not validate/forward old tokens or open DBs.
+	sg.Any("/connect", func(c *gin.Context) {
+		c.JSON(426, gin.H{"code": "UPDATE_REQUIRED", "protocolVersion": 2})
+	})
 }

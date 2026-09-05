@@ -37,6 +37,10 @@ func Register(r *gin.Engine, p *canonical.Protocol, secret []byte) {
 			respondError(c, e)
 			return
 		}
+		if a.Mode != "v2" {
+			c.JSON(503, gin.H{"code": "ACCOUNT_MIGRATION_REQUIRED"})
+			return
+		}
 		c.JSON(200, gin.H{"protocolVersion": 2, "mode": a.Mode, "epoch": a.Epoch, "enabled": p.Enabled, "highWatermark": a.Last,
 			"operations": []string{"create", "patch", "delete", "move", "completeRecurringTask", "add", "remove"}})
 	})

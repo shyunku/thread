@@ -2,9 +2,9 @@ package v1
 
 import (
 	"github.com/gin-gonic/gin"
+	"strconv"
 	"thread_api/service/state"
 	"thread_api/util"
-	"strconv"
 )
 
 func StateHash(c *gin.Context) {
@@ -133,9 +133,9 @@ func Diagram(c *gin.Context) {
 
 func UseTestRouter(g *gin.RouterGroup) {
 	sg := g.Group("/test")
-	sg.GET("/state", State)
-	sg.GET("/chains", CurrentChains)
-	sg.GET("/transaction", Transaction)
-	sg.GET("/task", Task)
-	sg.GET("/diagram", Diagram)
+	for _, route := range []string{"/state", "/chains", "/transaction", "/task", "/diagram"} {
+		sg.Any(route, func(c *gin.Context) {
+			c.JSON(410, gin.H{"code": "LEGACY_DIAGNOSTICS_REMOVED"})
+		})
+	}
 }

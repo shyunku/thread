@@ -8,6 +8,8 @@
 
 ## 현재 상태
 
+정책 변경(#31): 이 문서의 기본 비활성/계정별 선택 설명은 [v2 일괄 배포 절차](v2-rollout.md)로 대체한다. 서버 schema는 5이며 운영자 실행 backfill 도구를 제공한다. 실제 운영 데이터 접근·실행은 사용자가 담당한다.
+
 서버 transport와 클라이언트 adapter를 구현했다. 서버/SQLite/모의 transport 검증과 desktop production build는 통과했다.
 실제 Google 로그인·다중 기기·절전 복귀·Android/iOS 화면은 이번 작업에서 실행하지 않았다.
 #26/#27은 사용자 검증 대기로 WIP를 유지한다. 모바일 전체 TypeScript 검사는 기존 TS 4.8 / 설치된 Node 타입 선언 문법 불일치로 실패한다.
@@ -17,7 +19,8 @@
 ## 서버
 
 - schema **4**: immutable snapshot metadata/pages를 새로 추가한다. 기존 migration 1–3은 변경하지 않는다.
-- `SYNC_V2_ENABLED=false`, `SYNC_LOG_PRUNE_ENABLED=false`를 root example와 Compose에 추가했다. 실제 env는 사용자가 관리한다.
+- schema **5**: 전체 계정 backfill의 source/rows checksum과 epoch를 저장한다. 운영자 전용 CLI가 데이터·기록·계정 전환을 atomic commit한다.
+- root example와 Compose의 기본은 `SYNC_V2_ENABLED=true`, `SYNC_LOG_PRUNE_ENABLED=false`다. 운영자가 backfill을 완료한 후 새 서버를 시작한다. 실제 env는 사용자가 관리한다.
 - `/v2/sync/capabilities`는 비활성 상태에서도 account mode를 반환한다. 전역 flag가 꺼져도 v2 계정을 v1으로 되돌리지 않는다.
 - Thread HS256 access JWT와 만료·UID·authorized claim을 검증한다. admin JWT와 Google provider token은 sync 사용자 인증으로 받아들이지 않는다. token을 URL에 넣지 않는다.
 - `POST /devices`: 같은 account/device 재등록은 idempotent, revoked ID 재활성화 금지.
@@ -100,6 +103,8 @@ DB integration tests는 명시적인 빈 테스트 DB만 허용한다. THREAD_SY
 운영 DSN 또는 Compose DB를 테스트용으로 재사용하지 않는다.
 
 ## 사용자 검증에서 멈추는 게이트
+
+운영 DB 관련 단계는 사용자가 자신의 비공개 환경에서 직접 수행한다. Codex는 사용자 사본을 읽지 않고 synthetic test 결과와 도구만 제공한다.
 
 운영 account mode를 수동으로 v2로 바꾸지 않는다. schema 준비와 실제 데이터 backfill은 별개다.
 먼저 격리 테스트 계정/앱 데이터 경로를 준비하고 아래 항목을 사용자와 확인해야 #26/#27을 DONE으로 바꿀 수 있다.

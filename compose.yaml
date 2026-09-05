@@ -56,7 +56,7 @@ services:
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-replace-with-a-different-long-random-refresh-secret}
       JWT_REFRESH_EXPIRE: ${JWT_REFRESH_EXPIRE:-7d}
       STATE_SCHEME_VERSION: 2
-      SYNC_V2_ENABLED: ${SYNC_V2_ENABLED:-false}
+      SYNC_V2_ENABLED: ${SYNC_V2_ENABLED:-true}
       SYNC_LOG_PRUNE_ENABLED: ${SYNC_LOG_PRUNE_ENABLED:-false}
       USE_HTTPS: ${USE_HTTPS:-false}
     ports:

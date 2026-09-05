@@ -31,9 +31,9 @@ Thread는 데스크톱과 모바일에서 사용할 수 있는 개인 할 일 �
 
 현재 배포 구현은 위의 block/state v1이다. 목표 구조는 canonical entity tables와 append-only delta change log, 사용자별 sequence cursor 기반 동기화다. Desktop의 오프라인 쓰기·미전송 변경과 기존 데이터는 보존한다. Mobile은 조회 전용으로 snapshot·증분 조회·재접속 프로토콜만 맞추며 편집용 outbox는 이번 범위 밖이다. Electron은 유지한다.
 
-상세 schema·protocol·충돌·retention·마이그레이션 제안은 [Canonical Sync v2 설계안](designs/canonical-sync-v2.md), 단계별 실행은 [계획](plans.md)에서 관리한다. 계정별 opt-in 전환 후 구버전 sync를 차단하고 업데이트 시 legacy pending을 보존·이관하는 정책이 확정되었다. 서버·desktop의 구조적 schema는 별도 version/checksum을 기록하고 연결 준비 시 자동 migration한다. 계정 데이터 backfill과 v2 writer 개방은 별도 검증·운영 승인 단계다. 현재 운영 DB에는 적용하지 않았다.
+상세 schema·protocol·충돌·retention은 [Canonical Sync v2 설계안](designs/canonical-sync-v2.md), 단계별 실행은 [계획](plans.md)에서 관리한다. 현재 확정 정책은 v2 일괄 배포와 구버전 sync 차단이다. 계정별 opt-in은 폐기했다. 운영자가 비공개 환경에서 전체 서버 데이터 이관을 직접 실행하고, desktop 업데이트 시 local pending을 보존·이관한다. [운영자 실행 절차](v2-rollout.md)를 따른다.
 
-동기화 v2의 서버 transport와 desktop/mobile adapter는 기본 비활성·계정별 opt-in으로 구현했다. [현재 구현과 사용자 검증 게이트](sync-v2-implementation.md)에 schema·보존·예외·검증 범위를 기록한다. 구조적 migration은 자동이지만 실제 계정 backfill과 writer 전환은 별도 승인 대상이다.
+새 서버는 v2 sync만 제공한다. SYNC_V2_ENABLED=false도 v1을 재개하지 않는다. 운영 DB·백업·로그·실제 env는 사용자가 관리하며 Codex는 운영 데이터에 접근하거나 이관/배포를 실행하지 않는다. [클라이언트 검증 게이트](sync-v2-implementation.md)는 별도로 유지한다.
 
 ## Google 로그인
 
