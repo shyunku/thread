@@ -11,7 +11,7 @@
 | --- | --- | --- |
 | desktop package version | 설치 앱 릴리스 | 기존 값 유지 |
 | legacy scheme_version / STATE_SCHEME_VERSION | v1 데이터 구조·transaction wire format | 변경하지 않음 |
-| DB schema migration version | DB에 적용한 순서 있는 구조 변경 | 서버 3, local root 1, local user 2 |
+| DB schema migration version | DB에 적용한 순서 있는 구조 변경 | 서버 4, local root 1, legacy user 2, sync-v2 1 |
 
 Sync protocol v2의 account 전환과 schema version 2는 다르다.
 서버 schema 2가 되었다고 legacy block 데이터를 지우거나 v2 동기화를 켜지 않는다.
@@ -27,7 +27,8 @@ migration 성공 전에는 Chain 로드나 HTTP/WebSocket 수신을 시작하지
 - schema 2는 빈 sync_users 준비 테이블을 만든다. 모든 실제 사용자의 이관·mode 전환은 별도 구현/검증 단계다.
 - schema 3은 canonical entity·change log·receipt·occurrence/device 테이블을 추가한다. [엔진과 검증 범위](canonical-engine.md)를 참고한다. schema 1·2는 수정하지 않았다.
 - 기존 tasks 데이터·blocks·transactions 내용은 수정하지 않는다.
-- 향후 schema 4, 5 등을 manifest 끝에 추가하면 다음 API 기동 때 순서대로 적용된다.
+- schema 4는 고정 snapshot metadata/pages를 추가한다. Desktop sync-v2:1은 별도 파일에 confirmed/view/outbox/recovery/provenance를 만든다. [구현·검증 게이트](sync-v2-implementation.md)를 참고한다.
+- 향후 schema 5 이상을 manifest 끝에 추가하면 다음 API 기동 때 순서대로 적용된다.
 - 이미 적용한 SQL/name/requiredTables를 바꾸면 checksum 불일치로 시작을 거절한다.
 - 현재 코드보다 미래 schema 또는 중간 누락이 있으면 downgrade/잘못된 이력으로 시작을 거절한다.
 - manifest 전체용 DB connection을 하나 확보하고 MySQL GET_LOCK을 사용해 여러 인스턴스를 직렬화한다. RELEASE_LOCK 실패 시 해당 connection을 pool로 반환하지 않는다.

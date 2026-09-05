@@ -35,7 +35,7 @@ Electron 유지, Desktop offline-first 쓰기·다중 기기 sync 보존, Mobile
 
 ## 중단 조건
 
-#24의 독립 canonical 엔진과 schema 3 구현·검증 범위는 [Canonical mutation engine](canonical-engine.md)에 기록한다. HTTP/WS나 기존 계정에는 아직 연결하지 않았다.
+#24의 canonical 엔진에 #25 HTTP/WS·snapshot·retention과 schema 4를 연결했다. #26 desktop outbox/이관 adapter와 #27 모바일 조회 adapter의 [구현·검증 게이트](sync-v2-implementation.md)를 기록했다. 운영 계정 전환은 수행하지 않았으며 클라이언트 실제 기기 검증은 대기 중이다.
 
 #23의 읽기 전용 이관 기반과 실행·검증 범위는 [Legacy sync preflight](sync-preflight.md)에 기록한다. 이 도구의 성공은 실제 계정 이관 완료를 의미하지 않는다.
 

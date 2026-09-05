@@ -15,7 +15,7 @@ Electron은 유지한다. 이번 변경은 저장·동기화 설계이며 Tauri 
 현재 API 진입점, DDL, state 엔진과 WebSocket 경로, desktop DB/executor/syncer, mobile hook/Home/persist 경로를 정적으로 확인했다.
 사용자 범위 확정: 모바일은 조회 전용이다. v2 snapshot·증분 조회·재접속 프로토콜은 맞추되 모바일 편집·쓰기 outbox·충돌 처리 구현은 이후 작업으로 분리한다.
 실제 운영 DB, 사용자의 로컬 SQLite, env, 로그는 읽지 않았다. 실데이터 크기·무결성·모바일 배포 현황은 아직 미확인이다.
-자동 schema migration, preflight와 canonical mutation 엔진은 구현·격리 DB 검증을 완료했다. 구현된 입력·schema 상세는 [엔진 명세](../canonical-engine.md)를 따른다. endpoint·client 연결·운영 이관은 아직 진행 전이다. 아래 성능 수치는 실측 결과가 아니라 검증 목표다.
+자동 schema migration, preflight와 canonical mutation 엔진에 endpoint·client adapter를 연결했다. [현재 구현·검증 게이트](../sync-v2-implementation.md)와 [엔진 명세](../canonical-engine.md)를 따른다. 실제 기기 검증과 운영 이관은 아직 수행하지 않았다. 아래 성능 수치는 실측 결과가 아니라 검증 목표다.
 
 ## 2. 현재 구조와 문제
 

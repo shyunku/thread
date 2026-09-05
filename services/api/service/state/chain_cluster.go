@@ -35,7 +35,7 @@ func (sm *ChainCluster) GetChain(userId string) *Chain {
 func (sm *ChainCluster) LoadFromDatabase(db *sqlx.DB) error {
 	// load transactions
 	transactions := make(map[string]*Transaction)
-	txRows, err := db.Queryx("SELECT * FROM transactions")
+	txRows, err := db.Queryx("SELECT t.* FROM transactions t WHERE NOT EXISTS (SELECT 1 FROM sync_users s WHERE s.uid=t.`from` AND s.mode<>'legacy')")
 	if err != nil {
 		return err
 	}
@@ -64,7 +64,7 @@ func (sm *ChainCluster) LoadFromDatabase(db *sqlx.DB) error {
 
 	// load states
 	blockEntities := make(map[int64]database.BlockEntity)
-	blockRows, err := database.DB.Queryx("SELECT * FROM blocks ORDER BY block_number")
+	blockRows, err := db.Queryx("SELECT b.* FROM blocks b WHERE NOT EXISTS (SELECT 1 FROM sync_users s WHERE s.uid=b.uid AND s.mode<>'legacy') ORDER BY block_number")
 	if err != nil {
 		return err
 	}

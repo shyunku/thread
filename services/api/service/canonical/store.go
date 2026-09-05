@@ -1,4 +1,4 @@
-// Package canonical implements v2 mutations. No HTTP/v1 handler calls it yet.
+// Package canonical implements transactional v2 mutations and sync storage.
 package canonical
 
 import (

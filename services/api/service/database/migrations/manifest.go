@@ -29,4 +29,5 @@ var Server = []Migration{
 		},
 	},
 	canonicalV3(),
+	snapshotsV4(),
 }

@@ -1,12 +1,15 @@
 package v1
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"thread_api/log"
+	"thread_api/service/canonical"
+	"thread_api/service/database"
 	"thread_api/service/state"
 	"thread_api/util"
 )
@@ -424,7 +427,11 @@ func SocketV1(c *gin.Context) {
 		}
 
 		// handle message
-		resp, err := handler(socket, uid, recvPacket.Data)
+		// Keep the fence alive until the legacy callback finishes, even if the
+		// socket disconnects. Cutover takes this same account row lock.
+		resp, err := canonical.WithLegacyFence(context.Background(), database.DB.DB, uid, func() (interface{}, error) {
+			return handler(socket, uid, recvPacket.Data)
+		})
 		sendPacket := &SocketSendPacket{
 			Topic:      recvPacket.Topic,
 			Data:       resp,

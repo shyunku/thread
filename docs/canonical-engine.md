@@ -7,7 +7,7 @@
 ## 구현 상태
 
 `services/api/service/canonical`에 DB mutation 엔진을 추가했다.
-**아직 HTTP/WebSocket/v1 handler에 연결하지 않았다.** 운영 계정 mode 변경이나 legacy block backfill을 수행하지 않았다.
+HTTP/WS v2 adapter를 연결했다. [현재 transport·client 검증 범위](sync-v2-implementation.md)를 참고한다. 운영 계정 mode 변경이나 legacy block backfill을 수행하지 않았다.
 다음 #25에서 push/pull·snapshot·device 등록·전달 및 접근 제어를 연결하고 #26/#27에서 클라이언트를 연결한다.
 
 서버 schema 3은 tasks/subtasks/categories/task_categories와 sync_devices/sync_change_log/sync_receipts/sync_occurrences를 추가한다.
@@ -30,7 +30,7 @@ API를 이 코드로 재기동하면 구조적 schema migration은 자동 적용
 
 사용자별 잠금은 process mutex가 아니라 MySQL row lock이다. 여러 connection/인스턴스에서도 같은 사용자 쓰기를 직렬화한다.
 처리한 변경이 없거나 거절된 요청은 새 sequence를 소비하지 않는다.
-이 모듈은 아직 WS를 보내지 않는다. 향후 전달은 반드시 COMMIT 이후여야 한다.
+이 mutation 모듈 자체는 WS를 보내지 않는다. v2 WS adapter가 DB에 commit된 high watermark를 읽어 알림을 보낸다.
 mutation 1개가 하나의 atomic unit이며, 여러 mutation batch의 정책은 #25에서 연결한다.
 
 ## 입력과 결과
@@ -139,5 +139,5 @@ MySQL 엔진 시험은 빈 thread_canonical_test_ 접두사 DB의 THREAD_CANONIC
 schema migration 시험은 별도 빈 thread_migration_test_ DB의 THREAD_MIGRATION_TEST_DSN을 사용한다.
 변수 미지정 시 실제 DB 시험은 SKIP된다. 운영 DB나 .env를 테스트 원본으로 자동 선택하지 않는다.
 
-아직 검증하지 않은 범위: HTTP/WS 전달·실제 desktop/mobile 연결·운영 데이터 backfill·대규모 성능/이관 rehearsal.
+후속 HTTP/WS 격리 검증은 [현재 구현 기록](sync-v2-implementation.md)을 참고한다. 실제 desktop/mobile 기기 연결·운영 데이터 backfill·대규모 성능/이관 rehearsal은 아직 검증하지 않았다.
 운영 계정은 전환하지 않았고 테스트 컨테이너만 검증 후 제거한다.

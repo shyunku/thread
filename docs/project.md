@@ -21,7 +21,7 @@ Thread는 데스크톱과 모바일에서 사용할 수 있는 개인 할 일 �
 
 ## 데이터 흐름
 
-1. 데스크톱 또는 모바일 클라이언트에서 할 일, 하위 할 일, 카테고리를 변경한다.
+1. 데스크톱에서 할 일, 하위 할 일, 카테고리를 변경한다. 모바일은 조회 전용이다.
 2. 클라이언트는 변경을 트랜잭션으로 만들고 로컬 상태에 반영한다.
 3. 인증된 WebSocket 연결을 통해 애플리케이션 서버에 트랜잭션을 제출한다.
 4. 서버는 사용자별 상태와 블록을 계산해 MySQL에 저장하고 연결된 클라이언트에 전파한다.
@@ -32,6 +32,8 @@ Thread는 데스크톱과 모바일에서 사용할 수 있는 개인 할 일 �
 현재 배포 구현은 위의 block/state v1이다. 목표 구조는 canonical entity tables와 append-only delta change log, 사용자별 sequence cursor 기반 동기화다. Desktop의 오프라인 쓰기·미전송 변경과 기존 데이터는 보존한다. Mobile은 조회 전용으로 snapshot·증분 조회·재접속 프로토콜만 맞추며 편집용 outbox는 이번 범위 밖이다. Electron은 유지한다.
 
 상세 schema·protocol·충돌·retention·마이그레이션 제안은 [Canonical Sync v2 설계안](designs/canonical-sync-v2.md), 단계별 실행은 [계획](plans.md)에서 관리한다. 계정별 opt-in 전환 후 구버전 sync를 차단하고 업데이트 시 legacy pending을 보존·이관하는 정책이 확정되었다. 서버·desktop의 구조적 schema는 별도 version/checksum을 기록하고 연결 준비 시 자동 migration한다. 계정 데이터 backfill과 v2 writer 개방은 별도 검증·운영 승인 단계다. 현재 운영 DB에는 적용하지 않았다.
+
+동기화 v2의 서버 transport와 desktop/mobile adapter는 기본 비활성·계정별 opt-in으로 구현했다. [현재 구현과 사용자 검증 게이트](sync-v2-implementation.md)에 schema·보존·예외·검증 범위를 기록한다. 구조적 migration은 자동이지만 실제 계정 backfill과 writer 전환은 별도 승인 대상이다.
 
 ## Google 로그인
 

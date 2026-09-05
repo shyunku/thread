@@ -7,6 +7,7 @@ import (
 	"os"
 	"thread_api/configs"
 	"thread_api/controllers/v1"
+	"thread_api/controllers/v2"
 	"thread_api/log"
 )
 
@@ -31,6 +32,7 @@ func SetupRouter() *gin.Engine {
 	r.GET("/ping", ping)
 
 	v1.UseRouterV1(r)
+	v2.UseRouter(r)
 	return r
 }
 
