@@ -367,24 +367,29 @@ module.exports = function (s) {
   s.register("auth/sendGoogleOauthResult", async (event, reqId, data) => {
     try {
       const rootDB = await s.databaseService.getRootDatabaseContext();
-      let { googleUserInfo } = data;
-      let { email: google_email, picture: google_profile_image_url } =
-        googleUserInfo;
-      let user;
-
-      // check if user exists already
-      let isSignupNeeded;
-      let users = await rootDB.all(
-        "SELECT * FROM users WHERE google_email = ?;",
-        google_email
-      );
-      if (users.length === 0) {
-        // newly created user
-        isSignupNeeded = true;
-      } else {
-        user = users[0];
-        isSignupNeeded = user.auth_id == null || user.auth_encrypted_pw == null;
-        // no need to create user
+      if (!Object.prototype.hasOwnProperty.call(data, "user")) {
+        s.sender("auth/sendGoogleOauthResult", reqId, false, "API_UPDATE_REQUIRED");
+        return;
+      }
+      const user = data.user;
+      const isSignupNeeded = user == null;
+      if (user) {
+        if (typeof user.uid !== "string" || !user.uid.trim() ||
+            !data.auth?.access_token?.token || !data.auth?.refresh_token?.token) {
+          throw new Error("INVALID_AUTH_INFO");
+        }
+        const users = await rootDB.all("SELECT * FROM users WHERE uid = ?;", [user.uid]);
+        if (users.length === 0) {
+          await rootDB.run(
+            "INSERT INTO users (uid, auth_id, username, google_auth_id, google_email, google_profile_image_url) VALUES (?, ?, ?, ?, ?, ?);",
+            [user.uid, user.auth_id, user.username, user.google_auth_id, user.google_email, user.google_profile_image_url]
+          );
+        } else {
+          await rootDB.run(
+            "UPDATE users SET username = ?, google_auth_id = ?, google_email = ?, google_profile_image_url = ? WHERE uid = ?;",
+            [user.username, user.google_auth_id, user.google_email, user.google_profile_image_url, user.uid]
+          );
+        }
       }
 
       s.sender("auth/sendGoogleOauthResult", reqId, true, {
@@ -511,6 +516,11 @@ module.exports = function (s) {
             false,
             err?.response?.status
           );
+          return;
+        }
+
+        if (typeof result?.userId !== "string" || !result.userId.trim()) {
+          s.sender("auth/signUpWithGoogleAuth", reqId, false, "INVALID_USER_INFO");
           return;
         }
 

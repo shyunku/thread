@@ -84,4 +84,5 @@ type authResultDto struct {
 type googleAuthResultDto struct {
 	GoogleUserInfo *GoogleOauth2UserInfo `json:"googleUserInfo"`
 	Auth           *authTokenDto         `json:"auth"`
+	User           *userDto              `json:"user"`
 }
