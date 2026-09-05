@@ -35,6 +35,8 @@ Electron 유지, Desktop offline-first 쓰기·다중 기기 sync 보존, Mobile
 
 ## 중단 조건
 
+#23의 읽기 전용 이관 기반과 실행·검증 범위는 [Legacy sync preflight](sync-preflight.md)에 기록한다. 이 도구의 성공은 실제 계정 이관 완료를 의미하지 않는다.
+
 모호한 최신 block, 손상된 링크/참조, 서버·로컬 상태 불일치, 대응 불가능한 legacy 반복 작업 ID, backup 복구 실패가 있으면 해당 계정을 이관하지 않는다.
 원본을 버리거나 서버 상태로 무조건 덮어쓰지 않는다.
 v2 쓰기를 받은 뒤 단순 flag rollback을 하지 않는다. 새 변경을 보존한 forward fix 또는 검증된 역이관이 필요하다.
