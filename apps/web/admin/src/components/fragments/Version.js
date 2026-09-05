@@ -8,6 +8,7 @@ import { IoIosCloseCircle, IoMdClose, IoMdDownload } from "react-icons/io";
 import { IoCheckmarkSharp } from "react-icons/io5";
 import { ImCheckmark } from "react-icons/im";
 import { AiFillAlert } from "react-icons/ai";
+import ReleaseLink from "./ReleaseLink";
 
 const RELEASE_CHUNK_SIZE = 8 * 1024 * 1024;
 
@@ -184,7 +185,7 @@ class Version extends Component {
           switch (resp.code) {
             default:
               console.error(resp.code);
-              alert(`Alert Failed.`);
+              alert(resp.msg || `Alert Failed. (${resp.code})`);
           }
         }
 
@@ -420,14 +421,11 @@ class Version extends Component {
                       </div>
                       <div className="links tags mid">
                         {(versionInfo?.releases ?? []).map((e) => (
-                          <div
-                            className={"tag clickable " + e.category}
-                            onClick={this.onFileDownload}
-                            downloadlink={e?.link ?? "about:blank"}
+                          <ReleaseLink
+                            version={versionInfo.version}
+                            category={e.category}
                             key={e.category}
-                          >
-                            {e.category}
-                          </div>
+                          />
                         ))}
                       </div>
                       <div className="update-date mid">
@@ -924,13 +922,6 @@ class Version extends Component {
 
   onFileDragLeave = (e) => {
     e.target.classList.remove("drag-over");
-  };
-
-  onFileDownload = (e) => {
-    e.stopPropagation();
-    const element = e.target;
-    const downloadLink = element.getAttribute("downloadlink");
-    window.location.href = downloadLink;
   };
 
   finalizeDraftPanel = () => {
