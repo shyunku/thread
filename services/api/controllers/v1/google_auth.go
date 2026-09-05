@@ -15,11 +15,11 @@ import (
 	"io"
 	"io/ioutil"
 	"math/big"
+	"net/http"
+	"os"
 	json2 "thread_api/libs/json"
 	"thread_api/log"
 	database2 "thread_api/service/database"
-	"net/http"
-	"os"
 )
 
 var (
@@ -318,15 +318,30 @@ func GoogleOauth2Callback(c *gin.Context) {
 		}
 		c.AbortWithError(http.StatusInternalServerError, fmt.Errorf("failed to fetch google user info [%d]: %s",
 			googleUserInfoFetchError.Error.Code, googleUserInfoFetchError.Error.Message))
+		return
 	}
 
 	var googleAuthResult googleAuthResultDto
 
 	googleAuthResult.GoogleUserInfo = &googleOauthUserInfo
-	googleAuthResult.Auth = NewAuthTokenDto(
-		*NewAuthToken(token.AccessToken, uuid.New().String(), token.Expiry.Unix()),
-		*NewAuthToken(token.RefreshToken, uuid.New().String(), token.Expiry.Unix()),
-	)
+	if response.StatusCode != http.StatusOK || googleOauthUserInfo.Id == "" || !googleOauthUserInfo.VerifiedEmail {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+	var user database2.UserEntity
+	err = database2.DB.QueryRowx("SELECT * FROM user_master WHERE google_auth_id = ? LIMIT 1", googleOauthUserInfo.Id).StructScan(&user)
+	if err != nil && err != sql.ErrNoRows {
+		c.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+	if err == nil {
+		googleAuthResult.User = UserDtoFromEntity(user)
+		googleAuthResult.Auth, err = createGoogleLoginSession(*user.UserId, saveRefreshToken)
+		if err != nil {
+			c.AbortWithStatus(http.StatusInternalServerError)
+			return
+		}
+	}
 
 	// Send a message to the client's window object
 	marshaled, err := json2.Marshal(googleAuthResult)
@@ -336,19 +351,32 @@ func GoogleOauth2Callback(c *gin.Context) {
 		return
 	}
 
-	log.Debug("googleAuthResult:", googleAuthResult)
-
 	script := fmt.Sprintf(`<script>
 		try {
-			const data = JSON.parse('%s');
+			const data = %s;
 			window.opener.postMessage({type: "google_oauth_callback_result", data, success: true}, '*');
 		} catch (e) {
-			window.opener.postMessage({type: "google_oauth_callback_result", data, success: false}, '*');
+			window.opener.postMessage({type: "google_oauth_callback_result", success: false}, '*');
 		} finally {
 			window.close();
 		}
 	</script>`, marshaled)
 	c.Data(http.StatusOK, "text/html", []byte(script))
+}
+
+// Google credentials identify the user; Thread credentials authorize API access.
+func createGoogleLoginSession(uid string, save func(string, authToken) error) (*authTokenDto, error) {
+	if uid == "" {
+		return nil, fmt.Errorf("missing user ID")
+	}
+	auth, err := createAuthToken(uid)
+	if err != nil {
+		return nil, err
+	}
+	if err := save(uid, auth.RefreshToken); err != nil {
+		return nil, err
+	}
+	return auth, nil
 }
 
 func fetchGoogleOauthPublicRsaKeys() ([]json.RawMessage, error) {

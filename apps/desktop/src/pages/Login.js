@@ -16,6 +16,7 @@ import Input from "molecules/Input";
 import sha256 from "sha256";
 import PackageJson from "../../package.json";
 import { getAppServerEndpoint } from "../thunks/ThunkUtil";
+import { getGoogleSignupUser, persistLoginSession } from "../utils/loginSession";
 
 const Login = () => {
   const dispatch = useDispatch();
@@ -57,6 +58,7 @@ const Login = () => {
     const user = _user ?? currentUserInfo;
 
     try {
+      await persistLoginSession(user, auth, IpcSender.req.auth.registerAuthInfoSync);
       dispatch(
         setAuth({
           accessToken: auth?.access_token?.token,
@@ -71,13 +73,6 @@ const Login = () => {
           offlineMode: false,
           username: user?.username ?? null,
         })
-      );
-
-      console.log(auth);
-      await IpcSender.req.auth.registerAuthInfoSync(
-        user?.uid,
-        auth?.access_token?.token,
-        auth?.refresh_token?.token
       );
 
       setCurrentUserInfo(null);
@@ -96,6 +91,16 @@ const Login = () => {
     setSignupPassword("");
     setSignupPasswordConfirm("");
     setSignupMode(true);
+  };
+
+  const handleGoogleSignupConflict = () => {
+    setGoogleBinding(false);
+    setCurrentUserInfo(null);
+    setCurrentUserAuth(null);
+    goBackToLogin(true);
+    Toast.error(
+      "입력한 아이디 또는 구글 계정이 이미 연동되어 있습니다. 기존 계정으로 다시 로그인해주세요."
+    );
   };
 
   const goBackToLogin = (force = false) => {
@@ -124,7 +129,6 @@ const Login = () => {
   };
 
   const onGoogleLoginSuccess = (userInfo) => {
-    console.log(userInfo);
     const { auth, googleUserInfo } = userInfo;
     const {
       email: googleEmail,
@@ -169,7 +173,9 @@ const Login = () => {
           Toast.success("로그인되었습니다.");
           goToHome(user, auth);
         } else {
-          Toast.error("구글 계정 인증 정보 등록에 실패했습니다.");
+          Toast.error(data === "API_UPDATE_REQUIRED"
+            ? "서버의 Google 로그인 업데이트가 필요합니다."
+            : "구글 계정 인증 정보 등록에 실패했습니다.");
         }
       }
     );
@@ -237,7 +243,11 @@ const Login = () => {
         },
         ({ success, data }) => {
           if (success) {
-            const user = data.user;
+            const user = getGoogleSignupUser({ success, data });
+            if (!user) {
+              Toast.error("가입 응답에 사용자 정보가 없습니다. 다시 로그인해주세요.");
+              return;
+            }
             const userInfo = {
               uid: user.userId,
               username: user.username,
@@ -246,7 +256,13 @@ const Login = () => {
               googleProfileImageUrl: user.googleProfileImageUrl,
             };
 
-            goToHome(userInfo, currentUserAuth);
+            if (currentUserAuth) {
+              goToHome(userInfo, currentUserAuth);
+            } else {
+              setGoogleBinding(false);
+              setCurrentUserInfo(null);
+              Toast.success("계정 연동이 완료되었습니다. 구글 계정으로 다시 로그인해주세요.");
+            }
             goBackToLogin(true);
           } else {
             const status = data;
@@ -255,8 +271,7 @@ const Login = () => {
                 Toast.error("잘못된 요청입니다.");
                 break;
               case 409:
-                Toast.error("해당 구글 계정은 이미 연동되어있습니다.");
-                // TODO :: handle this case
+                handleGoogleSignupConflict();
                 break;
               case "NOT_FOUND_IN_LOCAL":
                 Toast.error("해당 구글 계정은 로컬에 등록되어있지 않습니다.");
@@ -337,7 +352,11 @@ const Login = () => {
         },
         ({ success, data }) => {
           if (success) {
-            const user = data.user;
+            const user = getGoogleSignupUser({ success, data });
+            if (!user) {
+              Toast.error("가입 응답에 사용자 정보가 없습니다. 다시 로그인해주세요.");
+              return;
+            }
             const userInfo = {
               uid: user.userId,
               username: user.username,
@@ -345,7 +364,14 @@ const Login = () => {
               googleEmail: user.googleEmail,
               googleProfileImageUrl: user.googleProfileImageUrl,
             };
-            goToHome(userInfo, currentUserAuth);
+            if (currentUserAuth) {
+              goToHome(userInfo, currentUserAuth);
+            } else {
+              setGoogleBinding(false);
+              setCurrentUserInfo(null);
+              goBackToLogin(true);
+              Toast.success("계정 연동이 완료되었습니다. 구글 계정으로 다시 로그인해주세요.");
+            }
           } else {
             const status = data;
             switch (status) {
@@ -353,7 +379,7 @@ const Login = () => {
                 Toast.error("잘못된 요청입니다.");
                 break;
               case 409:
-                goToHome(data.user, currentUserAuth);
+                handleGoogleSignupConflict();
                 break;
               case "NOT_FOUND_IN_LOCAL":
                 Toast.error("해당 구글 계정은 로컬에 등록되어있지 않습니다.");
@@ -439,8 +465,13 @@ const Login = () => {
   useEffect(() => {
     const onMessage = (e) => {
       try {
+        if (e.origin !== new URL(getAppServerEndpoint()).origin || e.source !== childWindow) return;
         const data = e?.data;
         if (data?.type === "google_oauth_callback_result") {
+          if (data.success !== true) {
+            Toast.error("구글 로그인에 실패했습니다.");
+            return;
+          }
           const result = data?.data;
           onGoogleLoginSuccess(result);
         }
@@ -480,7 +511,7 @@ const Login = () => {
           className={"form" + JsxUtil.classByCondition(signupMode, "hidden")}
         >
           <div className="addition">언제 어디서나, 쉽고 편하게.</div>
-          <div className="title">메모리얼 로그인</div>
+          <div className="title">Thread 로그인</div>
           <div className="input-wrapper">
             <div className="label">아이디</div>
             <Input onChange={setSigninId} value={signinId} />
@@ -540,7 +571,7 @@ const Login = () => {
           }
         >
           <div className="addition">오프라인에서도, 언제나 함께.</div>
-          <div className="title">메모리얼 회원가입</div>
+          <div className="title">Thread 회원가입</div>
           <div className="input-wrapper">
             <div className="label">사용자 이름</div>
             <Input onChange={setSignupUserName} value={signupUserName} />
