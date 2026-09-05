@@ -1,6 +1,6 @@
 import Task from '@/objects/Task';
 import {useDispatch} from 'react-redux';
-import {setCategories, setTasks} from '@/store/stateSlice';
+import {replaceState} from '@/store/stateSlice';
 import Category from '@/objects/Category';
 import SubTask from '@/objects/Subtask';
 
@@ -16,6 +16,7 @@ export const applyInitialState = (
   dispatch: Function,
   blockNumber: number,
   data: any,
+  ownerUid: string,
 ) => {
   const {categories, tasks} = data;
   const taskMap: {[key: string]: any} = {};
@@ -26,6 +27,8 @@ export const applyInitialState = (
     const category = new Category(rawCategory.title, rawCategory.secret, false);
     category.id = cid;
     category.createdAt = convertDate(rawCategory.createdAt);
+    category.locked = rawCategory.locked ?? false;
+    category.color = rawCategory.color ?? null;
     categoryMap[cid] = category;
   }
 
@@ -71,6 +74,5 @@ export const applyInitialState = (
     }
   }
 
-  dispatch(setCategories(categoryMap));
-  dispatch(setTasks(taskMap));
+  dispatch(replaceState({tasks: taskMap, categories: categoryMap, ownerUid}));
 };

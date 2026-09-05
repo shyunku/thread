@@ -1,6 +1,7 @@
 import AppText from '@/atoms/AppText';
 import {applyInitialState} from '@/hooks/executor';
 import useSocket from '@/hooks/websocket';
+import useSyncRead from '@/hooks/useSyncRead';
 import TaskDetailModal from '@/modals/TaskDetailModal';
 import SubTask from '@/objects/Subtask';
 import Task from '@/objects/Task';
@@ -17,6 +18,7 @@ import {
   clearCategories,
   clearTasks,
   tasksSlice,
+  stateOwnerSlice,
 } from '@/store/stateSlice';
 import currentSlice, {selectedCategoryIdSlice} from '@/store/currentSlice';
 import {
@@ -25,13 +27,16 @@ import {
   TaskViewMode,
 } from '@/constants/common.const';
 import Category from '@/objects/Category';
-import {removeAuth} from '@/store/accountSlice';
+import {removeAuth, accountInfoSlice} from '@/store/accountSlice';
 import LeftSidebar from '@/molecules/LeftSidebar';
 
 const Home = (): JSX.Element => {
   const dispatch = useDispatch();
-  const tasks: {[key: string]: Object} = useSelector(tasksSlice);
-  const categories: any = useSelector(categoriesSlice);
+  const account = useSelector(accountInfoSlice);
+  const owner = useSelector(stateOwnerSlice);
+  const savedTasks = useSelector(tasksSlice), savedCategories = useSelector(categoriesSlice);
+  const tasks: {[key: string]: Object} = owner === account.uid ? savedTasks : {};
+  const categories: any = owner === account.uid ? savedCategories : {};
   const selectedCategoryId: any = useSelector(selectedCategoryIdSlice);
 
   const taskMap: {[key: string]: Task} = useMemo(() => {
@@ -59,9 +64,7 @@ const Home = (): JSX.Element => {
     return taskMap[selectedTaskItemId || ''] ?? null;
   }, [selectedTaskItemId, taskMap]);
   const selectedCategory: Category | null = useMemo(() => {
-    return selectedCategory?.isDefault
-      ? DEFAULT_CATEGORIES[selectedCategory.id]
-      : categories[selectedCategoryId];
+    return categories[selectedCategoryId] || null;
   }, [selectedCategoryId, categories]);
 
   const undoneTaskCounts = useMemo(() => {
@@ -75,29 +78,34 @@ const Home = (): JSX.Element => {
     }).length;
   }, [taskMap]);
 
-  const {socket, connected: socketConnected, onMessage, sendSync} = useSocket();
+  const sync = useSyncRead();
+  const {connected: legacyConnected, onMessage, sendSync} = useSocket(sync.mode === 'legacy');
+  const socketConnected = sync.mode === 'v2' ? sync.connected : legacyConnected;
 
   useEffect(() => {
-    if (!socketConnected) return;
-    dispatch(clearTasks());
-    dispatch(clearCategories());
+    if (!legacyConnected || sync.mode !== 'legacy') return;
+    let stopped = false;
 
     // dispatch(removeAuth());
 
     // TODO :: test token
-    (async () => {
+    const refresh = async () => {
+      try {
       const lastRemoteBlockNumber: any = await sendSync('lastBlockNumber');
+      if (stopped) return;
       setRemoteBlockNumber(lastRemoteBlockNumber);
       const lastState: any = await sendSync('stateByBlockNumber', {
         blockNumber: lastRemoteBlockNumber,
       });
-      try {
-        applyInitialState(dispatch, lastRemoteBlockNumber, lastState);
+      if (!stopped) {
+        applyInitialState(dispatch, lastRemoteBlockNumber, lastState, sync.uid);
         setLocalBlockNumber(lastRemoteBlockNumber);
+      }
       } catch (err) {
         console.error(err);
       }
-    })();
+    };
+    void refresh();
 
     onMessage('broadcast_transaction', (data: any) => {
       console.log('tx', data);
@@ -106,12 +114,13 @@ const Home = (): JSX.Element => {
       const lastBlockNumber = data.data;
       console.log('last_block_number', lastBlockNumber);
       setRemoteBlockNumber(lastBlockNumber);
+      void refresh();
     });
 
     return () => {
-      socket?.close();
+      stopped = true;
     };
-  }, [socketConnected]);
+  }, [legacyConnected,sync.mode,sync.uid,sendSync,onMessage,dispatch]);
 
   /* ----------------------- filter ----------------------- */
   const categoryFilter = useMemo((): Function => {
@@ -222,7 +231,7 @@ const Home = (): JSX.Element => {
               동기화 중
             </AppText> */}
             <AppText size={10} weight={500}>
-              {localBlockNumber}/{remoteBlockNumber}
+              {sync.mode === 'v2' ? sync.seq + '/' + sync.high : localBlockNumber + '/' + remoteBlockNumber}
             </AppText>
           </View>
           <View testID="title-section" style={HomeStyle.titleSection}>

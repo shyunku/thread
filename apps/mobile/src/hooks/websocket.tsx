@@ -18,11 +18,12 @@ const WEBSOCKET_ENDPOINT = `${getServerEndpoint().replace(
 const queue: Map<string, any> = new Map();
 const messageHandlers: Map<string, any> = new Map();
 
-const useSocket = () => {
+const useSocket = (enabled = true) => {
   const authInfo = useSelector(accountAuthSlice);
   const dispatch = useDispatch();
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const [connected, setConnected] = useState(false);
+  const [retry, setRetry] = useState(0);
 
   const sendSync = useCallback(
     async (topic: string, data: any = null, timeout = 3000) => {
@@ -42,6 +43,7 @@ const useSocket = () => {
         };
 
         let timeoutHandler = setTimeout(() => {
+          queue.delete(reqId);
           reject(`Request timeout`);
         }, timeout);
 
@@ -52,6 +54,8 @@ const useSocket = () => {
         try {
           socket.send(packetJson);
         } catch (err) {
+          clearTimeout(timeoutHandler);
+          queue.delete(reqId);
           console.error(err);
           reject(err);
         }
@@ -79,6 +83,9 @@ const useSocket = () => {
   );
 
   useEffect(() => {
+    if (!enabled) {setConnected(false);setSocket(null);return;}
+    let disposed = false;
+    let retryTimer: ReturnType<typeof setTimeout>;
     // delete old handlers
     messageHandlers.clear();
     queue.clear();
@@ -95,11 +102,12 @@ const useSocket = () => {
     };
     ws.onclose = () => {
       setConnected(false);
+      if (!disposed) retryTimer = setTimeout(() => setRetry(value => value + 1),3000);
       console.log('Disconnected from server');
     };
     ws.onerror = error => {
       console.log('Error: ', error);
-      if (error?.message.includes('401')) {
+      if (error?.message?.includes('401')) {
         console.log('Unauthorized User, deleting auth info');
         dispatch(removeAuth());
       }
@@ -151,7 +159,18 @@ const useSocket = () => {
       }
     };
     setSocket(ws);
-  }, []);
+    return () => {
+      disposed = true;
+      clearTimeout(retryTimer);
+      for (const item of queue.values()) {
+        clearTimeout(item.timeoutHandler);
+        item.errorHandler(new Error('DISCONNECTED'));
+      }
+      queue.clear();
+      messageHandlers.clear();
+      ws.close();
+    };
+  }, [enabled,authInfo.accessToken,retry,dispatch]);
 
   return {socket, connected, onMessage, sendSync};
 };
