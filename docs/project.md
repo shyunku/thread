@@ -27,6 +27,12 @@ Thread는 데스크톱과 모바일에서 사용할 수 있는 개인 할 일 �
 4. 서버는 사용자별 상태와 블록을 계산해 MySQL에 저장하고 연결된 클라이언트에 전파한다.
 5. 클라이언트는 블록 또는 스냅샷을 받아 로컬 상태를 동기화한다.
 
+## 저장·동기화 개선 방향
+
+현재 배포 구현은 위의 block/state v1이다. 목표 구조는 canonical entity tables와 append-only delta change log, 사용자별 sequence cursor 기반 동기화다. Desktop의 오프라인 쓰기·미전송 변경과 기존 데이터는 보존한다. Mobile은 조회 전용으로 snapshot·증분 조회·재접속 프로토콜만 맞추며 편집용 outbox는 이번 범위 밖이다. Electron은 유지한다.
+
+상세 schema·protocol·충돌·retention·마이그레이션 제안은 [Canonical Sync v2 설계안](designs/canonical-sync-v2.md), 단계별 실행은 [계획](plans.md)에서 관리한다. 계정별 opt-in 전환 후 구버전 sync를 차단하고 업데이트 시 legacy pending을 보존·이관하는 정책이 확정되었다. 서버·desktop의 구조적 schema는 별도 version/checksum을 기록하고 연결 준비 시 자동 migration한다. 계정 데이터 backfill과 v2 writer 개방은 별도 검증·운영 승인 단계다. 현재 운영 DB에는 적용하지 않았다.
+
 ## Google 로그인
 
 Google 인증 결과는 사용자 식별에만 사용하고, 연동된 서버 계정에는 Thread access/refresh JWT를 발급한다. 데스크톱은 서버가 반환한 UID로 로컬 계정을 연결하며 로컬 인증 저장 성공 후 로그인 상태를 갱신한다. 서버에 연동되지 않은 Google 계정은 가입 또는 계정 연동 후 다시 Google 로그인을 진행한다. 이 응답 계약 변경은 API와 데스크톱을 함께 배포해야 한다.

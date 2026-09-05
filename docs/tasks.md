@@ -2,6 +2,15 @@
 
 | Index | Tag | Updated | Status | Completed | Deps | 항목 | 완료 조건 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
+| 30 | api/desktop | 2026-09-05 22:03 | 🟡 WIP |  | #22 | Schema version 기반 자동 migration 실행기 | 서버 시작 및 local DB 준비 시 version/checksum migration을 실행한다. SQLite 실제 파일·백업·rollback·동시성·DB ready 테스트 7개, Go 단위 테스트·API 컴파일·desktop 빌드 통과. 실제 MySQL DDL 실패·동시 기동 통합 시험은 Docker 미실행으로 대기하며 운영 DB에는 적용하지 않았다. |
+| 29 | deployment/sync | 2026-09-05 21:03 | 🔴 TODO |  | #28 | Sync v2 계정별 운영 전환 | 운영자 승인·backup restore·legacy writer fence를 확인하고 지정 계정만 이관한다. v2 쓰기 이후 단순 rollback 금지. |
+| 28 | sync/migration | 2026-09-05 21:03 | 🔴 TODO |  | #26, #27 | 데이터 이관 사본 rehearsal 및 부하 검증 | 기존 ID·내용·관계·순서·pending parity, migration crash/resume, 실제 MySQL 원자성, 1k/10k/50k 부하 지표를 확인한다. |
+| 27 | mobile | 2026-09-05 21:03 | 🔴 TODO |  | #25 | 모바일 조회를 v2 sync 프로토콜에 연결 | snapshot·delta·삭제·정렬·재접속 조회와 계정별 cursor를 맞춘다. 모바일 편집·outbox 구현은 제외한다. |
+| 26 | desktop | 2026-09-05 21:03 | 🔴 TODO |  | #23, #25 | Desktop local DB·outbox·sync v2 이관 | 원본 SQLite·미전송 변경을 보존하고 optimistic view·cursor·ACK의 원자성을 검증한다. Google 로그인·offline·다기기 사용자 확인을 통과한다. |
+| 25 | api/sync | 2026-09-05 21:03 | 🔴 TODO |  | #24 | Cursor push/pull·snapshot·WS·retention 구현 | 재시도·ACK 유실·gap·snapshot 중 변경·오래된 cursor 및 pending 보존을 통합 테스트한다. prune은 기본 비활성. |
+| 24 | api/sync | 2026-09-05 21:03 | 🔴 TODO |  | #23 | Canonical schema와 원자적 mutation engine 구현 | tenant 격리, 사용자 commit 순서, receipt idempotency, field merge·삭제·반복 회차·정렬을 실제 DB 테스트로 검증한다. |
+| 23 | sync/migration | 2026-09-05 21:03 | 🔴 TODO |  | #22 | Legacy 사본 검증·안전한 이관 기반 마련 | 지원 tx fixture, 사용자별 영속 snapshot 분석, 중복 block·cycle·깨진 참조 차단과 재실행 가능한 migration 기반을 검증한다. 운영 데이터는 수정하지 않는다. |
+| 22 | sync | 2026-09-05 22:03 | 🟢 DONE | 2026-09-05 22:03 |  | Canonical DB·change log 동기화 설계 및 마이그레이션 정책 확정 | 서버·desktop·mobile 조회 경로, schema·protocol·충돌·retention·데이터 보존·실행 계획을 문서화하고 링크·task index를 검증했다. 사용자가 계정별 opt-in과 전환 계정 구버전 sync 차단·pending import 정책을 승인했다. 모바일은 조회 adapter만 포함한다. |
 | 21 | admin | 2026-09-05 20:41 | 🟢 DONE | 2026-09-05 20:41 |  | 링크 복사 안내 자동 숨김 | 안내를 3초 후 숨기고 재복사 시 타이머를 재설정하며 언마운트 시 정리한다. 관련 테스트 3개와 관리자 production 빌드를 통과했다(기존 lint 경고). 원격 배포는 수행하지 않았다. |
 | 20 | admin | 2026-09-05 20:30 | 🟢 DONE | 2026-09-05 20:30 |  | Windows 최신 버전 표시 응답 처리 수정 | Windows 상태에 응답의 data를 저장하도록 수정했다. 모의 API 응답을 사용한 실제 컴포넌트 회귀 테스트에서 버전 표시 및 물음표·Invalid date 미표시를 확인했고 관리자 production 빌드를 통과했다(기존 lint 경고). 원격 배포는 수행하지 않았다. |
 | 19 | admin/rms | 2026-09-05 20:41 | 🟢 DONE | 2026-09-05 20:41 |  | 릴리스 도메인 링크 메뉴 및 alert 인증 전달 수정 | 설정된 RMS 도메인의 다운로드·링크 복사 메뉴를 구현했다. 관리자 테스트 2개와 production 빌드, RMS 인증 전달·인증 실패 시 DB 미갱신 모의 검증을 통과했다. 사용자가 도메인 링크 다운로드·복사와 alert 요청 성공을 확인했다. 복사 안내 자동 숨김은 #21에서 처리한다. API의 alert 처리 자체는 기존 stub이므로 실시간 알림 전달 구현을 의미하지 않는다. |
