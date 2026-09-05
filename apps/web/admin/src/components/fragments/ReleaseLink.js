@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import "./ReleaseLink.scss";
 
 export const getReleaseLink = (baseUrl, version, category) =>
@@ -10,6 +10,11 @@ export const getReleaseLink = (baseUrl, version, category) =>
 export default function ReleaseLink({ version, category }) {
   const [open, setOpen] = useState(false);
   const [notice, setNotice] = useState("");
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(""), 3000);
+    return () => clearTimeout(timer);
+  }, [notice]);
   const link = getReleaseLink(process.env.REACT_APP_RMS_ENTRY || "", version, category);
 
   const copyLink = async () => {
