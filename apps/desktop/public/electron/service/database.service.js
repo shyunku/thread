@@ -8,6 +8,8 @@ class DatabaseService {
   constructor() {
     this.rootDatabaseContext = null;
     this.userDatabaseContexts = new Map();
+    this.rootDatabaseReadyPromise = null;
+    this.userDatabaseReadyPromises = new Map();
 
     /** @type {WebsocketService} */
     this.websocketService = null;
@@ -28,12 +30,16 @@ class DatabaseService {
    * @returns {Promise<DatabaseContext>}
    */
   async getRootDatabaseContext() {
-    if (this.rootDatabaseContext == null) {
-      // create new root db context
-      this.rootDatabaseContext = new DatabaseContext(null, this.serviceGroup);
-      await this.rootDatabaseContext.initializeAsRoot();
+    if (this.rootDatabaseContext != null) return this.rootDatabaseContext;
+    if (this.rootDatabaseReadyPromise == null) {
+      this.rootDatabaseReadyPromise = (async () => {
+        const context = new DatabaseContext(null, this.serviceGroup);
+        await context.initializeAsRoot();
+        this.rootDatabaseContext = context;
+        return context;
+      })().finally(() => { this.rootDatabaseReadyPromise = null; });
     }
-    return this.rootDatabaseContext;
+    return this.rootDatabaseReadyPromise;
   }
 
   /**
@@ -42,14 +48,18 @@ class DatabaseService {
    */
   async getUserDatabaseContext(userId) {
     if (userId == null) throw new Error("User ID is not valid.");
-    let context = this.userDatabaseContexts.get(userId);
-    if (context == null) {
-      // create new user db context
-      context = new DatabaseContext(userId, this.serviceGroup);
-      await context.initialize();
-      this.userDatabaseContexts.set(userId, context);
+    const context = this.userDatabaseContexts.get(userId);
+    if (context != null) return context;
+    if (!this.userDatabaseReadyPromises.has(userId)) {
+      const ready = (async () => {
+        const pending = new DatabaseContext(userId, this.serviceGroup);
+        await pending.initialize();
+        this.userDatabaseContexts.set(userId, pending);
+        return pending;
+      })().finally(() => { this.userDatabaseReadyPromises.delete(userId); });
+      this.userDatabaseReadyPromises.set(userId, ready);
     }
-    return context;
+    return this.userDatabaseReadyPromises.get(userId);
   }
 
   async initializeUserDatabase(userId) {

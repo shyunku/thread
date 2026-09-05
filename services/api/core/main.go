@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"github.com/joho/godotenv"
 	"os"
 	"strconv"
@@ -9,7 +10,9 @@ import (
 	"thread_api/libs/crypto"
 	"thread_api/log"
 	"thread_api/service/database"
+	"thread_api/service/database/migrations"
 	"thread_api/service/state"
+	"time"
 )
 
 const VERSION = "1.0.1"
@@ -88,6 +91,16 @@ func main() {
 		log.Error(err)
 		os.Exit(-2)
 	}
+
+	// Apply schema changes before loading state or accepting requests.
+	migrationCtx, cancelMigration := context.WithTimeout(context.Background(), 2*time.Minute)
+	schemaVersion, migrationErr := migrations.Run(migrationCtx, database.DB.DB, migrations.Server)
+	cancelMigration()
+	if migrationErr != nil {
+		log.Error("Database schema migration failed: ", migrationErr)
+		os.Exit(-4)
+	}
+	log.Infof("Database schema version: %d", schemaVersion)
 
 	// Initialize in-memory database
 	log.Info("Initializing in-memory database...")

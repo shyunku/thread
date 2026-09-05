@@ -1,6 +1,7 @@
 const packageJson = require("../../../package.json");
 const path = require("path");
 const sqlite3 = require("sqlite3");
+const { migrate } = require("../migrations/schema");
 const FileSystem = require("../modules/filesystem");
 const fs = require("fs");
 const { getBuildLevel } = require("../util/SystemUtil");
@@ -60,18 +61,7 @@ class DatabaseContext {
       fs.copyFileSync(rootDatabaseTemplatePath, rootDatabaseFilePath);
     }
 
-    this.db = new sqlite3.Database(rootDatabaseFilePath, (err) => {
-      if (err) {
-        console.error(`Error occurred while opening root database`);
-        console.error(err);
-        return;
-      }
-
-      this.db.run("PRAGMA synchronous = OFF;");
-      this.db.run("PRAGMA foreign_keys = ON;");
-      this.db.run("PRAGMA check_constraints = ON;");
-      console.info(`Root Database successfully connected.`);
-    });
+    return this.openAndMigrate(rootDatabaseFilePath, "root");
   }
 
   /**
@@ -117,26 +107,26 @@ class DatabaseContext {
     }
 
     if (this.db != null) {
-      this.db.close();
+      await new Promise((resolve, reject) =>
+        this.db.close((error) => error ? reject(error) : resolve()));
     }
 
-    return new Promise((resolve, reject) => {
-      this.db = new sqlite3.Database(databaseFilePath, (err) => {
-        if (err) {
-          console.error(`Error occurred while opening database`);
-          console.error(err);
-          reject(err);
-          return;
-        }
+    return this.openAndMigrate(databaseFilePath, "user");
+  }
 
-        // Process doesn't wait while database writer changes transactions (if level = OFF)
-        this.db.run("PRAGMA synchronous = OFF;");
-        this.db.run("PRAGMA foreign_keys = ON;");
-        this.db.run("PRAGMA check_constraints = ON;");
-        console.info(`Database successfully connected.`);
-        resolve();
-      });
+  async openAndMigrate(databaseFilePath, scope) {
+    await new Promise((resolve, reject) => {
+      this.db = new sqlite3.Database(databaseFilePath,
+        (error) => error ? reject(error) : resolve());
     });
+    try {
+      const result = await migrate(this.db, scope, databaseFilePath);
+      console.info(`Database ready: ${scope} schema ${result.version}`);
+    } catch (error) {
+      await new Promise((resolve) => this.db.close(() => resolve()));
+      this.db = null;
+      throw error;
+    }
   }
 
   // TODO :: delete this with react handler

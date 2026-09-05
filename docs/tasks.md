@@ -2,7 +2,7 @@
 
 | Index | Tag | Updated | Status | Completed | Deps | 항목 | 완료 조건 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 30 | api/desktop | 2026-09-05 22:03 | 🟡 WIP |  | #22 | Schema version 기반 자동 migration 실행기 | 서버 시작 및 local DB 준비 시 version/checksum migration을 실행한다. SQLite 실제 파일·백업·rollback·동시성·DB ready 테스트 7개, Go 단위 테스트·API 컴파일·desktop 빌드 통과. 실제 MySQL DDL 실패·동시 기동 통합 시험은 Docker 미실행으로 대기하며 운영 DB에는 적용하지 않았다. |
+| 30 | api/desktop | 2026-09-05 22:09 | 🟢 DONE | 2026-09-05 22:09 | #22 | Schema version 기반 자동 migration 실행기 | 서버 시작 및 local DB 준비 시 version/checksum migration을 실행한다. SQLite 파일·백업·rollback·동시성·DB ready 테스트 7개, Go 단위 테스트·API 컴파일·desktop 빌드를 통과했다. 격리된 실제 MySQL 8에서 기존 row 보존·재실행·동시 실행·downgrade/checksum 차단·부분 DDL 실패 후 applying 상태와 재시도 차단을 검증했다. 운영 DB·사용자 SQLite에는 적용하지 않았다. |
 | 29 | deployment/sync | 2026-09-05 21:03 | 🔴 TODO |  | #28 | Sync v2 계정별 운영 전환 | 운영자 승인·backup restore·legacy writer fence를 확인하고 지정 계정만 이관한다. v2 쓰기 이후 단순 rollback 금지. |
 | 28 | sync/migration | 2026-09-05 21:03 | 🔴 TODO |  | #26, #27 | 데이터 이관 사본 rehearsal 및 부하 검증 | 기존 ID·내용·관계·순서·pending parity, migration crash/resume, 실제 MySQL 원자성, 1k/10k/50k 부하 지표를 확인한다. |
 | 27 | mobile | 2026-09-05 21:03 | 🔴 TODO |  | #25 | 모바일 조회를 v2 sync 프로토콜에 연결 | snapshot·delta·삭제·정렬·재접속 조회와 계정별 cursor를 맞춘다. 모바일 편집·outbox 구현은 제외한다. |

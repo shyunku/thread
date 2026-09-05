@@ -2,7 +2,8 @@
 
 작성: 2026-09-05 22:02 KST
 브랜치: `refactor/canonical-sync-v2`
-상태: 실행기 구현 및 SQLite 검증 완료, 실제 MySQL 검증 대기. 운영 적용 전 문서다.
+검증 갱신: 2026-09-05 22:09 KST
+상태: 실행기 구현 및 SQLite·실제 MySQL 격리 검증 완료. 운영 적용 전 문서다.
 
 ## 세 가지 버전을 구분한다
 
@@ -87,4 +88,6 @@ MySQL 통합 시험은 THREAD_MIGRATION_TEST_DSN을 명시적으로 제공해야
 미지정 상태에서는 MySQL 통합 시험을 SKIP한다. 따라서 일반 Go 테스트 통과를 실제 MySQL 검증 완료로 보고하면 안 된다.
 
 검증할 MySQL 시나리오: 반복 기동 no-op, legacy row 보존, 두 connection의 migration exactly-once, downgrade/checksum 차단, 부분 DDL 실패 후 dirty marker와 재기동 차단.
-현재 Docker 미실행으로 실제 MySQL 시험은 대기 중이다.
+2026-09-05 22:09 KST에 운영 볼륨과 분리한 mysql:8.0 tmpfs 컨테이너에서 실제 통합 시험을 통과했다.
+적용 버전 1·2·동시성 fixture 버전 3은 applied, 의도적으로 실패시킨 fixture 버전 4는 applying으로 남고 다음 실행이 차단됨을 확인했다.
+기존 fixture-user의 block state도 그대로 보존됐다. 테스트 컨테이너는 검증 후 제거하며 운영 DB와 사용자 SQLite는 건드리지 않는다.
