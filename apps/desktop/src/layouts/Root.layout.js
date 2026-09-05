@@ -16,6 +16,7 @@ import "./Root.layout.scss";
 import * as uuid from "uuid";
 import { colorize } from "../utils/Common";
 import { applyTransitions } from "../hooks/UseTransition";
+import { fromSyncV2View } from "../utils/syncV2View";
 
 const RootLayout = () => {
   const context = useOutletContext();
@@ -37,6 +38,7 @@ const RootLayout = () => {
   const [databaseReady, setDatabaseReady] = useState(false);
   const [socketReady, setSocketReady] = useState(false);
   const [socketConnected, setSocketConnected] = useState(false);
+  const [syncV2, setSyncV2] = useState(null);
 
   const [promises, setPromises] = useState({});
   const [executing, setExecuting] = useState(false);
@@ -52,8 +54,9 @@ const RootLayout = () => {
   const [states, setStates] = useState(emptyState);
 
   const tryAtOffline = useMemo(() => {
+    if (syncV2) return !syncV2.ready;
     return !(socketReady && socketConnected);
-  }, [socketReady, socketConnected]);
+  }, [socketReady, socketConnected, syncV2]);
 
   const addPromise = useCallback((promise) => {
     setPromiseCounter((pc) => {
@@ -499,12 +502,44 @@ const RootLayout = () => {
   }, []);
 
   useEffect(() => {
+    IpcSender.onAll("sync-v2/state", ({ success, data }) => {
+      if (success && data.uid === accountInfo.uid) {
+        addPromise(async () => fromSyncV2View(data));
+      }
+    });
+    IpcSender.onAll("sync-v2/status", ({ success, data }) => {
+      if (success && data.uid === accountInfo.uid) setSyncV2(data);
+    });
+    IpcSender.onAll("sync-v2/error", ({ data }) => {
+      if (data.uid !== accountInfo.uid) return;
+      Toast.warn(data.code === "LEGACY_REVIEW_REQUIRED"
+        ? "기존 데이터와 미전송 변경의 이관 검토가 필요합니다. 원본은 보존되어 있습니다."
+        : "동기화를 보류했습니다: " + data.code);
+    });
+    return () => {
+      IpcSender.offAll("sync-v2/state");
+      IpcSender.offAll("sync-v2/status");
+      IpcSender.offAll("sync-v2/error");
+    };
+  }, [accountInfo.uid, addPromise]);
+
+  useEffect(() => {
     dispatch(setAccount({ offlineMode: tryAtOffline }));
   }, [tryAtOffline]);
 
   return (
     <div className="root-layout">
       <TopBar addPromise={addPromise} />
+      {syncV2 && (
+        <div role="status" style={{ padding: "8px 16px", background: "#282b32", color: "#eee" }}>
+          {syncV2.error === "LEGACY_REVIEW_REQUIRED"
+            ? "기존 로컬 데이터·미전송 변경을 백업했습니다. 이관 검토 전까지 편집과 전송을 보류합니다."
+            : `Sync v2 · ${syncV2.connected ? "온라인" : "오프라인"} · 미전송 ${syncV2.pending}개 · cursor ${syncV2.seq}`}
+          {syncV2.error && syncV2.error !== "LEGACY_REVIEW_REQUIRED" && ` · ${syncV2.error}`}
+          {syncV2.detail && ` · ${syncV2.detail}`}
+          {syncV2.recovery?.length > 0 && ` · 복구 검토 ${syncV2.recovery.length}개`}
+        </div>
+      )}
       <div className="root-layout__content">
         {databaseReady ? (
           <Outlet context={{ localNonce, remoteNonce, addPromise, states }} />

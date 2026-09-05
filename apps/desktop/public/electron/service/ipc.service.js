@@ -41,6 +41,7 @@ class IpcService extends IpcRouter {
     this.syncerService = group.syncerService;
     this.websocketService = group.websocketService;
     this.executorService = group.executorService;
+    this.syncV2Service = group.syncV2Service;
   }
 
   /**
@@ -100,6 +101,7 @@ class IpcService extends IpcRouter {
         );
       }
       try {
+        if (await this.syncV2Service?.intercept(topic, reqId, arg)) return;
         return await originalCallback(event, reqId, ...arg);
       } catch (err) {
         console.error(err);

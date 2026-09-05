@@ -9,6 +9,7 @@ const SyncerService = require("../service/syncer.service");
 const ExecutorService = require("../service/executor.service");
 const UpdaterService = require("../service/updater.service");
 const TransitionService = require("../service/transition.service");
+const { SyncV2Service } = require("../sync-v2/service");
 
 const WindowConfigure = require("../configures/window.config");
 const SessionConfigure = require("../configures/session.config");
@@ -27,6 +28,7 @@ class ServiceGroup {
     this.executorService = new ExecutorService();
     this.updaterService = new UpdaterService();
     this.transitionService = new TransitionService();
+    this.syncV2Service = new SyncV2Service();
   }
 
   injectReferences() {
@@ -41,6 +43,7 @@ class ServiceGroup {
     this.executorService.inject(this);
     this.updaterService.inject(this);
     this.transitionService.inject(this);
+    this.syncV2Service.inject(this);
   }
 
   configureAndRun() {

@@ -12,6 +12,7 @@ const TransactionRequest = require("../objects/TransactionRequest");
 const { jsonUnmarshal } = require("../util/TxUtil");
 const TX_TYPE = require("../constants/TxType.constants");
 const Transaction = require("../objects/Transaction");
+const axios = require("axios");
 
 const color = console.RGB(190, 75, 255);
 const coloredSocket = console.wrap("Websock", color);
@@ -29,6 +30,7 @@ class WebsocketContext {
     this.userService = serviceGroup.userService;
     this.syncerService = serviceGroup.syncerService;
     this.executorService = serviceGroup.executorService;
+    this.syncV2Service = serviceGroup.syncV2Service;
 
     /** @type {WebSocket} */
     this.socket = null;
@@ -54,6 +56,7 @@ class WebsocketContext {
    * @returns {Promise<void>}
    */
   async connect(accessToken, refreshToken, reconnect = false) {
+    await this.syncV2Service.restore(this.userId);
     const websocketFinalEndpoint = getWebsocketFinalEndpoint();
 
     if (!reconnect && this.socket != null) {
@@ -90,6 +93,30 @@ class WebsocketContext {
         return;
       }
       console.error(err);
+      this.reconnectTimeoutThread = setTimeout(() => {
+        this.connect(accessToken, refreshToken, true);
+      }, this.reconnectTimeout);
+      return;
+    }
+
+    // Negotiate before entering any legacy sync/overwrite path.
+    try {
+      const base = getServerFinalEndpoint().replace(/\/v[0-9]+\/?$/, "");
+      const { data: caps } = await axios.get(base + "/v2/sync/capabilities", {
+        headers: { Authorization: `Bearer ${updatedAccessToken}` },
+        timeout: 10000,
+      });
+      if (caps.protocolVersion !== 2 || !["legacy", "v2"].includes(caps.mode)) {
+        throw new Error("UPDATE_REQUIRED");
+      }
+      if (caps.mode === "v2") {
+        await this.syncV2Service.activate(this.userId, updatedAccessToken, caps,
+          (token) => this.testAuthTokenAndRefresh(token, null));
+        return;
+      }
+      if (this.syncV2Service.active(this.userId)) throw new Error("ACCOUNT_MODE_REGRESSION");
+    } catch (error) {
+      this.ipcService.sender("sync-v2/error", null, true, { uid: this.userId, code: "SYNC_NEGOTIATION_FAILED" });
       this.reconnectTimeoutThread = setTimeout(() => {
         this.connect(accessToken, refreshToken, true);
       }, this.reconnectTimeout);
@@ -288,7 +315,7 @@ class WebsocketContext {
 
       // if error is 401, then try refresh token
       console.debug(
-        `status=${err?.response?.status}, data=${err?.response?.data}, refresh=${refreshToken_}`
+        `Token check status=${err?.response?.status}; token values omitted`
       );
       if (
         err?.response?.status === 401 &&
@@ -297,8 +324,7 @@ class WebsocketContext {
       ) {
         try {
           console.info(
-            `Trying to refresh access/refresh token with recent refresh token...`,
-            refreshToken_
+            "Trying to refresh access/refresh token (values omitted)"
           );
           let result = await Request.post(
             appServerFinalEndpoint,
@@ -329,8 +355,7 @@ class WebsocketContext {
             refreshToken: refreshToken_,
           });
         } catch (err) {
-          console.error(err);
-          console.log(err?.response?.data);
+          console.error("Token refresh failed; status:", err?.response?.status);
 
           // refresh failed: must re-login
           throw new Error("Unauthorized");

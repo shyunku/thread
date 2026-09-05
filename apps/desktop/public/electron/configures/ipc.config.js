@@ -63,6 +63,11 @@ const {
  * @param s {IpcService}
  */
 module.exports = function (s) {
+  powerMonitor?.on("resume", () => {
+    for (const session of s.syncV2Service?.sessions.values() || []) {
+      void session.run?.();
+    }
+  });
   const appServerFinalEndpoint = getServerFinalEndpoint();
   /* ---------------------------------------- System ---------------------------------------- */
   s.register("system/terminate_signal", (event, reqId, param) => {
@@ -471,6 +476,11 @@ module.exports = function (s) {
 
   s.register("auth/isDatabaseReady", async (event, reqId, userId) => {
     try {
+      const v2 = await s.syncV2Service.restore(userId);
+      if (v2) {
+        s.userService.setCurrent(userId);
+        await s.syncV2Service.publish(v2);
+      }
       let ready = await s.databaseService.isUserDatabaseReady(userId);
       s.sender("auth/isDatabaseReady", reqId, true, ready);
     } catch (err) {

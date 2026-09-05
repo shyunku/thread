@@ -377,6 +377,9 @@ const IpcSender = {
   onAll: (topic, callback) => {
     autoSubscribe(topic);
     const newCallback = (e, reqId, ...data) => {
+      // v2 mutations publish one durable view event, not legacy per-action
+      // transitions. Request-scoped callbacks still receive their ACK.
+      if (data[0]?.data?.syncV2Ack) return;
       console.debug(
         `IpcRenderer <-- ${colorize.yellow(`[ALL]`)} ${colorize.magenta(
           topic
