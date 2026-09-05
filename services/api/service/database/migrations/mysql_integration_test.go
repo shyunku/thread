@@ -46,17 +46,20 @@ func TestMySQLMigrationLifecycle(t *testing.T) {
 			t.Fatal("fixture setup failed")
 		}
 	}
-	if version, err := Run(ctx, db, Server); err != nil || version != 2 {
+	if version, err := Run(ctx, db, Server[:2]); err != nil || version != 2 {
+		t.Fatalf("existing schema preparation: version=%d error=%v", version, err)
+	}
+	if version, err := Run(ctx, db, Server); err != nil || version != len(Server) {
 		t.Fatalf("first migration: version=%d error=%v", version, err)
 	}
-	if version, err := Run(ctx, db, Server); err != nil || version != 2 {
+	if version, err := Run(ctx, db, Server); err != nil || version != len(Server) {
 		t.Fatalf("repeat migration: version=%d error=%v", version, err)
 	}
 	var state string
 	if err := db.QueryRowContext(ctx, "SELECT state FROM blocks WHERE uid='fixture-user'").Scan(&state); err != nil || state != "fixture-preserved" {
 		t.Fatal("legacy data changed")
 	}
-	concurrent := append(append([]Migration{}, Server...), Migration{Version: 3, Name: "concurrent_fixture", Statements: []string{"CREATE TABLE concurrent_fixture(id INT) ENGINE=InnoDB"}})
+	concurrent := append(append([]Migration{}, Server...), Migration{Version: len(Server) + 1, Name: "concurrent_fixture", Statements: []string{"CREATE TABLE concurrent_fixture(id INT) ENGINE=InnoDB"}})
 	var wg sync.WaitGroup
 	results := make(chan error, 2)
 	for i := 0; i < 2; i++ {
@@ -70,7 +73,7 @@ func TestMySQLMigrationLifecycle(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM thread_schema_migrations").Scan(&count); err != nil || count != 3 {
+	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM thread_schema_migrations").Scan(&count); err != nil || count != len(Server)+1 {
 		t.Fatal("concurrent migration was not applied exactly once")
 	}
 	if _, err := Run(ctx, db, Server); err == nil {
@@ -81,14 +84,14 @@ func TestMySQLMigrationLifecycle(t *testing.T) {
 	if _, err := Run(ctx, db, changed); err == nil {
 		t.Fatal("checksum drift accepted")
 	}
-	broken := append(concurrent, Migration{Version: 4, Name: "partial_failure", Statements: []string{
+	broken := append(concurrent, Migration{Version: len(Server) + 2, Name: "partial_failure", Statements: []string{
 		"CREATE TABLE partial_fixture(id INT) ENGINE=InnoDB", "THIS IS NOT VALID SQL",
 	}})
 	if _, err := Run(ctx, db, broken); err == nil {
 		t.Fatal("partial DDL failure accepted")
 	}
 	var status string
-	if err := db.QueryRowContext(ctx, "SELECT state FROM thread_schema_migrations WHERE version=4").Scan(&status); err != nil || status != "applying" {
+	if err := db.QueryRowContext(ctx, "SELECT state FROM thread_schema_migrations WHERE version=?", len(Server)+2).Scan(&status); err != nil || status != "applying" {
 		t.Fatal("partial failure not marked dirty")
 	}
 	if _, err := Run(ctx, db, broken); err == nil || !strings.Contains(err.Error(), "incomplete") {

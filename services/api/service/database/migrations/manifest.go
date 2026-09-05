@@ -28,4 +28,5 @@ var Server = []Migration{
    ) ENGINE=InnoDB`,
 		},
 	},
+	canonicalV3(),
 }

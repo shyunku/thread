@@ -35,6 +35,8 @@ Electron 유지, Desktop offline-first 쓰기·다중 기기 sync 보존, Mobile
 
 ## 중단 조건
 
+#24의 독립 canonical 엔진과 schema 3 구현·검증 범위는 [Canonical mutation engine](canonical-engine.md)에 기록한다. HTTP/WS나 기존 계정에는 아직 연결하지 않았다.
+
 #23의 읽기 전용 이관 기반과 실행·검증 범위는 [Legacy sync preflight](sync-preflight.md)에 기록한다. 이 도구의 성공은 실제 계정 이관 완료를 의미하지 않는다.
 
 모호한 최신 block, 손상된 링크/참조, 서버·로컬 상태 불일치, 대응 불가능한 legacy 반복 작업 ID, backup 복구 실패가 있으면 해당 계정을 이관하지 않는다.
