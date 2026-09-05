@@ -93,7 +93,7 @@ class Version extends Component {
         const resp = res.data;
         if (resp.code === 200) {
           this.setState({
-            win_latest_version: resp,
+            win_latest_version: resp.data,
           });
         } else {
           switch (resp.code) {
