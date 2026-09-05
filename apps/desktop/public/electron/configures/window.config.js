@@ -7,11 +7,13 @@ const {
   remote,
   Menu,
   Tray,
+  shell,
 } = require("electron");
 const packageJson = require("../../../package.json");
 const path = require("path");
 const url = require("url");
 const { getAppTrayImagePath } = require("../modules/filesystem");
+const { getLogFilePath } = require("../modules/logger");
 
 /**
  * @param s {WindowService}
@@ -41,6 +43,13 @@ module.exports = function (s) {
           isDebugMode ? " [Debug]" : ""
         }`,
         enabled: false,
+      },
+      {
+        label: "로그 보기",
+        click: function () {
+          const logFilePath = getLogFilePath();
+          if (logFilePath) shell.showItemInFolder(logFilePath);
+        },
       },
       {
         label: "종료",

@@ -3,6 +3,7 @@ const moment = require("moment");
 const path = require("path");
 const fse = require("fs-extra");
 const FileSystem = require("./filesystem");
+let currentLogFilePath = null;
 
 function initialize(isBuildMode, appDataPath) {
   const loggerDirPath = isBuildMode
@@ -40,8 +41,10 @@ function initialize(isBuildMode, appDataPath) {
   ElectronLogger.transports.console.level = false;
   ElectronLogger.transports.file.level = "debug";
   ElectronLogger.transports.file.resolvePathFn = () => loggerFilePath;
+  currentLogFilePath = loggerFilePath;
 }
 
 module.exports = {
   initialize,
+  getLogFilePath: () => currentLogFilePath,
 };
