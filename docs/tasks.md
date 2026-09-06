@@ -2,6 +2,7 @@
 
 | Index | Tag | Updated | Status | Completed | Deps | 항목 | 완료 조건 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
+| 33 | branding | 2026-09-07 01:33 | 🟢 DONE | 2026-09-07 01:33 |  | 제공된 Thread 로고와 favicon 적용 | 제공된 PNG로 desktop/site/admin logo192/512·favicon과 desktop 설치/tray 1x/2x/3x 아이콘을 교체했다. PNG 원본 일치·크기·투명도·manifest 참조·ICO 모든 프레임을 검증했다. 관리자 배너를 새 로고/Thread로 변경하고 회귀 테스트 및 production build(기존 lint 경고), build 자산 hash 일치를 확인했다. 실제 설치/OS 아이콘 표시 및 서버 배포는 수행하지 않았다. |
 | 32 | sync/migration | 2026-09-07 01:25 | 🟢 DONE | 2026-09-07 01:25 | #31 | 제공된 SQL 백업의 격리 DB 리허설 | 승인된 백업을 network=none/tmpfs MySQL에 복원하고 schema5·전체 check/apply/verify·재실행을 통과했다. 기존 모든 테이블 행과 재실행 전후 전체 DB 행의 SHA-256 일치를 확인했다. 임시 DB는 정리하고 원본 백업은 보존했다. 개인정보 원문 출력·운영 DB 접근은 하지 않았다. 실제 기기·부하 검증은 포함하지 않는다. |
 | 31 | sync/deployment | 2026-09-06 04:25 | 🟢 DONE | 2026-09-06 04:25 | #25 | v2 일괄 배포 및 운영자 실행 migration 준비 | schema5·전체 check/apply/verify CLI·원자적 backfill/검증 기록·신규 빈 계정 v2 준비·구버전 sync/진단 차단을 구현했다. 가짜 MySQL fixture에서 schema4→5, 실패 rollback, 재실행, 기존 원문/ID/날짜/순서와 v2 수정값 보존을 검증했고 Go 전체 tests·두 binary compile·example Compose config를 통과했다. 운영자 실행 절차를 문서화했다. 운영 데이터 접근·이관·배포는 하지 않았으며 실제 실행은 #29에서 사용자 담당이다. |
 | 30 | api/desktop | 2026-09-05 22:09 | 🟢 DONE | 2026-09-05 22:09 | #22 | Schema version 기반 자동 migration 실행기 | 서버 시작 및 local DB 준비 시 version/checksum migration을 실행한다. SQLite 파일·백업·rollback·동시성·DB ready 테스트 7개, Go 단위 테스트·API 컴파일·desktop 빌드를 통과했다. 격리된 실제 MySQL 8에서 기존 row 보존·재실행·동시 실행·downgrade/checksum 차단·부분 DDL 실패 후 applying 상태와 재시도 차단을 검증했다. 운영 DB·사용자 SQLite에는 적용하지 않았다. |

@@ -13,8 +13,8 @@ class TopBanner extends Component {
     return (
       <div className="top-banner">
         <div className="logo" onClick={this.goHome}>
-          <div className="text hyper">memo</div>
-          <div className="text link">rial</div>
+          <img src={process.env.PUBLIC_URL + "/logo192.png"} alt="" width="28" height="28" style={{ marginRight: 6 }} />
+          <div className="text hyper">Thread</div>
           <div className="text admin">Admin</div>
         </div>
       </div>
