@@ -1,4 +1,5 @@
 import TopBar from "components/TopBar";
+import SyncWarning from "components/SyncWarning";
 import Loading from "molecules/Loading";
 import Prompt from "molecules/Prompt";
 import Toast from "molecules/Toast";
@@ -530,16 +531,7 @@ const RootLayout = () => {
   return (
     <div className="root-layout">
       <TopBar addPromise={addPromise} />
-      {syncV2 && (
-        <div role="status" style={{ padding: "8px 16px", background: "#282b32", color: "#eee" }}>
-          {syncV2.error === "LEGACY_REVIEW_REQUIRED"
-            ? "기존 로컬 데이터·미전송 변경을 백업했습니다. 이관 검토 전까지 편집과 전송을 보류합니다."
-            : `Sync v2 · ${syncV2.connected ? "온라인" : "오프라인"} · 미전송 ${syncV2.pending}개 · cursor ${syncV2.seq}`}
-          {syncV2.error && syncV2.error !== "LEGACY_REVIEW_REQUIRED" && ` · ${syncV2.error}`}
-          {syncV2.detail && ` · ${syncV2.detail}`}
-          {syncV2.recovery?.length > 0 && ` · 복구 검토 ${syncV2.recovery.length}개`}
-        </div>
-      )}
+      <SyncWarning status={syncV2} />
       <div className="root-layout__content">
         {databaseReady ? (
           <Outlet context={{ localNonce, remoteNonce, addPromise, states }} />
