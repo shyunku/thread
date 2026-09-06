@@ -191,6 +191,17 @@ module.exports = function (s) {
     }
   });
 
+  for (const topic of ["sync-v2/getStatus", "sync-v2/retry"]) {
+    s.register(topic, async (event, reqId) => {
+      try {
+        const status = await s.syncV2Service.settingsStatus(topic === "sync-v2/retry");
+        s.sender(topic, reqId, true, status);
+      } catch {
+        s.sender(topic, reqId, false, { code: "SYNC_STATUS_UNAVAILABLE" });
+      }
+    });
+  }
+
   s.register("system/localLastBlockNumber", async (event, reqId) => {
     try {
       let lastLocalBlockNumber = await s.getUserLastLocalBlockNumber();

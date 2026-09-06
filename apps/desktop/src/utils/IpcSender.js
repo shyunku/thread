@@ -50,6 +50,10 @@ const silentSender = (topic, param, ...arg) => {
 };
 
 const IpcSender = {
+  syncV2: {
+    getStatus: (callback) => sender("sync-v2/getStatus", callback),
+    retry: (callback) => sender("sync-v2/retry", callback),
+  },
   silentSender,
   system: {
     terminateSignal: () => {
@@ -339,6 +343,9 @@ const IpcSender = {
   //   sender("system/unsubscribe", null, currentWebContents.id, topics);
   // },
   off: (topic, callback) => {
+    if (topicHandlers[topic]) {
+      topicHandlers[topic] = topicHandlers[topic].filter((handler) => handler !== callback);
+    }
     return ipcRenderer.removeListener(topic, callback);
   },
   offAll: (topic) => {
@@ -392,6 +399,7 @@ const IpcSender = {
     if (topicHandlers[topic] == null) topicHandlers[topic] = [];
     topicHandlers[topic].push(newCallback);
     ipcRenderer.on(topic, newCallback);
+    return newCallback;
   },
   once: (topic, callback) => {
     const originalCallback = callback.bind({});

@@ -148,9 +148,15 @@ test("desktop service connects the v2 wire, recovers a lost ACK, blocks legacy c
     await new Promise((resolve) => legacy.close(resolve));
     fs.rmSync(dir, { recursive: true, force: true });
   });
+  assert.equal((await service.settingsStatus()).seq, null);
+  assert.equal((await service.settingsStatus()).canSync, false);
   await service.activate(uid, "fixture-token", caps);
   const s = service.sessions.get(uid);
   assert.equal(s.connected, true);
+  const initialStatus = await service.settingsStatus();
+  assert.equal(initialStatus.seq, "0");
+  assert.equal(initialStatus.pending, 0);
+  assert.equal(initialStatus.canSync, true);
   assert.equal(
     await service.intercept("task/updateTaskTitle", "request", [
       "a",
@@ -164,7 +170,11 @@ test("desktop service connects the v2 wire, recovers a lost ACK, blocks legacy c
   assert.equal(sent.length, 1);
   const pending = await s.replica.next();
   assert.equal(pending.clientChangeId, sent[0].mutations[0].clientChangeId);
-  await s.run();
+  assert.equal((await service.settingsStatus()).pending, 1);
+  const retriedStatus = await service.settingsStatus(true);
+  assert.equal(retriedStatus.seq, "1");
+  assert.equal(retriedStatus.pending, 0);
+  assert.equal(retriedStatus.connected, true);
   assert.equal(sent.length, 1);
   assert.equal((await s.replica.view()).pending.length, 0);
   assert.equal((await s.replica.view()).rows[0].fields.title, "offline");

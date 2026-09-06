@@ -432,20 +432,36 @@ class SyncV2Service {
     }
     throw Error("PULL_LIMIT");
   }
-  async publish(s) {
-    if (this.group.userService.getCurrent() !== s.uid) return;
+  async status(s) {
     const view = await s.replica.view();
     const blocked = (await s.replica.meta("migrationBlocked")) === "true";
-    this.group.ipcService.sender("sync-v2/status", null, true, {
+    return {
       uid: s.uid,
       ready: !!view.epoch && !blocked,
       connected: s.connected,
+      syncing: !!s.running,
+      canSync: typeof s.run === "function",
       seq: view.seq,
       pending: view.pending.length,
       recovery: view.recovery,
       error: blocked ? "LEGACY_REVIEW_REQUIRED" : s.error,
       detail: blocked ? s.error : null,
-    });
+    };
+  }
+  async settingsStatus(retry = false) {
+    const uid = this.group.userService.getCurrent();
+    const s = this.sessions.get(uid);
+    if (!s) return { uid, ready: false, connected: false, canSync: false, pending: null, seq: null };
+    if (retry && s.run) await s.run();
+    return this.status(s);
+  }
+  async publish(s) {
+    if (this.group.userService.getCurrent() !== s.uid) return;
+    const status = await this.status(s);
+    if (this.group.userService.getCurrent() !== s.uid) return;
+    this.group.ipcService.sender("sync-v2/status", null, true, status);
+    const view = await s.replica.view();
+    const blocked = (await s.replica.meta("migrationBlocked")) === "true";
     if (view.epoch && !blocked)
       this.group.ipcService.sender("sync-v2/state", null, true, {
         uid: s.uid,

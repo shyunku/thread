@@ -2,6 +2,7 @@
 
 | Index | Tag | Updated | Status | Completed | Deps | 항목 | 완료 조건 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
+| 35 | desktop | 2026-09-07 02:21 | 🟢 DONE | 2026-09-07 02:21 | #34 | v2 설정 동기화 상태 및 1.1.0 빌드 | 설정을 연결 상태·미전송 변경·마지막 반영 번호로 교체하고 현재 상태 조회/실시간 갱신/데이터 보존 재시도 IPC를 연결했다. 계정 필터·초기 응답 경쟁·개별 구독 해제를 검증했다. renderer 29개 및 SQLite/mock service 테스트 1개 통과, production build와 Windows ia32 NSIS 1.1.0 패키징 완료. asar 버전·진입점·최종 renderer·sync/IPC 코드 일치를 확인했다. 기존 lint 경고는 남아 있으며 실제 설치·운영 서버 호출·업로드는 하지 않았다. |
 | 34 | desktop | 2026-09-07 02:10 | 🟢 DONE | 2026-09-07 02:10 |  | 상단 평상시 sync 상태 제거 및 설정 0/0 진단 | 평상시 debug 상태 줄을 제거하고 복구/오류 경고를 보존했다. UI 테스트 6개와 Root/경고 컴포넌트 transpilation, diff 검사를 통과했다. 설정 0/0은 legacy block IPC만 구독하고 v2 status를 구독하지 않는 표시 문제로 확인했다. 설정 변경은 이번 진단 범위에 포함하지 않았다. 실제 Electron 실행/패키징은 수행하지 않았다. |
 | 33 | branding | 2026-09-07 01:33 | 🟢 DONE | 2026-09-07 01:33 |  | 제공된 Thread 로고와 favicon 적용 | 제공된 PNG로 desktop/site/admin logo192/512·favicon과 desktop 설치/tray 1x/2x/3x 아이콘을 교체했다. PNG 원본 일치·크기·투명도·manifest 참조·ICO 모든 프레임을 검증했다. 관리자 배너를 새 로고/Thread로 변경하고 회귀 테스트 및 production build(기존 lint 경고), build 자산 hash 일치를 확인했다. 실제 설치/OS 아이콘 표시 및 서버 배포는 수행하지 않았다. |
 | 32 | sync/migration | 2026-09-07 01:25 | 🟢 DONE | 2026-09-07 01:25 | #31 | 제공된 SQL 백업의 격리 DB 리허설 | 승인된 백업을 network=none/tmpfs MySQL에 복원하고 schema5·전체 check/apply/verify·재실행을 통과했다. 기존 모든 테이블 행과 재실행 전후 전체 DB 행의 SHA-256 일치를 확인했다. 임시 DB는 정리하고 원본 백업은 보존했다. 개인정보 원문 출력·운영 DB 접근은 하지 않았다. 실제 기기·부하 검증은 포함하지 않는다. |

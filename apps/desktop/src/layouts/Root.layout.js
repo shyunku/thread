@@ -503,24 +503,24 @@ const RootLayout = () => {
   }, []);
 
   useEffect(() => {
-    IpcSender.onAll("sync-v2/state", ({ success, data }) => {
+    const stateListener = IpcSender.onAll("sync-v2/state", ({ success, data }) => {
       if (success && data.uid === accountInfo.uid) {
         addPromise(async () => fromSyncV2View(data));
       }
     });
-    IpcSender.onAll("sync-v2/status", ({ success, data }) => {
+    const statusListener = IpcSender.onAll("sync-v2/status", ({ success, data }) => {
       if (success && data.uid === accountInfo.uid) setSyncV2(data);
     });
-    IpcSender.onAll("sync-v2/error", ({ data }) => {
+    const errorListener = IpcSender.onAll("sync-v2/error", ({ data }) => {
       if (data.uid !== accountInfo.uid) return;
       Toast.warn(data.code === "LEGACY_REVIEW_REQUIRED"
         ? "기존 데이터와 미전송 변경의 이관 검토가 필요합니다. 원본은 보존되어 있습니다."
         : "동기화를 보류했습니다: " + data.code);
     });
     return () => {
-      IpcSender.offAll("sync-v2/state");
-      IpcSender.offAll("sync-v2/status");
-      IpcSender.offAll("sync-v2/error");
+      IpcSender.off("sync-v2/state", stateListener);
+      IpcSender.off("sync-v2/status", statusListener);
+      IpcSender.off("sync-v2/error", errorListener);
     };
   }, [accountInfo.uid, addPromise]);
 

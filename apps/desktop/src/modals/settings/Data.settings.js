@@ -1,115 +1,65 @@
-import PackageJson from "../../../package.json";
 import "./Data.settings.scss";
 import { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
+import { accountInfoSlice } from "../../store/accountSlice";
 import IpcSender from "../../utils/IpcSender";
-import Prompt from "../../molecules/Prompt";
-import { applyEmptyState } from "../../hooks/UseTransaction";
-import Toast from "../../molecules/Toast";
-import { useOutletContext } from "react-router-dom";
 
-const SettingData = ({ ...props }) => {
-  const [localNonce, setLocalNonce] = useState(0);
-  const [remoteNonce, setRemoteNonce] = useState(0);
-
-  // const { addPromise } = useOutletContext();
-
-  const initialize = () => {
-    Prompt.float(
-      "데이터 초기화",
-      "정말 초기화하시겠습니까?\n\n" +
-        "모든 데이터가 기기에서 삭제되며, 이후 서버로부터 자동 복구됩니다.\n\n" +
-        "전체 초기화를 할 경우 서버 및 로컬 환경에서의 데이터가 모두 삭제됩니다.",
-      {
-        confirmText: "초기화 및 동기화",
-        onConfirm: async () => {
-          // applyEmptyState({ addPromise });
-          IpcSender.req.system.initializeState(({ success, data }) => {
-            if (success) {
-              Toast.success("데이터 자동 복구가 완료되었습니다.");
-            }
-          });
-        },
-        onCancel: () => {},
-        extraBtns: [
-          {
-            text: "전체 초기화",
-            styles: {
-              backgroundColor: "rgb(165, 66, 66)",
-              color: "white",
-            },
-            onClick: () => {
-              IpcSender.req.system.clearStatePermanently(
-                ({ success, data }) => {
-                  if (success) {
-                    Toast.success("데이터가 초기화되었습니다.");
-                    // applyEmptyState({ addPromise });
-                  } else {
-                    Toast.error("데이터 초기화에 실패했습니다.");
-                  }
-                }
-              );
-            },
-          },
-        ],
-      }
-    );
-  };
+const SettingData = () => {
+  const { uid } = useSelector(accountInfoSlice);
+  const [status, setStatus] = useState(null);
+  const [requestError, setRequestError] = useState(false);
 
   useEffect(() => {
-    const onGetLocalBlockNumber = ({ success, data }) => {
-      if (success) {
-        if (typeof data === "number") {
-          setLocalNonce(data);
-        }
+    let active = true;
+    let receivedEvent = false;
+    setStatus(null);
+    setRequestError(false);
+    const onStatus = ({ success, data }) => {
+      if (active && success && data?.uid === uid) {
+        receivedEvent = true;
+        setStatus(data);
+        setRequestError(false);
       }
     };
-
-    const onGetRemoteBlockNumber = ({ success, data }) => {
-      if (success) {
-        if (typeof data === "number") {
-          setRemoteNonce(data);
-        }
-      }
-    };
-
-    IpcSender.onAll("system/localLastBlockNumber", onGetLocalBlockNumber);
-    IpcSender.onAll("system/remoteLastBlockNumber", onGetRemoteBlockNumber);
-
-    IpcSender.req.system.getLastBlockNumber();
-    IpcSender.req.system.getRemoteLastBlockNumber();
-
+    const listener = IpcSender.onAll("sync-v2/status", onStatus);
+    IpcSender.syncV2.getStatus((response) => {
+      if (!active || receivedEvent) return;
+      if (response.success) onStatus(response);
+      else setRequestError(true);
+    });
     return () => {
-      IpcSender.off("system/localLastBlockNumber", onGetLocalBlockNumber);
-      IpcSender.off("system/remoteLastBlockNumber", onGetRemoteBlockNumber);
+      active = false;
+      IpcSender.off("sync-v2/status", listener);
     };
-  }, []);
+  }, [uid]);
+
+  const current = status?.uid === uid ? status : null;
+  const retry = () => {
+    setRequestError(false);
+    // The normal v2 loop publishes fresh status; never initialize/delete data.
+    IpcSender.syncV2.retry(({ success }) => {
+      if (!success) setRequestError(true);
+    });
+  };
 
   return (
-    <div className={"settings"}>
-      <div className={"setting-item sync-status"}>
-        <div className={"head"}>
-          <div className={"label"}>동기화 상태</div>
-        </div>
-        <div className={"body"}>
-          <div className={"sync-bar"}>
-            <div
-              className={"synced"}
-              style={{
-                width: `${
-                  remoteNonce === 0 ? 0 : (100 * localNonce) / remoteNonce
-                }%`,
-              }}
-            ></div>
-            <div className={"sync-text"}>
-              {localNonce} / {remoteNonce}
-            </div>
+    <div className="settings">
+      <div className="setting-item sync-status">
+        <div className="head"><div className="label">동기화 상태</div></div>
+        <div className="body">
+          <div className="sync-summary" role="status">
+            <div>{!current ? "동기화 상태 확인 중" : current.error ? "동기화 보류" : current.syncing ? "동기화 중" : current.connected ? "온라인" : "오프라인"}</div>
+            <div>미전송 변경: {current?.pending ?? "—"}개</div>
+            <div>마지막 반영 번호: {current?.seq ?? "—"}</div>
+            {current?.error && <div>{current.error}</div>}
+            {current?.recovery?.length > 0 && <div>복구 검토: {current.recovery.length}개</div>}
           </div>
-          <div className={"controller"}>
-            <div className={"description"}>
-              데이터가 동기화되지 않으면 강제로 초기화 후 동기화를 시도할 수
-              있습니다.
+          {requestError && <div role="alert">동기화 상태를 가져오지 못했습니다. 잠시 후 다시 시도해주세요.</div>}
+          <div className="controller">
+            <div className="description">
+              반영 번호는 태스크 개수가 아닌 서버 변경 순서입니다. 재동기화는 기존 데이터와 미전송 변경을 삭제하지 않습니다.
             </div>
-            <button onClick={initialize}>강제 동기화</button>
+            <button disabled={!current?.canSync || current?.syncing} onClick={retry}>다시 동기화</button>
           </div>
         </div>
       </div>
