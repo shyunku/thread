@@ -6,6 +6,7 @@
 !/apps/desktop/.env.local.example
 
 # Migration and local caches
+/.tmp/
 /.monorepo-build/
 /pkg/
 /node_modules/

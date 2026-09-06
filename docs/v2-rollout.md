@@ -6,7 +6,7 @@
 
 ## 실행 권한과 현재 상태
 
-운영 DB 백업·점검·마이그레이션·배포는 **사용자가 직접 실행**한다. Codex는 운영 DSN, 데이터, 백업, 로그를 요청하거나 읽지 않는다.
+운영 DB 백업·마이그레이션·배포는 **사용자가 직접 실행**한다. 2026-09-07 사용자 승인에 따라 제공된 SQL 백업 사본의 로컬 격리 복원·리허설은 Codex가 수행한다. 운영 DB/DSN·실제 env·로그에는 접근하지 않으며 개인정보 원문을 출력하지 않는다.
 이 문서는 실행 준비물이다. 운영 환경에서 아래 명령을 실행한 상태가 아니다.
 
 계정별 opt-in은 사용하지 않는다. 이번 서버는 v2 sync만 제공하며 v1 sync endpoint는 HTTP 426 UPDATE_REQUIRED를 반환한다.
@@ -34,25 +34,25 @@ DSN은 THREAD_MIGRATION_DSN 환경 변수로만 받는다. dotenv 파일을 자�
 
 ## 사용자가 실행할 순서
 
-1. 별도 테스트 환경/본인이 관리하는 사본에서 먼저 rehearsal한다.
+1. 운영과 격리한 임시 MySQL에서 제공된 백업 사본으로 먼저 rehearsal한다. 별도 서버는 필요하지 않다. 이번 사본의 결과는 [리허설 보고서](reports/2026-09-07-backup-migration-rehearsal.md)를 참고한다.
 2. 배포할 코드·클라이언트 배포물을 준비하고 이미지를 build한다. 아직 새 API를 시작하지 않는다.
 3. 운영자가 유지보수/쓰기 차단 구간을 정한다. 모든 API writer와 가입 등 계정 목록을 변경하는 요청을 멈춘다. 구 API 프로세스가 다른 호스트에 남아 있어도 안 된다.
 4. 운영자가 DB 백업을 만들고 복원 가능성을 확인한다. backup 파일·실제 DSN은 비공개로 보관한다.
 5. 같은 MySQL에 접근 가능한 DSN을 THREAD_MIGRATION_DSN에 설정한다. 컨테이너 안에서 DB_HOST는 보통 mysql이며 localhost가 아니다.
 6. 아래 명령을 **하나씩 실행하고 종료 코드가 0인지 확인**한다. 실패하면 다음 단계로 진행하지 않는다.
 
-EC2의 저장소 루트에서, 기존 mysql/redis만 유지하고 API writer가 종료된 상태의 예시:
+EC2의 저장소 루트에서, 기존 mysql/redis만 유지하고 API writer가 종료된 상태의 예시. 현재 운영은 root .env를 사용하므로 --env-file을 지정하지 않는다:
 
 ```sh
-docker compose --env-file .env.production build app-server
+docker compose build app-server
 
-docker compose --env-file .env.production run --rm --no-deps -e THREAD_MIGRATION_DSN app-server ./thread-sync-migrate --prepare-schema --backup-confirmed --writers-stopped
+docker compose run --rm --no-deps -e THREAD_MIGRATION_DSN app-server ./thread-sync-migrate --prepare-schema --backup-confirmed --writers-stopped
 
-docker compose --env-file .env.production run --rm --no-deps -e THREAD_MIGRATION_DSN app-server ./thread-sync-migrate --check-all
+docker compose run --rm --no-deps -e THREAD_MIGRATION_DSN app-server ./thread-sync-migrate --check-all
 
-docker compose --env-file .env.production run --rm --no-deps -e THREAD_MIGRATION_DSN app-server ./thread-sync-migrate --apply-all --backup-confirmed --writers-stopped
+docker compose run --rm --no-deps -e THREAD_MIGRATION_DSN app-server ./thread-sync-migrate --apply-all --backup-confirmed --writers-stopped
 
-docker compose --env-file .env.production run --rm --no-deps -e THREAD_MIGRATION_DSN app-server ./thread-sync-migrate --verify-all
+docker compose run --rm --no-deps -e THREAD_MIGRATION_DSN app-server ./thread-sync-migrate --verify-all
 ```
 
 -e THREAD_MIGRATION_DSN은 호스트에 설정한 값을 전달한다. 위 명령문에 비밀 DSN을 직접 적지 않는다.
@@ -62,7 +62,7 @@ docker compose --env-file .env.production run --rm --no-deps -e THREAD_MIGRATION
 8. 새 API/RMS/site/admin을 운영자가 시작한다. 기존 compose 서비스명 기준 예시는 아래와 같다.
 
 ```sh
-docker compose --env-file .env.production up -d app-server rms site admin-site
+docker compose up -d app-server rms site admin-site
 ```
 
 9. 클라이언트 업데이트를 배포하고 본인이 로그인·데이터·순서·오프라인 미전송 변경을 확인한다.
@@ -94,4 +94,4 @@ fork·원장 불일치·미기록 local-only 변경·모호한 반복/초기화�
 
 가짜 계정만 들어 있는 격리 MySQL 8 tmpfs에서 schema 4→5, 전체 CLI 흐름, read-only check, 의도적 저장 실패 rollback, 재실행, v2 수정값·epoch·legacy 원문 보존, 빈 신규 계정 준비를 검증했다.
 Go 전체 테스트·API/도구 컴파일 및 구버전 요청의 DB/외부 인증 접근 없는 426 응답을 확인했다.
-운영 DB·사용자 SQLite·로그·실제 env에는 접근하거나 이관을 실행하지 않았다. 실제 기기/운영 검증은 사용자 담당으로 남는다.
+추가로 2026-09-07 승인된 SQL 백업 사본을 격리 MySQL에 복원하여 schema5 준비·전체 이관·검증·재실행과 원본 행 보존을 확인했다. 운영 DB·사용자 SQLite·로그·실제 env에는 접근하거나 이관을 실행하지 않았다. 실제 기기/운영 검증은 사용자 담당으로 남는다.

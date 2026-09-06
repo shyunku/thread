@@ -104,7 +104,7 @@ DB integration tests는 명시적인 빈 테스트 DB만 허용한다. THREAD_SY
 
 ## 사용자 검증에서 멈추는 게이트
 
-운영 DB 관련 단계는 사용자가 자신의 비공개 환경에서 직접 수행한다. Codex는 사용자 사본을 읽지 않고 synthetic test 결과와 도구만 제공한다.
+운영 DB 관련 단계는 사용자가 자신의 비공개 환경에서 직접 수행한다. Codex는 synthetic test와 사용자가 명시적으로 제공한 백업 사본의 격리 리허설만 수행하며 개인정보 원문은 출력하지 않는다.
 
 운영 account mode를 수동으로 v2로 바꾸지 않는다. schema 준비와 실제 데이터 backfill은 별개다.
 먼저 격리 테스트 계정/앱 데이터 경로를 준비하고 아래 항목을 사용자와 확인해야 #26/#27을 DONE으로 바꿀 수 있다.
@@ -120,4 +120,4 @@ DB integration tests는 명시적인 빈 테스트 DB만 허용한다. THREAD_SY
 | 모바일 조회·삭제·계정 전환 | stale 삭제/타 계정 목록 미표시 | READ_CACHE_SCOPE |
 | 절전/foreground·네트워크 단절 | 재연결 및 주기적 pull로 수렴 | RECONNECT |
 
-#28의 사본 restore·부하 측정과 #29의 별도 운영 승인은 아직 수행하지 않았다.
+#32에서 제공된 서버 SQL 사본 restore·이관·재실행 검증을 완료했다. #28의 실제 기기/pending parity·부하 측정과 #29 운영 배포는 아직 수행하지 않았다.
