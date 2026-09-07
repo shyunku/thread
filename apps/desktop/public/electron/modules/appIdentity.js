@@ -1,6 +1,12 @@
 const fs = require("fs");
 const path = require("path");
 
+const DEFAULT_APP_ID = "kr.threadapp.desktop";
+
+function getDesktopAppId(packageJson = {}) {
+  return packageJson?.build?.appId || DEFAULT_APP_ID;
+}
+
 function configureDevelopmentIdentity(app, appId, env = process.env) {
   // Packaged installations always keep their existing identity and data paths.
   if (app.isPackaged || (!env.ELECTRON_START_URL &&
@@ -14,4 +20,4 @@ function configureDevelopmentIdentity(app, appId, env = process.env) {
   if (process.platform === "win32") app.setAppUserModelId(`${appId}.dev`);
 }
 
-module.exports = { configureDevelopmentIdentity };
+module.exports = { configureDevelopmentIdentity, getDesktopAppId };

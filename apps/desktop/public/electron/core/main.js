@@ -1,10 +1,10 @@
 /* ---------------------------------------- import ---------------------------------------- */
 const { app } = require("electron");
 const packageJson = require("../../../package.json");
-const { configureDevelopmentIdentity } = require("../modules/appIdentity");
+const { configureDevelopmentIdentity, getDesktopAppId } = require("../modules/appIdentity");
 
 // Must precede logger/services/session initialization and the instance lock.
-configureDevelopmentIdentity(app, packageJson.build.appId);
+configureDevelopmentIdentity(app, getDesktopAppId(packageJson));
 
 /**
  * Flag that indicates whether current process context is on build mode.

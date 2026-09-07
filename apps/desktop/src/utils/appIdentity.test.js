@@ -1,6 +1,9 @@
 const fs = require("fs");
 const path = require("path");
-const { configureDevelopmentIdentity } = require("../../public/electron/modules/appIdentity");
+const {
+  configureDevelopmentIdentity,
+  getDesktopAppId,
+} = require("../../public/electron/modules/appIdentity");
 
 jest.mock("fs", () => ({ mkdirSync: jest.fn() }));
 
@@ -13,6 +16,11 @@ const makeApp = (isPackaged = false) => ({
 });
 
 beforeEach(() => jest.clearAllMocks());
+
+test("uses the production app ID when packaged metadata omits build config", () => {
+  expect(getDesktopAppId({ version: "1.1.3" })).toBe("kr.threadapp.desktop");
+  expect(getDesktopAppId({ build: { appId: "custom.desktop" } })).toBe("custom.desktop");
+});
 
 test.each([
   { NODE_ENV: "development" },
