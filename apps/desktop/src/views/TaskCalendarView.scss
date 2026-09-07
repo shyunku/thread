@@ -1,264 +1,194 @@
-@import "styles/constants.scss";
-
 .task-view.calendar {
   display: flex;
   flex-direction: column;
-
+  min-width: 0;
   .calendar-view {
     display: flex;
     flex-direction: column;
-
-    @media screen and (max-width: 1300px) {
-      .calendar-view-header {
-        flex-direction: column;
-
-        & > *:not(:last-child) {
-          margin-bottom: 15px;
-        }
-      }
-      .week-cells {
-        display: none !important;
-      }
-      .day-cell:not(.current-month) {
-        display: none !important;
-      }
-      .day-cells {
-        flex-direction: column;
-
-        .cell {
-          flex-direction: row !important;
-          width: 100% !important;
-          height: auto !important;
-
-          .tasks {
-            margin-top: 0 !important;
-            margin-left: 10px;
-
-            .remain-time {
-              display: flex !important;
-            }
-          }
-        }
-      }
+  }
+  .calendar-view-body {
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    overflow: hidden;
+  }
+  .week-cells,
+  .day-cells {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+  .week-cell {
+    text-align: center;
+    padding: 10px 0;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--secondary);
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+  }
+  .week-cell.sunday {
+    color: var(--danger);
+  }
+  .week-cell.saturday {
+    color: var(--accent);
+  }
+  .day-cell {
+    position: relative;
+    min-width: 0;
+    height: clamp(76px, 9vh, 116px);
+    padding: 7px;
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    background: var(--canvas);
+    box-sizing: border-box;
+    overflow: hidden;
+    cursor: pointer;
+  }
+  .day-cell:nth-child(7n) {
+    border-right: 0;
+  }
+  .day-cell:hover {
+    background: #1a202b;
+  }
+  .day-cell:not(.current-month) {
+    background: var(--panel);
+  }
+  .day-cell:not(.current-month) .date {
+    color: #727d8f;
+  }
+  .day-cell.selected {
+    background: #1d293e;
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
+  .day-cell.today .date {
+    background: var(--accent);
+    color: #0b1730;
+    font-weight: 700;
+  }
+  .day-cell-header {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .date {
+    display: grid;
+    place-items: center;
+    width: 21px;
+    height: 21px;
+    border-radius: 5px;
+    font-size: 12px;
+    color: var(--text);
+  }
+  .sunday .date {
+    color: var(--danger);
+  }
+  .saturday .date {
+    color: var(--accent);
+  }
+  .task-count {
+    color: var(--muted);
+    font-size: 9px;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .tasks {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 5px;
+    max-height: calc(100% - 25px);
+    overflow-y: auto;
+  }
+  .task {
+    display: flex;
+    flex-shrink: 0;
+    gap: 5px;
+    align-items: center;
+    position: relative;
+    padding: 5px 5px 5px 10px;
+    border-radius: 4px;
+    background: var(--surface);
+    color: var(--text);
+    font-size: 10px;
+    min-width: 0;
+  }
+  .task.hovered,
+  .task:hover {
+    background: var(--selected);
+  }
+  .task .title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .task .color-label {
+    position: absolute;
+    left: 3px;
+    width: 3px;
+    height: 9px;
+    border-radius: 3px;
+    background: var(--accent);
+  }
+  .task .subtasks {
+    font-size: 9px;
+    color: var(--muted);
+  }
+  .task .remain-time {
+    display: none;
+  }
+  .task.done {
+    color: var(--muted);
+    text-decoration: line-through;
+  }
+  .task.overdue:not(.done) {
+    color: var(--danger);
+  }
+  .selected-day {
+    margin-top: 14px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: var(--panel);
+    padding: 18px;
+  }
+  .selected-day h3 {
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 11px;
+  }
+  .selected-day p {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .selected-day-task {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-top: 9px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--secondary);
+    overflow-wrap: anywhere;
+  }
+  .task-dot,
+  .done-dot {
+    display: block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    flex-shrink: 0;
+  }
+  .done-dot {
+    background: var(--success);
+  }
+  @media (max-width: 850px) {
+    .day-cell {
+      padding: 5px;
     }
-
-    .calendar-view-body {
-      display: flex;
-      flex-direction: column;
-
-      .cell {
-        display: flex;
-        flex-direction: column;
-        width: calc(100% / 7);
-
-        box-sizing: border-box;
-        background-color: rgb(14, 14, 15);
-        transition: 0.2s ease;
-      }
-
-      .week-cells {
-        display: flex;
-        width: 100%;
-
-        .week-cell {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          height: 36px;
-          font-size: 15px;
-          color: rgb(175, 188, 215);
-          font-weight: bold;
-          background-color: rgb(10, 11, 13);
-          border-bottom: 2px solid rgb(90, 105, 125);
-
-          &:not(:last-child) {
-            border-right: 1px solid rgb(30, 37, 48);
-          }
-
-          &.sunday {
-            color: $sunday-color;
-          }
-
-          &.saturday {
-            color: $saturday-color;
-          }
-        }
-      }
-
-      .day-cells {
-        display: flex;
-        flex-wrap: wrap;
-        width: 100%;
-
-        .day-cell {
-          display: flex;
-          flex-direction: column;
-          overflow: hidden;
-          height: 170px;
-          padding: 8px;
-          border: 1px solid rgb(24, 25, 28);
-
-          &:not(.current-month) {
-            background-color: rgb(24, 26, 29);
-            // opacity: 0;
-          }
-
-          &:hover {
-            // background-color: rgb(0, 0, 0);
-            border: 1px solid rgb(84, 101, 137);
-
-            .date {
-              color: white !important;
-            }
-          }
-
-          &.sunday .date {
-            color: $sunday-color !important;
-          }
-
-          &.saturday .date {
-            color: $saturday-color !important;
-          }
-
-          &.today {
-            border: 2px solid rgb(176, 83, 83);
-
-            .date {
-              background-color: rgb(121, 61, 61) !important;
-              color: white !important;
-            }
-          }
-
-          .day-cell-header {
-            display: flex;
-            align-items: center;
-
-            .date {
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              width: 25px !important;
-              height: 25px !important;
-              border-radius: 3px;
-              font-size: 15px;
-              color: rgb(152, 160, 173);
-              transition: 0.2s ease;
-              font-weight: 400;
-            }
-
-            .task-count {
-              min-width: 55px;
-              //text-align: center;
-              font-size: 12px;
-              margin-left: 10px;
-              color: #415572;
-            }
-          }
-
-          @media screen and (max-width: 1920px) and (min-width: 1300px) {
-            .task {
-              .subtasks {
-                display: none;
-              }
-            }
-          }
-
-          @media screen and (max-width: 1400px) and (min-width: 1300px) {
-            .task {
-              .remain-time {
-                display: none !important;
-              }
-            }
-          }
-
-          .tasks {
-            display: flex;
-            flex-direction: column;
-            margin-top: 10px;
-            flex: 1;
-            overflow-y: overlay;
-
-            .task {
-              display: flex;
-              flex-shrink: 0;
-              align-items: center;
-              padding: 5px 8px 5px 12px;
-              white-space: nowrap;
-              border-radius: 3px;
-              font-size: 13px;
-              width: 100%;
-              font-weight: 500;
-              box-sizing: border-box;
-              cursor: pointer;
-              transition: 0.2s ease;
-              position: relative;
-              overflow: hidden;
-
-              background-color: rgb(37, 38, 42);
-              color: rgb(148, 160, 173);
-
-              &:not(:last-child) {
-                margin-bottom: 6px;
-              }
-
-              &:hover,
-              &.hovered {
-                background-color: rgb(60, 67, 80);
-                color: white;
-              }
-
-              & > .color-label {
-                width: 5px;
-                height: 100%;
-                position: absolute;
-                top: 0;
-                left: 0;
-                background: rgba(45, 51, 61, 0.58);
-              }
-
-              &:not(.done).overdue {
-                background-color: rgb(52, 25, 25);
-                color: #b04f4f;
-
-                & > .remain-time {
-                  color: #d57676;
-                }
-
-                &:hover,
-                &.hovered {
-                  background-color: rgb(79, 39, 39);
-                  color: #ff9292;
-                }
-              }
-
-              &.done {
-                opacity: 0.3;
-              }
-
-              .title {
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-              }
-
-              .subtasks {
-                margin-left: 5px;
-                color: rgb(112, 147, 212);
-              }
-
-              .remain-time {
-                display: flex;
-                flex: 1;
-                justify-content: flex-end;
-                color: rgb(109, 134, 175);
-                font-weight: 300;
-                margin-left: 10px;
-                font-size: 12px;
-              }
-            }
-          }
-        }
-      }
+    .task-count,
+    .task .subtasks {
+      display: none;
     }
   }
 }

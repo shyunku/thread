@@ -78,6 +78,7 @@ const TodoContent = (callback, deps) => {
     states,
     hideLeftSidebar,
     setHideLeftSidebar,
+    searchQuery = "",
   } = props;
 
   const { taskMap, categories } = states;
@@ -86,6 +87,7 @@ const TodoContent = (callback, deps) => {
   const [timer, setTimer] = useState(0);
   const [lastTxUpdateTime, setLastTxUpdateTime] = useState(null);
   const [colorPickerVisible, setColorPickerVisible] = useState(false);
+  const [completionFilter, setCompletionFilter] = useState("all");
   const lastUpdateTimeText = useMemo(() => {
     if (lastTxUpdateTime == null) return null;
     const now = Date.now();
@@ -125,7 +127,7 @@ const TodoContent = (callback, deps) => {
           return true;
         };
     }
-  }, [category]);
+  }, [category, selectedTodoMenuType]);
 
   const secretFilter = useMemo(() => {
     return (task) => {
@@ -133,13 +135,13 @@ const TodoContent = (callback, deps) => {
       for (let cid of cidList) {
         // not current category & it's secret >> hidden
         const taskCategory = categories[cid];
-        if (cid !== category?.id && taskCategory.secret) {
+        if (cid !== category?.id && taskCategory?.secret) {
           return false;
         }
       }
       return true;
     };
-  }, [category]);
+  }, [category, categories]);
 
   // collect all filters to apply to tasks
   const totalFilters = useMemo(() => {
@@ -157,13 +159,23 @@ const TodoContent = (callback, deps) => {
   }, [totalFilters]);
 
   // finally, apply all filters to taskMap
-  const filteredTaskMap = useMemo(() => {
+  const searchedTaskMap = useMemo(() => {
     const filtered = {};
+    const query = searchQuery.trim().toLocaleLowerCase();
     for (let task of Object.values(taskMap)) {
-      if (finalStandaloneFilter(task)) filtered[task.id] = task;
+      if (!finalStandaloneFilter(task)) continue;
+      const text = [task.title, task.memo, ...Object.keys(task.categories).map((id) => categories[id]?.title)].join(" ").toLocaleLowerCase();
+      if (!query || text.includes(query)) filtered[task.id] = task;
     }
     return filtered;
-  }, [taskMap, finalStandaloneFilter]);
+  }, [taskMap, finalStandaloneFilter, searchQuery, categories]);
+
+  const filteredTaskMap = useMemo(() => Object.fromEntries(
+    Object.entries(searchedTaskMap).filter(([, task]) =>
+      completionFilter === "all" || (completionFilter === "done" ? task.done : !task.done))
+  ), [searchedTaskMap, completionFilter]);
+  const completeCount = Object.values(searchedTaskMap).filter((task) => task.done).length;
+  const visibleCount = Object.keys(searchedTaskMap).length;
 
   const filteredUndoneTaskCount = useMemo(() => {
     let length = 0;
@@ -600,8 +612,9 @@ const TodoContent = (callback, deps) => {
   };
 
   return (
-    <div className="todo-content" onScroll={onScroll}>
-      <div
+    <div className={"todo-content" + (taskViewMode === TASK_VIEW_MODE.LIST_CALENDAR ? " split-workspace" : "")} onScroll={onScroll}>
+      <button
+        aria-label={hideLeftSidebar ? "사이드바 펼치기" : "사이드바 접기"}
         className={
           "sidebar-flipper" +
           JsxUtil.classByCondition(hideLeftSidebar, "flipped")
@@ -609,14 +622,15 @@ const TodoContent = (callback, deps) => {
         onClick={(e) => setHideLeftSidebar(!hideLeftSidebar)}
       >
         <VscFoldDown />
-      </div>
+      </button>
       <div className="header">
         <div className="title">
-          {category?.title ?? "-"} ({filteredUndoneTaskCount})
+          {category?.title === TODO_MENU_TYPE.ALL ? "모든 할 일" : category?.title === TODO_MENU_TYPE.TODAY ? "오늘의 할 일" : category?.title ?? "내 작업"} <span className="heading-count">{filteredUndoneTaskCount}</span>
         </div>
+        <p className="workspace-description">{searchQuery ? `“${searchQuery}” 검색 결과` : "생각은 가볍게, 해야 할 일은 한곳에."}</p>
         <div className="metadata">
           <div className="last-modified">
-            마지막 수정: {lastUpdateTimeText ?? "-"}
+            {visibleCount}개의 할 일 · {completeCount}개 완료
           </div>
           <div className={"settings"}>
             {category?.default === false && (
@@ -648,7 +662,7 @@ const TodoContent = (callback, deps) => {
               )
                 return null;
               return (
-                <div
+                <button type="button" aria-pressed={curTaskViewMode === taskViewMode}
                   key={mode}
                   className={
                     `view-mode` +
@@ -661,7 +675,7 @@ const TodoContent = (callback, deps) => {
                   onClick={(e) => setTaskViewMode(curTaskViewMode)}
                 >
                   {curTaskViewMode}
-                </div>
+                </button>
               );
             })}
           </div>
@@ -670,7 +684,7 @@ const TodoContent = (callback, deps) => {
               Object.keys(SORT_MODE).map((mode) => {
                 const sortMode = SORT_MODE[mode];
                 return (
-                  <div
+                  <button type="button" aria-pressed={currentSortMode === sortMode}
                     key={mode}
                     className={
                       `sort-option` +
@@ -683,13 +697,21 @@ const TodoContent = (callback, deps) => {
                     onClick={(e) => setCurrentSortMode(sortMode)}
                   >
                     {sortMode} 순
-                  </div>
+                  </button>
                 );
               })}
           </div>
         </div>
         <div className="spliter"></div>
       </div>
+      <div className="workspace-filters" aria-label="완료 상태 필터">
+        {[["all", "전체", visibleCount], ["open", "진행 중", visibleCount - completeCount], ["done", "완료됨", completeCount]].map(([value, label, count]) => (
+          <button key={value} aria-pressed={completionFilter === value} onClick={() => setCompletionFilter(value)}>
+            {label} <span>{count}</span>
+          </button>
+        ))}
+      </div>
+      <TodoItemAddSection onTaskAdd={onTaskAdd} category={category} expanded={hideLeftSidebar} />
       <div
         className={
           "body" +
@@ -725,11 +747,6 @@ const TodoContent = (callback, deps) => {
           ),
         }[taskViewMode] ?? <div>Currently not supported</div>}
       </div>
-      <TodoItemAddSection
-        onTaskAdd={onTaskAdd}
-        category={category}
-        expanded={hideLeftSidebar}
-      />
     </div>
   );
 };

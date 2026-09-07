@@ -1,28 +1,28 @@
-$main-theme-color: #0a0b0c; // top bar
-$main-bg-color: #121315;
-$left-sidebar-color: #1b1c22;
+$main-theme-color: #13161b;
+$main-bg-color: #101216;
+$left-sidebar-color: #15181e;
 
-$std-btn-color: rgb(75, 84, 99);
-$std-btn-label-color: rgb(105, 116, 137);
+$std-btn-color: #2b303b;
+$std-btn-label-color: #a0aaba;
 
-$std-color: rgb(131, 145, 171);
-$highlight-color: rgb(93, 152, 255);
+$std-color: #a0aaba;
+$highlight-color: #6294ff;
 
 // top bar
-$top-bar-height: 30px;
+$top-bar-height: 60px;
 
 // to-do content
-$padding-horizontal: 70px;
-$padding-vertical: 60px;
+$padding-horizontal: 28px;
+$padding-vertical: 26px;
 
 // calendar view
-$saturday-color: rgb(95, 149, 255);
-$sunday-color: rgb(255, 110, 110);
+$saturday-color: #6294ff;
+$sunday-color: #f0838b;
 
 // list view
-$task-title-color: rgb(181, 197, 219);
+$task-title-color: #edf1f7;
 
-$left-sidebar-width: 240px;
+$left-sidebar-width: 232px;
 
 $ease-out-elastic: cubic-bezier(0, 0.99, 0.57, 1.22);
 

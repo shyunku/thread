@@ -270,7 +270,7 @@ const TodoItem = ({
         focused={selected}
         {...rest}
       >
-        <div
+        <button type="button" aria-label={`${todo.title} 삭제`}
           className="delete-button"
           onClick={(e) => {
             e.stopPropagation();
@@ -278,15 +278,21 @@ const TodoItem = ({
           }}
         >
           <VscChromeClose />
-        </div>
-        <DraggableZone className="todo-item">
+        </button>
+        <DraggableZone className="todo-item" tabIndex={0} role="button" aria-expanded={!!selected}
+          aria-label={`${todo.title} 상세`}
+          onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); rest.onClick?.(e); } }}>
           {/* {linkedListTestJsx} */}
           <div className="left-side">
+            <SubTaskProgressBar overdue={isOverDue} total={todo.getSubTaskCount()}
+              fulfilled={todo.getFulfilledSubTaskCount()} done={todo.done}
+              doneHandler={(done) => { onTaskDone?.(todo.id, done); setTimeout(() => blurHandler?.(), 0); }} />
             <div
               className={"color-label"}
               style={{ backgroundColor: categoryColor }}
             ></div>
             <div className="title">{todo.title}</div>
+            {categoryTags.length > 0 && <span className="task-category-badge">{categoryTags[0].title}</span>}
             {todo.dueDate != null && (
               <div
                 className={
@@ -307,18 +313,6 @@ const TodoItem = ({
                 {remainTimeText} {remainTimeMilli < 0 ? "지남" : "남음"}
               </div>
             )}
-            <SubTaskProgressBar
-              overdue={isOverDue}
-              total={todo.getSubTaskCount()}
-              fulfilled={todo.getFulfilledSubTaskCount()}
-              done={todo.done}
-              doneHandler={(done) => {
-                onTaskDone?.(todo.id, done);
-                setImmediate(() => {
-                  blurHandler?.();
-                }, 0);
-              }}
-            />
           </div>
         </DraggableZone>
         <ExpandableDiv

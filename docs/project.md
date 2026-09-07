@@ -10,6 +10,8 @@ Thread는 데스크톱과 모바일에서 사용할 수 있는 개인 할 일 �
 
 ## 구성 요소
 
+Desktop의 시각 기준은 사용자 참고 이미지 기반 charcoal/blue 테마다. 검색·작업 목록/캘린더 분할·공통 토큰과 접근성 기준은 [디자인 명세](designs/desktop-visual-refresh.md)에 정의하며, 기존 데이터 모델과 동기화 동작을 유지한다.
+
 | 경로 | 역할 | 배포 형태 |
 | --- | --- | --- |
 | `apps/desktop/` | Electron + React 데스크톱 클라이언트 | 네이티브 패키지 |

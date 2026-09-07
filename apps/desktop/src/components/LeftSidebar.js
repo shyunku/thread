@@ -16,6 +16,7 @@ import {
   IoLogoBuffer,
   IoReader,
   IoToday,
+  IoSettingsOutline,
 } from "react-icons/io5";
 import { useSelector } from "react-redux";
 import { useOutletContext } from "react-router-dom";
@@ -32,6 +33,15 @@ import {
 } from "../hooks/UseTransaction";
 import moment from "moment";
 import Clock from "./Clock";
+import { openModal } from "../molecules/Modal";
+import { MODAL_TYPES } from "../routers/ModalRouter";
+
+const activateWithKeyboard = (event) => {
+  if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {
+    event.preventDefault();
+    event.currentTarget.click();
+  }
+};
 
 export const TODO_MENU_TYPE = {
   ALL: "모든 할일",
@@ -211,13 +221,17 @@ const LeftSidebar = ({
       <div className="todo-menu-groups">
         <div className="todo-menu-group standard">
           <div className="header">
-            <div className="title">기본</div>
+            <div className="title">내 작업</div>
             <div className="buttons"></div>
           </div>
           <div className="todo-menus">
             {Object.values(TODO_MENU_TYPE).map((menuType) => (
               <div
                 key={menuType}
+                role="button"
+                tabIndex={0}
+                aria-pressed={selectedTodoMenuType === menuType}
+                onKeyDown={activateWithKeyboard}
                 className={`todo-menu default ${
                   selectedTodoMenuType === menuType ? "selected" : ""
                 }`}
@@ -228,7 +242,7 @@ const LeftSidebar = ({
                 </div>
                 <div className={"content"}>
                   {/*undoneTaskCountMap*/}
-                  <div className="title">{menuType}</div>
+                  <div className="title">{menuType === TODO_MENU_TYPE.ALL ? "모든 할 일" : "오늘"}</div>
                   <div className={"task-count"}>
                     {" "}
                     {undoneTaskCountMap?.[menuType] ?? "?"}
@@ -245,6 +259,7 @@ const LeftSidebar = ({
               <div className="button">
                 <div
                   className="visible"
+                  role="button" tabIndex={0} aria-label="카테고리 추가" onKeyDown={activateWithKeyboard}
                   ref={createCategoryCxt.openerRef}
                   onClick={createCategoryCxt.opener}
                 >
@@ -265,6 +280,7 @@ const LeftSidebar = ({
               <div className="button">
                 <div
                   className="visible key"
+                  role="button" tabIndex={0} aria-label="보안 카테고리 추가" onKeyDown={activateWithKeyboard}
                   ref={addSecretCategoryCxt.openerRef}
                   onClick={addSecretCategoryCxt.opener}
                 >
@@ -296,10 +312,11 @@ const LeftSidebar = ({
                   )
                 }
                 key={category.id}
+                role="button" tabIndex={0} aria-pressed={selectedTodoMenuType === category.id} onKeyDown={activateWithKeyboard}
                 onClick={(e) => onCustomCategorySelect(e, category.id)}
               >
                 <div className="icon-wrapper" style={{ color: category.color }}>
-                  {category.secret ? <IoKeySharp /> : <IoReader />}
+                  {category.secret ? <IoKeySharp /> : <span className="category-dot" />}
                 </div>
                 <div className={"content"}>
                   <div className="title">{category.title}</div>
@@ -309,6 +326,7 @@ const LeftSidebar = ({
                 </div>
                 <div
                   className="delete-btn"
+                  role="button" tabIndex={0} aria-label={`${category.title} 카테고리 삭제`} onKeyDown={activateWithKeyboard}
                   onClick={(e) => tryDeleteCategory(e, category.id)}
                 >
                   <IoClose />
@@ -322,11 +340,10 @@ const LeftSidebar = ({
         <ProfileImage src={profileImageUrl} size={36} />
         <div className="profile-summary">
           <div className="email">{username}</div>
-          <div className={"status" + JsxUtil.class(syncStatus)}>
-            <div className="status-dot"></div>
-            <div className="status-text">{syncText}</div>
-          </div>
+          <div className="account-caption">{accountInfo?.googleEmail || "나의 작업 공간"}</div>
         </div>
+        <button className="account-settings" aria-label="환경설정" title="환경설정"
+          onClick={() => openModal(MODAL_TYPES.SETTINGS)}><IoSettingsOutline /></button>
       </div>
     </div>
   );

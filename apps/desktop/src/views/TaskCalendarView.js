@@ -15,10 +15,12 @@ const TaskCalendarView = ({
   const [currentDate, setCurrentDate] = useState(new Date());
   const [watchingMonth, setWatchingMonth] = useState(new Date());
   const [hoveredDate, setHoveredDate] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(moment().format("YYYY-M-D"));
 
   const dateTaskMap = useMemo(() => {
     const dateMap = {};
     for (let tid in filteredTaskMap) {
+      if (filteredTaskMap[tid].dueDate == null) continue;
       const dayDateKey = moment(filteredTaskMap[tid].dueDate).format(
         "YYYY-M-D"
       );
@@ -54,9 +56,10 @@ const TaskCalendarView = ({
   }, [watchingMonth]);
 
   useEffect(() => {
-    fastInterval(() => {
+    const interval = fastInterval(() => {
       setCurrentDate(new Date());
     }, 1000);
+    return () => clearInterval(interval);
   }, []);
 
   const onPrevYear = () => {
@@ -95,33 +98,29 @@ const TaskCalendarView = ({
             {watchingMoment.format("YYYY년 M월")}
           </div>
           <div className="options">
-            <div className="option ltr" onClick={onPrevYear}>
+            <button className="option ltr" aria-label="이전 연도" title="이전 연도" onClick={onPrevYear}>
               <div className="icon-wrapper">
                 <IoPlayBack />
               </div>
-              <div className="label">지난 해</div>
-            </div>
-            <div className="option ltr" onClick={onPrevMonth}>
+            </button>
+            <button className="option ltr" aria-label="이전 달" title="이전 달" onClick={onPrevMonth}>
               <div className="icon-wrapper">
                 <IoPlay style={{ transform: `rotate(180deg)` }} />
               </div>
-              <div className="label">지난 달</div>
-            </div>
-            <div className="option" onClick={onCurrentMonth}>
-              <div className="label">현재</div>
-            </div>
-            <div className="option rtl" onClick={onNextMonth}>
-              <div className="label">다음 달</div>
+            </button>
+            <button className="option" onClick={onCurrentMonth}>
+              <div className="label">오늘</div>
+            </button>
+            <button className="option rtl" aria-label="다음 달" title="다음 달" onClick={onNextMonth}>
               <div className="icon-wrapper">
                 <IoPlay />
               </div>
-            </div>
-            <div className="option rtl" onClick={onNextYear}>
-              <div className="label">다음 해</div>
+            </button>
+            <button className="option rtl" aria-label="다음 연도" title="다음 연도" onClick={onNextYear}>
               <div className="icon-wrapper">
                 <IoPlayForward />
               </div>
-            </div>
+            </button>
           </div>
         </div>
         <div className="calendar-view-body">
@@ -155,6 +154,7 @@ const TaskCalendarView = ({
                   key={index}
                   year={watchingMoment.year()}
                   month={watchingMoment.month() - 1}
+                  selectedDate={selectedDate} onDateSelect={setSelectedDate}
                   day={
                     moment(prevMonthLastDate).date() -
                     curMonthFirstDay +
@@ -175,6 +175,7 @@ const TaskCalendarView = ({
                   key={index}
                   year={watchingMoment.year()}
                   month={watchingMoment.month()}
+                  selectedDate={selectedDate} onDateSelect={setSelectedDate}
                   day={index + 1}
                   currentMoment={currentMoment}
                   dateTaskMap={dateTaskMap}
@@ -192,6 +193,7 @@ const TaskCalendarView = ({
                     key={index}
                     year={watchingMoment.year()}
                     month={watchingMoment.month() + 1}
+                    selectedDate={selectedDate} onDateSelect={setSelectedDate}
                     day={index + 1}
                     currentMoment={currentMoment}
                     dateTaskMap={dateTaskMap}
@@ -203,6 +205,12 @@ const TaskCalendarView = ({
           </div>
         </div>
       </div>
+      <section className="selected-day" aria-label="선택한 날짜의 할 일">
+        <h3>{moment(selectedDate, "YYYY-M-D").format("M월 D일 (ddd)")}</h3>
+        {(dateTaskMap[selectedDate] || []).length === 0
+          ? <p>등록된 할 일이 없어요. 여유로운 하루를 계획해보세요.</p>
+          : (dateTaskMap[selectedDate] || []).map((task) => <div className="selected-day-task" key={task.id}><span className={task.done ? "done-dot" : "task-dot"} />{task.title}</div>)}
+      </section>
     </div>
   );
 };
@@ -214,6 +222,8 @@ const DayCell = ({
   day,
   dateTaskMap,
   currentMonth = false,
+  selectedDate,
+  onDateSelect,
   setHoveredTaskId,
   hoveredTaskId,
   categories,
@@ -236,7 +246,7 @@ const DayCell = ({
   const tasks = dateTaskMap[dateKey] || [];
 
   const sortedTasks = useMemo(() => {
-    return tasks.sort((a, b) => {
+    return [...tasks].sort((a, b) => {
       if (a.done && !b.done) return 1;
       if (!a.done && b.done) return -1;
 
@@ -250,8 +260,12 @@ const DayCell = ({
 
   return (
     <div
+      role="button" tabIndex={0} aria-label={cellDate.format("YYYY년 M월 D일")} aria-pressed={selectedDate === dateKey}
+      onClick={() => onDateSelect(dateKey)}
+      onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onDateSelect(dateKey); } }}
       className={
         "day-cell cell" +
+        JsxUtil.classByCondition(selectedDate === dateKey, "selected") +
         JsxUtil.classByCondition(isToday, "today") +
         JsxUtil.classByCondition(currentMonth, "current-month") +
         JsxUtil.classByCondition(isSunday, "sunday") +

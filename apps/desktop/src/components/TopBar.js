@@ -1,120 +1,109 @@
-import {useEffect, useState} from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   VscChromeClose,
   VscChromeMaximize,
   VscChromeMinimize,
   VscChromeRestore,
-  VscGear,
-  VscSettingsGear,
-  VscSync,
+  VscSearch,
 } from "react-icons/vsc";
 import IpcSender from "utils/IpcSender";
-import "./TopBar.scss";
 import PackageJson from "../../package.json";
-import {IoLogOutOutline} from "react-icons/io5";
-import Prompt from "molecules/Prompt";
-import {useDispatch, useSelector} from "react-redux";
-import {
-  accountInfoSlice,
-  removeAccount,
-  removeAuth,
-} from "store/accountSlice";
-import {useNavigate, useOutletContext} from "react-router-dom";
-import Toast, {Toaster} from "molecules/Toast";
-import JsxUtil from "utils/JsxUtil";
-import {applyEmptyState} from "../hooks/UseTransaction";
-import {openModal} from "../molecules/Modal";
-import {MODAL_TYPES} from "../routers/ModalRouter";
+import "./TopBar.scss";
 
-const TopBar = ({addPromise}) => {
-  const accountInfo = useSelector(accountInfoSlice);
-  const offlineMode = accountInfo.offlineMode;
-
+const TopBar = ({ searchQuery = "", setSearchQuery }) => {
   const [maximized, setMaximized] = useState(false);
-  const isDevelopment = process.env.NODE_ENV === "development";
-
-  const minimize = () => {
-    IpcSender.system.minimizeWindow();
-  };
-
-  const maximize = () => {
-    IpcSender.system.maximizeWindow();
-  };
-
-  const unmaximize = () => {
-    IpcSender.system.restoreWindow();
-  };
-
-  const close = () => {
-    IpcSender.system.closeWindow();
-  };
-
-  const openSetting = () => {
-    openModal(MODAL_TYPES.SETTINGS, (data) => {
-      console.log(`Modal closed with data:`, data);
-    });
-  };
-
+  const searchRef = useRef(null);
   useEffect(() => {
-    IpcSender.system.isMaximizable(({success, data}) => {
-      if (success) {
-        setMaximized(data);
-      }
+    IpcSender.system.isMaximizable(({ success, data }) => {
+      if (success) setMaximized(data);
     });
-
-    IpcSender.onAll("win_state_changed", ({success, data}) => {
-      if (success) {
-        switch (data) {
-          case "maximize":
-            setMaximized(true);
-            break;
-          case "unmaximize":
-            setMaximized(false);
-            break;
-        }
+    const listener = IpcSender.onAll(
+      "win_state_changed",
+      ({ success, data }) => {
+        if (success && (data === "maximize" || data === "unmaximize"))
+          setMaximized(data === "maximize");
       }
-    });
+    );
+    const onKeyDown = (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      IpcSender.off("win_state_changed", listener);
+      window.removeEventListener("keydown", onKeyDown);
+    };
   }, []);
 
   return (
-    <div
-      className={
-        "component top-bar" +
-        JsxUtil.classByCondition(isDevelopment, "dev-mode")
-      }
-    >
-      <div className="drag-section"></div>
-      <div className="title">Thread - {PackageJson.version}v</div>
-      {isDevelopment && <div className="dev-mode-label">개발자 모드</div>}
-      <div
-        className={
-          "server-status" + JsxUtil.classByCondition(offlineMode, "offline")
-        }
-      >
-        <div className="status">{offlineMode ? "오프라인" : "온라인"}</div>
+    <header className="component top-bar">
+      <div className="brand" title={`Thread ${PackageJson.version}`}>
+        <img src={process.env.PUBLIC_URL + "/logo192.png"} alt="" />
+        <span>thread</span>
+      </div>
+      <div className="drag-section" />
+      <div className="workspace-search">
+        <VscSearch aria-hidden="true" />
+        <input
+          ref={searchRef}
+          aria-label="현재 카테고리에서 할 일 검색"
+          placeholder="할 일, 메모, 카테고리 검색…"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery?.(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              setSearchQuery?.("");
+              e.currentTarget.blur();
+            }
+          }}
+        />
+        {searchQuery ? (
+          <button
+            className="clear-search"
+            aria-label="검색 지우기"
+            onClick={() => setSearchQuery?.("")}
+          >
+            <VscChromeClose />
+          </button>
+        ) : (
+          <kbd>Ctrl K</kbd>
+        )}
+      </div>
+      <div className="build-label">
+        {process.env.NODE_ENV === "development"
+          ? "DEV"
+          : `v${PackageJson.version}`}
       </div>
       <div className="menu-section">
-        <div className="menu-item" onClick={openSetting}>
-          <VscSettingsGear/>
-        </div>
-        {/* <div className="menu-item" onClick={null}>
-          <VscGear />
-        </div> */}
-        <div className="menu-item" onClick={minimize}>
-          <VscChromeMinimize/>
-        </div>
-        <div
+        <button
           className="menu-item"
-          onClick={(e) => (maximized ? unmaximize(e) : maximize(e))}
+          aria-label="최소화"
+          onClick={() => IpcSender.system.minimizeWindow()}
         >
-          {maximized ? <VscChromeRestore/> : <VscChromeMaximize/>}
-        </div>
-        <div className="menu-item close" onClick={close}>
-          <VscChromeClose/>
-        </div>
+          <VscChromeMinimize />
+        </button>
+        <button
+          className="menu-item"
+          aria-label={maximized ? "이전 크기로" : "최대화"}
+          onClick={() =>
+            maximized
+              ? IpcSender.system.restoreWindow()
+              : IpcSender.system.maximizeWindow()
+          }
+        >
+          {maximized ? <VscChromeRestore /> : <VscChromeMaximize />}
+        </button>
+        <button
+          className="menu-item close"
+          aria-label="창 닫기"
+          onClick={() => IpcSender.system.closeWindow()}
+        >
+          <VscChromeClose />
+        </button>
       </div>
-    </div>
+    </header>
   );
 };
-
 export default TopBar;

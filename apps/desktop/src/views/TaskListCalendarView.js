@@ -8,6 +8,7 @@ const TaskListCalendarView = (props) => {
   const taskListViewRef = createRef();
 
   const onScroll = (e) => {
+    if (!taskListViewRef.current) return;
     const topOffset = e.target.scrollTop;
     const bottomOffset =
       e.target.scrollHeight - e.target.scrollTop - e.target.clientHeight;

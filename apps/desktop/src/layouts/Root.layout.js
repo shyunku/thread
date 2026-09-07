@@ -40,6 +40,7 @@ const RootLayout = () => {
   const [socketReady, setSocketReady] = useState(false);
   const [socketConnected, setSocketConnected] = useState(false);
   const [syncV2, setSyncV2] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [promises, setPromises] = useState({});
   const [executing, setExecuting] = useState(false);
@@ -530,11 +531,11 @@ const RootLayout = () => {
 
   return (
     <div className="root-layout">
-      <TopBar addPromise={addPromise} />
+      <TopBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
       <SyncWarning status={syncV2} />
       <div className="root-layout__content">
         {databaseReady ? (
-          <Outlet context={{ localNonce, remoteNonce, addPromise, states }} />
+          <Outlet context={{ localNonce, remoteNonce, addPromise, states, searchQuery }} />
         ) : (
           <div
             style={{

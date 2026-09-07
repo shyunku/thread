@@ -1,42 +1,44 @@
 .task-view.list {
-  min-width: 500px;
-
-  @media screen and (max-width: 1300px) {
-    .todo-item {
-      .remain-time {
-        //margin-right: 0 !important;
-        display: none;
-      }
-
-      .subtask-progress-bar-wrapper {
-        //display: none;
-      }
-    }
-  }
-
-  & > .todo-item-groups {
+  min-width: 0;
+  > .todo-item-groups {
     display: flex;
     flex-direction: column;
-    flex: 1;
-    height: 100%;
-
-    & > .todo-item-group {
-      display: flex;
-      flex-direction: column;
-
-      &:not(:last-child) {
-        margin-bottom: 50px;
-      }
-
-      & > .title {
-        font-size: 20px;
-        font-weight: 700;
-        margin-bottom: 15px;
-        opacity: 0.7;
-      }
-
-      & > .todo-list {
-      }
-    }
+    gap: 30px;
+  }
+  .todo-item-group > .title {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    color: var(--secondary);
+    font-size: 13px;
+    font-weight: 600;
+    margin: 4px 0 14px;
+  }
+  .todo-item-group > .title::before {
+    content: "";
+    width: 5px;
+    height: 5px;
+    border-right: 1.5px solid var(--muted);
+    border-bottom: 1.5px solid var(--muted);
+    transform: rotate(45deg);
+    margin: -3px 3px 0;
+  }
+  .empty-list {
+    border: 1px dashed var(--border);
+    border-radius: 9px;
+    padding: 20px 16px;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  .load-more {
+    align-self: flex-start;
+    margin-top: 12px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--secondary);
+    padding: 9px 12px;
+    border-radius: 7px;
+    font-size: 12px;
   }
 }

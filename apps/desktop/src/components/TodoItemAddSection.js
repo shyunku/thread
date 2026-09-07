@@ -5,6 +5,7 @@ import DueDateMenu from "molecules/DueDateMenu";
 import TaskRepeatMenu from "molecules/TaskRepeatMenu";
 import { TODO_MENU_TYPE } from "./LeftSidebar";
 import moment from "moment";
+import { IoAdd } from "react-icons/io5";
 
 const TodoItemAddSection = ({ onTaskAdd, category, expanded }) => {
   const [newTodoItemFocused, setNewTodoItemFocused] = useState(false);
@@ -45,8 +46,10 @@ const TodoItemAddSection = ({ onTaskAdd, category, expanded }) => {
           JsxUtil.classByCondition(newTodoItemContent.length === 0, "hidden")
         }
       >
+        <button className="quick-add" aria-label="할 일 추가" disabled={!newTodoItemContent.trim()} onClick={onAddTodoItem}><IoAdd /></button>
         <input
-          placeholder="할 일 또는 이벤트 추가"
+          aria-label="새 할 일"
+          placeholder="할 일을 추가하세요…"
           onBlur={(e) => setNewTodoItemFocused(false)}
           onFocus={(e) => setNewTodoItemFocused(true)}
           onChange={(e) => setNewTodoItemContent(e.target.value)}

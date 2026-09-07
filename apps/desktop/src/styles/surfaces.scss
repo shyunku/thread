@@ -1,0 +1,205 @@
+// Shared surfaces use the same tokens as the workspace.
+.profile-img {
+  border-radius: 50%;
+  background: var(--selected);
+  color: #b6ceff;
+}
+.login-top-bar .menu-bar {
+  height: 44px;
+  color: var(--secondary);
+}
+.datetime-picker {
+  border-radius: 12px;
+  background: var(--panel);
+  border-color: var(--border);
+  box-shadow: 0 15px 45px #0007;
+  color: var(--secondary);
+}
+.setting-info .info-item {
+  font-size: 13px;
+  color: var(--secondary);
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.setting-info .info-item .label {
+  color: var(--text);
+}
+.task-timeline-view .task-list-day-column {
+  border-radius: 10px;
+  background: var(--panel);
+  border-color: var(--border);
+}
+.task-timeline-view .task-list-day-column.today {
+  border-color: var(--accent);
+}
+.task-timeline-view .task-list-day-column.today .task-list-header-row {
+  background: var(--selected);
+}
+.modal {
+  height: calc(100% - 60px);
+}
+.modal-back-panel {
+  height: calc(100% - 60px);
+  background: #080a1099;
+}
+.modal-content {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 30px;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+  box-shadow: 0 24px 90px #0008;
+}
+.modal-content.settings {
+  width: min(920px, calc(100% - 48px));
+  height: min(640px, calc(100% - 48px));
+  .title {
+    font-size: 23px;
+    letter-spacing: -0.6px;
+  }
+  .content {
+    margin-top: 30px;
+    min-height: 0;
+  }
+  .content .menu {
+    width: 165px;
+    flex-shrink: 0;
+    margin-right: 26px;
+  }
+  .content .menu .menu-item {
+    font-size: 13px;
+    color: var(--secondary);
+    min-height: 38px;
+    padding: 9px 12px;
+    border-radius: 8px;
+  }
+  .content .menu .menu-item.selected {
+    color: var(--text);
+    background: var(--selected);
+  }
+  .content .menu .menu-item:hover {
+    background: var(--hover);
+  }
+  .content .menu-content {
+    min-width: 0;
+    overflow-y: auto;
+  }
+  .content .menu-content > .settings .setting-item {
+    color: var(--secondary);
+  }
+  .content .menu-content > .settings .setting-item > .head > .label {
+    font-weight: 600;
+    color: var(--text);
+  }
+  .content
+    .menu-content
+    > .settings
+    .setting-item
+    > .body
+    .controller
+    .description {
+    color: var(--secondary);
+    line-height: 1.7;
+  }
+  .content .menu-content > .settings .setting-item > .body .controller {
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+  }
+  .content .menu-content > .settings .setting-item > .body .controller button {
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 9px 13px;
+    background: var(--selected);
+    color: #c5d7ff;
+  }
+  button {
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 9px 13px;
+    background: var(--selected);
+    color: #c5d7ff;
+    font-size: 12px;
+  }
+  .sync-status .sync-summary {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 14px;
+    gap: 14px;
+    line-height: 1.5;
+  }
+  @media (max-width: 850px) {
+    .content .menu {
+      width: 125px;
+      margin-right: 16px;
+    }
+  }
+}
+.custom-prompt-wrapper .custom-prompt {
+  top: 85px;
+  border-radius: 12px;
+  background: var(--panel);
+  border-color: var(--border);
+  color: var(--secondary);
+  max-width: calc(100vw - 70px);
+  min-width: min(360px, 70vw);
+  box-sizing: border-box;
+  box-shadow: 0 20px 70px #0009;
+}
+.custom-prompt .title {
+  color: var(--text);
+}
+.context-menu.default-style {
+  border-radius: 10px;
+  background: #191d25f5;
+  border-color: var(--border);
+  box-shadow: 0 12px 36px #0007;
+  color: var(--secondary);
+}
+.context-menu.default-style > div:not(.seperator) {
+  color: var(--secondary);
+  font-size: 13px;
+}
+.context-menu.default-style > div:not(.seperator):hover {
+  background: var(--hover);
+  color: var(--text);
+}
+.custom-loading-wrapper .custom-loading {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  width: 320px;
+  height: 190px;
+  box-shadow: 0 18px 60px #0008;
+}
+.page.login {
+  background-image: radial-gradient(
+      ellipse at 78% 35%,
+      #6294ff18,
+      transparent 50%
+    ),
+    radial-gradient(ellipse at 70% 80%, #a18aff12, transparent 55%);
+  .login-cover {
+    background: transparent;
+  }
+  .form {
+    border-radius: 12px;
+  }
+  .form > .title {
+    letter-spacing: -1px;
+  }
+  .form > .input-wrapper .label {
+    color: var(--secondary);
+  }
+  .form > .input-wrapper input {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+  }
+  .form .btn {
+    border-radius: 8px;
+  }
+}

@@ -94,6 +94,7 @@ const TaskListView = forwardRef(
               draggable={sorter == null}
               {...rest}
             />
+            {notDoneTaskList.length === 0 && <p className="empty-list">진행 중인 할 일이 없어요. 새로운 일을 추가하거나 다른 필터를 선택해보세요.</p>}
           </div>
           <div className="todo-item-group">
             <div className="title">완료됨 ({doneTaskList.length})</div>
@@ -102,6 +103,12 @@ const TaskListView = forwardRef(
               draggable={sorter == null}
               {...rest}
             />
+            {doneTaskList.length === 0 && <p className="empty-list">완료한 할 일이 여기에 모여요.</p>}
+            {doneTaskList.length > suppressOffset && (
+              <button className="load-more" onClick={() => setSuppressOffset((count) => count + 10)}>
+                완료한 할 일 더 보기
+              </button>
+            )}
           </div>
         </div>
       </div>

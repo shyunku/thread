@@ -1,51 +1,36 @@
 .task-list-calendar-view {
   display: flex;
-  flex: 1;
+  width: 100%;
   height: 100%;
-  overflow: hidden;
-
-  @media screen and (max-width: 1800px) {
-    overflow-x: hidden;
-    overflow-y: scroll;
-    flex-direction: column-reverse;
-    .view-segment.list {
-      width: 100% !important;
-      flex: 1;
-    }
-    .view-segment.calendar {
-      margin-bottom: 30px;
-
-      .calendar-view-header {
-        margin-bottom: 15px;
-      }
-
-      .day-cell {
-        height: 120px !important;
-      }
-    }
-    .split-line {
-      display: none;
-    }
-  }
-
+  min-height: 0;
+  gap: 24px;
   .view-segment {
-    overflow-x: hidden;
+    min-width: 0;
     overflow-y: auto;
-
-    &.list {
-      flex: 1;
-      padding-right: 5px;
-      box-sizing: border-box;
-    }
-
-    &.calendar {
-      flex: 1.7;
-    }
+    padding-bottom: 16px;
   }
-
+  .view-segment.list {
+    flex: 1;
+    padding-right: 3px;
+  }
+  .view-segment.calendar {
+    flex: 1.15;
+  }
   .split-line {
     width: 1px;
-    margin: 0 20px;
-    background-color: #2a333d;
+    flex-shrink: 0;
+    background: var(--border);
+  }
+  @media (max-width: 1100px) {
+    flex-direction: column;
+    height: auto;
+    .view-segment {
+      overflow: visible;
+      flex: none !important;
+    }
+    .split-line {
+      width: 100%;
+      height: 1px;
+    }
   }
 }

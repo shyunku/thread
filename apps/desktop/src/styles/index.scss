@@ -1,5 +1,62 @@
-@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@100;300;400;500;700;900&display=swap");
 @import "styles/constants.scss";
+
+:root {
+  color-scheme: dark;
+  --canvas: #101216;
+  --panel: #15181e;
+  --surface: #1c2028;
+  --hover: #252b36;
+  --border: #2b303b;
+  --text: #edf1f7;
+  --secondary: #a0aaba;
+  --muted: #8792a4;
+  --accent: #6294ff;
+  --selected: #253858;
+  --violet: #a18aff;
+  --success: #70d5a0;
+  --warning: #edbc72;
+  --danger: #f0838b;
+  --radius: 10px;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+button {
+  color: inherit;
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+input:focus-visible,
+textarea:focus-visible {
+  outline-offset: 1px;
+}
+button,
+[role="button"],
+input,
+select,
+textarea {
+  -webkit-app-region: no-drag;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 
 html,
 body,

@@ -18,6 +18,7 @@ import Prompt from "molecules/Prompt";
 import Loading from "molecules/Loading";
 import ModalRouter from "./routers/ModalRouter";
 import { isDevMode } from "./utils/Common";
+import "styles/surfaces.scss";
 
 if (isDevMode()) {
   window.document.title = "Thread (Dev)";
