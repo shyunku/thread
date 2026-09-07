@@ -4,7 +4,7 @@ import { Outlet, useOutletContext } from "react-router-dom";
 
 import "./Home.layout.scss";
 import Category from "../objects/Category";
-import { VscFoldDown } from "react-icons/vsc";
+import { VscChevronLeft } from "react-icons/vsc";
 
 const HomeLayout = () => {
   const props = useOutletContext();
@@ -60,7 +60,7 @@ const HomeLayout = () => {
         className={"sidebar-flipper" + (hideLeftSidebar ? " flipped" : "")}
         onClick={() => setHideLeftSidebar((hidden) => !hidden)}
       >
-        <VscFoldDown />
+        <VscChevronLeft />
       </button>
     </div>
   );
