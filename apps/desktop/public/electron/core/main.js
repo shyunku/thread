@@ -1,5 +1,10 @@
 /* ---------------------------------------- import ---------------------------------------- */
 const { app } = require("electron");
+const packageJson = require("../../../package.json");
+const { configureDevelopmentIdentity } = require("../modules/appIdentity");
+
+// Must precede logger/services/session initialization and the instance lock.
+configureDevelopmentIdentity(app, packageJson.build.appId);
 
 /**
  * Flag that indicates whether current process context is on build mode.
@@ -17,7 +22,6 @@ const Util = require("../modules/util");
 const FileSystem = require("../modules/filesystem");
 const ServiceGroup = require("./serviceGroup");
 const { getBuildLevel } = require("../util/SystemUtil");
-const packageJson = require("../../../package.json");
 /* ---------------------------------------- Declaration ---------------------------------------- */
 /* -------------------- General -------------------- */
 // Manage service packages as a group
@@ -63,10 +67,10 @@ app.setLoginItemSettings({
 
 app.on("ready", async () => {
   try {
+    if (!checkDuplicateInvoke()) return;
     // initialize & configure all services
     serviceGroup.injectReferences();
 
-    checkDuplicateInvoke();
 
     // check update
     await serviceGroup.updaterService.invokeUpdateChecker();
@@ -97,12 +101,12 @@ function checkDuplicateInvoke() {
   if (!packageJson.allowMultipleExecution) {
     let getInstanceLock = app.requestSingleInstanceLock();
 
-    if (isProdMode) {
       if (!getInstanceLock) {
         console.log(
           "Instance is locked by single instance lock (already running). exiting app..."
         );
         app.quit();
+        return false;
       } else {
         const s = serviceGroup.windowService;
         app.on("second-instance", (event, commandLine, workingDirectory) => {
@@ -116,6 +120,6 @@ function checkDuplicateInvoke() {
           console.log("Something trying to open already opened-program.");
         });
       }
-    }
   }
+  return true;
 }

@@ -14,6 +14,8 @@ Desktop의 시각 기준은 사용자 참고 이미지 기반 charcoal/blue 테�
 
 Desktop 보기 선택은 리스트(기본), 캘린더, 타임라인이다. 창 너비가 1100px를 초과하면 리스트와 캘린더 선택 모두 두 뷰를 함께 표시한다. 1100px 이하에서는 선택한 뷰만 표시하며, 크기를 변경해도 선택을 유지한다. 타임라인은 단독 보기를 유지한다.
 
+Desktop 개발 실행은 Thread Dev 및 kr.threadapp.desktop.dev로 구분하고 Electron userData/sessionData를 appData/thread-dev로 분리한다. 개발 실행과 설치 앱을 동시에 사용할 수 있으며 각 환경 내부의 중복 실행은 차단한다. 설치 앱의 기존 저장 경로와 프로젝트 내부 개발 작업 DB는 이동하거나 삭제하지 않는다.
+
 | 경로 | 역할 | 배포 형태 |
 | --- | --- | --- |
 | `apps/desktop/` | Electron + React 데스크톱 클라이언트 | 네이티브 패키지 |

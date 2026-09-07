@@ -35,5 +35,13 @@ Unfortunately, download of Thread is only available from github releases.
 
 ## Development
 
+Run `pnpm dev:desktop` from the monorepo root. Development runs as
+`Thread Dev` with Windows AppUserModelID `kr.threadapp.desktop.dev`.
+Its Electron profile and single-instance lock use `appData/thread-dev`
+(`%APPDATA%/thread-dev` on Windows), independently of the installed app.
+Existing project-local development task databases and the installed app's
+data are not moved or deleted. Restart the dev process once after this change.
+Each environment still allows only one instance of its own.
+
 Thread is developed with Electron, React, and Golang. \
 If you want to contribute to the development of Thread, please contact us.
