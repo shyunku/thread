@@ -45,6 +45,15 @@
   .todo-menu-group {
     margin-bottom: 28px;
   }
+  .todo-menu-group.custom > .header {
+    margin-bottom: 6px;
+  }
+  .todo-menu-group.custom .todo-menu {
+    height: 26px;
+    min-height: 26px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+  }
   .header {
     display: flex;
     align-items: center;
@@ -179,8 +188,8 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 18px 14px;
-    min-height: 78px;
+    padding: 12px 14px;
+    min-height: 66px;
     border-top: 1px solid var(--border);
     box-sizing: border-box;
   }

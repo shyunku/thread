@@ -47,7 +47,7 @@ import {
   applyUpdateTaskTitle,
 } from "../hooks/UseTransaction";
 import TaskListCalendarView from "../views/TaskListCalendarView";
-import { VscFoldDown, VscSymbolColor } from "react-icons/vsc";
+import { VscSymbolColor } from "react-icons/vsc";
 import ColorPicker from "../molecules/ColorPicker";
 import AutoBlurDiv from "../molecules/AutoBlurDiv";
 import TaskTimelineView from "../views/TaskTimelineView";
@@ -77,7 +77,6 @@ const TodoContent = (callback, deps) => {
     addPromise,
     states,
     hideLeftSidebar,
-    setHideLeftSidebar,
     searchQuery = "",
   } = props;
 
@@ -623,16 +622,6 @@ const TodoContent = (callback, deps) => {
 
   return (
     <div className={"todo-content" + (renderedViewMode === TASK_VIEW_MODE.LIST_CALENDAR ? " split-workspace" : "")} onScroll={onScroll}>
-      <button
-        aria-label={hideLeftSidebar ? "사이드바 펼치기" : "사이드바 접기"}
-        className={
-          "sidebar-flipper" +
-          JsxUtil.classByCondition(hideLeftSidebar, "flipped")
-        }
-        onClick={(e) => setHideLeftSidebar(!hideLeftSidebar)}
-      >
-        <VscFoldDown />
-      </button>
       <div className="header">
         <div className="title">
           {category?.title === TODO_MENU_TYPE.ALL ? "모든 할 일" : category?.title === TODO_MENU_TYPE.TODAY ? "오늘의 할 일" : category?.title ?? "내 작업"} <span className="heading-count">{filteredUndoneTaskCount}</span>

@@ -15,20 +15,20 @@
   .day-cells {
     display: grid;
     grid-template-columns: repeat(7, minmax(0, 1fr));
-    column-gap: 1px;
+    column-gap: 0;
     background: var(--border);
   }
   .day-cells {
-    row-gap: 1px;
+    row-gap: 0;
   }
   .week-cell {
+    position: relative;
     text-align: center;
     padding: 10px 0;
     font-size: 11px;
     font-weight: 600;
     color: var(--secondary);
     background: var(--panel);
-    border-bottom: 1px solid var(--border);
   }
   .week-cell.sunday {
     color: var(--danger);
@@ -46,6 +46,20 @@
     box-sizing: border-box;
     overflow: hidden;
     cursor: pointer;
+  }
+  // Two CSS pixels keep a solid device-pixel core at fractional display scales.
+  .day-cell::after,
+  .week-cell::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-right: 2px solid var(--border);
+    border-bottom: 2px solid var(--border);
+    z-index: 1;
+  }
+  .day-cell.selected::after {
+    border-color: var(--accent);
   }
   .day-cell:hover {
     background: #1a202b;

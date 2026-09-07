@@ -4,6 +4,7 @@ import { Outlet, useOutletContext } from "react-router-dom";
 
 import "./Home.layout.scss";
 import Category from "../objects/Category";
+import { VscFoldDown } from "react-icons/vsc";
 
 const HomeLayout = () => {
   const props = useOutletContext();
@@ -54,6 +55,13 @@ const HomeLayout = () => {
           ...props,
         }}
       />
+      <button
+        aria-label={hideLeftSidebar ? "사이드바 펼치기" : "사이드바 접기"}
+        className={"sidebar-flipper" + (hideLeftSidebar ? " flipped" : "")}
+        onClick={() => setHideLeftSidebar((hidden) => !hidden)}
+      >
+        <VscFoldDown />
+      </button>
     </div>
   );
 };

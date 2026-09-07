@@ -11,28 +11,10 @@
   box-sizing: border-box;
   color: var(--text);
   padding: 26px 28px 22px;
-  > .sidebar-flipper {
-    position: absolute;
-    right: 28px;
-    top: 26px;
-    display: grid;
-    place-items: center;
-    width: 30px;
-    height: 30px;
-    border: 1px solid var(--border);
-    border-radius: 7px;
-    background: var(--panel);
-    color: var(--muted);
-    transform: rotate(90deg);
-    z-index: 3;
-  }
-  > .sidebar-flipper.flipped {
-    transform: rotate(-90deg);
-  }
   > .header {
     order: 0;
     flex-shrink: 0;
-    padding-right: 42px;
+    padding-right: 0;
   }
   > .header > .title {
     display: flex;
@@ -229,7 +211,7 @@
       > .header {
         grid-column: 1;
         grid-row: 1;
-        padding-right: 34px;
+        padding-right: 8px;
       }
       > .workspace-filters {
         grid-column: 1;
@@ -238,6 +220,7 @@
       > .todo-item-add-section {
         grid-column: 1;
         grid-row: 3;
+        margin-right: 8px;
       }
       > .body,
       .task-list-calendar-view {
@@ -255,9 +238,6 @@
       }
       .split-line {
         display: none;
-      }
-      > .sidebar-flipper {
-        right: calc(53.5% + 12px);
       }
       .calendar .day-cell {
         height: clamp(88px, 12vh, 142px);
@@ -302,10 +282,6 @@
   }
   @media (max-width: 1100px) {
     padding: 20px;
-    > .sidebar-flipper {
-      right: 20px;
-      top: 20px;
-    }
     > .body {
       min-height: auto;
     }
