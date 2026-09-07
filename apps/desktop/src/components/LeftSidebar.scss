@@ -89,8 +89,9 @@
   .todo-menu {
     display: flex;
     align-items: center;
-    min-height: 42px;
-    padding: 8px 10px;
+    height: 32px;
+    min-height: 32px;
+    padding: 5px 10px;
     box-sizing: border-box;
     gap: 12px;
     position: relative;
@@ -102,8 +103,8 @@
     transition: background 0.15s ease;
   }
   .todo-menu.default {
-    height: 36px;
-    min-height: 36px;
+    height: 32px;
+    min-height: 32px;
     padding-top: 5px;
     padding-bottom: 5px;
   }

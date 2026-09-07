@@ -100,8 +100,18 @@ const TodoContent = (callback, deps) => {
   // main objects
   const [selectedTodoItemId, setSelectedTodoItemId] = useState(null);
   const [taskViewMode, setTaskViewMode] = useState(
-    TASK_VIEW_MODE.LIST_CALENDAR
+    TASK_VIEW_MODE.LIST
   );
+  const [wideWorkspace, setWideWorkspace] = useState(() => window.innerWidth > 1100);
+  useEffect(() => {
+    const onResize = () => setWideWorkspace(window.innerWidth > 1100);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  const renderedViewMode = wideWorkspace &&
+    (taskViewMode === TASK_VIEW_MODE.LIST || taskViewMode === TASK_VIEW_MODE.CALENDAR)
+    ? TASK_VIEW_MODE.LIST_CALENDAR
+    : taskViewMode;
 
   const isTodayCategory = useMemo(() => {
     return category?.default && category?.title === TODO_MENU_TYPE.TODAY;
@@ -612,7 +622,7 @@ const TodoContent = (callback, deps) => {
   };
 
   return (
-    <div className={"todo-content" + (taskViewMode === TASK_VIEW_MODE.LIST_CALENDAR ? " split-workspace" : "")} onScroll={onScroll}>
+    <div className={"todo-content" + (renderedViewMode === TASK_VIEW_MODE.LIST_CALENDAR ? " split-workspace" : "")} onScroll={onScroll}>
       <button
         aria-label={hideLeftSidebar ? "사이드바 펼치기" : "사이드바 접기"}
         className={
@@ -627,7 +637,7 @@ const TodoContent = (callback, deps) => {
         <div className="title">
           {category?.title === TODO_MENU_TYPE.ALL ? "모든 할 일" : category?.title === TODO_MENU_TYPE.TODAY ? "오늘의 할 일" : category?.title ?? "내 작업"} <span className="heading-count">{filteredUndoneTaskCount}</span>
         </div>
-        <p className="workspace-description">{searchQuery ? `“${searchQuery}” 검색 결과` : "생각은 가볍게, 해야 할 일은 한곳에."}</p>
+        {searchQuery && <p className="workspace-description">{`“${searchQuery}” 검색 결과`}</p>}
         <div className="metadata">
           <div className="last-modified">
             {visibleCount}개의 할 일 · {completeCount}개 완료
@@ -655,6 +665,7 @@ const TodoContent = (callback, deps) => {
           <div className="view-modes">
             {Object.keys(TASK_VIEW_MODE).map((mode) => {
               const curTaskViewMode = TASK_VIEW_MODE[mode];
+              if (curTaskViewMode === TASK_VIEW_MODE.LIST_CALENDAR) return null;
               if (
                 isTodayCategory &&
                 (curTaskViewMode === TASK_VIEW_MODE.CALENDAR ||
@@ -716,7 +727,7 @@ const TodoContent = (callback, deps) => {
         className={
           "body" +
           JsxUtil.classByEqual(
-            taskViewMode,
+            renderedViewMode,
             TASK_VIEW_MODE.LIST_CALENDAR,
             "multiview"
           )
@@ -745,7 +756,7 @@ const TodoContent = (callback, deps) => {
           [TASK_VIEW_MODE.LIST_TIMELINE]: (
             <TaskListTimelineView key={selectedTodoMenuType} {...listProps} />
           ),
-        }[taskViewMode] ?? <div>Currently not supported</div>}
+        }[renderedViewMode] ?? <div>Currently not supported</div>}
       </div>
     </div>
   );

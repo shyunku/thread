@@ -378,7 +378,7 @@ const TaskCell = ({ task, setHoveredTaskId, hoveredTaskId, categories }) => {
       {dueDate != null && !task.done && remainMilliSeconds != null && (
         <div className="remain-time">
           {remainTimeText}
-          {" "}{remainMilliSeconds < 0 ? "지남" : "남음"}
+          {remainMilliSeconds < 0 ? " 지남" : ""}
         </div>
       )}
     </div>

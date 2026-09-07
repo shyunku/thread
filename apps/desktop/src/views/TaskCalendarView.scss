@@ -15,6 +15,11 @@
   .day-cells {
     display: grid;
     grid-template-columns: repeat(7, minmax(0, 1fr));
+    column-gap: 1px;
+    background: var(--border);
+  }
+  .day-cells {
+    row-gap: 1px;
   }
   .week-cell {
     text-align: center;
@@ -37,15 +42,10 @@
     min-width: 0;
     height: clamp(76px, 9vh, 116px);
     padding: 7px;
-    border-right: 1px solid var(--border);
-    border-bottom: 1px solid var(--border);
     background: var(--canvas);
     box-sizing: border-box;
     overflow: hidden;
     cursor: pointer;
-  }
-  .day-cell:nth-child(7n) {
-    border-right: 0;
   }
   .day-cell:hover {
     background: #1a202b;
@@ -137,10 +137,11 @@
   }
   .task .remain-time {
     display: none;
+    opacity: 0.4;
     flex-shrink: 0;
     white-space: nowrap;
   }
-  @container (min-width: 150px) {
+  @container (min-width: 100px) {
     .task .remain-time {
       display: block;
     }
