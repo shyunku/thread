@@ -2,7 +2,7 @@
 
 | Index | Tag | Updated | Status | Completed | Deps | 항목 | 완료 조건 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 36 | security | 2026-09-07 02:37 | 🟡 WIP |  |  | Desktop production env 이력 제거 | 로컬 파일은 보존하고 ignore 예외 및 원격 양 브랜치 전체 이력에서 해당 경로를 제거·검증한 뒤 보호된 강제 푸시한다. |
+| 36 | security | 2026-09-07 13:05 | 🟢 DONE | 2026-09-07 13:05 |  | Desktop production env 이력 제거 | ignore 예외를 제거하고 별도 복제본 전체 이력에서 해당 경로를 제거했다. master/refactor 양 원격 브랜치를 explicit lease·atomic 강제 푸시하고 로컬 브랜치를 정렬했다. 파일 존재·ignore 적용·추적 해제를 확인했다. 로컬 실제 env·기존 stash/다른 브랜치는 보존했으며 GitHub 캐시/타인의 clone까지 삭제한 것은 아니다. |
 | 35 | desktop | 2026-09-07 02:21 | 🟢 DONE | 2026-09-07 02:21 | #34 | v2 설정 동기화 상태 및 1.1.0 빌드 | 설정을 연결 상태·미전송 변경·마지막 반영 번호로 교체하고 현재 상태 조회/실시간 갱신/데이터 보존 재시도 IPC를 연결했다. 계정 필터·초기 응답 경쟁·개별 구독 해제를 검증했다. renderer 29개 및 SQLite/mock service 테스트 1개 통과, production build와 Windows ia32 NSIS 1.1.0 패키징 완료. asar 버전·진입점·최종 renderer·sync/IPC 코드 일치를 확인했다. 기존 lint 경고는 남아 있으며 실제 설치·운영 서버 호출·업로드는 하지 않았다. |
 | 34 | desktop | 2026-09-07 02:10 | 🟢 DONE | 2026-09-07 02:10 |  | 상단 평상시 sync 상태 제거 및 설정 0/0 진단 | 평상시 debug 상태 줄을 제거하고 복구/오류 경고를 보존했다. UI 테스트 6개와 Root/경고 컴포넌트 transpilation, diff 검사를 통과했다. 설정 0/0은 legacy block IPC만 구독하고 v2 status를 구독하지 않는 표시 문제로 확인했다. 설정 변경은 이번 진단 범위에 포함하지 않았다. 실제 Electron 실행/패키징은 수행하지 않았다. |
 | 33 | branding | 2026-09-07 01:33 | 🟢 DONE | 2026-09-07 01:33 |  | 제공된 Thread 로고와 favicon 적용 | 제공된 PNG로 desktop/site/admin logo192/512·favicon과 desktop 설치/tray 1x/2x/3x 아이콘을 교체했다. PNG 원본 일치·크기·투명도·manifest 참조·ICO 모든 프레임을 검증했다. 관리자 배너를 새 로고/Thread로 변경하고 회귀 테스트 및 production build(기존 lint 경고), build 자산 hash 일치를 확인했다. 실제 설치/OS 아이콘 표시 및 서버 배포는 수행하지 않았다. |
