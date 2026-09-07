@@ -76,6 +76,11 @@
     background: var(--hover);
     color: var(--text);
   }
+  .visible.key svg,
+  .todo-menu:not(.default) .icon-wrapper svg {
+    width: 0.8em;
+    height: 0.8em;
+  }
   .todo-menus {
     display: flex;
     flex-direction: column;

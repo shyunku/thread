@@ -17,7 +17,7 @@
   color: var(--secondary);
 }
 .setting-info .info-item {
-  font-size: 13px;
+  font-size: 15px;
   color: var(--secondary);
   padding: 10px 0;
   border-bottom: 1px solid var(--border);
@@ -70,7 +70,7 @@
     margin-right: 26px;
   }
   .content .menu .menu-item {
-    font-size: 13px;
+    font-size: 15px;
     color: var(--secondary);
     min-height: 38px;
     padding: 9px 12px;
@@ -84,6 +84,7 @@
     background: var(--hover);
   }
   .content .menu-content {
+    font-size: 16px;
     min-width: 0;
     overflow-y: auto;
   }
@@ -91,6 +92,7 @@
     color: var(--secondary);
   }
   .content .menu-content > .settings .setting-item > .head > .label {
+    font-size: 16px;
     font-weight: 600;
     color: var(--text);
   }
@@ -101,6 +103,7 @@
     > .body
     .controller
     .description {
+    font-size: 14px;
     color: var(--secondary);
     line-height: 1.7;
   }
@@ -122,9 +125,10 @@
     padding: 9px 13px;
     background: var(--selected);
     color: #c5d7ff;
-    font-size: 12px;
+    font-size: 14px;
   }
   .sync-status .sync-summary {
+    font-size: 14px;
     background: var(--surface);
     border: 1px solid var(--border);
     padding: 14px;
@@ -133,7 +137,7 @@
   }
   @media (max-width: 850px) {
     .content .menu {
-      width: 125px;
+      width: 140px;
       margin-right: 16px;
     }
   }

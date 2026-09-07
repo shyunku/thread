@@ -40,8 +40,7 @@ const TopBar = ({ searchQuery = "", setSearchQuery }) => {
   return (
     <header className="component top-bar">
       <div className="brand" title={`Thread ${PackageJson.version}`}>
-        <img src={process.env.PUBLIC_URL + "/logo192.png"} alt="" />
-        <span>thread</span>
+        <img src={process.env.PUBLIC_URL + "/logo192.png"} alt="Thread" />
       </div>
       <div className="drag-section" />
       <div className="workspace-search">
