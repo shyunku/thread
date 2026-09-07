@@ -8,6 +8,8 @@ const db = require("../modules/mysql");
 const axios = require("axios");
 const DiskUsage = require("diskusage");
 const chunkUpload = require("../modules/chunkUpload");
+const { createAdminAccess } = require("../modules/adminAccess");
+router.use(createAdminAccess({ axios, apiEntry: () => process.env.APP_SERVER_ENTRY }));
 
 const getReleaseDirPath = () =>
   path.resolve(process.env.PWD || process.cwd(), "releases");
@@ -94,40 +96,11 @@ router.get("/alerted-latest-version", async (req, res) => {
   }
 });
 
-router.post("/alert-new-version", async (req, res) => {
-  if (
-    !util.validateField(req.body, { version: "" }, (errMsg) => {
-      resolver.fail(res, 400, null, errMsg);
-    })
-  )
-    return;
-
-  const { version } = req.body;
-
-  const authorization = req.get("Authorization");
-  if (!authorization || !/^Bearer\s+\S+$/i.test(authorization)) {
-    resolver.fail(res, 401, null, "관리자 로그인이 필요합니다.");
-    return;
-  }
-
-  try {
-    const { APP_SERVER_ENTRY } = process.env;
-    const url = `${APP_SERVER_ENTRY}/v1/admin/alert-new-version`;
-    let result = await axios.post(url, { version }, {
-      headers: { Authorization: authorization },
-      timeout: 10000,
-    });
-    await db.query(`UPDATE version_master SET alerted=true WHERE version=?`, [version]);
-    resolver.ok(res, result.data);
-  } catch (err) {
-    const status = err.response?.status;
-    console.error("Release alert failed", status || err.code || "unknown");
-    const authFailure = status === 401 || status === 403;
-    resolver.fail(res, authFailure ? status : 300, null,
-      authFailure ? "관리자 인증이 만료되었거나 권한이 없습니다. 다시 로그인해주세요."
-        : "알림 요청을 처리하지 못했습니다. API 연결 상태를 확인해주세요.");
-  }
-});
+const { createReleaseAlerts } = require("../modules/releaseAlerts");
+router.post("/alert-new-version", createReleaseAlerts({
+  db, axios, releaseRoot: getReleaseDirPath,
+  apiEntry: () => process.env.APP_SERVER_ENTRY,
+}).publish);
 
 router.put("/release/chunk", async (req, res) => {
   let metadata;
@@ -338,6 +311,7 @@ router.delete("/release", async (req, res) => {
   }
 });
 
+
 router.put("/version", async (req, res) => {
   if (
     !util.validateField(req.body, { version: "", beta: false, update_time: 0, verified: false }, (errMsg) => {
@@ -350,8 +324,8 @@ router.put("/version", async (req, res) => {
 
   try {
     await db.query(
-      "INSERT INTO version_master(version, updated_timestamp, final_edit_timestamp, beta, verified) VALUES(?, ?, ?, ?, ?);",
-      [version, update_time, update_time, beta, verified]
+      "INSERT INTO version_master(version, updated_timestamp, final_edit_timestamp, beta, verified, not_compatible) VALUES(?, ?, ?, ?, ?, ?);",
+      [version, update_time, update_time, beta, verified, req.body.not_compatible === true]
     );
 
     resolver.ok(res);
@@ -373,8 +347,8 @@ router.post("/version", async (req, res) => {
 
   try {
     await db.query(
-      "UPDATE version_master SET beta=?, verified=?, final_edit_timestamp=?, updated_timestamp=? WHERE version=?;",
-      [beta, verified, Date.now(), update_time, version]
+      "UPDATE version_master SET beta=?, verified=?, final_edit_timestamp=?, updated_timestamp=?, not_compatible=COALESCE(?,not_compatible) WHERE version=?;",
+      [beta, verified, Date.now(), update_time, beta || !verified ? false : (req.body.not_compatible ?? null), version]
     );
 
     resolver.ok(res);

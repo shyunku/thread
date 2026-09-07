@@ -6,7 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node main.js",
-    "test:chunk-upload": "node src/modules/chunkUpload.test.js"
+    "test:chunk-upload": "node src/modules/chunkUpload.test.js",
+    "test:release-alerts": "node src/modules/releaseAlerts.test.js"
   },
   "author": "",
   "license": "MIT",

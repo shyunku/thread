@@ -5,6 +5,10 @@ const router = express.Router();
 const path = require("path");
 const resolver = require("../utils/expressResolver");
 const db = require("../modules/mysql");
+const { createReleaseAlerts } = require("../modules/releaseAlerts");
+router.get("/release-alert", createReleaseAlerts({
+  db, releaseRoot: () => path.resolve(process.env.PWD || process.cwd(), "releases"),
+}).latest);
 
 router.get("/latest-version", async (req, res) => {
   try {

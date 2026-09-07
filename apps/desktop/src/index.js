@@ -19,6 +19,7 @@ import Loading from "molecules/Loading";
 import ModalRouter from "./routers/ModalRouter";
 import { isDevMode } from "./utils/Common";
 import "styles/surfaces.scss";
+import ReleaseAlert from "./components/ReleaseAlert";
 
 if (isDevMode()) {
   window.document.title = "Thread (Dev)";
@@ -40,6 +41,7 @@ root.render(
       <Toast.Toaster />
       <Loading.Loading />
       <MainRouter />
+      <ReleaseAlert />
       <AxiosMiddleware />
     </PersistGate>
   </Provider>

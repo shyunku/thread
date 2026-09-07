@@ -58,6 +58,7 @@ class UpdaterService {
         // do nothing
         break;
       case UPDATER_RESULT_FLAG.NEW_VERSION_FOUND:
+        try {
         const { version, isBeta } = data;
         const destInstallerPath = await this.updateToNewVersion(
           osCategory,
@@ -75,6 +76,10 @@ class UpdaterService {
         }
         app.exit();
         return;
+        } catch {
+          await this.showUpdateCheckFailure(window);
+          break;
+        }
       case UPDATER_RESULT_FLAG.UPDATE_CHECK_FAIL:
         console.error(`Couldn't check update. Continuing program...`, data);
         await this.showUpdateCheckFailure(window);
@@ -192,75 +197,14 @@ class UpdaterService {
   }
 
   async updateToNewVersion(osCategory, userDataPath, version) {
-    try {
-      const releaseDirPath = path.resolve(userDataPath, "releases");
-      const downloadPath = path.resolve(releaseDirPath, version);
-      const fileExtension = this.getFileExtensionByCategory(osCategory);
-      const downloadFilepath = path.resolve(
-        downloadPath,
-        `${version}${fileExtension}`
-      );
-
-      if (!fs.existsSync(releaseDirPath)) {
-        console.warn(`Releases directory doesn't exists, newly create.`);
-        fs.mkdirSync(releaseDirPath);
-      }
-
-      if (!fs.existsSync(downloadPath)) {
-        console.warn(
-          `Releases/${version} directory doesn't exists, newly create.`
-        );
-        fs.mkdirSync(downloadPath);
-      }
-
-      console.info(`Download destination path: ${downloadFilepath}`);
-
-      const writeStream = fs.createWriteStream(downloadFilepath);
-      const response = await axios({
-        method: "GET",
-        url: `${serverHost}/default/release?version=${version}&category=${osCategory}`,
-        responseType: "stream",
-      });
-
-      return new Promise((resolve, reject) => {
-        const filesize = response.headers["content-length"];
-        const progressInterceptor = StreamProgress({
-          time: 10,
-          length: filesize,
-        });
-        progressInterceptor.on("progress", (progress) => {
-          this.ipcService.silentSender(
-            "release_download@state",
-            true,
-            progress
-          );
-        });
-
-        this.ipcService.silentSender("release_download@initial", true, version);
-
-        const fileStream = response.data;
-
-        let errorCount = 0;
-        fileStream.pipe(progressInterceptor).pipe(writeStream);
-
-        writeStream.on("error", (err) => {
-          writeStream.close();
-          errorCount++;
-          reject(err);
-        });
-
-        writeStream.on("close", () => {
-          console.info(`${errorCount} errors occurred while file download.`);
-          this.ipcService.silentSender("release_download@done", true, null);
-
-          if (errorCount === 0) {
-            resolve(downloadFilepath);
-          }
-        });
-      });
-    } catch (err) {
-      console.error(err);
-    }
+    const { downloadRelease } = require("../modules/downloadRelease");
+    this.ipcService.silentSender("release_download@initial", true, version);
+    const file = await downloadRelease({
+      axios, serverHost, userDataPath, category: osCategory, version,
+      onProgress: progress => this.ipcService.silentSender("release_download@state", true, progress),
+    });
+    this.ipcService.silentSender("release_download@done", true, null);
+    return file;
   }
 
   async installNewVersion(osCategory, userDataPath, installerPath) {

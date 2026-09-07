@@ -10,6 +10,7 @@ const ExecutorService = require("../service/executor.service");
 const UpdaterService = require("../service/updater.service");
 const TransitionService = require("../service/transition.service");
 const { SyncV2Service } = require("../sync-v2/service");
+const { ReleaseAlertService } = require("../service/releaseAlert.service");
 
 const WindowConfigure = require("../configures/window.config");
 const SessionConfigure = require("../configures/session.config");
@@ -29,6 +30,7 @@ class ServiceGroup {
     this.updaterService = new UpdaterService();
     this.transitionService = new TransitionService();
     this.syncV2Service = new SyncV2Service();
+    this.releaseAlertService = new ReleaseAlertService();
   }
 
   injectReferences() {
@@ -44,12 +46,14 @@ class ServiceGroup {
     this.updaterService.inject(this);
     this.transitionService.inject(this);
     this.syncV2Service.inject(this);
+    this.releaseAlertService.inject(this);
   }
 
   configureAndRun() {
     WindowConfigure(this.windowService);
     SessionConfigure(this.sessionService);
     IpcConfigure(this.ipcService);
+    this.releaseAlertService.start();
   }
 }
 

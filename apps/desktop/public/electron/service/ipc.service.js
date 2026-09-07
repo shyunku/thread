@@ -42,6 +42,7 @@ class IpcService extends IpcRouter {
     this.websocketService = group.websocketService;
     this.executorService = group.executorService;
     this.syncV2Service = group.syncV2Service;
+    this.releaseAlertService = group.releaseAlertService;
   }
 
   /**

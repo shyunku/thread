@@ -363,7 +363,14 @@ class SyncV2Service {
             { headers: { Authorization: "Bearer " + token } }
           );
           s.socket = ws;
-          ws.on("message", () => {
+          ws.on("open", () => { void this.group.releaseAlertService?.check(); });
+          ws.on("message", (raw) => {
+            try {
+              if (JSON.parse(raw.toString()).topic === "release.available") {
+                void this.group.releaseAlertService?.check();
+                return;
+              }
+            } catch {}
             void run();
           });
           ws.on("error", () => ws.close());

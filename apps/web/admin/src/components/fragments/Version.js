@@ -38,6 +38,7 @@ class Version extends Component {
       uploading: false,
       is_prelease: false,
       is_verified: false,
+      not_compatible: false,
       edit_mode: false,
       editing_version_info: null,
       disk_usage: null,
@@ -180,7 +181,7 @@ class Version extends Component {
         const resp = res.data;
         if (resp.code === 200) {
           console.log(resp.data);
-          alert(`Successfully alerted.`);
+          alert(resp.data?.warning || "알림을 발행했습니다. 연결된 클라이언트에는 즉시 전달하고, 누락은 재접속·주기 확인으로 복구합니다.");
         } else {
           switch (resp.code) {
             default:
@@ -261,6 +262,7 @@ class Version extends Component {
       is_prelease: versionInfo.beta,
       update_time_input: versionInfo.updated_timestamp,
       is_verified: versionInfo.verified == true,
+      not_compatible: versionInfo.not_compatible == true,
     };
 
     for (let release of versionInfo?.releases ?? []) {
@@ -402,7 +404,8 @@ class Version extends Component {
                                 verified
                               </div>
                               {versionInfo?.alerted == true ? (
-                                <div className={"tag alerted"}>
+                                <div className={"tag alerted clickable"} title="알림 다시 보내기"
+                                  onClick={() => this.alertNewVersion(versionInfo.version)}>
                                   <ImCheckmark />
                                   alerted
                                 </div>
@@ -485,7 +488,7 @@ class Version extends Component {
                     onChange={(e) => {
                       const checked = e.target.checked;
                       this.setState({ is_prelease: checked });
-                      if (checked) this.setState({ is_verified: false });
+                      if (checked) this.setState({ not_compatible: false });
                     }}
                   ></input>
                   <div className="option-label">This is for beta test.</div>
@@ -493,11 +496,17 @@ class Version extends Component {
                 <div className={"release-option" + (is_verified ? " checked" : "")}>
                   <input
                     type="checkbox"
-                    disabled={is_prelease}
                     checked={is_verified}
-                    onChange={(e) => this.setState({ is_verified: e.target.checked })}
+                    onChange={(e) => this.setState({ is_verified: e.target.checked, not_compatible: e.target.checked ? this.state.not_compatible : false })}
                   ></input>
                   <div className="option-label">This is verified.</div>
+                </div>
+                <div className={"release-option" + (this.state.not_compatible ? " checked" : "")}>
+                  <input type="checkbox" aria-label="Not compatible with previous"
+                    disabled={is_prelease || !is_verified}
+                    checked={this.state.not_compatible}
+                    onChange={(e) => this.setState({ not_compatible: e.target.checked })} />
+                  <div className="option-label">Not compatible with previous</div>
                 </div>
               </div>
             </div>
@@ -707,6 +716,7 @@ class Version extends Component {
       version: new_version_input,
       beta: is_prelease ? true : false,
       verified: is_verified ? true : false,
+      not_compatible: this.state.not_compatible === true,
       update_time: update_time_input ?? Date.now(),
     };
     const isBeta = is_prelease ? "true" : "false";
@@ -925,6 +935,7 @@ class Version extends Component {
   };
 
   finalizeDraftPanel = () => {
+    this.setState({ not_compatible: false });
     this.winFileRef.current?.classList?.remove("will-be-uploaded");
     this.macFileRef.current?.classList?.remove("will-be-uploaded");
 

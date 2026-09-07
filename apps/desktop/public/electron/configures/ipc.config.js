@@ -63,7 +63,25 @@ const {
  * @param s {IpcService}
  */
 module.exports = function (s) {
+  for (const action of ["get", "download", "showFile"]) {
+    const topic = "release-alert/" + action;
+    s.register(topic, async (event, reqId) => {
+      if (event.sender !== s.windowService.mainWindow?.webContents) {
+        s.sender(topic, reqId, false, null);
+        return;
+      }
+      try {
+        if (action === "get") await s.releaseAlertService.check();
+        if (action === "download") await s.releaseAlertService.download();
+        if (action === "showFile" && s.releaseAlertService.installerPath) {
+          require("electron").shell.showItemInFolder(s.releaseAlertService.installerPath);
+        }
+        s.sender(topic, reqId, true, s.releaseAlertService.current);
+      } catch { s.sender(topic, reqId, false, null); }
+    });
+  }
   powerMonitor?.on("resume", () => {
+    void s.releaseAlertService.check();
     for (const session of s.syncV2Service?.sessions.values() || []) {
       void session.run?.();
     }

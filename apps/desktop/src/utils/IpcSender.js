@@ -50,6 +50,11 @@ const silentSender = (topic, param, ...arg) => {
 };
 
 const IpcSender = {
+  releaseAlerts: {
+    get: callback => sender("release-alert/get", callback),
+    download: callback => sender("release-alert/download", callback),
+    showFile: callback => sender("release-alert/showFile", callback),
+  },
   syncV2: {
     getStatus: (callback) => sender("sync-v2/getStatus", callback),
     retry: (callback) => sender("sync-v2/retry", callback),

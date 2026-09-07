@@ -16,6 +16,7 @@ import (
 	"testing"
 	"thread_api/service/canonical"
 	"thread_api/service/database/migrations"
+	"thread_api/service/releasealerts"
 	"time"
 )
 
@@ -108,6 +109,23 @@ func TestMySQLHTTPAndWebSocket(t *testing.T) {
 	var event map[string]interface{}
 	if e = ws.ReadJSON(&event); e != nil || event["highWatermark"] != "0" {
 		t.Fatal(event, e)
+	}
+	ws2, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(server.URL, "http")+"/v2/sync/connect?epoch="+epoch, http.Header{"Authorization": []string{"Bearer " + token}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ws2.Close()
+	ws2.SetReadDeadline(time.Now().Add(10 * time.Second))
+	if err = ws2.ReadJSON(&event); err != nil {
+		t.Fatal(err)
+	}
+	if releasealerts.Broadcast("2.0.0") != 2 {
+		t.Fatal("expected both active sockets")
+	}
+	for _, peer := range []*websocket.Conn{ws, ws2} {
+		if err = peer.ReadJSON(&event); err != nil || event["topic"] != "release.available" || event["version"] != "2.0.0" {
+			t.Fatal("release alert missing", event, err)
+		}
 	}
 	mutation := canonical.Mutation{ClientChangeID: uuid.NewString(), EntityType: "task", EntityID: "fixture-task", Operation: "create", BaseVersion: "0", Changes: map[string]interface{}{"title": "HTTP fixture"}}
 	encoded, _ = json.Marshal(map[string]interface{}{"protocolVersion": 2, "epoch": epoch, "deviceId": device, "mutations": []canonical.Mutation{mutation}})

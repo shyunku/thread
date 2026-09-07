@@ -30,9 +30,6 @@ app.all("/*", (req, res, next) => {
 });
 
 const PORT = parseInt(process.env.SERVER_PORT);
-const server = app.listen(PORT, () => {
-  console.info(`server opened at: http://0.0.0.0:${PORT}`);
-});
 
 app.use(express.json());
 app.use(cors());
@@ -45,3 +42,6 @@ app.get("/", (req, res) => {
 
 app.use("/default", defaultRouter);
 app.use("/admin", adminRouter);
+require("./src/modules/releaseSchema").ensureReleaseSchema(require("./src/modules/mysql"))
+  .then(() => app.listen(PORT, () => console.info(`server opened at: http://0.0.0.0:${PORT}`)))
+  .catch(() => { console.error("Release schema initialization failed"); process.exit(1); });

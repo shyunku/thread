@@ -15,6 +15,7 @@ import (
 	"strings"
 	"thread_api/service/canonical"
 	"thread_api/service/database"
+	"thread_api/service/releasealerts"
 	"time"
 )
 
@@ -241,6 +242,8 @@ func connect(c *gin.Context, p *canonical.Protocol) {
 		return
 	}
 	defer conn.Close()
+	alerts, unsubscribe := releasealerts.Subscribe()
+	defer unsubscribe()
 	conn.SetReadLimit(1024)
 	closed := make(chan struct{})
 	go func() {
@@ -274,6 +277,11 @@ func connect(c *gin.Context, p *canonical.Protocol) {
 			last = a.Last
 		}
 		select {
+		case alert := <-alerts:
+			conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+			if conn.WriteJSON(alert) != nil {
+				return
+			}
 		case <-closed:
 			return
 		case <-c.Request.Context().Done():
