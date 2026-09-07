@@ -11,7 +11,8 @@
   }
   .view-segment.list {
     flex: 1;
-    padding-right: 3px;
+    // Reserve room for the card's delete button (right: -7px).
+    padding-right: 8px;
   }
   .view-segment.calendar {
     flex: 1.15;

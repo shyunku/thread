@@ -101,7 +101,7 @@
     }
     .remain-time {
       color: var(--muted);
-      font-size: 10px;
+      font-size: 12px;
       white-space: nowrap;
     }
   }
@@ -300,9 +300,6 @@
       line-height: 1.65;
     }
   }
-}
-.task-list-calendar-view .todo-item .right-side .remain-time {
-  display: none;
 }
 @media (max-width: 1250px) {
   .task-list-calendar-view .todo-item .task-category-badge {

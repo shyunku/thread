@@ -117,7 +117,7 @@ const TodoItem = ({
     if (remainTimeMilli == null) return "";
     return fromRelativeTime(
       remainTimeMilli < 0 ? -remainTimeMilli : remainTimeMilli,
-      { showLayerCount: 3 }
+      { showLayerCount: 1, showMillisec: false }
     );
   }, [remainTimeMilli]);
 
@@ -293,23 +293,13 @@ const TodoItem = ({
             ></div>
             <div className="title">{todo.title}</div>
             {categoryTags.length > 0 && <span className="task-category-badge">{categoryTags[0].title}</span>}
-            {todo.dueDate != null && (
-              <div
-                className={
-                  "due-date" +
-                  JsxUtil.classByCondition(todo.dueDate != null, "active")
-                }
-              >
-                {dueDateText} {dueTimeText}
-                {todoCtx.repeatPeriod != null &&
-                  todo.dueDate &&
-                  ` (${repeatTimeText})`}
-              </div>
-            )}
           </div>
           <div className="right-side">
             {remainTimeMilli != null && (
-              <div className="remain-time">
+              <div
+                className="remain-time"
+                title={`${dueDateText} ${dueTimeText}${todoCtx.repeatPeriod != null ? ` (${repeatTimeText})` : ""}`}
+              >
                 {remainTimeText} {remainTimeMilli < 0 ? "지남" : "남음"}
               </div>
             )}

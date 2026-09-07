@@ -1,4 +1,5 @@
 // Shared surfaces use the same tokens as the workspace.
+@import "styles/constants.scss";
 .profile-img {
   border-radius: 50%;
   background: var(--selected);
@@ -36,10 +37,10 @@
   background: var(--selected);
 }
 .modal {
-  height: calc(100% - 60px);
+  height: calc(100% - #{$top-bar-height});
 }
 .modal-back-panel {
-  height: calc(100% - 60px);
+  height: calc(100% - #{$top-bar-height});
   background: #080a1099;
 }
 .modal-content {

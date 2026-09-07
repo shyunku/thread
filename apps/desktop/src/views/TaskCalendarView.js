@@ -302,7 +302,7 @@ const TaskCell = ({ task, setHoveredTaskId, hoveredTaskId, categories }) => {
   const dueDate = useMemo(() => {
     if (task.dueDate == null) return null;
     return moment(task.dueDate).toDate();
-  }, [task.date]);
+  }, [task.dueDate]);
 
   const overDue = useMemo(() => {
     if (dueDate == null) return false;
@@ -328,7 +328,8 @@ const TaskCell = ({ task, setHoveredTaskId, hoveredTaskId, categories }) => {
     return fromRelativeTime(
       remainMilliSeconds < 0 ? -remainMilliSeconds : remainMilliSeconds,
       {
-        showLayerCount: 2,
+        showLayerCount: 1,
+        showMillisec: false,
       }
     );
   }, [dueDate, counter]);
@@ -377,7 +378,7 @@ const TaskCell = ({ task, setHoveredTaskId, hoveredTaskId, categories }) => {
       {dueDate != null && !task.done && remainMilliSeconds != null && (
         <div className="remain-time">
           {remainTimeText}
-          {/*{" "}{remainMilliSeconds < 0 ? "지남" : "남음"}*/}
+          {" "}{remainMilliSeconds < 0 ? "지남" : "남음"}
         </div>
       )}
     </div>

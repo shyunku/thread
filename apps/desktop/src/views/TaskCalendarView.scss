@@ -32,6 +32,7 @@
     color: var(--accent);
   }
   .day-cell {
+    container-type: inline-size;
     position: relative;
     min-width: 0;
     height: clamp(76px, 9vh, 116px);
@@ -108,7 +109,7 @@
     border-radius: 4px;
     background: var(--surface);
     color: var(--text);
-    font-size: 10px;
+    font-size: 12px;
     min-width: 0;
   }
   .task.hovered,
@@ -116,6 +117,8 @@
     background: var(--selected);
   }
   .task .title {
+    flex: 1;
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -134,6 +137,13 @@
   }
   .task .remain-time {
     display: none;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  @container (min-width: 150px) {
+    .task .remain-time {
+      display: block;
+    }
   }
   .task.done {
     color: var(--muted);
