@@ -180,7 +180,7 @@ export function clone(obj) {
 }
 
 export const isDevMode = () => {
-  return window.env.NODE_ENV !== "production";
+  return window.thread?.isDevelopment === true;
 };
 
 export default {};

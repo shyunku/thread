@@ -1,16 +1,45 @@
 import * as uuid from "uuid";
 import { colorize } from "./Common";
 
-const electron = window.require("electron");
-const { ipcRenderer } = electron;
-const remote = window.require("@electron/remote");
+const bridge = window.thread;
+const subscriptions = new Map();
+// Preserve callback semantics without exposing Electron or unrestricted IPC.
+const ipcRenderer = {
+  send(topic, ...args) {
+    if (!bridge || !Object.prototype.hasOwnProperty.call(bridge.requests, topic))
+      throw new Error("IPC_CHANNEL_NOT_ALLOWED");
+    bridge.requests[topic](...args);
+  },
+  on(topic, callback) {
+    const stop = bridge.listen(topic, (...args) => callback(null, ...args));
+    if (!subscriptions.has(topic)) subscriptions.set(topic, new Map());
+    subscriptions.get(topic).set(callback, stop);
+  },
+  once(topic, callback) {
+    const listener = (...args) => {
+      ipcRenderer.removeListener(topic, listener);
+      callback(...args);
+    };
+    ipcRenderer.on(topic, listener);
+  },
+  removeListener(topic, callback) {
+    subscriptions.get(topic)?.get(callback)?.();
+    subscriptions.get(topic)?.delete(callback);
+  },
+  removeAllListeners() {
+    for (const listeners of subscriptions.values())
+      for (const stop of listeners.values()) stop();
+    subscriptions.clear();
+  },
+};
 
 const subscribed = {
   "system/subscribe": {},
 };
 
-const currentWebContents = remote.getCurrentWebContents();
-const currentWindow = remote.getCurrentWindow();
+// Main resolves the actual window from event.sender, never a supplied ID.
+const currentWebContents = { id: null };
+const currentWindow = { id: null };
 
 const topicHandlers = {};
 
@@ -18,11 +47,6 @@ const autoSubscribe = (topic) => {
   if (subscribed.hasOwnProperty(topic)) return;
   IpcSender.subscribe(topic);
   subscribed[topic] = true;
-};
-
-const senderSync = (topic, ...arg) => {
-  autoSubscribe(topic);
-  return ipcRenderer.sendSync(topic, null, ...arg);
 };
 
 const sender = (topic, callback, ...arg) => {
@@ -342,7 +366,7 @@ const IpcSender = {
     },
   },
   subscribe: (topics) => {
-    sender("system/subscribe", null, currentWebContents.id, topics);
+    ipcRenderer.send("system/subscribe", null, currentWebContents.id, topics);
   },
   // unsubscribe: (topics) => {
   //   sender("system/unsubscribe", null, currentWebContents.id, topics);

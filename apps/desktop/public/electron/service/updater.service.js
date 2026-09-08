@@ -13,6 +13,7 @@ const ArchCategoryConstants = require("../constants/ArchCategory.constants");
 const ChildProcess = require("child_process");
 const dmg = require("../modules/dmg");
 const LEGACY_SERVER_CODE = require("../util/LegacyServerCode");
+const { isTrustedEvent } = require("../modules/windowSecurity");
 
 const serverHost = process.env.RMS_ENTRY;
 
@@ -104,6 +105,8 @@ class UpdaterService {
       };
       const onContinue = (event) => {
         if (event.sender.id !== window.webContents.id) return;
+        if (!isTrustedEvent(event, this.windowService.trustedWindows,
+            this.windowService.appEntry)) return;
         finish();
       };
 

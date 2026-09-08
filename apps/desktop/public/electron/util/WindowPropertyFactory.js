@@ -1,18 +1,14 @@
 const { WindowType } = require("../modules/constants");
+const { securePreferences } = require("../modules/windowSecurity");
 
 class WindowPropertyFactory {
   constructor() {
     this.context = {
       webPreferences: {
-        nodeIntegration: true,
-        nodeIntegrationInSubFrames: true,
-        nodeIntegrationInWorker: true,
-        enableRemoteModule: true,
-        webviewTag: true,
+        ...securePreferences(),
         webSecurity: true,
         devTools: true,
         spellcheck: false,
-        contextIsolation: false,
         nativeWindowOpen: true,
         backgroundThrottling: false,
       },

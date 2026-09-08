@@ -55,6 +55,7 @@ const {
 const { DeleteCategoryTxContent } = require("../executors/deleteCategory.exec");
 const { getServerFinalEndpoint } = require("../modules/util");
 const TX_TYPE = require("../constants/TxType.constants");
+const { rendererWindowOptions } = require("../modules/windowSecurity");
 const {
   UpdateCategoryColorTxContent,
 } = require("../executors/updateCategoryColor.exec");
@@ -98,7 +99,7 @@ module.exports = function (s) {
   });
 
   s.register("system/close_window", (event, reqId, param) => {
-    let currentWindow = BrowserWindow.fromId(param);
+    let currentWindow = BrowserWindow.fromWebContents(event.sender);
     let mainWindow = s.windowService.mainWindow;
     if (currentWindow) {
       if (currentWindow.id === mainWindow.id) {
@@ -110,32 +111,34 @@ module.exports = function (s) {
   });
 
   s.register("system/maximize_window", (event, reqId, param) => {
-    let currentWindow = BrowserWindow.fromId(param);
+    let currentWindow = BrowserWindow.fromWebContents(event.sender);
     if (currentWindow) currentWindow.maximize();
   });
 
   s.register("system/minimize_window", (event, reqId, param) => {
-    let currentWindow = BrowserWindow.fromId(param);
+    let currentWindow = BrowserWindow.fromWebContents(event.sender);
     if (currentWindow) currentWindow.minimize();
   });
 
   s.register("system/restore_window", (event, reqId, param) => {
-    let currentWindow = BrowserWindow.fromId(param);
+    let currentWindow = BrowserWindow.fromWebContents(event.sender);
     if (currentWindow) currentWindow.restore();
   });
 
   s.register("system/isMaximizable", (event, reqId, param) => {
-    let currentWindow = BrowserWindow.fromId(param);
+    let currentWindow = BrowserWindow.fromWebContents(event.sender);
     if (currentWindow)
-      s.sender("isMaximizable", reqId, true, currentWindow.isMaximizable());
+      s.sender("system/isMaximizable", reqId, true, currentWindow.isMaximizable());
   });
 
-  s.register("system/modal", (event, reqId, ...arg) => {
-    Window.createModalWindow(...arg);
+  s.register("system/modal", (event, reqId, _claimedId, route, options, parameter) => {
+    s.windowService.createModalWindow(BrowserWindow.fromWebContents(event.sender).id,
+      route, rendererWindowOptions(options), parameter);
   });
 
-  s.register("system/modeless", (event, reqId, ...arg) => {
-    Window.createModelessWindow(...arg);
+  s.register("system/modeless", (event, reqId, _claimedId, route, options, parameter) => {
+    s.windowService.createModelessWindow(BrowserWindow.fromWebContents(event.sender).id,
+      route, rendererWindowOptions(options), parameter);
   });
 
   s.register("system/inner-modal", (event, reqId, route, data) => {
@@ -144,11 +147,6 @@ module.exports = function (s) {
 
   s.register("system/close-inner-modal", (event, reqId, ...arg) => {
     s.sender("close-inner-modal", reqId, true, ...arg);
-  });
-
-  s.register("system/subscribe", (event, reqId, webContentsId, topics) => {
-    if (!Array.isArray(topics)) topics = [topics];
-    s.addListenersByWebContentsId(topics, webContentsId);
   });
 
   s.register("system/computer_idle_time", (event, reqId) => {

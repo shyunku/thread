@@ -11,9 +11,15 @@ test("removing a settings listener preserves the root listener on the same topic
     uuid: { v4: () => "request" },
     colorize: { yellow: (v) => v, cyan: (v) => v, magenta: (v) => v },
     console: { debug: jest.fn(), warn: jest.fn() },
-    window: { require: (name) => name === "electron" ? { ipcRenderer } : {
-      getCurrentWebContents: () => ({ id: 1 }),
-      getCurrentWindow: () => ({ id: 1 }),
+    window: { thread: {
+      requests: {
+        "system/subscribe": (...args) => ipcRenderer.send("system/subscribe", ...args),
+      },
+      listen: (topic, callback) => {
+        const handler = (_event, ...args) => callback(...args);
+        ipcRenderer.on(topic, handler);
+        return () => ipcRenderer.removeListener(topic, handler);
+      },
     } },
   };
   const source = fs.readFileSync(path.resolve("src/utils/IpcSender.js"), "utf8")

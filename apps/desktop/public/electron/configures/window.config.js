@@ -4,7 +4,6 @@ const {
   app,
   BrowserWindow,
   screen,
-  remote,
   Menu,
   Tray,
   shell,
