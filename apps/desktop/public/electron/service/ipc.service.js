@@ -105,7 +105,7 @@ class IpcService extends IpcRouter {
           event.reply(topic, reqId, { success: false, data: { code: "IPC_FORBIDDEN" } });
         return;
       }
-      if (!silentTopics.includes(topic)) {
+      if (!silentTopics.includes(topic) && !topic.startsWith("vault/")) {
         let mergedArguments = arg
           .map((param) => console.shorten(param))
           .join(" ");

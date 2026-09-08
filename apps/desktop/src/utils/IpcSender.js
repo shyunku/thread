@@ -52,7 +52,7 @@ const autoSubscribe = (topic) => {
 const sender = (topic, callback, ...arg) => {
   autoSubscribe(topic);
   const sendId = uuid.v4();
-  if (topic !== "system/subscribe") {
+  if (topic !== "system/subscribe" && !topic.startsWith("vault/")) {
     console.debug(
       `IpcRenderer --> ${colorize.yellow(
         `[${sendId?.substring(0, 3) ?? "unknown"}]`

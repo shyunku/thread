@@ -36,8 +36,7 @@ class LocalVault {
     return { environment: this.#scope.environment, accountId: this.#scope.accountId,
       purpose: "ldk:" + this.#scope.vaultId };
   }
-  create() {
-    const key = randomBytes(32);
+  #initialize(key, passwordEnvelope) {
     let store;
     try {
       const wrapped = this.#protector.protect(key, this.#keyContext());
@@ -45,12 +44,39 @@ class LocalVault {
       fs.mkdirSync(path.dirname(this.#directory), { recursive: true, mode: 0o700 });
       fs.mkdirSync(this.#directory, { mode: 0o700 }); // EEXIST: preserve originals.
       durableWrite(path.join(this.#directory, "ldk.protected"), wrapped);
+      if (passwordEnvelope) durableWrite(path.join(this.#directory, "ldk.password"), passwordEnvelope);
       store = new EncryptedStore({ filename: path.join(this.#directory, "vault.db"),
         key, scope: this.#scope, create: true });
       store.close(); store = null;
       // Readiness is committed last. Missing marker requires explicit recovery.
       durableWrite(path.join(this.#directory, "ready"), Buffer.from("thread-local-vault-v1"));
     } finally { try { store?.close(); } finally { key.fill(0); } }
+  }
+  create() { this.#initialize(randomBytes(32)); }
+  async createWithPassword(password) {
+    const key = randomBytes(32);
+    try {
+      const envelope = await require("./passwordProtection").protect(key, password, this.#keyContext());
+      this.#initialize(key, envelope);
+    } finally { key.fill(0); }
+  }
+  async openWithPassword(password) {
+    let key;
+    try {
+      const directory = fs.lstatSync(this.#directory);
+      if (!directory.isDirectory() || directory.isSymbolicLink()) throw Error("INVALID_VAULT_DIRECTORY");
+      const ready = path.join(this.#directory, "ready");
+      requireFile(ready, 64);
+      if (fs.readFileSync(ready, "utf8") !== "thread-local-vault-v1") throw Error("VAULT_INCOMPLETE");
+      const passwordFile = path.join(this.#directory, "ldk.password");
+      requireFile(passwordFile, 4096);
+      requireFile(path.join(this.#directory, "vault.db"), Number.MAX_SAFE_INTEGER);
+      key = await require("./passwordProtection").unprotect(fs.readFileSync(passwordFile), password, this.#keyContext());
+      return new EncryptedStore({ filename: path.join(this.#directory, "vault.db"), key, scope: this.#scope });
+    } catch (error) {
+      if (error.code === "ENOENT") throw Error("VAULT_RECOVERY_REQUIRED");
+      throw error;
+    } finally { key?.fill(0); }
   }
   open() {
     let key;

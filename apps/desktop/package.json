@@ -20,6 +20,7 @@
     "app_server_api_version": "v1"
   },
   "scripts": {
+    "build:auth-helper": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-auth-helper.ps1",
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
@@ -35,6 +36,7 @@
     "mac-pack": "pnpm build && electron-builder build -c.extraMetadata.main=build/electron/core/main.js"
   },
   "dependencies": {
+    "libsodium-wrappers-sumo": "0.8.4",
     "tuf-js": "6.0.0",
     "libsodium-wrappers": "0.8.4",
     "cbor": "10.0.12",
@@ -103,6 +105,7 @@
     "productName": "Thread",
     "appId": "kr.threadapp.desktop",
     "asar": true,
+    "beforePack": "./public/electron/modules/buildAuthHelper.js",
     "afterSign": "./public/electron/modules/notarize.js",
     "publish": [
       {
