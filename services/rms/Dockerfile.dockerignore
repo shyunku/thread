@@ -1,0 +1,12 @@
+# Limit the root build context to RMS runtime sources and dependency manifests.
+**
+!services/
+!services/rms/
+!services/rms/Dockerfile
+!services/rms/package.json
+!services/rms/pnpm-lock.yaml
+!services/rms/main.js
+!services/rms/src/
+!services/rms/src/**
+**/.env
+**/.env.*
