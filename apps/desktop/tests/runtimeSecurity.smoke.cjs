@@ -26,6 +26,22 @@ app.whenReady().then(async () => {
   assert.throws(() => protector.unprotect(corrupted, scope), /KEY_UNWRAP_FAILED/);
   recovered.fill(0); key.fill(0);
 
+  const { LocalVault } = require("../public/electron/e2ee/localVault");
+  const vaultScope = { environment: "development", accountId: "synthetic-only", vaultId: "fixture" };
+  const baseDirectory = path.join(temp, "vaults");
+  const vault = new LocalVault({ baseDirectory, scope: vaultScope, protector });
+  vault.create();
+  let encryptedStore = vault.open();
+  encryptedStore.put("outbox", "fixture", { title: "SYNTHETIC_DPAPI_VAULT_DATA" });
+  encryptedStore.close();
+  encryptedStore = new LocalVault({ baseDirectory, scope: vaultScope, protector }).open();
+  assert.equal(encryptedStore.get("outbox", "fixture").title, "SYNTHETIC_DPAPI_VAULT_DATA");
+  encryptedStore.close();
+  const vaultDirectory = path.join(baseDirectory, fs.readdirSync(baseDirectory)[0]);
+  for (const name of fs.readdirSync(vaultDirectory))
+    assert.equal(fs.readFileSync(path.join(vaultDirectory, name)).includes(Buffer.from("SYNTHETIC_DPAPI_VAULT_DATA")), false);
+  console.log("PASS: OS-protected persistent LDK and encrypted vault reopen");
+
   const sqlite = require("sqlite3");
   const db = await new Promise((resolve, reject) => {
     const instance = new sqlite.Database(":memory:", error => error ? reject(error) : resolve(instance));

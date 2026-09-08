@@ -41,4 +41,4 @@
 - Windows x64 Node 및 Electron 43에서 DB/WAL 평문 검사, 재열기, 잘못된 키/계정 거부, transaction rollback, 잠금 도중 인증 완료 경쟁 테스트 통과.
 - better-sqlite3-multiple-ciphers 13.0.3은 N-API prebuild를 포함한다. pnpm8이 불필요한 gyp rebuild를 시도하므로 이 패키지만 neverBuiltDependencies로 명시했다.
 - ia32 prebuild가 없어 기존 Windows 32비트 배포에 E2EE를 활성화할 수 없다. 2026-09-08 18:43 사용자 승인으로 x64 전용을 확정했고 [#48](../tasks/0048.md)에 패키지/교차 아키텍처 synthetic DB 검증을 기록했다. 실제 NSIS 덮어쓰기 검증은 별도다.
-- LDK 파일 영속화/복구 확인 UI/기존 replica 연결/사용자 재인증/암호화 이관은 미완료. 원본 사용자 DB와 env는 읽거나 바꾸지 않았다.
+- LDK 파일 영속화는 2026-09-08 19:02 LocalVault 모듈 및 Windows DPAPI synthetic smoke로 보강했다. 상세 결과와 잠금 해제 정책 승인 대기는 [#48](../tasks/0048.md)을 참조한다. 복구 확인 UI/기존 replica 연결/사용자 재인증/암호화 이관은 미완료. 원본 사용자 DB와 env는 읽거나 바꾸지 않았다.
