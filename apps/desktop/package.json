@@ -32,7 +32,6 @@
     "mac-pack": "pnpm build && electron-builder build -c.extraMetadata.main=build/electron/core/main.js"
   },
   "dependencies": {
-    "@electron/remote": "2.0.9",
     "@reduxjs/toolkit": "1.9.2",
     "@testing-library/jest-dom": "5.16.5",
     "@testing-library/react": "13.4.0",
@@ -88,7 +87,7 @@
     ]
   },
   "devDependencies": {
-    "electron": "23.1.0",
+    "electron": "43.6.0",
     "electron-builder": "23.6.0",
     "typescript": "4.8.4"
   },

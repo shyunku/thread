@@ -35,6 +35,12 @@ Unfortunately, download of Thread is only available from github releases.
 
 ## Development
 
+Use Node.js 22.12 or newer and pnpm 8.15.9 for desktop dependencies.
+Electron is pinned to 43.6.0 on the E2EE development branch. Windows ia32
+packaging is retained; the minimum macOS version becomes 12 and requires
+release approval and native testing before distribution.
+The local `.npmrc` keeps standalone installs hoisted for CRA compatibility.
+
 Run `pnpm dev:desktop` from the monorepo root. Development runs as
 `Thread Dev` with Windows AppUserModelID `kr.threadapp.desktop.dev`.
 Its Electron profile and single-instance lock use `appData/thread-dev`
