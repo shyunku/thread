@@ -38,6 +38,22 @@ app.whenReady().then(async () => {
   assert.equal(encryptedStore.get("outbox", "fixture").title, "SYNTHETIC_DPAPI_VAULT_DATA");
   encryptedStore.close();
   const vaultDirectory = path.join(baseDirectory, fs.readdirSync(baseDirectory)[0]);
+  const { createVaultController } = require("../public/electron/e2ee/vaultController");
+  const { EventEmitter } = require("node:events");
+  const monitor = new EventEmitter(); monitor.getSystemIdleTime = () => 0;
+  let cleared = 0;
+  const controller = createVaultController({ vault, osAuth: {verify:async()=>true},
+    getWindow:()=>null, clearRenderer:()=>{cleared++;}, powerMonitor:monitor });
+  try {
+    await controller.unlock("os"); // Synthetic auth stub; native auth is user-tested separately.
+    assert.equal(controller.use(db=>db.get("outbox","fixture")).title,"SYNTHETIC_DPAPI_VAULT_DATA");
+    monitor.emit("lock-screen");
+    assert.throws(()=>controller.use(()=>{}),/VAULT_LOCKED/);
+    assert.equal(cleared,1);
+    await controller.unlock("os");
+    monitor.emit("suspend");
+    assert.throws(()=>controller.use(()=>{}),/VAULT_LOCKED/);
+  } finally {controller.dispose();}
   for (const name of fs.readdirSync(vaultDirectory))
     assert.equal(fs.readFileSync(path.join(vaultDirectory, name)).includes(Buffer.from("SYNTHETIC_DPAPI_VAULT_DATA")), false);
   console.log("PASS: OS-protected persistent LDK and encrypted vault reopen");

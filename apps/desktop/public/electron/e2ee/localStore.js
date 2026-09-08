@@ -61,14 +61,14 @@ class VaultSession {
   constructor({ reauthenticate, openStore, clearRenderer }) {
     this.reauthenticate = reauthenticate; this.openStore = openStore; this.clearRenderer = clearRenderer;
   }
-  async unlock() {
+  async unlock(request) {
     if (this.#pending) throw Error("UNLOCK_IN_PROGRESS");
     this.#pending = true;
     const generation = this.#generation;
     try {
-      if (await this.reauthenticate() !== true) throw Error("REAUTH_REQUIRED");
+      if (await this.reauthenticate(request) !== true) throw Error("REAUTH_REQUIRED");
       if (generation !== this.#generation) throw Error("UNLOCK_CANCELLED");
-      const store = await this.openStore();
+      const store = await this.openStore(request);
       if (generation !== this.#generation) { store.close(); throw Error("UNLOCK_CANCELLED"); }
       this.#store?.close(); this.#store = store;
     } finally { this.#pending = false; }
