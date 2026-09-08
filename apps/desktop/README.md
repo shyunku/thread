@@ -36,8 +36,10 @@ Unfortunately, download of Thread is only available from github releases.
 ## Development
 
 Use Node.js 22.12 or newer and pnpm 8.15.9 for desktop dependencies.
-Electron is pinned to 43.6.0 on the E2EE development branch. Windows ia32
-packaging is retained; macOS 12 or newer is required. Native macOS
+Electron is pinned to 43.6.0 on the E2EE development branch. Windows builds
+now require a 64-bit OS (x64); macOS 12 or newer is required. The app ID and
+user data paths are unchanged. An upgrade from an existing ia32 installation
+still needs validation; 32-bit Windows cannot run this build. Native macOS
 signing and upgrade tests are still required before distribution.
 The local `.npmrc` keeps standalone installs hoisted for CRA compatibility.
 
