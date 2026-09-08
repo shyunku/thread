@@ -43,6 +43,8 @@ Desktop 개발 실행은 Thread Dev 및 kr.threadapp.desktop.dev로 구분하고
 
 ## E2EE 개발
 
+Desktop의 최소 macOS 버전은 사용자 승인으로 12 이상이다. #46~48의 TUF·암호 포맷·암호화 저장소 실험 구현은 [체크포인트](reports/2026-09-08-e2ee-checkpoint.md)를 참조한다. 기존 앱 통합과 Windows ia32 지원/64비트 전환 결정은 미완료이며 E2EE 활성화로 표시하지 않는다.
+
 2026-09-08부터 [E2EE 패치](patches/patch-20260907-e2ee.md)를 기준으로 별도 브랜치 `feat/e2ee-vault`에서 개발한다. 계정별 보관함, 기기 승인·QR/키 파일 연결, 복구 키와 암호문 동기화를 목표로 하며 [#43~#57](tasks/0043.md)로 추적한다. 현재 데이터는 여전히 Sync v2 평문 구조이며 실제 운영 전환과 과거 평문 삭제는 사용자 검증 후 별도로 수행한다.
 
 ## Google 로그인

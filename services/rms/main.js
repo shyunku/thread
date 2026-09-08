@@ -41,6 +41,7 @@ app.get("/", (req, res) => {
 });
 
 app.use("/default", defaultRouter);
+app.use("/tuf", require("./src/routers/tuf"));
 app.use("/admin", adminRouter);
 require("./src/modules/releaseSchema").ensureReleaseSchema(require("./src/modules/mysql"))
   .then(() => app.listen(PORT, () => console.info(`server opened at: http://0.0.0.0:${PORT}`)))

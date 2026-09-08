@@ -9,6 +9,9 @@
   "main": "public/electron/core/main.js",
   "homepage": "./",
   "private": true,
+  "pnpm": {
+    "neverBuiltDependencies": ["better-sqlite3-multiple-ciphers"]
+  },
   "allowMultipleExecution": false,
   "config": {
     "react_port": 9300,
@@ -32,6 +35,10 @@
     "mac-pack": "pnpm build && electron-builder build -c.extraMetadata.main=build/electron/core/main.js"
   },
   "dependencies": {
+    "tuf-js": "6.0.0",
+    "libsodium-wrappers": "0.8.4",
+    "cbor": "10.0.12",
+    "better-sqlite3-multiple-ciphers": "13.0.3",
     "@reduxjs/toolkit": "1.9.2",
     "axios": "1.3.3",
     "bignumber.js": "9.1.1",
