@@ -4,6 +4,8 @@ services:
   mysql:
     image: mysql:8.0
     restart: unless-stopped
+    ports:
+      - "127.0.0.1:3309:3306"
     environment:
       MYSQL_DATABASE: ${MYSQL_DATABASE:-thread}
       MYSQL_USER: ${MYSQL_USER:-thread}
