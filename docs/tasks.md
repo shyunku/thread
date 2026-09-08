@@ -4,6 +4,21 @@
 
 | Index | Tag | Updated | Status | Completed | Deps | 항목 | 완료 조건 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
+| 57 | security/release | 2026-09-08 12:35 | 🔴 TODO |  | #46, #54, #55, #56 | E2EE 보안 검토·운영 전환 게이트 ([기록](tasks/0057.md)) | 외부 리뷰·성능·purge/restore·사용자 승인 후 출시. |
+| 56 | privacy/ux | 2026-09-08 12:35 | 🔴 TODO |  | #50, #54, #55 | 보호 상태·로그·개인정보 안내 ([기록](tasks/0056.md)) | 보호 상태·평문 잔존·복구 안내와 synthetic 누출 검사. |
+| 55 | security/recovery | 2026-09-08 12:35 | 🔴 TODO |  | #50, #52, #53 | 분실·키 회전·암호화 백업 복원 ([기록](tasks/0055.md)) | 전체 기기 분실·해지·세대 전환·백업 복원 검증. |
+| 54 | migration | 2026-09-08 12:35 | 🔴 TODO |  | #50, #52, #53 | v2→E2EE 이관·중단 복구 ([기록](tasks/0054.md)) | freeze/CAS commit·실패 재개·늦은 기기 pending 무손실 검증. |
+| 53 | mobile/sync | 2026-09-08 12:35 | 🔴 TODO |  | #50, #51 | 모바일 암호문 조회·복구 프로토콜 ([기록](tasks/0053.md)) | 키 승인·snapshot/delta·잠금·재접속 조회 실기기 확인. |
+| 52 | desktop/sync | 2026-09-08 12:35 | 🔴 TODO |  | #48, #51 | 암호화 오프라인 편집·충돌·반복 ([기록](tasks/0052.md)) | 동시 편집·삭제·반복·정렬과 pending 보존 검증. |
+| 51 | api/sync | 2026-09-08 12:35 | 🔴 TODO |  | #49 | 암호문 push/pull·snapshot ([기록](tasks/0051.md)) | 원본 서명 provenance·CAS·멱등성·snapshot 무결성 검증. |
+| 50 | desktop/mobile | 2026-09-08 12:35 | 🔴 TODO |  | #48, #49 | QR 및 키 파일 기기 연결 ([기록](tasks/0050.md)) | PC↔PC·PC↔Mobile 승인·만료·오수신자 거부 실기기 확인. |
+| 49 | api/vault | 2026-09-08 12:35 | 🔴 TODO |  | #47 | Vault·멤버십·기기 권한 API ([기록](tasks/0049.md)) | 추가 schema migration 및 승인·해지·복구 권한 검증. |
+| 48 | desktop/storage | 2026-09-08 12:35 | 🔴 TODO |  | #45, #47 | 암호화 로컬 DB·키 보관·잠금 ([기록](tasks/0048.md)) | DB/WAL/outbox/search 암호화와 잠금·재시작·복구 검증. |
+| 47 | crypto/protocol | 2026-09-08 12:35 | 🔴 TODO |  | #43 | 암호 포맷·키 계층·교차 플랫폼 벡터 ([기록](tasks/0047.md)) | AAD·서명·복구·키 전달 포맷과 변조 거부 벡터 검증. |
+| 46 | rms/security | 2026-09-08 12:35 | 🔴 TODO |  | #43 | 서명된 업데이트와 배포 신뢰 ([기록](tasks/0046.md)) | 변조·만료·rollback 차단 및 실제 서명 배포 확인. |
+| 45 | desktop/security | 2026-09-08 12:35 | 🔴 TODO |  | #44 | 지원 Electron·OS 키 저장소 검증 ([기록](tasks/0045.md)) | 지원 버전·네이티브 의존성 빌드와 실기기 키 보호/재인증 확인. |
+| 44 | desktop/security | 2026-09-08 12:50 | 🟡 WIP |  | #43 | Electron 렌더러·IPC 권한 격리 ([기록](tasks/0044.md)) | Node/remote/env 노출 제거, sender·채널 경계 테스트 및 사용자 앱 회귀 확인. |
+| 43 | security/plan | 2026-09-08 12:50 | 🟢 DONE | 2026-09-08 12:50 | #41 | E2EE 구현 순서·검증 게이트 확정 ([기록](tasks/0043.md)) | 패치 전 범위를 태스크·의존성·사용자 확인 지점으로 매핑. |
 | 42 | infra | 2026-09-08 12:26 | 🟢 DONE | 2026-09-08 12:26 |  | MySQL SSH 터널용 루프백 포트 게시 ([기록](tasks/0042.md)) | 127.0.0.1:3309→3306 매핑과 Compose 구성 검증. |
 | 41 | security/design | 2026-09-08 12:09 | 🟢 DONE | 2026-09-07 23:27 | #39, #40 | E2EE 및 개인정보 보호 설계 ([기록](tasks/0041.md)) | 위협 모델·키 복구·동기화·이관·UX·검증 기준을 설계 문서로 정리. |
 | 40 | desktop/release | 2026-09-07 18:34 | 🟢 DONE | 2026-09-07 18:34 | #38, #39 | 패키징된 앱의 시작 오류 수정 및 1.1.3 릴리스 ([기록](tasks/0040.md)) | appId 누락 패키지의 정상 시작을 검증하고 1.1.3 Windows 설치 파일 생성. |
