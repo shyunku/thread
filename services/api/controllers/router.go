@@ -8,6 +8,7 @@ import (
 	"thread_api/configs"
 	"thread_api/controllers/v1"
 	"thread_api/controllers/v2"
+	"thread_api/controllers/v3"
 	"thread_api/log"
 )
 
@@ -33,6 +34,7 @@ func SetupRouter() *gin.Engine {
 
 	v1.UseRouterV1(r)
 	v2.UseRouter(r)
+	v3.UseRouter(r)
 	return r
 }
 

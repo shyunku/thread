@@ -69,6 +69,8 @@ E2EE 보관함 잠금 해제는 Windows Hello/Touch ID 우선 및 별도 보관�
 
 ## 배포 구조
 
+E2EE v3 서버 API는 E2EE_API_ENABLED 기본 false로 분리한다. 활성화하더라도 기존 계정을 자동 이관하지 않으며, 계정 JWT와 기기 서명을 별도로 검사한다. 승인 만료·키 세대 회전·수신자 전용 키 전달 및 암호문 동기화의 구현 계약은 [E2EE v3 API](protocol/e2ee-v3-api.md)에 기록한다. 사용자 앱 통합과 운영 전환·보안 검토는 별도 완료 조건이다.
+
 공개 사이트와 관리자 사이트는 API 및 RMS와 함께 Docker Compose에 유지한다. 관리자 React 빌드의 공개 endpoint는 루트 env의 `ADMIN_APP_SERVER_ENTRY`와 `ADMIN_RMS_ENTRY`를 Compose build args로 전달해 local 및 production 값을 분리한다. 이 값은 정적 브라우저 번들에 포함되는 공개 설정이며 비밀값을 저장하지 않는다.
 
 운영 환경에서는 EC2 호스트에서 실행하는 Cloudflare Tunnel이 `127.0.0.1`에만 게시된 site, admin-site, API 및 RMS 포트로 연결한다. 외부 TLS는 Cloudflare가 종료하고 private origin은 HTTP를 사용하므로 `USE_HTTPS=false`를 사용한다. `USE_HTTPS=true`는 Go API가 인증서 파일을 직접 읽고 TLS를 종료하는 배포에서만 사용한다. 실제 `.env`와 `.env.production`은 저장소에 커밋하지 않는다.

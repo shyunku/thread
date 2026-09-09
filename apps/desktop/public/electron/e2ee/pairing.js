@@ -34,7 +34,7 @@ async function proposeApproval({request,state,authority,authorityId,keyring,conf
  if(await reauthenticate()!==true)throw Error("REAUTH_REQUIRED");
  await verifyRequest(request,now());check(request.body.vaultId===state.vaultId&&request.body.genesisFingerprint===state.genesisFingerprint);
  check(Number.isSafeInteger(state.revision)&&state.revision>=0&&state.revision<Number.MAX_SAFE_INTEGER);
- const body={vaultId:state.vaultId,revision:state.revision+1,previous:state.head,signer:authorityId,operation:"add",device:request.body.device};
+ const body={vaultId:state.vaultId,revision:state.revision+1,previous:state.head,signer:authorityId,operation:"add",device:request.body.device,expiresAt:request.body.expiresAt,requestId:request.body.requestId};
  const event={body,signature:await p.sign(authority.signing.privateKey,"membership",body)};
  const next=await m.applyMembership(state,event);
  const payload={schema:1,vaultId:state.vaultId,genesisFingerprint:request.body.genesisFingerprint,keyring,checkpoint:{revision:next.revision,head:next.head}};
@@ -50,6 +50,7 @@ async function acceptTransfer({bytes,request,device,state,genesisFingerprint,now
  const transfer=p.decode(bytes);check(transfer.schema===1&&transfer.kind==="key-transfer"&&Object.keys(transfer).length===5);
  check(p.encode(transfer.request).equals(p.encode(request)));
  check(transfer.event.body.operation==="add"&&p.encode(transfer.event.body.device).equals(p.encode(request.body.device)));
+ check(transfer.event.body.expiresAt===request.body.expiresAt&&transfer.event.body.requestId===request.body.requestId);
  const signer=state.devices.get(transfer.event.body.signer);check(signer?.canAuthorizeDevices);
  const next=await m.applyMembership(state,transfer.event);
  const payload=await p.unseal(device.encryption,signer.signingKey,transfer.sealed,request.body,now);

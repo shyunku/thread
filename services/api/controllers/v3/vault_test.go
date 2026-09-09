@@ -29,6 +29,9 @@ func (s *testVault) ApplyPending(c context.Context, uid string, b []byte) (vault
 func (s *testVault) RecoverPending(c context.Context, uid string, b []byte) (vault.Head, error) {
 	return s.Create(c, uid, b)
 }
+func (s *testVault) ApplyTransition(c context.Context, uid string, b []byte) (vault.Head, error) {
+	return s.Create(c, uid, b)
+}
 func (s *testVault) Read(_ context.Context, uid string, _ uint64) (vault.Page, error) {
 	s.calls++
 	s.uid = uid
@@ -49,6 +52,7 @@ func TestPendingHTTPBoundary(t *testing.T) {
 		{"POST", "/v3/vault", "application/cbor", "x", nil, 200, 1},
 		{"POST", "/v3/vault/membership", "application/cbor", "x", vault.ErrConflict, 409, 1},
 		{"POST", "/v3/vault/recovery", "application/cbor", "x", vault.ErrForbidden, 403, 1},
+		{"POST", "/v3/vault/transition", "application/cbor", "x", vault.ErrConflict, 409, 1},
 		{"POST", "/v3/vault", "application/json", "{}", nil, 415, 0},
 		{"POST", "/v3/vault", "application/cbor", strings.Repeat("x", vault.MaxBytes+1), nil, 413, 0},
 		{"GET", "/v3/vault?after=01", "", "", nil, 400, 0},

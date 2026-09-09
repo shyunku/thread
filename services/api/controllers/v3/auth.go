@@ -11,7 +11,7 @@ import (
 
 // UserPrincipal authorizes account lookup only, never a device mutation.
 // Approval/recovery/sync routes additionally require pinned device signatures.
-// Not mounted until the signed v3 protocol implementation is ready.
+// Routes are mounted only behind the explicit E2EE_API_ENABLED deployment gate.
 func UserPrincipal(secret []byte) gin.HandlerFunc {
 	secret = append([]byte(nil), secret...)
 	return func(c *gin.Context) {

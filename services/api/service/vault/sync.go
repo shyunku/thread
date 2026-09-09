@@ -12,6 +12,7 @@ import (
 
 var ErrInactive = errors.New("E2EE_NOT_ACTIVE")
 var ErrObjectConflict = errors.New("OBJECT_CONFLICT")
+var ErrQuota = errors.New("SNAPSHOT_LIMIT")
 
 type PushResult struct {
 	Seq      string            `json:"seq"`
@@ -87,7 +88,7 @@ func (s *Store) Push(ctx context.Context, uid string, raw []byte) (PushResult, e
 	generation, gok := b["keyGeneration"].(uint64)
 	counter, cok := decimal(b["counter"], true)
 	ops, e := parseOperations(b["operations"])
-	if e != nil || len(b) != 9 || schema != 1 || !identifier.MatchString(id) || !identifier.MatchString(device) || !identifier.MatchString(mutation) || epoch == "" || !rok || !gok || !cok {
+	if e != nil || len(b) != 9 || schema != 1 || !identifier.MatchString(id) || !identifier.MatchString(device) || !identifier.MatchString(mutation) || !identifier.MatchString(epoch) || !rok || !gok || !cok {
 		return PushResult{}, ErrInvalid
 	}
 	tx, e := s.DB.BeginTx(ctx, nil)

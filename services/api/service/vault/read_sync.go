@@ -42,6 +42,9 @@ func (s *Store) Pull(ctx context.Context, uid, epoch string, after, until uint64
 	if mode != "active" {
 		return Changes{}, ErrInactive
 	}
+	if e = checkReadProof(ctx, tx, id); e != nil {
+		return Changes{}, e
+	}
 	if epoch != currentEpoch || after > high {
 		return Changes{}, ErrConflict
 	}
@@ -139,9 +142,40 @@ func (s *Store) Snapshot(ctx context.Context, uid string) (Snapshot, error) {
 	if mode != "active" {
 		return Snapshot{}, ErrInactive
 	}
+	if e = checkReadProof(ctx, tx, id); e != nil {
+		return Snapshot{}, e
+	}
 	e = tx.QueryRowContext(ctx, `SELECT last_seq FROM vault_sync WHERE vault_id=?`, id).Scan(&seq)
 	if e != nil && e != sql.ErrNoRows {
 		return Snapshot{}, e
+	}
+	// Expired snapshots are disposable copies, never the live objects or receipts.
+	now := time.Now().Unix()
+	if _, e = tx.ExecContext(ctx, `DELETE o FROM encrypted_snapshot_objects o JOIN encrypted_snapshots s ON s.id=o.snapshot_id WHERE s.vault_id=? AND s.expires_at<=?`, id, now); e != nil {
+		return Snapshot{}, e
+	}
+	if _, e = tx.ExecContext(ctx, `DELETE FROM encrypted_snapshots WHERE vault_id=? AND expires_at<=?`, id, now); e != nil {
+		return Snapshot{}, e
+	}
+	var cached Snapshot
+	var cachedDigest []byte
+	e = tx.QueryRowContext(ctx, `SELECT id,manifest_digest,object_count,expires_at FROM encrypted_snapshots WHERE vault_id=? AND epoch=? AND seq=? AND membership_head=? ORDER BY expires_at DESC LIMIT 1`, id, epoch, seq, head).Scan(&cached.ID, &cachedDigest, &cached.Count, &cached.Expires)
+	if e == nil {
+		cached.Epoch = epoch
+		cached.Seq = strconv.FormatUint(seq, 10)
+		cached.Head = HeadString(head)
+		cached.Digest = HeadString(cachedDigest)
+		return cached, tx.Commit()
+	}
+	if e != sql.ErrNoRows {
+		return Snapshot{}, e
+	}
+	var activeSnapshots int
+	if e = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM encrypted_snapshots WHERE vault_id=?`, id).Scan(&activeSnapshots); e != nil {
+		return Snapshot{}, e
+	}
+	if activeSnapshots >= 4 {
+		return Snapshot{}, ErrQuota
 	}
 	rows, e := tx.QueryContext(ctx, `SELECT object_id,version,seq,deleted,operation_index,signed_record FROM encrypted_objects WHERE vault_id=? ORDER BY object_id`, id)
 	if e != nil {
@@ -189,15 +223,23 @@ func (s *Store) SnapshotPage(ctx context.Context, uid, id, after string) (Snapsh
 	if !validAccount(uid) || len(id) != 36 || (after != "" && !identifier.MatchString(after)) {
 		return SnapshotPage{}, ErrInvalid
 	}
-	var exists int
-	e := s.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM encrypted_snapshots s JOIN vaults v ON s.vault_id=v.vault_id WHERE s.id=? AND v.account_id=? AND s.expires_at>? AND v.mode='active' AND v.epoch=s.epoch`, id, uid, time.Now().Unix()).Scan(&exists)
+	tx, e := s.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelRepeatableRead, ReadOnly: true})
 	if e != nil {
 		return SnapshotPage{}, e
 	}
-	if exists != 1 {
+	defer tx.Rollback()
+	var vaultID string
+	e = tx.QueryRowContext(ctx, `SELECT s.vault_id FROM encrypted_snapshots s JOIN vaults v ON s.vault_id=v.vault_id WHERE s.id=? AND v.account_id=? AND s.expires_at>? AND v.mode='active' AND v.epoch=s.epoch`, id, uid, time.Now().Unix()).Scan(&vaultID)
+	if e == sql.ErrNoRows {
 		return SnapshotPage{}, ErrNotFound
 	}
-	rows, e := s.DB.QueryContext(ctx, `SELECT object_id,version,seq,deleted,operation_index,signed_record FROM encrypted_snapshot_objects WHERE snapshot_id=? AND object_id>? ORDER BY object_id LIMIT 33`, id, after)
+	if e != nil {
+		return SnapshotPage{}, e
+	}
+	if e = checkReadProof(ctx, tx, vaultID); e != nil {
+		return SnapshotPage{}, e
+	}
+	rows, e := tx.QueryContext(ctx, `SELECT object_id,version,seq,deleted,operation_index,signed_record FROM encrypted_snapshot_objects WHERE snapshot_id=? AND object_id>? ORDER BY object_id LIMIT 33`, id, after)
 	if e != nil {
 		return SnapshotPage{}, e
 	}
@@ -220,5 +262,10 @@ func (s *Store) SnapshotPage(ctx context.Context, uid, id, after string) (Snapsh
 		result.Next = o.ID
 		size += len(o.Record)
 	}
-	return result, rows.Err()
+	e = rows.Err()
+	rows.Close()
+	if e != nil {
+		return SnapshotPage{}, e
+	}
+	return result, tx.Commit()
 }

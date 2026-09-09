@@ -11,9 +11,9 @@
 | 54 | migration | 2026-09-09 11:07 | 🟡 WIP |  | #50, #52, #53 | v2→E2EE 이관·중단 복구 ([기록](tasks/0054.md)) | freeze/CAS commit·실패 재개·늦은 기기 pending 무손실 검증. |
 | 53 | mobile/sync | 2026-09-09 12:50 | 🟡 WIP |  | #50, #51 | 모바일 암호문 조회·복구 프로토콜 ([기록](tasks/0053.md)) | 키 승인·snapshot/delta·잠금·재접속 조회 실기기 확인. |
 | 52 | desktop/sync | 2026-09-09 11:07 | 🟡 WIP |  | #48, #51 | 암호화 오프라인 편집·충돌·반복 ([기록](tasks/0052.md)) | 동시 편집·삭제·반복·정렬과 pending 보존 검증. |
-| 51 | api/sync | 2026-09-09 11:07 | 🟡 WIP |  | #49 | 암호문 push/pull·snapshot ([기록](tasks/0051.md)) | 원본 서명 provenance·CAS·멱등성·snapshot 무결성 검증. |
+| 51 | api/sync | 2026-09-09 13:38 | 🟢 DONE | 2026-09-09 13:38 | #49 | 암호문 push/pull·snapshot ([기록](tasks/0051.md)) | 원본 서명 provenance·CAS·멱등성·snapshot 무결성 검증. |
 | 50 | desktop/mobile | 2026-09-09 11:07 | 🟡 WIP |  | #48, #49 | QR 및 키 파일 기기 연결 ([기록](tasks/0050.md)) | PC↔PC·PC↔Mobile 승인·만료·오수신자 거부 실기기 확인. |
-| 49 | api/vault | 2026-09-09 11:07 | 🟡 WIP |  | #47 | Vault·멤버십·기기 권한 API ([기록](tasks/0049.md)) | 추가 schema migration 및 승인·해지·복구 권한 검증. |
+| 49 | api/vault | 2026-09-09 13:38 | 🟢 DONE | 2026-09-09 13:38 | #47 | Vault·멤버십·기기 권한 API ([기록](tasks/0049.md)) | 추가 schema migration 및 승인·해지·복구 권한 검증. |
 | 48 | desktop/storage | 2026-09-09 11:07 | 🟡 WIP |  | #45, #47 | 암호화 로컬 DB·키 보관·잠금 ([기록](tasks/0048.md)) | DB/WAL/outbox/search 암호화와 잠금·재시작·복구 검증. |
 | 47 | crypto/protocol | 2026-09-09 11:07 | 🟡 WIP |  | #43 | 암호 포맷·키 계층·교차 플랫폼 벡터 ([기록](tasks/0047.md)) | AAD·서명·복구·키 전달 포맷과 변조 거부 벡터 검증. |
 | 46 | rms/security | 2026-09-08 17:00 | 🟡 WIP |  | #43 | 서명된 업데이트와 배포 신뢰 ([기록](tasks/0046.md)) | 변조·만료·rollback 차단 및 실제 서명 배포 확인. |

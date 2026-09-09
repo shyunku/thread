@@ -7,6 +7,7 @@ import (
 	"errors"
 	"github.com/go-sql-driver/mysql"
 	"strings"
+	"time"
 )
 
 var ErrConflict = errors.New("MEMBERSHIP_CONFLICT")
@@ -108,12 +109,25 @@ func (s *Store) Create(ctx context.Context, uid string, raw []byte) (Head, error
 		return Head{}, e
 	}
 	defer tx.Rollback()
-	var exists int
-	if e = tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM user_master WHERE uid=?", uid).Scan(&exists); e != nil {
+	var account string
+	if e = tx.QueryRowContext(ctx, "SELECT uid FROM user_master WHERE uid=? FOR UPDATE", uid).Scan(&account); e == sql.ErrNoRows {
+		return Head{}, ErrForbidden
+	}
+	if e != nil {
 		return Head{}, e
 	}
-	if exists != 1 {
-		return Head{}, ErrForbidden
+	var prior Head
+	var priorHead, priorGenesis []byte
+	e = tx.QueryRowContext(ctx, `SELECT v.vault_id,v.membership_revision,v.membership_head,e.signed_record FROM vaults v JOIN vault_membership_events e ON v.vault_id=e.vault_id AND e.revision=0 WHERE v.account_id=?`, uid).Scan(&prior.VaultID, &prior.Revision, &priorHead, &priorGenesis)
+	if e == nil {
+		if prior.VaultID != g.ID || !bytes.Equal(priorGenesis, raw) {
+			return Head{}, ErrConflict
+		}
+		prior.Digest = HeadString(priorHead)
+		return prior, tx.Commit()
+	}
+	if e != sql.ErrNoRows {
+		return Head{}, e
 	}
 	_, e = tx.ExecContext(ctx, `INSERT INTO vaults(vault_id,account_id,epoch,suite,genesis_digest,membership_head,recovery_public_key) VALUES(?,?,'1',?,?,?,?)`, g.ID, uid, Suite, g.Digest, g.Digest, g.Recovery)
 	if e != nil {
@@ -133,8 +147,8 @@ func insertDevice(ctx context.Context, tx *sql.Tx, id string, revision uint64, d
 	return conflict(e)
 }
 
-// ApplyPending serializes membership edits for a pending vault only. Active
-// revocation requires atomic key rotation and is deliberately not exposed here.
+// Additions can also approve an active-vault device; its keyring is delivered by
+// the signed pairing response. Active revocation must use ApplyTransition.
 func (s *Store) ApplyPending(ctx context.Context, uid string, raw []byte) (Head, error) {
 	if !validAccount(uid) {
 		return Head{}, ErrForbidden
@@ -149,7 +163,9 @@ func (s *Store) ApplyPending(ctx context.Context, uid string, raw []byte) (Head,
 	previous, _ := b["previous"].(string)
 	signer, _ := b["signer"].(string)
 	operation, _ := b["operation"].(string)
-	if !identifier.MatchString(id) || !ok || revision == 0 || revision > MaxSafeInteger || !identifier.MatchString(signer) || len(b) != 6 || (operation != "add" && operation != "revoke") {
+	expires, expiryOK := b["expiresAt"].(uint64)
+	requestID, _ := b["requestId"].(string)
+	if !identifier.MatchString(id) || !ok || revision == 0 || revision > MaxSafeInteger || !identifier.MatchString(signer) || len(b) != 8 || !expiryOK || !identifier.MatchString(requestID) || (operation != "add" && operation != "revoke") {
 		return Head{}, ErrInvalid
 	}
 	tx, e := s.DB.BeginTx(ctx, nil)
@@ -167,7 +183,7 @@ func (s *Store) ApplyPending(ctx context.Context, uid string, raw []byte) (Head,
 	if e != nil {
 		return Head{}, e
 	}
-	if mode != "pending" {
+	if mode != "pending" && !(mode == "active" && operation == "add") {
 		return Head{}, ErrRotationRequired
 	}
 	if revision <= current {
@@ -179,6 +195,10 @@ func (s *Store) ApplyPending(ctx context.Context, uid string, raw []byte) (Head,
 	}
 	if revision != current+1 || previous != HeadString(head) {
 		return Head{}, ErrConflict
+	}
+	now := uint64(time.Now().UnixMilli())
+	if expires <= now || expires > now+600000 {
+		return Head{}, ErrInvalid
 	}
 	var signing []byte
 	var authorizer bool
@@ -201,6 +221,13 @@ func (s *Store) ApplyPending(ctx context.Context, uid string, raw []byte) (Head,
 		return Head{}, conflict(e)
 	}
 	if operation == "add" {
+		var activeDevices int
+		if e = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM vault_devices WHERE vault_id=? AND revoked_revision IS NULL`, id).Scan(&activeDevices); e != nil {
+			return Head{}, e
+		}
+		if activeDevices >= 32 {
+			return Head{}, ErrForbidden
+		}
 		d, e := ParseDevice(b["device"])
 		if e != nil {
 			return Head{}, e

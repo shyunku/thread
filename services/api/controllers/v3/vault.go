@@ -16,10 +16,11 @@ type VaultStore interface {
 	ApplyPending(context.Context, string, []byte) (vault.Head, error)
 	Read(context.Context, string, uint64) (vault.Page, error)
 	RecoverPending(context.Context, string, []byte) (vault.Head, error)
+	ApplyTransition(context.Context, string, []byte) (vault.Head, error)
 }
 
-// RegisterPending is deliberately not called by the production router yet.
-// No sync activation, key delivery or active-vault revocation is exposed here.
+// Registered only behind E2EE_API_ENABLED. This never activates a pending vault.
+// Active membership changes require the rotation protocol.
 func RegisterPending(r *gin.Engine, s VaultStore, secret []byte) {
 	g := r.Group("/v3/vault")
 	g.Use(UserPrincipal(secret))
@@ -40,6 +41,8 @@ func RegisterPending(r *gin.Engine, s VaultStore, secret []byte) {
 			status, code = 403, "DEVICE_APPROVAL_FORBIDDEN"
 		case errors.Is(err, vault.ErrRotationRequired):
 			status, code = 409, "KEY_ROTATION_REQUIRED"
+		case errors.Is(err, vault.ErrInactive):
+			status, code = 409, "E2EE_NOT_ACTIVE"
 		}
 		c.JSON(status, gin.H{"code": code})
 	}
@@ -78,6 +81,14 @@ func RegisterPending(r *gin.Engine, s VaultStore, secret []byte) {
 			return
 		}
 		v, e := s.RecoverPending(c.Request.Context(), c.GetString("uid"), b)
+		respond(c, v, e)
+	})
+	g.POST("/transition", func(c *gin.Context) {
+		b, ok := readBody(c)
+		if !ok {
+			return
+		}
+		v, e := s.ApplyTransition(c.Request.Context(), c.GetString("uid"), b)
 		respond(c, v, e)
 	})
 	g.GET("", func(c *gin.Context) {

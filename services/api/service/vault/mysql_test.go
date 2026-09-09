@@ -8,7 +8,9 @@ import (
 	"errors"
 	"github.com/go-sql-driver/mysql"
 	"os"
+	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"thread_api/service/database/migrations"
 	"time"
@@ -55,11 +57,13 @@ func TestMySQLSignedMembership(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	if _, e = store.Create(ctx, "fixture-user", genesis); !errors.Is(e, ErrConflict) {
-		t.Fatal("duplicate vault accepted")
+	if duplicate, e := store.Create(ctx, "fixture-user", genesis); e != nil || duplicate != head {
+		t.Fatal("identical genesis retry failed", e)
 	}
 	mobile, mobileKey := testDevice("mobile", 4, "read", false)
 	event := map[string]interface{}{"vaultId": "fixture", "revision": uint64(1), "previous": head.Digest, "signer": "owner", "operation": "add", "device": mobile}
+	event["expiresAt"] = uint64(time.Now().Add(time.Minute).UnixMilli())
+	event["requestId"] = "fixture-approval"
 	raw := signed(t, key, "membership", event)
 	if _, e = store.ApplyPending(ctx, "other-user", raw); !errors.Is(e, ErrNotFound) {
 		t.Fatal("cross-account mutation accepted")
@@ -87,6 +91,8 @@ func TestMySQLSignedMembership(t *testing.T) {
 		t.Fatal("read-only approval accepted")
 	}
 	revoke := map[string]interface{}{"vaultId": "fixture", "revision": uint64(2), "previous": head.Digest, "signer": "owner", "operation": "revoke", "deviceId": "mobile"}
+	revoke["expiresAt"] = uint64(time.Now().Add(time.Minute).UnixMilli())
+	revoke["requestId"] = "fixture-revoke"
 	head, e = store.ApplyPending(ctx, "fixture-user", signed(t, key, "membership", revoke))
 	if e != nil {
 		t.Fatal(e)
@@ -124,6 +130,12 @@ func TestMySQLSignedMembership(t *testing.T) {
 	}
 	readDevice, readKey := testDevice("reader", 11, "read", false)
 	readBody := map[string]interface{}{"vaultId": "fixture", "revision": uint64(4), "previous": head.Digest, "signer": "recovered", "operation": "add", "device": readDevice}
+	readBody["expiresAt"] = uint64(time.Now().Add(-time.Minute).UnixMilli())
+	readBody["requestId"] = "fixture-reader"
+	if _, e = store.ApplyPending(ctx, "fixture-user", signed(t, newOwnerKey, "membership", readBody)); !errors.Is(e, ErrInvalid) {
+		t.Fatal("expired approval accepted", e)
+	}
+	readBody["expiresAt"] = uint64(time.Now().Add(time.Minute).UnixMilli())
 	head, e = store.ApplyPending(ctx, "fixture-user", signed(t, newOwnerKey, "membership", readBody))
 	if e != nil {
 		t.Fatal(e)
@@ -196,5 +208,173 @@ func TestMySQLSignedMembership(t *testing.T) {
 	}
 	if _, e = store.Pull(ctx, "fixture-user", "wrong-epoch", 0, 0); !errors.Is(e, ErrConflict) {
 		t.Fatal("wrong epoch pull accepted")
+	}
+	proof := map[string]interface{}{"schema": uint64(1), "vaultId": "fixture", "deviceId": "reader", "epoch": "1", "membershipRevision": uint64(4), "keyGeneration": uint64(2), "operation": "pull", "parameters": map[string]interface{}{"after": "0", "until": "0"}, "requestId": "read-one", "expiresAt": uint64(time.Now().Add(time.Minute).UnixMilli())}
+	readRaw := signed(t, readKey, "request", proof)
+	if result, e := store.SignedPull(ctx, "fixture-user", readRaw); e != nil || result.Next != "3" {
+		t.Fatal("approved readonly pull", e)
+	}
+	if _, e := store.SignedPull(ctx, "other-user", readRaw); !errors.Is(e, ErrForbidden) {
+		t.Fatal("cross account read proof", e)
+	}
+	proof["deviceId"] = "mobile"
+	if _, e := store.SignedPull(ctx, "fixture-user", signed(t, mobileKey, "request", proof)); !errors.Is(e, ErrForbidden) {
+		t.Fatal("revoked device read", e)
+	}
+	proof["deviceId"] = "reader"
+	proof["expiresAt"] = uint64(time.Now().Add(-time.Minute).UnixMilli())
+	if _, e := store.SignedPull(ctx, "fixture-user", signed(t, readKey, "request", proof)); !errors.Is(e, ErrInvalid) {
+		t.Fatal("expired read", e)
+	}
+	proof["expiresAt"] = uint64(time.Now().Add(time.Minute).UnixMilli())
+	proof["membershipRevision"] = "4"
+	if _, e := store.SignedPull(ctx, "fixture-user", signed(t, readKey, "request", proof)); !errors.Is(e, ErrInvalid) {
+		t.Fatal("incorrect revision type", e)
+	}
+	proof["membershipRevision"] = uint64(3)
+	if _, e := store.SignedPull(ctx, "fixture-user", signed(t, readKey, "request", proof)); !errors.Is(e, ErrConflict) {
+		t.Fatal("stale membership proof", e)
+	}
+	proof["membershipRevision"] = uint64(4)
+	if _, e := store.SignedSnapshot(ctx, "fixture-user", signed(t, readKey, "request", proof)); !errors.Is(e, ErrInvalid) {
+		t.Fatal("request method substitution", e)
+	}
+	proof["operation"] = "snapshot-page"
+	proof["parameters"] = map[string]interface{}{"snapshotId": snapshot.ID, "after": ""}
+	if result, e := store.SignedSnapshotPage(ctx, "fixture-user", signed(t, readKey, "request", proof)); e != nil || len(result.Objects) != 2 {
+		t.Fatal("signed snapshot read", e)
+	}
+	proof["operation"] = "snapshot"
+	proof["parameters"] = map[string]interface{}{}
+	one, e := store.SignedSnapshot(ctx, "fixture-user", signed(t, readKey, "request", proof))
+	if e != nil {
+		t.Fatal(e)
+	}
+	two, e := store.SignedSnapshot(ctx, "fixture-user", signed(t, readKey, "request", proof))
+	if e != nil || one.ID != two.ID {
+		t.Fatal("snapshot retry allocated a copy", e)
+	}
+	for counter := 4; counter <= 6; counter++ {
+		op["baseVersion"] = strconv.Itoa(counter - 2)
+		pushBody["counter"] = strconv.Itoa(counter)
+		pushBody["mutationId"] = "quota-" + strconv.Itoa(counter)
+		if _, e = store.Push(ctx, "fixture-user", signed(t, newOwnerKey, "mutation", pushBody)); e != nil {
+			t.Fatal(e)
+		}
+		_, e = store.Snapshot(ctx, "fixture-user")
+		if counter < 6 && e != nil {
+			t.Fatal(e)
+		}
+		if counter == 6 && !errors.Is(e, ErrQuota) {
+			t.Fatal("snapshot quota missing", e)
+		}
+	}
+	if _, e = db.ExecContext(ctx, "UPDATE encrypted_snapshots SET expires_at=1"); e != nil {
+		t.Fatal(e)
+	}
+	if _, e = store.Snapshot(ctx, "fixture-user"); e != nil {
+		t.Fatal("expired snapshot cleanup failed", e)
+	}
+	if e = db.QueryRowContext(ctx, "SELECT COUNT(*) FROM encrypted_snapshots").Scan(&count); e != nil || count != 1 {
+		t.Fatal("expired snapshots retained", e)
+	}
+	// Competing offline writes to one base version: exactly one atomic winner.
+	op["baseVersion"] = "5"
+	pushBody["counter"] = "7"
+	pushBody["mutationId"] = "race-first"
+	first := signed(t, newOwnerKey, "mutation", pushBody)
+	pushBody["counter"] = "8"
+	pushBody["mutationId"] = "race-second"
+	second := signed(t, newOwnerKey, "mutation", pushBody)
+	var group sync.WaitGroup
+	start := make(chan struct{})
+	results := make(chan error, 2)
+	for _, raw := range [][]byte{first, second} {
+		group.Add(1)
+		go func(raw []byte) {
+			defer group.Done()
+			<-start
+			_, err := store.Push(ctx, "fixture-user", raw)
+			results <- err
+		}(raw)
+	}
+	close(start)
+	group.Wait()
+	close(results)
+	accepted := 0
+	for err := range results {
+		if err == nil {
+			accepted++
+		} else if !errors.Is(err, ErrConflict) && !errors.Is(err, ErrObjectConflict) {
+			t.Fatal(err)
+		}
+	}
+	if accepted != 1 {
+		t.Fatal("concurrent CAS accepted", accepted)
+	}
+	if e = db.QueryRowContext(ctx, "SELECT COUNT(*) FROM encrypted_changes").Scan(&count); e != nil || count != 7 {
+		t.Fatal("concurrent partial commit", e)
+	}
+	_, rotatedAuthority := testDevice("rotated-authority", 12, "write", true)
+	transition := map[string]interface{}{"schema": uint64(1), "vaultId": "fixture", "revision": uint64(5), "previous": head.Digest, "operation": "rotate", "signer": "recovered", "keyGeneration": uint64(3), "recoveryKey": []byte(rotatedAuthority.Public().(ed25519.PublicKey)), "devices": []interface{}{newOwner}, "envelopes": []interface{}{map[string]interface{}{"deviceId": "recovered", "ciphertext": bytes.Repeat([]byte{5}, 48)}}, "recoveryEnvelope": bytes.Repeat([]byte{6}, 48)}
+	transition["signer"] = "reader"
+	if _, e = store.ApplyTransition(ctx, "fixture-user", signed(t, readKey, "membership-transition", transition)); !errors.Is(e, ErrForbidden) {
+		t.Fatal("readonly key rotation", e)
+	}
+	transition["signer"] = "recovered"
+	validEnvelopes := transition["envelopes"]
+	transition["envelopes"] = []interface{}{}
+	if _, e = store.ApplyTransition(ctx, "fixture-user", signed(t, newOwnerKey, "membership-transition", transition)); !errors.Is(e, ErrInvalid) {
+		t.Fatal("incomplete recipient set", e)
+	}
+	transition["envelopes"] = validEnvelopes
+	transitionRaw := signed(t, newOwnerKey, "membership-transition", transition)
+	head, e = store.ApplyTransition(ctx, "fixture-user", transitionRaw)
+	if e != nil {
+		t.Fatal("active rotation", e)
+	}
+	if retry, e := store.ApplyTransition(ctx, "fixture-user", transitionRaw); e != nil || retry != head {
+		t.Fatal("rotation retry", e)
+	}
+	proof["operation"] = "pull"
+	proof["parameters"] = map[string]interface{}{"after": "0", "until": "0"}
+	if _, e = store.SignedPull(ctx, "fixture-user", signed(t, readKey, "request", proof)); !errors.Is(e, ErrForbidden) {
+		t.Fatal("revoked reader can sync", e)
+	}
+	proof["deviceId"] = "recovered"
+	proof["membershipRevision"] = uint64(5)
+	proof["keyGeneration"] = uint64(3)
+	proof["operation"] = "envelope"
+	proof["parameters"] = map[string]interface{}{"keyGeneration": uint64(3)}
+	if envelope, e := store.SignedEnvelope(ctx, "fixture-user", signed(t, newOwnerKey, "request", proof)); e != nil || !bytes.Equal(envelope.Record, transitionRaw) {
+		t.Fatal("recipient envelope delivery", e)
+	}
+	pushBody["counter"] = "9"
+	pushBody["mutationId"] = "obsolete-key"
+	op["baseVersion"] = "6"
+	if _, e = store.Push(ctx, "fixture-user", signed(t, newOwnerKey, "mutation", pushBody)); !errors.Is(e, ErrConflict) {
+		t.Fatal("old generation write", e)
+	}
+	fresh, _ := testDevice("fresh-after-loss", 13, "write", true)
+	_, finalAuthority := testDevice("final-authority", 14, "write", true)
+	transition["operation"] = "recover"
+	transition["signer"] = nil
+	transition["revision"] = uint64(6)
+	transition["previous"] = head.Digest
+	transition["keyGeneration"] = uint64(4)
+	transition["recoveryKey"] = []byte(finalAuthority.Public().(ed25519.PublicKey))
+	transition["devices"] = []interface{}{fresh}
+	transition["envelopes"] = []interface{}{map[string]interface{}{"deviceId": "fresh-after-loss", "ciphertext": bytes.Repeat([]byte{8}, 48)}}
+	if _, e = store.ApplyTransition(ctx, "fixture-user", signed(t, newRecoveryKey, "recovery-transition", transition)); e == nil {
+		t.Fatal("old recovery authority accepted")
+	}
+	if _, e = store.ApplyTransition(ctx, "fixture-user", signed(t, rotatedAuthority, "recovery-transition", transition)); e != nil {
+		t.Fatal("all-device-loss recovery", e)
+	}
+	if _, e = store.SignedEnvelope(ctx, "fixture-user", signed(t, newOwnerKey, "request", proof)); !errors.Is(e, ErrForbidden) {
+		t.Fatal("replaced device can read envelopes", e)
+	}
+	if e = db.QueryRowContext(ctx, "SELECT COUNT(*) FROM vault_membership_events").Scan(&count); e != nil || count != 7 {
+		t.Fatal("partial rotation event", e)
 	}
 }
