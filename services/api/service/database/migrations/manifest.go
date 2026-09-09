@@ -31,4 +31,5 @@ var Server = []Migration{
 	canonicalV3(),
 	snapshotsV4(),
 	backfillV5(),
+	vaultV6(),
 }

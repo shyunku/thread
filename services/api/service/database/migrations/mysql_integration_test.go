@@ -56,6 +56,7 @@ func TestMySQLMigrationLifecycle(t *testing.T) {
 		t.Fatalf("repeat migration: version=%d error=%v", version, err)
 	}
 	var state string
+	verifyVaultConstraints(t, db)
 	if err := db.QueryRowContext(ctx, "SELECT state FROM blocks WHERE uid='fixture-user'").Scan(&state); err != nil || state != "fixture-preserved" {
 		t.Fatal("legacy data changed")
 	}
