@@ -22,9 +22,9 @@ class VaultWorkspaceService{
   if(!this.active){
    const scope={environment:d.environment,accountId:uid,vaultId:createHash("sha256").update(JSON.stringify([d.environment,uid,"vault-v1"])).digest("hex")};
    const vault=new LocalVault({baseDirectory:d.baseDirectory,scope,protector:d.protector});
-   const entry={uid,vault,unlocked:false};
+   const entry={uid,vault,unlocked:false,abort:new AbortController()};
    entry.controller=createVaultController({vault,osAuth:d.osAuth,getWindow:d.getWindow,powerMonitor:d.powerMonitor,
-    clearRenderer:()=>{entry.unlocked=false;this.generation++;d.notify?.({uid,phase:"LOCKED",generation:this.generation});}});
+    clearRenderer:()=>{entry.unlocked=false;entry.abort.abort();this.generation++;d.notify?.({uid,phase:"LOCKED",generation:this.generation});}});
    this.active=entry;
    const window=d.getWindow(),closed=()=>{if(this.active===entry)this.reset();},rendererGone=()=>entry.controller.lock();
    window?.once?.("closed",closed);window?.webContents?.on?.("render-process-gone",rendererGone);
@@ -50,7 +50,7 @@ class VaultWorkspaceService{
   if(this.busy)throw Error("VAULT_BUSY");
   const entry=this.context();this.busy=true;
   try{await entry.controller.unlock(method,password);if(entry!==this.active||entry.uid!==this.runtime().getAccount()){entry.controller.lock();throw Error("VAULT_SESSION_CHANGED");}
-   entry.unlocked=true;return await this.status();
+   entry.unlocked=true;entry.abort=new AbortController();return await this.status();
   }finally{password=undefined;this.busy=false;}
  }
  lock(){this.context().controller.lock();}
@@ -64,6 +64,27 @@ class VaultWorkspaceService{
   });
  }
  reviews(request){return this.context().controller.legacyReviews(request);}
+ registrationEndpoint(){
+  const raw=this.runtime().endpoint||require("../modules/util").getServerFinalEndpoint().replace(/\/v[0-9]+\/?$/,"");
+  const url=new URL(raw);
+  if(url.username||url.password||url.search||url.hash)throw Error("INVALID_SERVER_ENDPOINT");
+  return url.href;
+ }
+ async registerIdentity(){
+  if(this.busy)throw Error("VAULT_BUSY");
+  const entry=this.context();entry.controller.use(()=>{});this.busy=true;
+  try{
+   const transport=this.runtime().transport||require("./transport").createTransport({endpoint:this.registrationEndpoint(),token:async()=>{
+    if(entry!==this.active||entry.uid!==this.runtime().getAccount()||entry.abort.signal.aborted)throw Error("AUTH_REQUIRED");
+    const db=await this.group.databaseService.getRootDatabaseContext();
+    // Do not use the legacy SQL logger for authentication metadata.
+    const row=await new Promise((resolve,reject)=>db.db.get("SELECT access_token FROM users WHERE uid = ?",[entry.uid],(error,value)=>error?reject(error):resolve(value)));
+    if(entry!==this.active||entry.uid!==this.runtime().getAccount()||entry.abort.signal.aborted)throw Error("AUTH_REQUIRED");
+    return row?.access_token;
+   }});
+   return await entry.controller.use(store=>require("./ownerRegistration").registerOwner({store,transport,signal:entry.abort.signal}));
+  }finally{this.busy=false;}
+ }
  async prepareIdentity(){
   if(this.busy)throw Error("VAULT_BUSY");this.busy=true;
   try{return await this.context().controller.use(store=>require("./ownerIdentity").prepareOwner(store));}

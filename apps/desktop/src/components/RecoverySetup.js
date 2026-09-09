@@ -1,5 +1,6 @@
 import {useEffect,useRef,useState} from "react";
 import IpcSender from "../utils/IpcSender";
+import VaultRegistration from "./VaultRegistration";
 const call=(method,...args)=>new Promise((resolve,reject)=>{
  if(!IpcSender.vault?.[method])return reject(Error("UNAVAILABLE"));
  IpcSender.vault[method](...args,response=>response?.success?resolve(response.data):reject(Error("RECOVERY_FAILED")));
@@ -20,9 +21,10 @@ export default function RecoverySetup(){
  };
  return <section aria-label="기기 키와 복구 준비">
   <h3>기기 키와 복구 준비</h3>
-  <p>로컬 기기 키를 준비합니다. 서버 등록·데이터 이관은 아직 하지 않습니다.</p>
+  <p>먼저 로컬 기기 키와 복구 자료를 준비합니다. 서버 등록은 복구 확인 후 별도로 요청하며 데이터 이관은 하지 않습니다.</p>
   {!state?<button disabled={busy} onClick={()=>run(async()=>{const value=await call("prepareIdentity");if(live.current)setState(value);})}>기기 키 준비</button>:<>
    <p>{state.phase==="RECOVERY_CONFIRMED"?"복구 파일·코드 검증 완료":"복구 파일·코드 확인 필요"}</p>
+   {state.phase==="RECOVERY_CONFIRMED"&&<VaultRegistration/>}
    <p>복구 코드와 암호화 파일이 모두 필요합니다. 서로 다른 안전한 곳에 보관하고 채팅이나 로그에 붙여넣지 마세요.</p>
    <button disabled={busy} onClick={()=>run(async()=>{const value=await call("recoveryCode");if(live.current)setCode(value);})}>복구 코드 보기 (30초)</button>
    {code&&<><pre style={{overflowWrap:"anywhere",whiteSpace:"pre-wrap"}}>{code}</pre><button onClick={()=>setCode("")}>코드 숨기기</button></>}

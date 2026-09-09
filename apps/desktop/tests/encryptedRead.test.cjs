@@ -37,3 +37,10 @@ test("transport bounds replies, rejects insecure remote endpoints, and hides raw
  await assert.rejects(transport.membership(),e=>e.message==="SYNC_UNAVAILABLE");
  assert.equal(options.redirect,"error");assert.equal(options.headers.Authorization,"Bearer "+secret);
 });
+test("only the explicit vault-not-found 404 permits initial registration",async()=>{
+ for(const status of [404,500]){
+  const transport=createTransport({endpoint:"http://localhost:4033",token:async()=>"synthetic",
+   fetch:async()=>new Response(JSON.stringify({code:"VAULT_NOT_FOUND"}),{status})});
+  await assert.rejects(transport.membership(),error=>error.message===(status===404?"VAULT_NOT_FOUND":"SYNC_UNAVAILABLE"));
+ }
+});

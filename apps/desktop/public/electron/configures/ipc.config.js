@@ -65,6 +65,8 @@ const {
  */
 module.exports = function (s) {
   const vaultActions={
+    "vault/registrationEndpoint":()=>{s.vaultWorkspaceService.context();return s.vaultWorkspaceService.registrationEndpoint();},
+    "vault/registerIdentity":()=>s.vaultWorkspaceService.registerIdentity(),
     "vault/prepareIdentity":()=>s.vaultWorkspaceService.prepareIdentity(),
     "vault/identityStatus":()=>s.vaultWorkspaceService.identityStatus(),
     "vault/recoveryCode":()=>s.vaultWorkspaceService.recoveryCode(),

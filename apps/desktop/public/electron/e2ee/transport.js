@@ -18,13 +18,14 @@ function createTransport({endpoint,token,fetch:send=globalThis.fetch,timeout=150
    for(;;){const {done,value}=await reader.read();if(done)break;length+=value.length;if(length>maxResponse){await reader.cancel();throw Error("SYNC_RESPONSE_TOO_LARGE");}chunks.push(Buffer.from(value));}
    let body;try{body=JSON.parse(Buffer.concat(chunks).toString("utf8"));}catch{throw Error("INVALID_SYNC_RESPONSE");}
    if(!response.ok){
+    if(response.status===404&&body?.code==="VAULT_NOT_FOUND")throw Error("VAULT_NOT_FOUND");
     const allowed=new Set(["E2EE_NOT_ACTIVE","OBJECT_CONFLICT","SYNC_CHECKPOINT_CONFLICT","DEVICE_FORBIDDEN","NOT_FOUND","SNAPSHOT_LIMIT","UNAUTHORIZED","USER_REQUIRED","MIGRATION_CONFLICT","MIGRATION_NOT_FOUND","MIGRATION_SOURCE_LIMIT"]);
     throw Error(allowed.has(body?.code)?body.code:"SYNC_UNAVAILABLE");
    }
    return body;
   }catch(error){
    const allowed=new Set(["AUTH_REQUIRED","INVALID_SYNC_RESPONSE","SYNC_RESPONSE_TOO_LARGE","E2EE_NOT_ACTIVE","OBJECT_CONFLICT","SYNC_CHECKPOINT_CONFLICT","DEVICE_FORBIDDEN","NOT_FOUND","SNAPSHOT_LIMIT","UNAUTHORIZED","USER_REQUIRED","SYNC_UNAVAILABLE","MIGRATION_CONFLICT","MIGRATION_NOT_FOUND","MIGRATION_SOURCE_LIMIT"]);
-   throw Error(controller.signal.aborted?"SYNC_CANCELLED":allowed.has(error.message)?error.message:"SYNC_UNAVAILABLE");
+   throw Error(controller.signal.aborted?"SYNC_CANCELLED":allowed.has(error.message)||error.message==="VAULT_NOT_FOUND"?error.message:"SYNC_UNAVAILABLE");
   }finally{clearTimeout(timer);signal?.removeEventListener("abort",abort);}
  }
  return {membership:(after=0,signal)=>request("/v3/vault?after="+encodeURIComponent(after),null,signal),

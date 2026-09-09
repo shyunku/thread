@@ -74,6 +74,8 @@ const silentSender = (topic, param, ...arg) => {
 
 const IpcSender = {
   vault: {
+    registrationEndpoint:callback=>sender("vault/registrationEndpoint",callback),
+    registerIdentity:callback=>sender("vault/registerIdentity",callback),
     prepareIdentity:callback=>sender("vault/prepareIdentity",callback),
     identityStatus:callback=>sender("vault/identityStatus",callback),
     recoveryCode:callback=>sender("vault/recoveryCode",callback),
