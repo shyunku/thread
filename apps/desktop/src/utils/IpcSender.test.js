@@ -31,7 +31,8 @@ test("removing a settings listener preserves the root listener on the same topic
   sender.onAll("sync-v2/status", root);
   const listener = sender.onAll("sync-v2/status", settings);
   sender.off("sync-v2/status", listener);
-  ipcRenderer.emit("sync-v2/status", {}, null, { success: true, data: { seq: "2" } });
+  ipcRenderer.emit("sync-v2/status", {}, null, { success: true, data: { seq: "2", title: "SYNTHETIC_PRIVATE" } });
+  expect(JSON.stringify(context.console.debug.mock.calls)).not.toContain("SYNTHETIC_PRIVATE");
   expect(root).toHaveBeenCalledTimes(1);
   expect(settings).not.toHaveBeenCalled();
   sender.offAll("sync-v2/status");

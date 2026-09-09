@@ -106,22 +106,18 @@ class IpcService extends IpcRouter {
         return;
       }
       if (!silentTopics.includes(topic) && !topic.startsWith("vault/")) {
-        let mergedArguments = arg
-          .map((param) => console.shorten(param))
-          .join(" ");
-
         console.system(
           `${TAG} ${console.wrap(
             `<-${reqIdTag(reqId)}--`,
             console.GREEN
-          )} ${console.wrap(topic, console.MAGENTA)} ${mergedArguments}`
+          )} ${console.wrap(topic, console.MAGENTA)}`
         );
       }
       try {
         if (await this.syncV2Service?.intercept(topic, reqId, arg)) return;
         return await originalCallback(event, reqId, ...arg);
       } catch (err) {
-        console.error(err);
+        console.error("IPC_HANDLER_FAILED");
         return null;
       }
     };
@@ -152,7 +148,7 @@ class IpcService extends IpcRouter {
       )} ${console.wrap(topic, console.MAGENTA)} ${console.wrap(
         `(${sendeeCount})`,
         console.BLUE
-      )} ${JSON.stringify(data)}`
+      )}`
     );
   }
 
@@ -165,8 +161,7 @@ class IpcService extends IpcRouter {
       `${TAG} --${reqIdTag(reqId)}-> ${console.wrap(
         topic,
         console.MAGENTA
-      )} ${console.wrap(`(${sendeeCount})`, console.BLUE)}`,
-      data
+      )} ${console.wrap(`(${sendeeCount})`, console.BLUE)}`
     );
   }
 
@@ -189,7 +184,7 @@ class IpcService extends IpcRouter {
       )} ${console.wrap(topic, console.MAGENTA)} ${console.wrap(
         `(${sendeeCount})`,
         console.BLUE
-      )} ${data}`
+      )}`
     );
   }
 

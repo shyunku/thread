@@ -44,6 +44,14 @@ const SettingData = () => {
 
   return (
     <div className="settings">
+      <div className="setting-item">
+        <div className="head"><div className="label">데이터 보호</div></div>
+        <div className="body">
+          <p>현재 동기화 방식은 Sync v2이며, 종단간 암호화(E2EE)는 아직 적용되지 않았습니다.</p>
+          <p>서버 운영자는 저장된 할 일 내용을 조회할 수 있습니다. 기기 잠금이나 HTTPS 연결만으로 서버에서 내용을 읽지 못하게 되는 것은 아닙니다.</p>
+          <p>E2EE 전환 후에도 이전 평문 백업과 로그의 정리 여부는 별도로 확인해야 합니다.</p>
+        </div>
+      </div>
       <div className="setting-item sync-status">
         <div className="head"><div className="label">동기화 상태</div></div>
         <div className="body">

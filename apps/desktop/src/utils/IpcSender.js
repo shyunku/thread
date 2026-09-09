@@ -56,8 +56,7 @@ const sender = (topic, callback, ...arg) => {
     console.debug(
       `IpcRenderer --> ${colorize.yellow(
         `[${sendId?.substring(0, 3) ?? "unknown"}]`
-      )} ${colorize.magenta(topic)}`,
-      ...arg
+      )} ${colorize.magenta(topic)}`
     );
   }
   let listener = IpcSender.on(topic, (reqId, ...result) => {
@@ -401,8 +400,7 @@ const IpcSender = {
       console.debug(
         `IpcRenderer <-- ${colorize.cyan(
           `[${reqId?.substr(0, 3) ?? "unknown"}]`
-        )} ${colorize.magenta(topic)}`,
-        ...data
+        )} ${colorize.magenta(topic)}`
       );
       originalCallback(reqId, ...data);
     };
@@ -419,8 +417,7 @@ const IpcSender = {
       console.debug(
         `IpcRenderer <-- ${colorize.yellow(`[ALL]`)} ${colorize.magenta(
           topic
-        )}`,
-        ...data
+        )}`
       );
       return callback(...data);
     };

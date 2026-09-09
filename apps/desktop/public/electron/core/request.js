@@ -1,87 +1,24 @@
-const AXIOS = require("axios").default;
-const https = require("https");
+const axios = require("axios").default.create();
 
-const SERVER_WRAPPED = console.wrap("[SERVER]", console.BLUE);
-
-const axios = AXIOS.create();
-
-// const axios = AXIOS.create({
-//   httpsAgent: new https.Agent({
-//     rejectUnauthorized: false,
-//   }),
-// });
-
-const Request = {
+// Log only allowlisted operational metadata. URLs, query strings, request and
+// response bodies, native error messages and headers may contain private data.
+function status(value) {
+  return Number.isInteger(value) && value >= 100 && value <= 599 ? value : null;
+}
+async function request(method, host, urlPostfix, data, options) {
+  console.info("HTTP_REQUEST", { method });
+  try {
+    const url = `${host}${urlPostfix}`;
+    const response = method === "POST" ? await axios.post(url, data, options) : await axios.get(url, options);
+    console.info("HTTP_RESPONSE", { method, status: status(response.status) });
+    return response.data;
+  } catch (error) {
+    console.error("HTTP_REQUEST_FAILED", { method, status: status(error?.response?.status) });
+    throw error;
+  }
+}
+module.exports = {
   ok: 200,
-  post: function (host, urlPostfix, data, options) {
-    return new Promise((resolve, reject) => {
-      const url = `${host}${urlPostfix}`;
-      console.info(
-        `Axios/post ${console.wrap(
-          "-->",
-          console.CYAN
-        )} ${SERVER_WRAPPED} ${console.wrap(urlPostfix, console.MAGENTA)}`,
-        data
-      );
-
-      axios
-        .post(url, data, options)
-        .then((res) => {
-          console.info(
-            `Axios/post ${console.wrap(
-              "<--",
-              console.GREEN
-            )} ${SERVER_WRAPPED} ${console.wrap(urlPostfix, console.MAGENTA)}`,
-            res.data
-          );
-          resolve(res.data);
-        })
-        .catch((err) => {
-          console.error(
-            `Axios/post ${console.wrap(
-              "<-X-",
-              console.RED
-            )} ${SERVER_WRAPPED} ${console.wrap(urlPostfix, console.MAGENTA)}`,
-            err.message
-          );
-          reject(err);
-        });
-    });
-  },
-  get: function (host, urlPostfix, options) {
-    return new Promise((resolve, reject) => {
-      const url = `${host}${urlPostfix}`;
-      console.info(
-        `Axios/get ${console.wrap(
-          "-->",
-          console.CYAN
-        )} ${SERVER_WRAPPED} ${console.wrap(url, console.MAGENTA)}`
-      );
-
-      axios
-        .get(url, options)
-        .then((res) => {
-          console.info(
-            `Axios/get ${console.wrap(
-              "<--",
-              console.GREEN
-            )} ${SERVER_WRAPPED} ${console.wrap(urlPostfix, console.MAGENTA)}`,
-            res.data
-          );
-          resolve(res.data);
-        })
-        .catch((err) => {
-          console.error(
-            `Axios/get ${console.wrap(
-              "<-X-",
-              console.RED
-            )} ${SERVER_WRAPPED} ${console.wrap(urlPostfix, console.MAGENTA)}`,
-            err.message
-          );
-          reject(err);
-        });
-    });
-  },
+  post: (host, urlPostfix, data, options) => request("POST", host, urlPostfix, data, options),
+  get: (host, urlPostfix, options) => request("GET", host, urlPostfix, undefined, options),
 };
-
-module.exports = Request;

@@ -52,6 +52,11 @@ class EncryptedStore {
       return result;
     })();
   }
+  entries(bucket, after = "", limit = 100) {
+    if (typeof after !== "string" || !Number.isInteger(limit) || limit < 1 || limit > 256) throw Error("INVALID_PAGE");
+    return this.#ready(bucket).prepare("SELECT id,payload FROM records WHERE bucket=? AND id>? ORDER BY id LIMIT ?").all(bucket,after,limit)
+      .map(row=>({id:row.id,value:decode(Buffer.from(row.payload))}));
+  }
   close() { const db = this.#db; this.#db = null; db?.close(); }
 }
 class VaultSession {
