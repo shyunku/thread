@@ -12,6 +12,7 @@ import (
 )
 
 type VaultStore interface {
+	Status(context.Context, string) (vault.AccountStatus, error)
 	Create(context.Context, string, []byte) (vault.Head, error)
 	ApplyPending(context.Context, string, []byte) (vault.Head, error)
 	Read(context.Context, string, uint64) (vault.Page, error)
@@ -90,6 +91,11 @@ func RegisterPending(r *gin.Engine, s VaultStore, secret []byte) {
 		}
 		v, e := s.ApplyTransition(c.Request.Context(), c.GetString("uid"), b)
 		respond(c, v, e)
+	})
+	g.GET("/status", func(c *gin.Context) {
+		c.Header("Cache-Control", "no-store")
+		value, err := s.Status(c.Request.Context(), c.GetString("uid"))
+		respond(c, value, err)
 	})
 	g.GET("", func(c *gin.Context) {
 		after := uint64(0)

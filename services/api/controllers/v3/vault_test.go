@@ -18,6 +18,12 @@ type testVault struct {
 	err   error
 }
 
+func (s *testVault) Status(_ context.Context, uid string) (vault.AccountStatus, error) {
+	s.calls++
+	s.uid = uid
+	return vault.AccountStatus{VaultID: "fixture"}, s.err
+}
+
 func (s *testVault) Create(_ context.Context, uid string, _ []byte) (vault.Head, error) {
 	s.calls++
 	s.uid = uid
@@ -57,6 +63,8 @@ func TestPendingHTTPBoundary(t *testing.T) {
 		{"POST", "/v3/vault", "application/cbor", strings.Repeat("x", vault.MaxBytes+1), nil, 413, 0},
 		{"GET", "/v3/vault?after=01", "", "", nil, 400, 0},
 		{"GET", "/v3/vault?after=0&accountId=other", "", "", nil, 200, 1},
+		{"GET", "/v3/vault/status?accountId=other", "", "", nil, 200, 1},
+		{"GET", "/v3/vault/status", "", "", vault.ErrNotFound, 404, 1},
 		{"GET", "/v3/vault", "", "", errors.New("SYNTHETIC_PRIVATE_SQL"), 500, 1},
 	}
 	for _, tc := range cases {

@@ -5,11 +5,11 @@ const META="$sync-state";
 function rows(store,bucket){const all=[];let after="";for(;;){const page=store.entries(bucket,after,256);all.push(...page);if(page.length<256)return all;after=page[page.length-1].id;}}
 function overlay(change){return {...change,version:(sync.decimal(change.baseVersion)+1n).toString(),pending:true};}
 class EncryptedReplica {
- constructor(store,scope){
+ constructor(store,scope,{initialize=true}={}){
   this.store=store;
   if(!scope||Object.keys(scope).length!==3||!["vaultId","epoch","deviceId"].every(k=>typeof scope[k]==="string"&&/^[A-Za-z0-9_-]{1,128}$/.test(scope[k])))throw Error("INVALID_REPLICA_SCOPE");
   this.scope=p.decode(p.encode(scope));
-  store.transaction(db=>{const meta=db.get("confirmed",META);if(meta){if(!p.encode(meta.scope).equals(p.encode(scope)))throw Error("REPLICA_SCOPE_MISMATCH");}else db.put("confirmed",META,{scope:this.scope,cursor:"0",counter:"0",deviceCounters:[]});});
+  store.transaction(db=>{const meta=db.get("confirmed",META);if(meta){if(!p.encode(meta.scope).equals(p.encode(scope)))throw Error("REPLICA_SCOPE_MISMATCH");}else if(initialize)db.put("confirmed",META,{scope:this.scope,cursor:"0",counter:"0",deviceCounters:[]});else if(["confirmed","visible","outbox"].some(bucket=>db.entries(bucket,"",1).length))throw Error("REPLICA_METADATA_MISSING");});
  }
  pending(){const all=rows(this.store,"outbox");if(all.length>10000)throw Error("OUTBOX_LIMIT");return all.sort((a,b)=>sync.decimal(a.value.counter)<sync.decimal(b.value.counter)?-1:1);}
  status(){const meta=this.store.get("confirmed",META),pending=this.pending();return {cursor:meta.cursor,pending:pending.length,conflicts:pending.filter(row=>row.value.status==="conflict").length};}
@@ -81,7 +81,7 @@ class EncryptedReplica {
   });
  }
  async installSnapshot({snapshot,history,keyForGeneration,pages,migrationJournal=null}){
-  const before=this.store.get("confirmed",META),prefix="$snapshot-"+randomBytes(16).toString("hex")+"-";
+  const initial=this.store.get("confirmed",META),before=initial||{scope:this.scope,cursor:"0",counter:"0",deviceCounters:[]},prefix="$snapshot-"+randomBytes(16).toString("hex")+"-";
   const migration=migrationJournal?.get();
   if(migrationJournal){
    if(migrationJournal.store!==this.store||!migration||migration.phase!=="ACTIVE"||
@@ -99,7 +99,7 @@ class EncryptedReplica {
    const verified=verifier.finish();
    this.store.transaction(db=>{
     const current=db.get("confirmed",META);
-    if(!p.encode(current).equals(p.encode(before)))throw Error("REPLICA_CHANGED");
+    if(!p.encode(current).equals(p.encode(initial)))throw Error("REPLICA_CHANGED");
     if(migrationJournal&&!p.encode(migrationJournal.get()).equals(p.encode(migration)))throw Error("MIGRATION_CHANGED");
     const values=staged(),map=new Map(values.map(row=>[row.value.objectId,row.value]));
     // A server cannot erase or roll back an object already pinned locally.

@@ -65,6 +65,7 @@ const {
  */
 module.exports = function (s) {
   const vaultActions={
+    "vault/sync":()=>s.vaultWorkspaceService.syncEncrypted(),
     "vault/pairing":(action,input)=>s.vaultWorkspaceService.pairing(action,input),
     "vault/registrationEndpoint":()=>{s.vaultWorkspaceService.context();return s.vaultWorkspaceService.registrationEndpoint();},
     "vault/registerIdentity":()=>s.vaultWorkspaceService.registerIdentity(),

@@ -29,6 +29,7 @@ function createTransport({endpoint,token,fetch:send=globalThis.fetch,timeout=150
   }finally{clearTimeout(timer);signal?.removeEventListener("abort",abort);}
  }
  return {membership:(after=0,signal)=>request("/v3/vault?after="+encodeURIComponent(after),null,signal),
+  accountStatus:signal=>request("/v3/vault/status",null,signal),
   migrationPrepare:(record,signal)=>request("/v3/migration/prepare",record,signal),
   migrationPush:(record,signal)=>request("/v3/migration/push",record,signal),
   migrationSnapshot:(record,signal)=>request("/v3/migration/snapshot",record,signal),

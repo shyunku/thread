@@ -88,4 +88,4 @@ async function acceptFile({store,transport,bytes,now=Date.now()}){
   return {phase:"PAIRED",deviceId:saved.request.body.device.id};
  });
 }
-module.exports={createRecipientRequest,requestFile,previewRequest,approveRequest,acceptFile};
+module.exports={historyFor,createRecipientRequest,requestFile,previewRequest,approveRequest,acceptFile};

@@ -14,6 +14,7 @@ POST bodies are canonical CBOR, at most 1 MiB. The envelope is exactly `{body,si
 
 | Route | Authorization / behavior |
 | --- | --- |
+| GET /v3/vault/status | Account JWT; no-store routing metadata: vaultId, accountMode, vaultMode, epoch, keyGeneration, revision, head. Missing vault returns 404; no initialization or migration. |
 | POST /v3/vault | Owner-signed genesis; creates pending only; identical original genesis retry is idempotent, replacement is forbidden. |
 | GET /v3/vault?after=N | Account-scoped original genesis and paged membership records; clients require a previously trusted genesis pin. |
 | POST /v3/vault/membership | Authorizer-signed add/pending-revoke. New writes include requestId and expiresAt (milliseconds, at most ten minutes ahead). Expired new approvals are rejected; exact committed retry is harmless. |
@@ -30,6 +31,8 @@ Read proof body has exactly schema=1, vaultId, deviceId, epoch, membershipRevisi
 Membership revisions/generations/slots are nonnegative safe integers. Counter, cursor, seq and object versions are uint64 decimal strings. Historical six-field membership records can still be verified by clients; new server writes require eight fields including signed expiry/request ID.
 
 ## Active rotation and recovery
+
+Status added: 2026-09-10 00:04 (KST). This metadata is not a signed security assertion or proof that legacy plaintext was purged. Clients verify pinned signed membership, their device keys and generation, then verify the snapshot before committing replica state. The ordinary v2 capabilities endpoint remains unchanged.
 
 Transition body: schema=1, vaultId, revision, previous, operation, signer, keyGeneration, recoveryKey, devices, envelopes, recoveryEnvelope. It is a complete surviving-device list (1–32, at least one authorizer) and exactly one sealed ciphertext per survivor. No plaintext key is sent.
 

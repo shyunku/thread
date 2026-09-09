@@ -60,6 +60,13 @@ func TestMySQLSignedMembership(t *testing.T) {
 	if duplicate, e := store.Create(ctx, "fixture-user", genesis); e != nil || duplicate != head {
 		t.Fatal("identical genesis retry failed", e)
 	}
+	status, statusErr := store.Status(ctx, "fixture-user")
+	if statusErr != nil || status.VaultID != "fixture" || status.AccountMode != "v2" || status.VaultMode != "pending" || status.Epoch != "1" || status.Revision != 0 || status.KeyGeneration != 1 || status.Head != head.Digest {
+		t.Fatal("vault routing state", status, statusErr)
+	}
+	if _, err := store.Status(ctx, "other-user"); !errors.Is(err, ErrNotFound) {
+		t.Fatal("account status isolation", err)
+	}
 	mobile, mobileKey := testDevice("mobile", 4, "read", false)
 	event := map[string]interface{}{"vaultId": "fixture", "revision": uint64(1), "previous": head.Digest, "signer": "owner", "operation": "add", "device": mobile}
 	event["expiresAt"] = uint64(time.Now().Add(time.Minute).UnixMilli())
