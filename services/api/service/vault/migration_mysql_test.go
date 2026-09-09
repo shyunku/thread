@@ -117,8 +117,8 @@ func testMigrationFreeze(t *testing.T, db *sql.DB) {
 	if e = db.QueryRowContext(ctx, "SELECT COUNT(*) FROM tasks WHERE user_id=?", user).Scan(&count); e != nil || count != 1 {
 		t.Fatal("source data deleted", e)
 	}
-	if e = db.QueryRowContext(ctx, "SELECT COUNT(*) FROM vault_migration_source_pages WHERE migration_id='attempt-one'").Scan(&count); e != nil || count != 0 {
-		t.Fatal("cancel left source staging", e)
+	if e = db.QueryRowContext(ctx, "SELECT COUNT(*) FROM vault_migration_source_pages WHERE migration_id='attempt-one'").Scan(&count); e != nil || count != 1 {
+		t.Fatal("cancel removed source recovery copy", e)
 	}
 	if _, e = store.MigrationSource(ctx, uid, proof("source-page", pageParams)); !errors.Is(e, ErrConflict) {
 		t.Fatal("cancelled source remained available", e)

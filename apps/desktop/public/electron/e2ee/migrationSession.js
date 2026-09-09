@@ -86,12 +86,12 @@ class MigrationSession{
  }
  async cancel(){
   this.ready();const state=this.journal.get(),plan=this.plan();
-  check(["PREPARING","FROZEN","UPLOADING"].includes(state.phase),"MIGRATION_PHASE_CONFLICT");
-  if(state.phase==="UPLOADING"){
-   const remote=await this.request("status",{migrationId:state.id});
-   check(remote.phase==="FROZEN","MIGRATION_CANCEL_APPROVAL_REQUIRED");
-   this.validateStatus(remote,plan,"FROZEN");
-  }
+  check(state.phase!=="ACTIVE","MIGRATION_ALREADY_ACTIVE");
+  check(["PREPARING","FROZEN","UPLOADING","VERIFIED","COMMITTING"].includes(state.phase),"MIGRATION_PHASE_CONFLICT");
+  const remote=await this.request("status",{migrationId:state.id});
+  if(remote.phase==="ACTIVE"){this.validateStatus(remote,plan,"ACTIVE");throw Error("MIGRATION_ALREADY_ACTIVE");}
+  check(["FROZEN","UPLOADING","VERIFIED","CANCELLED"].includes(remote.phase),"MIGRATION_PHASE_CONFLICT");
+  this.validateStatus(remote,plan,remote.phase);
   this.validateStatus(await this.request("cancel",{migrationId:state.id}),plan,"CANCELLED");
   return this.journal.confirmCancelled(async()=>{
    const result=await this.request("status",{migrationId:state.id});return this.validateStatus(result,plan,"CANCELLED");

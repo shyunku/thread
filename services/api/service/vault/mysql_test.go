@@ -378,4 +378,5 @@ func TestMySQLSignedMembership(t *testing.T) {
 		t.Fatal("partial rotation event", e)
 	}
 	testMigrationFreeze(t, db)
+	testMigrationCancellation(t, db)
 }

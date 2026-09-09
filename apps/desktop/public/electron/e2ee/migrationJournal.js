@@ -22,7 +22,7 @@ class MigrationJournal{
   });
  }
  async confirmCancelled(queryStatus){
-  const before=this.get();if(!before||!["PREPARING","FROZEN","UPLOADING"].includes(before.phase))throw Error("MIGRATION_PHASE_CONFLICT");
+  const before=this.get();if(!before||!["PREPARING","FROZEN","UPLOADING","VERIFIED","COMMITTING"].includes(before.phase))throw Error("MIGRATION_PHASE_CONFLICT");
   const status=await queryStatus(before.id);
   return this.store.transaction(db=>{
    const state=this.get();if(!p.encode(state).equals(p.encode(before)))throw Error("MIGRATION_CHANGED");

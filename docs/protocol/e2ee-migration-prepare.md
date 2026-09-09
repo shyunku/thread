@@ -70,10 +70,12 @@ prerequisite for production use.
 
 ## Cancellation boundary
 
-Cancellation is currently **pre-upload only**: phase FROZEN and no staged
-encrypted objects. It removes only this attempt's copied source pages and
-active-attempt marker, retains the cancelled checkpoint, restores v2 mode and
-the prior pending-vault epoch, and never deletes canonical tasks or local data.
+Cancellation supports FROZEN, UPLOADING and VERIFIED, but never ACTIVE.
+It validates the exact attempt and signed ciphertext provenance before removing
+only staged ciphertext and the active-attempt marker in one transaction.
+It retains source copies, verification audit, device counters and the cancelled
+checkpoint, restores v2 mode and the prior pending-vault epoch, and never deletes
+canonical tasks or local data. See the [cancellation report](../reports/2026-09-09-e2ee-cancellation.md).
 Cancelled attempts cannot be reused as a new migration.
 
 ## Desktop connection

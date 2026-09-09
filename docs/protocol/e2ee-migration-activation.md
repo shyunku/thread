@@ -1,6 +1,6 @@
 # E2EE migration activation
 
-Updated: 2026-09-09 15:57 (KST).
+Updated: 2026-09-09 16:27 (KST).
 
 Extends [prepare](e2ee-migration-prepare.md). Both E2EE feature flags remain
 false by default. This contract does not authorize production execution.
@@ -73,9 +73,12 @@ MIGRATION_OBJECT_TOO_LARGE; no truncation occurs. Ordinary app UI, local DB
 cutover, late-device pending conversion and larger-object representation remain
 release prerequisites. The coordinator is not auto-started by the app.
 
-Cancellation after upload is deliberately unavailable pending approval of the
-staging cleanup implementation. The automatic safety reviewer rejected adding
-that deletion logic; it was not applied. Existing pre-upload cancellation
-remains available, including failed local preflight when the server is still
-FROZEN. An upload/verification failure preserves staging and resumes forward;
-it must not be advertised as supporting a post-upload cancel yet.
+Following explicit user approval, cancellation supports FROZEN, UPLOADING and
+VERIFIED. Exact account/attempt/coordinator/epoch guards and original mutation
+signatures must match before staged ciphertext is removed transactionally.
+Cancellation and upload/commit share account-then-vault locks: if commit wins,
+cancellation cannot delete active data. Old cancellation retries cannot affect
+a newer attempt. Device counters, source recovery copies and verification audit
+remain intact. Unknown commit responses require status lookup before cancellation.
+This is an implemented coordinator capability, not an ordinary-app UI or
+production execution approval. See [verification](../reports/2026-09-09-e2ee-cancellation.md).

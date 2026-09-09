@@ -29,7 +29,7 @@ async function fixture(t,{empty=false}={}){
   migrationPrepare:async r=>{await signed(r,"migration");remote={id:r.body.parameters.migrationId,vaultId:"vault",coordinator:"owner",sourceEpoch:source.epoch,sourceSnapshotId:source.snapshotId,freezeSeq:source.seq,targetEpoch:target,pageCount:source.pageCount,objectCount:rows.length,phase:"FROZEN"};return {...remote};},
   migrationSource:async r=>{await signed(r,"migration");const payload=JSON.stringify(sourcePages[r.body.parameters.page]);return {payload,checksum:createHash("sha256").update(payload).digest("hex")};},
   migrationStatus:async r=>{await signed(r,"migration");return {...remote};},
-  migrationCancel:async r=>{await signed(r,"migration");assert.equal(remote.phase,"FROZEN");remote.phase="CANCELLED";return {...remote};},
+  migrationCancel:async r=>{await signed(r,"migration");assert.ok(["FROZEN","UPLOADING","VERIFIED","CANCELLED"].includes(remote.phase));accepted.length=0;remote.phase="CANCELLED";return {...remote};},
   migrationPush:async r=>{
    await sync.verifyBatch(r,{state:history.current,epoch:target});
    const old=accepted.find(v=>v.record.body.mutationId===r.body.mutationId);if(old){assert.deepEqual(p.encode(old.record),p.encode(r));return old.result;}
@@ -86,4 +86,33 @@ test("preflight rejects oversized source before upload and can use the existing 
  await assert.rejects(f.transfer.run(),/MIGRATION_OBJECT_TOO_LARGE/);
  assert.equal(f.accepted.length,0);assert.equal(f.remote.phase,"FROZEN");
  assert.equal((await f.session.cancel()).phase,"CANCELLED");
+});
+test("uploaded data can be cancelled while originals remain recoverable; a lost cancel ACK retries safely",async t=>{
+ const f=await fixture(t),push=f.transport.migrationPush,cancel=f.transport.migrationCancel;
+ f.transport.migrationPush=async r=>{await push(r);throw Error("SYNC_UNAVAILABLE");};
+ await assert.rejects(f.transfer.run(),/SYNC_UNAVAILABLE/);
+ assert.equal(f.remote.phase,"UPLOADING");assert.equal(f.accepted.length,1);
+ const before=f.store.entries("recovery").length;
+ f.transport.migrationCancel=async r=>{await cancel(r);throw Error("SYNC_UNAVAILABLE");};
+ await assert.rejects(f.session.cancel(),/SYNC_UNAVAILABLE/);
+ assert.equal(f.session.journal.get().phase,"UPLOADING");
+ f.reopen();f.transport.migrationCancel=cancel;
+ assert.equal((await f.session.cancel()).phase,"CANCELLED");
+ assert.equal(f.accepted.length,0);assert.equal(f.store.entries("recovery").length,before);
+});
+test("commit-unknown cancellation checks server state and never rolls back an active account",async t=>{
+ const f=await fixture(t),commit=f.transport.migrationCommit;
+ f.transport.migrationCommit=async r=>{await commit(r);throw Error("SYNC_UNAVAILABLE");};
+ await assert.rejects(f.transfer.run(),/SYNC_UNAVAILABLE/);
+ assert.equal(f.session.journal.get().phase,"COMMITTING");
+ const count=f.accepted.length;
+ await assert.rejects(f.session.cancel(),/MIGRATION_ALREADY_ACTIVE/);
+ assert.equal(f.remote.phase,"ACTIVE");assert.equal(f.accepted.length,count);
+});
+test("a not-yet-committed verified attempt can be cancelled",async t=>{
+ const f=await fixture(t);
+ f.transport.migrationCommit=async()=>{throw Error("SYNC_UNAVAILABLE");};
+ await assert.rejects(f.transfer.run(),/SYNC_UNAVAILABLE/);
+ assert.equal(f.remote.phase,"VERIFIED");
+ assert.equal((await f.session.cancel()).phase,"CANCELLED");assert.equal(f.accepted.length,0);
 });

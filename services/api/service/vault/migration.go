@@ -181,7 +181,12 @@ func (s *Store) PrepareMigration(ctx context.Context, uid string, raw []byte) (M
 		return out, ErrMigrationSourceLimit
 	}
 	var staged uint64
-	e = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM encrypted_objects WHERE vault_id=?`, c.vaultID).Scan(&staged)
+	e = tx.QueryRowContext(ctx, `SELECT
+ (SELECT COUNT(*) FROM encrypted_objects WHERE vault_id=?)+
+ (SELECT COUNT(*) FROM encrypted_changes WHERE vault_id=?)+
+ (SELECT COUNT(*) FROM encrypted_receipts WHERE vault_id=?)+
+ (SELECT COUNT(*) FROM encrypted_snapshots WHERE vault_id=?)+
+ (SELECT COUNT(*) FROM vault_sync WHERE vault_id=?)`, c.vaultID, c.vaultID, c.vaultID, c.vaultID, c.vaultID).Scan(&staged)
 	if e != nil {
 		return out, e
 	}
@@ -283,7 +288,8 @@ func (s *Store) CancelMigration(ctx context.Context, uid string, raw []byte) (Mi
 	if out.Phase == "CANCELLED" {
 		return out, tx.Commit()
 	}
-	if out.Phase != "FROZEN" || l.mode != "e2ee_frozen" || l.vaultMode != "migrating" || l.vaultEpoch != out.TargetEpoch {
+	if (out.Phase != "FROZEN" && out.Phase != "UPLOADING" && out.Phase != "VERIFIED") || l.mode != "e2ee_frozen" || l.vaultMode != "migrating" || l.vaultEpoch != out.TargetEpoch ||
+		l.sourceEpoch != out.SourceEpoch || strconv.FormatUint(l.seq, 10) != out.FreezeSeq {
 		return out, ErrConflict
 	}
 	var active, previous string
@@ -294,17 +300,12 @@ func (s *Store) CancelMigration(ctx context.Context, uid string, raw []byte) (Mi
 	if active != id {
 		return out, ErrConflict
 	}
-	// Upload/commit are not enabled yet. Never discard ciphertext using this
-	// pre-upload cancellation path if a future writer has staged anything.
-	var staged uint64
-	e = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM encrypted_objects WHERE vault_id=?`, c.vaultID).Scan(&staged)
-	if e != nil {
+	if e = clearMigrationCiphertext(ctx, tx, uid, out); e != nil {
 		return out, e
 	}
-	if staged != 0 {
-		return out, ErrConflict
-	}
-	for _, query := range []string{`DELETE FROM vault_migration_source_pages WHERE migration_id=?`, `DELETE FROM vault_migration_active WHERE migration_id=?`, `UPDATE vault_migrations SET phase='CANCELLED' WHERE migration_id=?`} {
+	// Preserve source pages and signed verification evidence for recovery/audit.
+	// Only the cancelled attempt's ciphertext and active marker are removed.
+	for _, query := range []string{`DELETE FROM vault_migration_active WHERE migration_id=?`, `UPDATE vault_migrations SET phase='CANCELLED' WHERE migration_id=?`} {
 		if _, e = tx.ExecContext(ctx, query, id); e != nil {
 			return out, e
 		}
