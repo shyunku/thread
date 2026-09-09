@@ -1,4 +1,6 @@
 apply plugin: "com.android.application"
+// Supplies androidJvm attributes so DataStore resolves its Android runtime, not JVM.
+apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 
 import com.android.build.OutputFile

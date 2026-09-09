@@ -2,7 +2,7 @@
 
 Updated: 2026-09-09 11:36 (KST). Task #53; real-device verification pending.
 
-Build verified: 2026-09-09 11:50 (KST), Gradle 8.4 / AGP 8.3.2 / Kotlin 1.9.22, RN 0.71.3 unchanged. APK SHA256: `239472e974801dfa2452e3e527a53aaaba4759f7c052b682f8892485a54ac9ac`. This does not verify the ordinary mobile app build.
+Build verified: 2026-09-09 12:46 (KST), Gradle 8.4 / AGP 8.3.2 / Kotlin 1.9.22, RN 0.71.3 unchanged. APK SHA256: `e18ee6b52f13bf43f6ef6c67893bc67a7286e9d10d89cb4f133ca1643799f247`. This replaces the earlier APK that crashed during DataStore initialization; see the [runtime failure report](../reports/2026-09-09-android-probe-datastore.md). This does not verify the ordinary mobile app build.
 
 This is not the mobile E2EE client. It has a separate application ID (`kr.threadapp.mobile.e2eeprobe`), no INTERNET permission, no account login, and only a fixed synthetic test key. The existing Thread application and its data are not replaced.
 
