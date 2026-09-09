@@ -65,6 +65,11 @@ const {
  */
 module.exports = function (s) {
   const vaultActions={
+    "vault/prepareIdentity":()=>s.vaultWorkspaceService.prepareIdentity(),
+    "vault/identityStatus":()=>s.vaultWorkspaceService.identityStatus(),
+    "vault/recoveryCode":()=>s.vaultWorkspaceService.recoveryCode(),
+    "vault/exportRecovery":()=>s.vaultWorkspaceService.exportRecovery(),
+    "vault/confirmRecovery":code=>s.vaultWorkspaceService.confirmRecovery(code),
     "vault/getStatus":()=>s.vaultWorkspaceService.status(),
     "vault/create":password=>s.vaultWorkspaceService.create(password),
     "vault/unlock":(method,password)=>s.vaultWorkspaceService.unlock(method,password),

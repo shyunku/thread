@@ -34,3 +34,16 @@ test("late OS authentication cannot reopen a switched account; packaged gate cre
  f.deps.enabled=false;assert.deepEqual(await f.service.status(),{enabled:false});
  await assert.rejects(f.service.create("synthetic test password"),/NOT_ENABLED/);
 });
+test("recovery export never replaces a file and confirmation reopens the selected bytes",async t=>{
+ const f=fixture(t),s=f.service,filename=path.join(f.dir,"test.thread-recovery");
+ await s.create("synthetic test password");await s.unlock("os");
+ assert.equal((await s.prepareIdentity()).phase,"RECOVERY_UNCONFIRMED");
+ const code=s.recoveryCode();
+ f.deps.dialog={showSaveDialog:async()=>({canceled:false,filePath:filename}),showOpenDialog:async()=>({canceled:false,filePaths:[filename]})};
+ assert.equal(await s.exportRecovery(),true);const before=fs.readFileSync(filename);
+ await assert.rejects(s.exportRecovery(),/EEXIST/);assert.deepEqual(fs.readFileSync(filename),before);
+ await assert.rejects(s.confirmRecovery("wrong"));
+ assert.equal(s.identityStatus().phase,"RECOVERY_UNCONFIRMED");
+ assert.equal((await s.confirmRecovery(code)).phase,"RECOVERY_CONFIRMED");
+ s.lock();assert.throws(()=>s.recoveryCode(),/LOCKED/);
+});
