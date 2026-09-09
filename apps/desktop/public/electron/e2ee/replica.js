@@ -27,7 +27,8 @@ class EncryptedReplica {
     if(pending.some(row=>row.value.status==="conflict"&&row.value.changes.some(old=>old.objectId===c.objectId)))throw Error("CONFLICT_REVIEW_REQUIRED");
     bases.push({objectId:c.objectId,value:prior});
    }
-   const meta=db.get("confirmed",META),counter=(sync.decimal(meta.counter)+1n).toString();sync.decimal(counter,true);
+   const meta=db.get("confirmed",META),reserved=sync.decimal(db.get("recovery","$migration-counter-"+this.scope.deviceId)||"0");
+   const counter=((sync.decimal(meta.counter)>reserved?sync.decimal(meta.counter):reserved)+1n).toString();sync.decimal(counter,true);
    db.put("confirmed",META,{...meta,counter});db.put("outbox",id,{status:"draft",counter,changes,bases});
    for(const c of changes)db.put("visible",c.objectId,overlay(c));
   });return id;
@@ -79,8 +80,18 @@ class EncryptedReplica {
    }
   });
  }
- async installSnapshot({snapshot,history,keyForGeneration,pages}){
+ async installSnapshot({snapshot,history,keyForGeneration,pages,migrationJournal=null}){
   const before=this.store.get("confirmed",META),prefix="$snapshot-"+randomBytes(16).toString("hex")+"-";
+  const migration=migrationJournal?.get();
+  if(migrationJournal){
+   if(migrationJournal.store!==this.store||!migration||migration.phase!=="ACTIVE"||
+    migration.scope.vaultId!==this.scope.vaultId||migration.evidence.targetEpoch!==this.scope.epoch)
+    throw Error("MIGRATION_COMMIT_UNCONFIRMED");
+   const readback=this.store.get("recovery","$migration-readback-"+migration.id);
+   if(!readback||readback.snapshot.digest!==migration.evidence.ciphertextManifest||
+    readback.snapshot.epoch!==this.scope.epoch||sync.decimal(snapshot.seq)<sync.decimal(readback.snapshot.seq))
+    throw Error("MIGRATION_READBACK_REQUIRED");
+  }
   const staged=()=>rows(this.store,"recovery").filter(row=>row.id.startsWith(prefix));
   const verifier=new SnapshotVerifier({snapshot,history,keyForGeneration,epoch:this.scope.epoch,minimumSeq:before.cursor,stage:async value=>this.store.put("recovery",prefix+value.objectId,value)});
   try{
@@ -89,6 +100,7 @@ class EncryptedReplica {
    this.store.transaction(db=>{
     const current=db.get("confirmed",META);
     if(!p.encode(current).equals(p.encode(before)))throw Error("REPLICA_CHANGED");
+    if(migrationJournal&&!p.encode(migrationJournal.get()).equals(p.encode(migration)))throw Error("MIGRATION_CHANGED");
     const values=staged(),map=new Map(values.map(row=>[row.value.objectId,row.value]));
     // A server cannot erase or roll back an object already pinned locally.
     for(const row of rows(db,"confirmed"))if(row.id!==META){
@@ -101,8 +113,11 @@ class EncryptedReplica {
     for(const row of this.pending())for(const change of row.value.changes)db.put("visible",change.objectId,overlay(change));
     const counters=new Map(before.deviceCounters.map(d=>[d.deviceId,sync.decimal(d.counter)]));
     for(const d of verified.deviceCounters){const n=sync.decimal(d.counter);if(n>(counters.get(d.deviceId)||0n))counters.set(d.deviceId,n);}
-    const counter=sync.decimal(before.counter)> (counters.get(this.scope.deviceId)||0n)?before.counter:(counters.get(this.scope.deviceId)||0n).toString();
+    const reserved=sync.decimal(db.get("recovery","$migration-counter-"+this.scope.deviceId)||"0");
+    const counter=[sync.decimal(before.counter),counters.get(this.scope.deviceId)||0n,reserved].reduce((a,b)=>a>b?a:b).toString();
     db.put("confirmed",META,{...before,cursor:verified.cursor,counter,deviceCounters:[...counters].map(([deviceId,n])=>({deviceId,counter:n.toString()}))});
+    // Atomic local readiness only: the ordinary UI and v2 source are untouched.
+    if(migrationJournal)db.put("recovery","$migration-local-"+migration.id,{phase:"READY",scope:this.scope,cursor:verified.cursor,manifest:snapshot.digest});
     for(const row of values)db.delete("recovery",row.id);
    });
   }catch(error){

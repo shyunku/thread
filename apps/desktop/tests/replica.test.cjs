@@ -14,6 +14,41 @@ async function fixture(t){
   reopen(){store.close();store=new EncryptedStore({filename,key,scope});return new EncryptedReplica(store,replicaScope);},dir};
 }
 const changes=[{objectId:"task",baseVersion:"0",deleted:false,fields:[{slot:1,value:{title:"SYNTHETIC_PENDING_PRIVATE"}}]}];
+test("normal drafts never reuse a migration counter, including reserved unsent counters",async t=>{
+ const f=await fixture(t);
+ f.store.put("recovery","$migration-counter-owner","42");
+ const id=f.replica.enqueue(changes);
+ assert.equal((await f.replica.prepare(id,f.context)).body.counter,"43");
+ const reopened=f.reopen();
+ f.store.put("recovery","$migration-counter-owner","48");
+ const next=reopened.enqueue([{...changes[0],objectId:"second"}]);
+ assert.equal((await reopened.prepare(next,f.context)).body.counter,"49");
+});
+test("local migration readiness requires active journal and verified snapshot; failure preserves data",async t=>{
+ const f=await fixture(t),{MigrationJournal}=require("../public/electron/e2ee/migrationJournal");
+ const journal=new MigrationJournal(f.store,f.store.scope());
+ journal.begin("cutover");
+ const input=await snapshotInput(f,[],"0");
+ await assert.rejects(f.replica.installSnapshot({...input,migrationJournal:journal}),/UNCONFIRMED/);
+ journal.advance("PREPARING","FROZEN",{freezeSeq:"1",sourceEpoch:"old",targetEpoch:"1"});
+ journal.advance("FROZEN","UPLOADING",{});
+ journal.advance("UPLOADING","VERIFIED",{ciphertextManifest:input.snapshot.digest,readbackMatches:true,allPagesVerified:true});
+ journal.advance("VERIFIED","COMMITTING",{});
+ await journal.confirmCommitted(async()=>({id:"cutover",phase:"ACTIVE",vaultId:"vault",freezeSeq:"1",targetEpoch:"1",ciphertextManifest:input.snapshot.digest}));
+ await assert.rejects(f.replica.installSnapshot({...input,migrationJournal:journal}),/READBACK/);
+ f.store.put("recovery","$migration-readback-cutover",{snapshot:input.snapshot});
+ f.store.put("recovery","$migration-counter-owner","17");
+ const id=f.replica.enqueue(changes);
+ await assert.rejects(f.replica.installSnapshot({...input,snapshot:{...input.snapshot,digest:"a".repeat(64)},migrationJournal:journal}),/DIGEST/);
+ assert.equal(f.store.get("recovery","$migration-local-cutover"),null);
+ assert.equal(f.replica.pending()[0].id,id);
+ await f.replica.installSnapshot({...input,migrationJournal:journal});
+ assert.equal(f.store.get("recovery","$migration-local-cutover").phase,"READY");
+ assert.equal(f.replica.pending()[0].id,id);
+ assert.equal(f.store.get("confirmed","$sync-state").counter,"18");
+ assert.ok(f.store.get("recovery","$migration-readback-cutover"));
+ f.reopen();assert.equal(f.store.get("recovery","$migration-local-cutover").phase,"READY");
+});
 test("draft and exact signed retry survive encrypted DB restart before ACK",async t=>{
  const f=await fixture(t);const id=f.replica.enqueue(changes);assert.equal(f.store.get("confirmed","task"),null);
  const record=await f.replica.prepare(id,f.context);const reopened=f.reopen();assert.deepEqual(await reopened.prepare(id,f.context),record);
