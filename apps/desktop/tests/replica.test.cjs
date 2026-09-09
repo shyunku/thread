@@ -181,6 +181,48 @@ test("close during a network response blocks late plaintext application",async t
  assert.equal(f.replica.pending().length,1);
 });
 
+async function advanceMembership(f){
+ const other=await p.createDevice(),body={vaultId:"vault",revision:1,previous:f.engine.history.current.head,signer:"owner",operation:"add",
+  device:{id:"other",role:"read",canAuthorizeDevices:false,signingKey:other.signing.publicKey,encryptionKey:other.encryption.publicKey}};
+ const record={body,signature:await p.sign(f.context.device.signing.privateKey,"membership",body)};
+ await f.engine.history.append(record);
+ f.transport.membership=async()=>({head:{vaultId:"vault",revision:1,digest:f.engine.history.current.head},genesis:p.encode(f.genesis).toString("base64"),records:[],next:1,more:false});
+}
+test("stale rejected signed bytes are preserved while independent edits continue",async t=>{
+ const f=await engineFixture(t),id=f.replica.enqueue(changes),record=await f.replica.prepare(id,f.context),original=f.store.get("outbox",id);
+ f.replica.enqueue([{...changes[0],baseVersion:"1"}]);
+ f.replica.enqueue([{...changes[0],objectId:"independent"}]);
+ await advanceMembership(f);const push=f.transport.push;let retries=0;
+ f.transport.push=async value=>{if(value.body.mutationId===id){retries++;assert.deepEqual(value,record);throw Error("SYNC_CHECKPOINT_CONFLICT");}return push(value);};
+ assert.deepEqual(await f.engine.run(),{cursor:"1",pending:2,conflicts:1});
+ assert.deepEqual(f.store.get("recovery",id),original);
+ assert.equal(f.store.get("outbox",id).reviewReason,"STALE_SIGNED_REQUEST");
+ assert.equal(f.store.get("visible","task").pending,true);
+ await f.engine.run();assert.equal(retries,1);
+ f.replica.preserveConflict(id);assert.deepEqual(f.store.get("recovery",id),original);
+ const reopened=f.reopen();assert.equal(reopened.pending()[0].value.reviewReason,"STALE_SIGNED_REQUEST");
+});
+test("checkpoint failure without verified newer membership does not reclassify pending",async t=>{
+ const f=await engineFixture(t),id=f.replica.enqueue(changes);await f.replica.prepare(id,f.context);
+ const original=f.store.get("outbox",id);f.transport.push=async()=>{throw Error("SYNC_CHECKPOINT_CONFLICT");};
+ await assert.rejects(f.engine.run(),/SYNC_CHECKPOINT_CONFLICT/);
+ assert.deepEqual(f.store.get("outbox",id),original);assert.equal(f.store.get("recovery",id),null);
+});
+test("unknown network outcome under newer membership retains retryable signed bytes",async t=>{
+ const f=await engineFixture(t),id=f.replica.enqueue(changes);await f.replica.prepare(id,f.context);
+ const original=f.store.get("outbox",id);await advanceMembership(f);
+ f.transport.push=async()=>{throw Error("SYNC_UNAVAILABLE");};
+ await assert.rejects(f.engine.run(),/SYNC_UNAVAILABLE/);
+ assert.deepEqual(f.store.get("outbox",id),original);assert.equal(f.store.get("recovery",id),null);
+});
+test("old accepted request behind snapshot still settles after membership changes",async t=>{
+ const f=await engineFixture(t),id=f.replica.enqueue(changes),record=await f.replica.prepare(id,f.context);
+ await f.transport.push(record);await f.replica.installSnapshot(await snapshotInput(f,[record],"1"));
+ await advanceMembership(f);
+ assert.deepEqual(await f.engine.run(),{cursor:"1",pending:0,conflicts:0});
+ assert.equal(f.accepted.length,1);assert.equal(f.store.get("recovery",id),null);
+});
+
 test("snapshot cannot overwrite an edit queued while pages are being verified",async t=>{
  const f=await fixture(t);
  const input=await snapshotInput(f,[],"0");

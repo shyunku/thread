@@ -101,6 +101,12 @@ class EncryptedSynchronizer {
    catch(error){
     this.ready();
     if(error.message==="OBJECT_CONFLICT"){this.replica.preserveConflict(item.id);continue;}
+    // Retry exact bytes first: an accepted old request returns its original receipt.
+    // A stale rejection is NOT proof of non-acceptance; retain it for review.
+    if(error.message==="SYNC_CHECKPOINT_CONFLICT"&&record.body.epoch===this.epoch&&
+     (record.body.membershipRevision<this.history.current.revision||record.body.keyGeneration<this.history.current.keyGeneration)){
+     this.replica.preserveConflict(item.id,"STALE_SIGNED_REQUEST");continue;
+    }
     // Unknown network/authority outcomes retain the exact signed bytes.
     throw error;
    }

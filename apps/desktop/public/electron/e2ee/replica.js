@@ -58,7 +58,12 @@ class EncryptedReplica {
    db.put("confirmed",META,{...meta,cursor:result.seq,deviceCounters:[...meta.deviceCounters.filter(d=>d.deviceId!==record.body.deviceId),{deviceId:record.body.deviceId,counter:record.body.counter}]});
   });
  }
- preserveConflict(id){this.store.transaction(db=>{const draft=db.get("outbox",id);if(!draft)throw Error("DRAFT_UNAVAILABLE");db.put("recovery",id,draft);db.put("outbox",id,{...draft,status:"conflict"});});}
+ preserveConflict(id,reason="OBJECT_CONFLICT"){this.store.transaction(db=>{
+  if(!["OBJECT_CONFLICT","STALE_SIGNED_REQUEST"].includes(reason))throw Error("INVALID_REVIEW_REASON");
+  const draft=db.get("outbox",id);if(!draft)throw Error("DRAFT_UNAVAILABLE");
+  if(draft.status==="conflict")return;
+  db.put("recovery",id,draft);db.put("outbox",id,{...draft,status:"conflict",reviewReason:reason});
+ });}
  async acknowledgeSnapshot({record,result},context){
   sync.verifyReceipt(record,result);
   if(context.state.vaultId!==this.scope.vaultId||context.epoch!==this.scope.epoch)throw Error("REPLICA_SCOPE_MISMATCH");
