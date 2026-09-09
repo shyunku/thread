@@ -1,6 +1,6 @@
 # E2EE server foundation
 
-Updated: 2026-09-09 09:55 (KST). Implementation checkpoint, not an enabled public API.
+Historical checkpoint: 2026-09-09 09:55 (KST), schema 6. For the current schema 8, signed protocol, CAS and test results, see the [2026-09-09 implementation checkpoint](../reports/2026-09-09-e2ee-checkpoint.md). Public E2EE routes remain disabled. The pending items below describe the earlier checkpoint, not the current implementation.
 
 ## Storage contract
 

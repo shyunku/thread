@@ -36,6 +36,7 @@
     "react-native-elements": "^3.4.3",
     "react-native-gesture-handler": "^2.9.0",
     "react-native-get-random-values": "^1.8.0",
+    "react-native-keychain": "10.0.0",
     "react-native-linear-gradient": "^2.6.2",
     "react-native-modal": "^13.0.1",
     "react-native-reanimated": "3.5.4",
@@ -59,6 +60,7 @@
     "@babel/preset-env": "^7.20.0",
     "@babel/runtime": "^7.20.0",
     "@react-native-community/eslint-config": "^3.2.0",
+    "@rnx-kit/metro-resolver-symlinks": "0.3.2",
     "@tsconfig/react-native": "^2.0.2",
     "@types/jest": "^29.2.1",
     "@types/react": "^18.0.24",
@@ -74,5 +76,10 @@
   },
   "jest": {
     "preset": "react-native"
+  },
+  "pnpm": {
+    "patchedDependencies": {
+      "react-native-gradle-plugin@0.71.19": "patches/react-native-gradle-plugin@0.71.19.patch"
+    }
   }
 }

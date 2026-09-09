@@ -1,0 +1,6 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
+    <uses-permission android:name="android.permission.INTERNET" tools:node="remove" />
+    <application android:label="Thread E2EE Test" tools:replace="android:label">
+        <activity android:name="kr.threadapp.mobile.MainActivity" android:label="Thread E2EE Test" tools:replace="android:label" />
+    </application>
+</manifest>

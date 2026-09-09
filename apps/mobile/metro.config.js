@@ -6,6 +6,7 @@
  */
 
 const {getDefaultConfig} = require('metro-config');
+const MetroSymlinksResolver = require('@rnx-kit/metro-resolver-symlinks');
 
 module.exports = (async () => {
   const {
@@ -16,6 +17,7 @@ module.exports = (async () => {
       babelTransformerPath: require.resolve('react-native-sass-transformer'),
     },
     resolver: {
+      resolveRequest: MetroSymlinksResolver({experimental_retryResolvingFromDisk: true}),
       sourceExts: [...sourceExts, 'scss', 'sass'],
     },
   };

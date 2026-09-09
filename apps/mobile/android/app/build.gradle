@@ -3,11 +3,20 @@ apply plugin: "com.facebook.react"
 
 import com.android.build.OutputFile
 
+def threadE2eeProbe = project.hasProperty("threadE2eeProbe")
+if (threadE2eeProbe != (System.getenv("THREAD_E2EE_PROBE") == "1")) {
+    throw new GradleException("Probe builds require both THREAD_E2EE_PROBE=1 and -PthreadE2eeProbe")
+}
+
 /**
  * This is the configuration block to customize your React Native Android app.
  * By default you don't need to apply any configuration, just uncomment the lines you need.
  */
 react {
+    if (threadE2eeProbe) {
+        entryFile = file("../../tests/keychainProbe.js")
+        extraPackagerArgs = ["--max-workers", "2"]
+    }
     /* Folders */
     //   The root of your project, i.e. where "package.json" lives. Default is '..'
     // root = file("../")
@@ -89,6 +98,7 @@ def reactNativeArchitectures() {
 }
 
 android {
+    buildFeatures { buildConfig true }
     ndkVersion rootProject.ext.ndkVersion
 
     compileSdkVersion rootProject.ext.compileSdkVersion
@@ -129,10 +139,29 @@ android {
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
+        if (threadE2eeProbe) {
+            e2eeProbe {
+                initWith release
+                applicationIdSuffix ".e2eeprobe"
+                matchingFallbacks = ["release"]
+                debuggable false
+            }
+        }
+    }
+
+    if (threadE2eeProbe) {
+        sourceSets.e2eeProbe.java.srcDirs += ["src/release/java"]
     }
 
     // applicationVariants are e.g. debug, release
     applicationVariants.all { variant ->
+        // RN 0.71 does not wire generated resources for Gradle 8 validation.
+        if (!project.extensions.getByName("react").debuggableVariants.get().contains(variant.name)) {
+            def variantName = variant.name.capitalize()
+            tasks.matching { it.name == "merge${variantName}Resources" }.configureEach {
+                dependsOn "createBundle${variantName}JsAndAssets"
+            }
+        }
         variant.outputs.each { output ->
             // For each separate APK per architecture, set a unique version code as described here:
             // https://developer.android.com/studio/build/configure-apk-splits.html
@@ -168,4 +197,9 @@ dependencies {
 }
 
 apply from: file("../../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); applyNativeModulesAppBuildGradle(project)
-apply from: file("../../node_modules/react-native-vector-icons/fonts.gradle")
+if (!threadE2eeProbe) {
+    apply from: file("../../node_modules/react-native-vector-icons/fonts.gradle")
+    tasks.matching { it.name.toLowerCase().contains("lint") }.configureEach {
+        dependsOn "copyReactNativeVectorIconFonts"
+    }
+}

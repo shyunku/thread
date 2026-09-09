@@ -42,3 +42,8 @@ module.exports = {
     ],
   ],
 };
+
+// The isolated native-key probe must not load any real app env file.
+if (process.env.THREAD_E2EE_PROBE === '1') {
+  module.exports = {presets: ['module:metro-react-native-babel-preset']};
+}
