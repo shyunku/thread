@@ -11,9 +11,9 @@ async function createReadRequest({state,epoch,deviceId,device,operation,paramete
  check(approved&&approved.signingKey.equals(device.signing.publicKey),"DEVICE_FORBIDDEN");
  check(id(epoch)&&Number.isSafeInteger(now)&&now>=0&&parameters&&Object.getPrototypeOf(parameters)===Object.prototype);
  if(operation==="pull"){check(Object.keys(parameters).length===2);sync.decimal(parameters.after);sync.decimal(parameters.until);}
- else if(operation==="snapshot")check(Object.keys(parameters).length===0);
+ else if(operation==="snapshot"||operation==="migration-snapshot")check(Object.keys(parameters).length===0);
  else if(operation==="envelope")check(Object.keys(parameters).length===1&&Number.isSafeInteger(parameters.keyGeneration)&&parameters.keyGeneration>=1&&parameters.keyGeneration<=state.keyGeneration);
- else if(operation==="snapshot-page")check(Object.keys(parameters).length===2&&typeof parameters.snapshotId==="string"&&parameters.snapshotId.length===36&&(parameters.after===""||id(parameters.after)));
+ else if(operation==="snapshot-page"||operation==="migration-snapshot-page")check(Object.keys(parameters).length===2&&typeof parameters.snapshotId==="string"&&parameters.snapshotId.length===36&&(parameters.after===""||id(parameters.after)));
  else throw Error("INVALID_SYNC_READ");
  const body={schema:1,vaultId:state.vaultId,deviceId,epoch,membershipRevision:state.revision,keyGeneration:state.keyGeneration,operation,parameters,requestId:randomBytes(16).toString("hex"),expiresAt:now+60000};
  return {body,signature:await p.sign(device.signing.privateKey,"request",body)};

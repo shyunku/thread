@@ -6,6 +6,7 @@ import (
 	"crypto/ed25519"
 	"database/sql"
 	"errors"
+	"fmt"
 	"github.com/google/uuid"
 	"sync"
 	"testing"
@@ -174,5 +175,98 @@ func testMigrationFreeze(t *testing.T, db *sql.DB) {
 	}
 	if e = db.QueryRowContext(ctx, "SELECT COUNT(*) FROM vault_migrations WHERE migration_id='attempt-failure'").Scan(&count); e != nil || count != 0 {
 		t.Fatal("partial checkpoint", e)
+	}
+	params["migrationId"] = "attempt-complete"
+	final, e := store.PrepareMigration(ctx, uid, proof("prepare", params))
+	if e != nil {
+		t.Fatal(e)
+	}
+	bodyFor := func(operation string, parameters map[string]interface{}) map[string]interface{} {
+		return map[string]interface{}{
+			"schema": uint64(1), "vaultId": "migration-vault", "deviceId": "migration-owner", "epoch": final.TargetEpoch, "membershipRevision": uint64(0), "keyGeneration": uint64(1),
+			"operation": operation, "parameters": parameters, "requestId": uuid.NewString(), "expiresAt": uint64(time.Now().Add(time.Minute).UnixMilli()),
+		}
+	}
+	control := func(operation string, parameters map[string]interface{}) []byte {
+		return signed(t, key, "migration", bodyFor(operation, parameters))
+	}
+	read := func(operation string, parameters map[string]interface{}) []byte {
+		return signed(t, key, "request", bodyFor(operation, parameters))
+	}
+	operations := []interface{}{}
+	for i := uint64(0); i < final.ObjectCount; i++ {
+		operations = append(operations, map[string]interface{}{"objectId": fmt.Sprintf("migration-object-%d", i), "baseVersion": "0", "deleted": i == 0, "fields": []interface{}{map[string]interface{}{"slot": uint64(0), "nonce": bytes.Repeat([]byte{1}, 24), "ciphertext": bytes.Repeat([]byte{2}, 32)}}})
+	}
+	batch := map[string]interface{}{"schema": uint64(2), "vaultId": "migration-vault", "deviceId": "migration-owner", "epoch": final.TargetEpoch, "membershipRevision": uint64(0), "keyGeneration": uint64(1), "counter": "1", "mutationId": "migration-batch", "operations": operations}
+	raw := signed(t, key, "mutation", batch)
+	receipt, e := store.MigrationPush(ctx, uid, raw)
+	if e != nil {
+		t.Fatal("stage upload", e)
+	}
+	if again, e := store.MigrationPush(ctx, uid, raw); e != nil || again.Seq != receipt.Seq {
+		t.Fatal("stage retry", e)
+	}
+	if _, e = store.SignedSnapshot(ctx, uid, read("snapshot", map[string]interface{}{})); !errors.Is(e, ErrInactive) {
+		t.Fatal("staging leaked through active read", e)
+	}
+	stage, e := store.MigrationSnapshot(ctx, uid, read("migration-snapshot", map[string]interface{}{}))
+	if e != nil || stage.Count != final.ObjectCount {
+		t.Fatal("staged snapshot", stage, e)
+	}
+	page, e := store.MigrationSnapshotPage(ctx, uid, read("migration-snapshot-page", map[string]interface{}{"snapshotId": stage.ID, "after": ""}))
+	if e != nil || uint64(len(page.Objects)) != final.ObjectCount || !page.Objects[0].Deleted || !bytes.Equal(page.Objects[0].Record, raw) {
+		t.Fatal("staged provenance", e)
+	}
+	commit := map[string]interface{}{"migrationId": final.ID, "freezeSeq": final.FreezeSeq, "targetEpoch": final.TargetEpoch, "ciphertextManifest": stage.Digest}
+	if _, e = store.CommitMigration(ctx, uid, control("commit", commit)); !errors.Is(e, ErrConflict) {
+		t.Fatal("commit without readback", e)
+	}
+	attestation := map[string]interface{}{"migrationId": final.ID, "snapshotId": stage.ID, "freezeSeq": final.FreezeSeq, "ciphertextManifest": stage.Digest, "sourcePageCount": final.PageCount, "sourceObjectCount": final.ObjectCount + 1}
+	if _, e = store.VerifyMigration(ctx, uid, control("verify", attestation)); !errors.Is(e, ErrConflict) {
+		t.Fatal("wrong source count", e)
+	}
+	attestation["sourceObjectCount"] = final.ObjectCount
+	verified, e := store.VerifyMigration(ctx, uid, control("verify", attestation))
+	if e != nil || verified.Phase != "VERIFIED" {
+		t.Fatal("readback attestation", e)
+	}
+	batch["counter"] = "2"
+	batch["mutationId"] = "late-upload"
+	if _, e = store.MigrationPush(ctx, uid, signed(t, key, "mutation", batch)); !errors.Is(e, ErrConflict) {
+		t.Fatal("upload after seal", e)
+	}
+	if _, e = store.MigrationPush(ctx, uid, raw); e != nil {
+		t.Fatal("sealed exact retry", e)
+	}
+	if _, e = db.ExecContext(ctx, `CREATE TRIGGER fail_migration_activation BEFORE UPDATE ON vaults FOR EACH ROW BEGIN IF NEW.mode='active' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='synthetic activation failure'; END IF; END`); e != nil {
+		t.Fatal(e)
+	}
+	if _, e = store.CommitMigration(ctx, uid, control("commit", commit)); e == nil {
+		t.Fatal("injected activation failure ignored")
+	}
+	if _, e = db.ExecContext(ctx, "DROP TRIGGER fail_migration_activation"); e != nil {
+		t.Fatal(e)
+	}
+	if e = db.QueryRowContext(ctx, "SELECT mode FROM sync_users WHERE id=?", user).Scan(&mode); e != nil || mode != "e2ee_frozen" {
+		t.Fatal("partial active account", e)
+	}
+	activated, e := store.CommitMigration(ctx, uid, control("commit", commit))
+	if e != nil || activated.Phase != "ACTIVE" || activated.CiphertextManifest != stage.Digest {
+		t.Fatal("activation", e)
+	}
+	if again, e := store.CommitMigration(ctx, uid, control("commit", commit)); e != nil || again != activated {
+		t.Fatal("lost commit ACK retry", e)
+	}
+	if _, e = store.CancelMigration(ctx, uid, control("cancel", map[string]interface{}{"migrationId": final.ID})); !errors.Is(e, ErrConflict) {
+		t.Fatal("active cancellation allowed", e)
+	}
+	if _, e = source.Apply(ctx, uid, mutation()); canonical.ErrorCode(e) != "UPDATE_REQUIRED" {
+		t.Fatal("v2 reopened after activation", e)
+	}
+	if current, e := store.SignedSnapshot(ctx, uid, read("snapshot", map[string]interface{}{})); e != nil || current.Count != stage.Count {
+		t.Fatal("activated snapshot", e)
+	}
+	if e = db.QueryRowContext(ctx, "SELECT COUNT(*) FROM tasks WHERE user_id=?", user).Scan(&count); e != nil || uint64(count) != final.ObjectCount {
+		t.Fatal("source deleted at activation", e)
 	}
 }

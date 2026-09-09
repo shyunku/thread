@@ -71,7 +71,7 @@ E2EE 보관함 잠금 해제는 Windows Hello/Touch ID 우선 및 별도 보관�
 
 E2EE v3 서버 API는 E2EE_API_ENABLED 기본 false로 분리한다. 활성화하더라도 기존 계정을 자동 이관하지 않으며, 계정 JWT와 기기 서명을 별도로 검사한다. 승인 만료·키 세대 회전·수신자 전용 키 전달 및 암호문 동기화의 구현 계약은 [E2EE v3 API](protocol/e2ee-v3-api.md)에 기록한다. 사용자 앱 통합과 운영 전환·보안 검토는 별도 완료 조건이다.
 
-이관 준비 API는 E2EE_MIGRATION_ENABLED 기본 false로 추가 분리하며 현재 개발/rehearsal 전용이다. [prepare 계약](protocol/e2ee-migration-prepare.md)은 freeze·원본 페이지 보존·상태 확인·업로드 전 취소까지이며, 업로드·최종 활성화와 일반 앱 UI는 아직 미완료다. [암호화 백업](protocol/encrypted-data-backup.md) 가져오기는 원본 DB를 덮어쓰지 않는 복구 사본만 만들고 활성 계정이나 이전 기기 identity로 자동 전환하지 않는다.
+이관 API는 E2EE_MIGRATION_ENABLED 기본 false로 추가 분리하며 현재 개발/rehearsal 전용이다. [prepare 계약](protocol/e2ee-migration-prepare.md)에 이어 [upload/readback/CAS 활성화 계약](protocol/e2ee-migration-activation.md)을 구현했다. 일반 앱 UI·local cutover·늦은 기기 pending은 미완료이며, 업로드 후 취소의 staging 삭제 구현에는 별도 승인이 필요하다. [암호화 백업](protocol/encrypted-data-backup.md) 가져오기는 원본 DB를 덮어쓰지 않는 복구 사본만 만들고 활성 계정이나 이전 기기 identity로 자동 전환하지 않는다.
 
 공개 사이트와 관리자 사이트는 API 및 RMS와 함께 Docker Compose에 유지한다. 관리자 React 빌드의 공개 endpoint는 루트 env의 `ADMIN_APP_SERVER_ENTRY`와 `ADMIN_RMS_ENTRY`를 Compose build args로 전달해 local 및 production 값을 분리한다. 이 값은 정적 브라우저 번들에 포함되는 공개 설정이며 비밀값을 저장하지 않는다.
 

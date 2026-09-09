@@ -12,6 +12,11 @@ import (
 )
 
 type MigrationStore interface {
+	MigrationPush(context.Context, string, []byte) (vault.PushResult, error)
+	MigrationSnapshot(context.Context, string, []byte) (vault.Snapshot, error)
+	MigrationSnapshotPage(context.Context, string, []byte) (vault.SnapshotPage, error)
+	VerifyMigration(context.Context, string, []byte) (vault.MigrationStatus, error)
+	CommitMigration(context.Context, string, []byte) (vault.MigrationStatus, error)
 	PrepareMigration(context.Context, string, []byte) (vault.MigrationStatus, error)
 	MigrationStatus(context.Context, string, []byte) (vault.MigrationStatus, error)
 	MigrationSource(context.Context, string, []byte) (vault.MigrationSourcePage, error)
@@ -41,6 +46,12 @@ func RegisterMigration(r *gin.Engine, s MigrationStore, secret []byte) {
 			}
 			status, code := 500, "MIGRATION_UNAVAILABLE"
 			switch {
+			case errors.Is(e, vault.ErrObjectConflict):
+				status, code = 409, "OBJECT_CONFLICT"
+			case errors.Is(e, vault.ErrInactive):
+				status, code = 409, "E2EE_NOT_ACTIVE"
+			case errors.Is(e, vault.ErrQuota):
+				status, code = 429, "SNAPSHOT_LIMIT"
 			case errors.Is(e, vault.ErrInvalid):
 				status, code = 400, "INVALID_SIGNED_RECORD"
 			case errors.Is(e, vault.ErrForbidden):
@@ -57,6 +68,19 @@ func RegisterMigration(r *gin.Engine, s MigrationStore, secret []byte) {
 	}
 	g.POST("/prepare", handle(func(ctx context.Context, u string, b []byte) (interface{}, error) {
 		return s.PrepareMigration(ctx, u, b)
+	}))
+	g.POST("/push", handle(func(ctx context.Context, u string, b []byte) (interface{}, error) { return s.MigrationPush(ctx, u, b) }))
+	g.POST("/snapshot", handle(func(ctx context.Context, u string, b []byte) (interface{}, error) {
+		return s.MigrationSnapshot(ctx, u, b)
+	}))
+	g.POST("/snapshot/page", handle(func(ctx context.Context, u string, b []byte) (interface{}, error) {
+		return s.MigrationSnapshotPage(ctx, u, b)
+	}))
+	g.POST("/verify", handle(func(ctx context.Context, u string, b []byte) (interface{}, error) {
+		return s.VerifyMigration(ctx, u, b)
+	}))
+	g.POST("/commit", handle(func(ctx context.Context, u string, b []byte) (interface{}, error) {
+		return s.CommitMigration(ctx, u, b)
 	}))
 	g.POST("/status", handle(func(ctx context.Context, u string, b []byte) (interface{}, error) {
 		return s.MigrationStatus(ctx, u, b)

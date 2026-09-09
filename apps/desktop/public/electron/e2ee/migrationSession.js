@@ -11,6 +11,10 @@ async function createMigrationRequest({state,device,deviceId,epoch,operation,par
   check(Object.keys(parameters).length===4&&uuid(parameters.sourceEpoch)&&uuid(parameters.sourceSnapshotId));decimal(parameters.freezeSeq);
  }else if(operation==="source-page"){
   check(Object.keys(parameters).length===2&&Number.isSafeInteger(parameters.page)&&parameters.page>=0);
+ }else if(operation==="verify"){
+  check(Object.keys(parameters).length===6&&uuid(parameters.snapshotId)&&/^[a-f0-9]{64}$/.test(parameters.ciphertextManifest)&&Number.isSafeInteger(parameters.sourcePageCount)&&parameters.sourcePageCount>0&&Number.isSafeInteger(parameters.sourceObjectCount)&&parameters.sourceObjectCount>=0);decimal(parameters.freezeSeq);
+ }else if(operation==="commit"){
+  check(Object.keys(parameters).length===4&&uuid(parameters.targetEpoch)&&/^[a-f0-9]{64}$/.test(parameters.ciphertextManifest));decimal(parameters.freezeSeq);
  }else check(["status","cancel"].includes(operation)&&Object.keys(parameters).length===1);
  const body={schema:1,vaultId:state.vaultId,deviceId,epoch,membershipRevision:state.revision,keyGeneration:state.keyGeneration,operation,parameters,requestId:randomBytes(16).toString("hex"),expiresAt:now+60000};
  return {body,signature:await p.sign(device.signing.privateKey,"migration",body)};
@@ -25,7 +29,7 @@ class MigrationSession{
  ready(){if(this.abort.signal.aborted)throw Error("MIGRATION_CANCELLED");}
  async request(operation,parameters){
   this.ready();const record=await createMigrationRequest({state:this.history.current,device:this.device,deviceId:this.deviceId,epoch:this.epoch,operation,parameters});
-  this.ready();const method={"prepare":"migrationPrepare","status":"migrationStatus","source-page":"migrationSource","cancel":"migrationCancel"}[operation];
+  this.ready();const method={"prepare":"migrationPrepare","status":"migrationStatus","source-page":"migrationSource","cancel":"migrationCancel","verify":"migrationVerify","commit":"migrationCommit"}[operation];
   const result=await this.transport[method](record,this.abort.signal);this.ready();return result;
  }
  validateStatus(status,plan,phase){
@@ -57,7 +61,7 @@ class MigrationSession{
  }
  async sourcePage(page){
   this.ready();const state=this.journal.get(),plan=this.plan();
-  check(state.phase==="FROZEN"&&Number.isSafeInteger(page)&&page>=0&&page<plan.pageCount,"MIGRATION_PHASE_CONFLICT");
+  check(["FROZEN","UPLOADING","VERIFIED"].includes(state.phase)&&Number.isSafeInteger(page)&&page>=0&&page<plan.pageCount,"MIGRATION_PHASE_CONFLICT");
   const prefix="$migration-source-"+state.id+"-"+page,existing=this.store.get("recovery",prefix);
   if(existing){
    check(Number.isSafeInteger(existing.parts)&&existing.parts>0&&existing.parts<=16);
@@ -82,7 +86,12 @@ class MigrationSession{
  }
  async cancel(){
   this.ready();const state=this.journal.get(),plan=this.plan();
-  check(["PREPARING","FROZEN"].includes(state.phase),"MIGRATION_PHASE_CONFLICT");
+  check(["PREPARING","FROZEN","UPLOADING"].includes(state.phase),"MIGRATION_PHASE_CONFLICT");
+  if(state.phase==="UPLOADING"){
+   const remote=await this.request("status",{migrationId:state.id});
+   check(remote.phase==="FROZEN","MIGRATION_CANCEL_APPROVAL_REQUIRED");
+   this.validateStatus(remote,plan,"FROZEN");
+  }
   this.validateStatus(await this.request("cancel",{migrationId:state.id}),plan,"CANCELLED");
   return this.journal.confirmCancelled(async()=>{
    const result=await this.request("status",{migrationId:state.id});return this.validateStatus(result,plan,"CANCELLED");

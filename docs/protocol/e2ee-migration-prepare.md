@@ -1,10 +1,12 @@
 # E2EE migration prepare protocol
 
-Updated: 2026-09-09 14:32 (KST).
+Updated: 2026-09-09 15:57 (KST).
 
-This is a **development/rehearsal checkpoint**, not a production migration
-procedure. Upload, readback attestation, CAS activation and late-device pending
-conversion are still outstanding. Do not enable this for real accounts.
+This is a **development/rehearsal contract**, not a production migration
+procedure. Upload, readback attestation and CAS activation are now implemented:
+see [activation contract](e2ee-migration-activation.md). Ordinary app integration,
+late-device pending conversion and release approval remain outstanding.
+Do not enable this for real accounts.
 
 ## Gates and storage
 
@@ -86,5 +88,6 @@ Cancellation requires a second matching status query before the local journal
 becomes CANCELLED. Local source/recovery copies remain preserved. Closing the
 session prevents late network responses from changing the local journal.
 
-This coordinator is not yet connected to the ordinary application UI and does
-not upload, commit, switch databases, or delete an original v2 database.
+MigrationSession handles preparation/source/cancel; MigrationTransfer now
+handles upload/readback/commit/status. Neither is connected to the ordinary UI
+or automatically switches/deletes the original local v2 database.

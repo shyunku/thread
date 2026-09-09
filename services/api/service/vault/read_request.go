@@ -9,6 +9,7 @@ import (
 // Read proofs are short lived and operation/parameter-bound. Replaying a read
 // within its lifetime is harmless; snapshot creation is deduplicated and bounded.
 type readProof struct {
+	migration                bool
 	vaultID, deviceID, epoch string
 	revision, generation     uint64
 	parameters               map[string]interface{}
@@ -50,6 +51,7 @@ func (s *Store) SignedEnvelope(ctx context.Context, uid string, raw []byte) (Env
 
 func (s *Store) authorizeRead(ctx context.Context, uid string, raw []byte, operation string) (context.Context, readProof, error) {
 	var proof readProof
+	proof.migration = operation == "migration-snapshot" || operation == "migration-snapshot-page"
 	if !validAccount(uid) {
 		return ctx, proof, ErrForbidden
 	}
@@ -90,11 +92,25 @@ func (s *Store) authorizeRead(ctx context.Context, uid string, raw []byte, opera
 	if err = r.Verify(key, "request"); err != nil {
 		return ctx, proof, err
 	}
-	if mode != "active" {
+	expectedMode := "active"
+	if proof.migration {
+		expectedMode = "migrating"
+	}
+	if mode != expectedMode {
 		return ctx, proof, ErrInactive
 	}
 	if epoch != proof.epoch || revision != proof.revision || generation != proof.generation {
 		return ctx, proof, ErrConflict
+	}
+	if proof.migration {
+		var count int
+		err = s.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM vault_migration_active a JOIN vault_migrations m ON a.migration_id=m.migration_id WHERE a.vault_id=? AND m.coordinator=? AND m.target_epoch=? AND m.phase IN ('FROZEN','UPLOADING','VERIFIED')`, proof.vaultID, proof.deviceID, proof.epoch).Scan(&count)
+		if err != nil {
+			return ctx, proof, err
+		}
+		if count != 1 {
+			return ctx, proof, ErrForbidden
+		}
 	}
 	return context.WithValue(ctx, readProofKey{}, proof), proof, nil
 }
@@ -109,15 +125,52 @@ func checkReadProof(ctx context.Context, tx *sql.Tx, vaultID string) error {
 	var count int
 	err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM vaults v JOIN vault_devices d ON v.vault_id=d.vault_id
  WHERE v.vault_id=? AND v.vault_id=? AND d.device_id=? AND d.revoked_revision IS NULL
- AND v.mode='active' AND v.epoch=? AND v.membership_revision=? AND v.current_key_generation=?`,
-		vaultID, proof.vaultID, proof.deviceID, proof.epoch, proof.revision, proof.generation).Scan(&count)
+ AND v.mode=? AND v.epoch=? AND v.membership_revision=? AND v.current_key_generation=?`,
+		vaultID, proof.vaultID, proof.deviceID, readMode(ctx), proof.epoch, proof.revision, proof.generation).Scan(&count)
 	if err != nil {
 		return err
 	}
 	if count != 1 {
 		return ErrForbidden
 	}
+	if proof.migration {
+		err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM vault_migration_active a JOIN vault_migrations m ON a.migration_id=m.migration_id WHERE a.vault_id=? AND m.coordinator=? AND m.target_epoch=? AND m.phase IN ('FROZEN','UPLOADING','VERIFIED')`, vaultID, proof.deviceID, proof.epoch).Scan(&count)
+		if err != nil {
+			return err
+		}
+		if count != 1 {
+			return ErrForbidden
+		}
+	}
 	return nil
+}
+func readMode(ctx context.Context) string {
+	if p, ok := ctx.Value(readProofKey{}).(readProof); ok && p.migration {
+		return "migrating"
+	}
+	return "active"
+}
+func (s *Store) MigrationSnapshot(ctx context.Context, uid string, raw []byte) (Snapshot, error) {
+	ctx, p, e := s.authorizeRead(ctx, uid, raw, "migration-snapshot")
+	if e != nil {
+		return Snapshot{}, e
+	}
+	if len(p.parameters) != 0 {
+		return Snapshot{}, ErrInvalid
+	}
+	return s.Snapshot(ctx, uid)
+}
+func (s *Store) MigrationSnapshotPage(ctx context.Context, uid string, raw []byte) (SnapshotPage, error) {
+	ctx, p, e := s.authorizeRead(ctx, uid, raw, "migration-snapshot-page")
+	if e != nil {
+		return SnapshotPage{}, e
+	}
+	id, iok := p.parameters["snapshotId"].(string)
+	after, aok := p.parameters["after"].(string)
+	if len(p.parameters) != 2 || !iok || !aok {
+		return SnapshotPage{}, ErrInvalid
+	}
+	return s.SnapshotPage(ctx, uid, id, after)
 }
 
 func (s *Store) SignedPull(ctx context.Context, uid string, raw []byte) (Changes, error) {

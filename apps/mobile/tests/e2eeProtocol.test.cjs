@@ -2,6 +2,8 @@ const test=require('node:test'),assert=require('node:assert/strict');
 const desktop=require('../../desktop/public/electron/e2ee/protocol');
 const {createProtocol}=require('../src/sync/e2ee/protocolFactory');
 const sodium=require('../../desktop/node_modules/libsodium-wrappers');
+const {createMembership}=require('../../desktop/public/electron/e2ee/membershipCore');
+const {createSyncProtocol}=require('../../desktop/public/electron/e2ee/syncProtocolCore');
 const {hkdf}=require('@noble/hashes/hkdf'),{sha256}=require('@noble/hashes/sha256');
 async function mobile(){return createProtocol({sodium,cbor:await import('cborg'),hkdf,sha256});}
 const context={vaultId:'fixture',vaultEpoch:'1',objectId:'one',fieldSlot:7,keyGeneration:1,mutationId:'mutation',deviceId:'owner'};
@@ -23,6 +25,19 @@ test('mobile CBOR/HKDF matches desktop; ciphertext and signatures cross both dir
  }
  const damaged={...encrypted,ciphertext:Buffer.from(encrypted.ciphertext)};damaged.ciphertext[0]^=1;
  await assert.rejects(p.decrypt(key,context,damaged));
+});
+
+test('mobile and desktop share v1/v2 mutation verification and retained encrypted tombstones',async()=>{
+ const p=await mobile(),membership=createMembership(p),sync=createSyncProtocol(p,membership),desktopSync=require('../../desktop/public/electron/e2ee/syncProtocol');
+ const device=await desktop.createDevice(),body={schema:1,vaultId:'fixture',recoveryKey:Buffer.alloc(32,8),owner:{id:'owner',role:'write',canAuthorizeDevices:true,signingKey:device.signing.publicKey,encryptionKey:device.encryption.publicKey}};
+ const state=await membership.verifyGenesis({body,signature:await desktop.sign(device.signing.privateKey,'genesis',body)},desktop.fingerprint(body));
+ const fixture={state,device,deviceId:'owner',epoch:'1',key:Buffer.alloc(32,4),counter:'1',mutationId:'migration',schema:2,changes:[{objectId:'deleted',baseVersion:'0',deleted:true,fields:[{slot:0,value:{title:'preserved',deleted_at:1}}]}]};
+ const fromDesktop=await desktopSync.createBatch(fixture),fromMobile=await sync.createBatch(fixture);
+ assert.deepEqual(await sync.decryptBatch(fromDesktop,fixture),await desktopSync.decryptBatch(fromMobile,fixture));
+ assert.equal((await sync.decryptBatch(fromDesktop,fixture))[0].deleted,true);
+ await assert.rejects(sync.createBatch({...fixture,schema:1}));
+ fromDesktop.body.operations[0].fields[0].ciphertext[0]^=1;
+ await assert.rejects(sync.decryptBatch(fromDesktop,fixture));
 });
 test('mobile rejects duplicate keys, tags, depth, floats and trailing bytes',async()=>{
  const p=await mobile();

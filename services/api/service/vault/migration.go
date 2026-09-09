@@ -13,16 +13,17 @@ import (
 var ErrMigrationSourceLimit = errors.New("MIGRATION_SOURCE_LIMIT")
 
 type MigrationStatus struct {
-	ID             string `json:"id"`
-	VaultID        string `json:"vaultId"`
-	Coordinator    string `json:"coordinator"`
-	SourceEpoch    string `json:"sourceEpoch"`
-	SourceSnapshot string `json:"sourceSnapshotId"`
-	FreezeSeq      string `json:"freezeSeq"`
-	TargetEpoch    string `json:"targetEpoch"`
-	Phase          string `json:"phase"`
-	PageCount      uint64 `json:"pageCount"`
-	ObjectCount    uint64 `json:"objectCount"`
+	CiphertextManifest string `json:"ciphertextManifest,omitempty"`
+	ID                 string `json:"id"`
+	VaultID            string `json:"vaultId"`
+	Coordinator        string `json:"coordinator"`
+	SourceEpoch        string `json:"sourceEpoch"`
+	SourceSnapshot     string `json:"sourceSnapshotId"`
+	FreezeSeq          string `json:"freezeSeq"`
+	TargetEpoch        string `json:"targetEpoch"`
+	Phase              string `json:"phase"`
+	PageCount          uint64 `json:"pageCount"`
+	ObjectCount        uint64 `json:"objectCount"`
 }
 type MigrationSourcePage struct {
 	Payload  string `json:"payload"`
@@ -108,7 +109,7 @@ func (s *Store) lockMigration(ctx context.Context, uid string, c migrationContro
 }
 func migrationStatus(ctx context.Context, tx *sql.Tx, id, vaultID, deviceID string) (MigrationStatus, error) {
 	var r MigrationStatus
-	e := tx.QueryRowContext(ctx, `SELECT migration_id,vault_id,coordinator,source_epoch,source_snapshot,freeze_seq,target_epoch,phase,page_count,object_count FROM vault_migrations WHERE migration_id=? AND vault_id=? AND coordinator=?`, id, vaultID, deviceID).Scan(&r.ID, &r.VaultID, &r.Coordinator, &r.SourceEpoch, &r.SourceSnapshot, &r.FreezeSeq, &r.TargetEpoch, &r.Phase, &r.PageCount, &r.ObjectCount)
+	e := tx.QueryRowContext(ctx, `SELECT m.migration_id,m.vault_id,m.coordinator,m.source_epoch,m.source_snapshot,m.freeze_seq,m.target_epoch,m.phase,m.page_count,m.object_count,LOWER(COALESCE(HEX(v.ciphertext_manifest),'')) FROM vault_migrations m LEFT JOIN vault_migration_verifications v ON v.migration_id=m.migration_id WHERE m.migration_id=? AND m.vault_id=? AND m.coordinator=?`, id, vaultID, deviceID).Scan(&r.ID, &r.VaultID, &r.Coordinator, &r.SourceEpoch, &r.SourceSnapshot, &r.FreezeSeq, &r.TargetEpoch, &r.Phase, &r.PageCount, &r.ObjectCount, &r.CiphertextManifest)
 	if e == sql.ErrNoRows {
 		return r, ErrNotFound
 	}
@@ -187,7 +188,7 @@ func (s *Store) PrepareMigration(ctx context.Context, uid string, raw []byte) (M
 	if staged != 0 {
 		return out, ErrConflict
 	}
-	out = MigrationStatus{id, c.vaultID, c.deviceID, sourceEpoch, snapshotID, strconv.FormatUint(freeze, 10), uuid.NewString(), "FROZEN", pageCount, objects}
+	out = MigrationStatus{"", id, c.vaultID, c.deviceID, sourceEpoch, snapshotID, strconv.FormatUint(freeze, 10), uuid.NewString(), "FROZEN", pageCount, objects}
 	_, e = tx.ExecContext(ctx, `INSERT INTO vault_migrations(migration_id,vault_id,source_user,coordinator,source_epoch,source_snapshot,freeze_seq,prior_vault_epoch,target_epoch,phase,page_count,object_count,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, id, c.vaultID, l.user, c.deviceID, sourceEpoch, snapshotID, freeze, l.vaultEpoch, out.TargetEpoch, out.Phase, pageCount, objects, time.Now().UnixMilli())
 	if e != nil {
 		return MigrationStatus{}, conflict(e)
@@ -251,7 +252,7 @@ func (s *Store) MigrationSource(ctx context.Context, uid string, raw []byte) (Mi
 	if e != nil {
 		return out, e
 	}
-	if status.Phase != "FROZEN" || l.mode != "e2ee_frozen" || l.vaultMode != "migrating" || l.vaultEpoch != status.TargetEpoch || page >= status.PageCount {
+	if (status.Phase != "FROZEN" && status.Phase != "UPLOADING" && status.Phase != "VERIFIED") || l.mode != "e2ee_frozen" || l.vaultMode != "migrating" || l.vaultEpoch != status.TargetEpoch || page >= status.PageCount {
 		return out, ErrConflict
 	}
 	e = tx.QueryRowContext(ctx, `SELECT payload,checksum FROM vault_migration_source_pages WHERE migration_id=? AND page_number=?`, id, page).Scan(&out.Payload, &out.Checksum)

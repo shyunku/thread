@@ -29,6 +29,11 @@ function createTransport({endpoint,token,fetch:send=globalThis.fetch,timeout=150
  }
  return {membership:(after=0,signal)=>request("/v3/vault?after="+encodeURIComponent(after),null,signal),
   migrationPrepare:(record,signal)=>request("/v3/migration/prepare",record,signal),
+  migrationPush:(record,signal)=>request("/v3/migration/push",record,signal),
+  migrationSnapshot:(record,signal)=>request("/v3/migration/snapshot",record,signal),
+  migrationSnapshotPage:(record,signal)=>request("/v3/migration/snapshot/page",record,signal),
+  migrationVerify:(record,signal)=>request("/v3/migration/verify",record,signal),
+  migrationCommit:(record,signal)=>request("/v3/migration/commit",record,signal),
   migrationStatus:(record,signal)=>request("/v3/migration/status",record,signal),
   migrationSource:(record,signal)=>request("/v3/migration/source",record,signal,32*p.MAX_BYTES),
   migrationCancel:(record,signal)=>request("/v3/migration/cancel",record,signal),

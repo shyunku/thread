@@ -39,7 +39,7 @@ func (s *Store) Pull(ctx context.Context, uid, epoch string, after, until uint64
 	if e != nil {
 		return Changes{}, e
 	}
-	if mode != "active" {
+	if mode != readMode(ctx) {
 		return Changes{}, ErrInactive
 	}
 	if e = checkReadProof(ctx, tx, id); e != nil {
@@ -139,7 +139,7 @@ func (s *Store) Snapshot(ctx context.Context, uid string) (Snapshot, error) {
 	if e != nil {
 		return Snapshot{}, e
 	}
-	if mode != "active" {
+	if mode != readMode(ctx) {
 		return Snapshot{}, ErrInactive
 	}
 	if e = checkReadProof(ctx, tx, id); e != nil {
@@ -229,7 +229,7 @@ func (s *Store) SnapshotPage(ctx context.Context, uid, id, after string) (Snapsh
 	}
 	defer tx.Rollback()
 	var vaultID string
-	e = tx.QueryRowContext(ctx, `SELECT s.vault_id FROM encrypted_snapshots s JOIN vaults v ON s.vault_id=v.vault_id WHERE s.id=? AND v.account_id=? AND s.expires_at>? AND v.mode='active' AND v.epoch=s.epoch`, id, uid, time.Now().Unix()).Scan(&vaultID)
+	e = tx.QueryRowContext(ctx, `SELECT s.vault_id FROM encrypted_snapshots s JOIN vaults v ON s.vault_id=v.vault_id WHERE s.id=? AND v.account_id=? AND s.expires_at>? AND v.mode=? AND v.epoch=s.epoch`, id, uid, time.Now().Unix(), readMode(ctx)).Scan(&vaultID)
 	if e == sql.ErrNoRows {
 		return SnapshotPage{}, ErrNotFound
 	}

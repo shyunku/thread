@@ -18,6 +18,22 @@ type migrationFixture struct {
 	err   error
 }
 
+func (s *migrationFixture) MigrationPush(_ context.Context, u string, _ []byte) (vault.PushResult, error) {
+	return vault.PushResult{}, s.call(u)
+}
+func (s *migrationFixture) MigrationSnapshot(_ context.Context, u string, _ []byte) (vault.Snapshot, error) {
+	return vault.Snapshot{}, s.call(u)
+}
+func (s *migrationFixture) MigrationSnapshotPage(_ context.Context, u string, _ []byte) (vault.SnapshotPage, error) {
+	return vault.SnapshotPage{}, s.call(u)
+}
+func (s *migrationFixture) VerifyMigration(_ context.Context, u string, _ []byte) (vault.MigrationStatus, error) {
+	return vault.MigrationStatus{}, s.call(u)
+}
+func (s *migrationFixture) CommitMigration(_ context.Context, u string, _ []byte) (vault.MigrationStatus, error) {
+	return vault.MigrationStatus{}, s.call(u)
+}
+
 func (s *migrationFixture) call(u string) error { s.calls++; s.uid = u; return s.err }
 func (s *migrationFixture) PrepareMigration(_ context.Context, u string, _ []byte) (vault.MigrationStatus, error) {
 	return vault.MigrationStatus{}, s.call(u)
@@ -41,6 +57,11 @@ func TestMigrationHTTPBoundary(t *testing.T) {
 		status                  int
 	}{
 		{"prepare", "x", "application/cbor", token, nil, 200},
+		{"push", "x", "application/cbor", token, nil, 200},
+		{"snapshot", "x", "application/cbor", token, nil, 200},
+		{"snapshot/page", "x", "application/cbor", token, nil, 200},
+		{"verify", "x", "application/cbor", token, nil, 200},
+		{"commit", "x", "application/cbor", token, vault.ErrConflict, 409},
 		{"status?accountId=other", "x", "application/cbor", token, nil, 200},
 		{"source", "x", "application/cbor", token, vault.ErrForbidden, 403},
 		{"cancel", "x", "application/cbor", token, vault.ErrConflict, 409},
