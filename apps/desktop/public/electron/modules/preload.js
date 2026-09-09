@@ -1,6 +1,7 @@
 // Keep this file self-contained: sandboxed preloads cannot require local modules.
 // Main imports the same contract; renderer executes only the bridge installation.
 const REQUEST_TOPICS = Object.freeze([
+  "vault/pairing",
   "vault/registrationEndpoint", "vault/registerIdentity",
   "vault/prepareIdentity", "vault/identityStatus", "vault/recoveryCode", "vault/exportRecovery", "vault/confirmRecovery",
   "vault/getStatus", "vault/create", "vault/unlock", "vault/lock", "vault/intakes", "vault/reviews",

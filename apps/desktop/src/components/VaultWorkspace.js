@@ -3,6 +3,7 @@ import IpcSender from "../utils/IpcSender";
 import VaultUnlock from "./VaultUnlock";
 import LegacyRecovery from "./LegacyRecovery";
 import RecoverySetup from "./RecoverySetup";
+import DevicePairing from "./DevicePairing";
 const invoke=(method,...args)=>new Promise((resolve,reject)=>{
  if(!IpcSender.vault?.[method])return reject(Error("UNAVAILABLE"));
  IpcSender.vault[method](...args,response=>response?.success?resolve(response.data):reject(Error("VAULT_ACTION_FAILED")));
@@ -51,6 +52,7 @@ export default function VaultWorkspace({uid}){
    current.phase==="UNLOCKED"?<>
     <p role="status">로컬 보관함 잠금 해제됨 · 서버 E2EE 미전환</p>
     <RecoverySetup key={uid+":"+current.generation}/>
+    <DevicePairing key={"pair:"+uid+":"+current.generation} osAvailable={current.osAvailable}/>
     <button onClick={()=>{generation.current++;setIntakes([]);setSelected("");setStatus({...current,phase:"LOCKED"});invoke("lock").catch(()=>setError(true));}}>보관함 잠그기</button>
     {!intakes.length?<p>보존된 이전 기기 변경이 없습니다.</p>:<>
      <label>복구 자료 <select value={selected} onChange={event=>setSelected(event.target.value)}>{intakes.map((item,index)=><option key={item.id} value={item.id}>자료 {index+1} · {item.count}개</option>)}</select></label>

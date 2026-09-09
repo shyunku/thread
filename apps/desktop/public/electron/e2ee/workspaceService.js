@@ -74,16 +74,68 @@ class VaultWorkspaceService{
   if(this.busy)throw Error("VAULT_BUSY");
   const entry=this.context();entry.controller.use(()=>{});this.busy=true;
   try{
-   const transport=this.runtime().transport||require("./transport").createTransport({endpoint:this.registrationEndpoint(),token:async()=>{
-    if(entry!==this.active||entry.uid!==this.runtime().getAccount()||entry.abort.signal.aborted)throw Error("AUTH_REQUIRED");
+   const transport=this.transportFor(entry);
+   return await entry.controller.use(store=>require("./ownerRegistration").registerOwner({store,transport,signal:entry.abort.signal}));
+  }finally{this.busy=false;}
+ }
+ transportFor(entry){
+   const signal=entry.abort.signal;
+   return this.runtime().transport||require("./transport").createTransport({endpoint:this.registrationEndpoint(),token:async()=>{
+    if(entry!==this.active||entry.uid!==this.runtime().getAccount()||signal.aborted)throw Error("AUTH_REQUIRED");
     const db=await this.group.databaseService.getRootDatabaseContext();
     // Do not use the legacy SQL logger for authentication metadata.
     const row=await new Promise((resolve,reject)=>db.db.get("SELECT access_token FROM users WHERE uid = ?",[entry.uid],(error,value)=>error?reject(error):resolve(value)));
-    if(entry!==this.active||entry.uid!==this.runtime().getAccount()||entry.abort.signal.aborted)throw Error("AUTH_REQUIRED");
+    if(entry!==this.active||entry.uid!==this.runtime().getAccount()||signal.aborted)throw Error("AUTH_REQUIRED");
     return row?.access_token;
    }});
-   return await entry.controller.use(store=>require("./ownerRegistration").registerOwner({store,transport,signal:entry.abort.signal}));
-  }finally{this.busy=false;}
+ }
+ async pairing(action,input={}){
+  if(this.busy)throw Error("VAULT_BUSY");
+  if(!["request","preview","approve","accept"].includes(action)||!input||typeof input!=="object")throw Error("INVALID_PAIR_ACTION");
+  const entry=this.context(),generation=this.generation,store=entry.controller.use(value=>value),signal=entry.abort.signal;
+  const check=()=>{if(this.active!==entry||generation!==this.generation||signal.aborted)throw Error("VAULT_SESSION_CHANGED");entry.controller.use(()=>{});};
+  const base=this.transportFor(entry),transport={membership:after=>{check();return base.membership(after,signal);},approve:record=>{check();return base.approve(record,signal);}};
+  const dialog=this.runtime().dialog||require("electron").dialog,fs=require("node:fs"),pair=require("./filePairing");
+  const read=async(extension,limit)=>{
+   const result=await dialog.showOpenDialog(this.runtime().getWindow(),{properties:["openFile"],filters:[{name:"Thread pairing",extensions:[extension]}]});check();
+   if(result.canceled)return null;
+   const fd=fs.openSync(result.filePaths[0],"r");
+   try{
+    const stat=fs.fstatSync(fd);if(!stat.isFile()||stat.size>limit)throw Error("PAIR_FILE_LIMIT");
+    const bytes=Buffer.alloc(limit+1);let length=0,n;
+    while(length<bytes.length&&(n=fs.readSync(fd,bytes,length,bytes.length-length,null))>0)length+=n;
+    if(length>limit)throw Error("PAIR_FILE_LIMIT");return bytes.subarray(0,length);
+   }finally{fs.closeSync(fd);}
+  };
+  const save=async(bytes,extension)=>{
+   check();const result=await dialog.showSaveDialog(this.runtime().getWindow(),{defaultPath:"Thread."+extension,filters:[{name:"Thread pairing",extensions:[extension]}]});check();
+   if(result.canceled)return false;
+   const fd=fs.openSync(result.filePath,"wx",0o600);try{fs.writeFileSync(fd,bytes);fs.fsyncSync(fd);}finally{fs.closeSync(fd);}return true;
+  };
+  this.busy=true;
+  try{
+   if(action==="request"){
+    const value=await pair.createRecipientRequest({store,transport,fingerprint:input.fingerprint});check();
+    return {...value,saved:await save(await pair.requestFile(store),"thread-pair-request")};
+   }
+   if(action==="preview"){
+    const bytes=await read("thread-pair-request",2048);if(!bytes)return null;
+    const value=await pair.previewRequest(store,bytes);check();return value;
+   }
+   if(action==="approve"){
+    const reauthenticate=async()=>{
+     check();let ok=false;
+     if(input.method==="os")ok=await this.runtime().osAuth.verify(this.runtime().getWindow());
+     else if(input.method==="password"){const temporary=await entry.vault.openWithPassword(input.password);temporary.close();ok=true;}
+     else throw Error("INVALID_AUTH_METHOD");
+     check();return ok;
+    };
+    const bytes=await pair.approveRequest({store,transport,requestId:input.requestId,fingerprint:input.fingerprint,reauthenticate});check();
+    return {approved:true,saved:await save(bytes,"thread-key-transfer")};
+   }
+   const bytes=await read("thread-key-transfer",512*1024);if(!bytes)return null;
+   const value=await pair.acceptFile({store,transport,bytes});check();return value;
+  }finally{input.password=undefined;this.busy=false;}
  }
  async prepareIdentity(){
   if(this.busy)throw Error("VAULT_BUSY");this.busy=true;

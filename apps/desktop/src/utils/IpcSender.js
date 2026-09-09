@@ -74,6 +74,7 @@ const silentSender = (topic, param, ...arg) => {
 
 const IpcSender = {
   vault: {
+    pairing:(action,input,callback)=>sender("vault/pairing",callback,action,input),
     registrationEndpoint:callback=>sender("vault/registrationEndpoint",callback),
     registerIdentity:callback=>sender("vault/registerIdentity",callback),
     prepareIdentity:callback=>sender("vault/prepareIdentity",callback),
