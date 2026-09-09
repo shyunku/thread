@@ -28,7 +28,8 @@ func SetupRouter() *gin.Engine {
 	config.AllowOrigins = []string{"*"}
 	config.AllowHeaders = append(config.AllowHeaders, "Authorization")
 
-	r := gin.Default()
+	r := gin.New()
+	r.Use(privateRequestLog(gin.DefaultWriter), privateRecovery())
 	r.Use(cors.New(config))
 	r.GET("/ping", ping)
 
