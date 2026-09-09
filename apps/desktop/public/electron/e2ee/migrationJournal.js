@@ -21,5 +21,15 @@ class MigrationJournal{
    const next={...state,phase:"ACTIVE"};db.put("recovery",KEY,next);return next;
   });
  }
+ async confirmCancelled(queryStatus){
+  const before=this.get();if(!before||!["PREPARING","FROZEN"].includes(before.phase))throw Error("MIGRATION_PHASE_CONFLICT");
+  const status=await queryStatus(before.id);
+  return this.store.transaction(db=>{
+   const state=this.get();if(!p.encode(state).equals(p.encode(before)))throw Error("MIGRATION_CHANGED");
+   if(status.id!==state.id||status.phase!=="CANCELLED"||status.vaultId!==this.scope.vaultId||
+    (state.evidence?.freezeSeq!==undefined&&status.freezeSeq!==state.evidence.freezeSeq))throw Error("MIGRATION_CANCEL_UNCONFIRMED");
+   const next={...state,phase:"CANCELLED"};db.put("recovery",KEY,next);return next;
+  });
+ }
 }
 module.exports={MigrationJournal};

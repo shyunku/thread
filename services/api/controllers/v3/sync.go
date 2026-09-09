@@ -31,6 +31,9 @@ func UseRouter(r *gin.Engine) {
 	secret := []byte(os.Getenv("JWT_ACCESS_SECRET"))
 	RegisterPending(r, s, secret)
 	RegisterSync(r, s, secret)
+	if os.Getenv("E2EE_MIGRATION_ENABLED") == "true" {
+		RegisterMigration(r, s, secret)
+	}
 }
 
 func RegisterSync(r *gin.Engine, s EncryptedSyncStore, secret []byte) {

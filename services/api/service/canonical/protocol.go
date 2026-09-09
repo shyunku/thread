@@ -46,12 +46,15 @@ func account(ctx context.Context, q queryRow, uid, suffix string) (Account, erro
 }
 func (p *Protocol) Account(ctx context.Context, uid string) (Account, error) {
 	a, e := account(ctx, p.Store.DB, uid, "")
-	if e != nil || a.Mode == "v2" || !p.Enabled {
+	if e != nil || a.Mode != "legacy" || !p.Enabled {
 		return a, e
 	}
 	return p.provisionEmpty(ctx, uid)
 }
 func (p *Protocol) ready(a Account, epoch string) error {
+	if a.Mode == "e2ee_frozen" || a.Mode == "e2ee" {
+		return fail("UPDATE_REQUIRED")
+	}
 	if a.Mode != "v2" {
 		return fail("ACCOUNT_NOT_READY")
 	}

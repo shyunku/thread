@@ -34,4 +34,5 @@ var Server = []Migration{
 	vaultV6(),
 	encryptedV7(),
 	encryptedSnapshotsV8(),
+	vaultMigrationV9(),
 }

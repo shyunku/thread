@@ -377,4 +377,5 @@ func TestMySQLSignedMembership(t *testing.T) {
 	if e = db.QueryRowContext(ctx, "SELECT COUNT(*) FROM vault_membership_events").Scan(&count); e != nil || count != 7 {
 		t.Fatal("partial rotation event", e)
 	}
+	testMigrationFreeze(t, db)
 }
