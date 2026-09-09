@@ -53,6 +53,18 @@ class LocalVault {
     } finally { try { store?.close(); } finally { key.fill(0); } }
   }
   create() { this.#initialize(randomBytes(32)); }
+  inspect() {
+    if (!fs.existsSync(this.#directory)) return {phase:"ABSENT",passwordAvailable:false};
+    try {
+      const dir=fs.lstatSync(this.#directory);
+      if(!dir.isDirectory()||dir.isSymbolicLink())throw Error("INVALID_VAULT_DIRECTORY");
+      requireFile(path.join(this.#directory,"ready"),64);
+      requireFile(path.join(this.#directory,"ldk.protected"),16384);
+      requireFile(path.join(this.#directory,"vault.db"),Number.MAX_SAFE_INTEGER);
+      if(fs.readFileSync(path.join(this.#directory,"ready"),"utf8")!=="thread-local-vault-v1")throw Error("VAULT_INCOMPLETE");
+      return {phase:"LOCKED",passwordAvailable:fs.existsSync(path.join(this.#directory,"ldk.password"))};
+    } catch { return {phase:"RECOVERY_REQUIRED",passwordAvailable:false}; }
+  }
   async createWithPassword(password) {
     const key = randomBytes(32);
     try {

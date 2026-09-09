@@ -6,6 +6,14 @@ const vm = require("vm");
 const { EventEmitter } = require("events");
 const policy = require("../public/electron/modules/windowSecurity");
 const contract = require("../public/electron/modules/preload");
+test("vault lifecycle and review capabilities are main-window only",()=>{
+ for(const topic of ["vault/create","vault/unlock","vault/reviews","vault/intakes"]){
+  assert.equal(policy.canRequest("main",topic),true);
+  assert.equal(policy.canRequest("popup",topic),false);
+  assert.equal(policy.canRequest("updater",topic),false);
+ }
+ assert.equal(policy.canSubscribe("popup","vault/status"),false);
+});
 const source = fs.readFileSync(path.join(__dirname, "../public/electron/modules/preload.js"), "utf8");
 
 function preload(mainFrame = true) {

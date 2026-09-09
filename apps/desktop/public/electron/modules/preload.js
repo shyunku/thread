@@ -1,6 +1,7 @@
 // Keep this file self-contained: sandboxed preloads cannot require local modules.
 // Main imports the same contract; renderer executes only the bridge installation.
 const REQUEST_TOPICS = Object.freeze([
+  "vault/getStatus", "vault/create", "vault/unlock", "vault/lock", "vault/intakes", "vault/reviews",
   "system/subscribe",
   "system/terminate_signal",
   "system/relaunch",
@@ -73,6 +74,7 @@ const REQUEST_TOPICS = Object.freeze([
   "update_check@continue"
 ]);
 const EVENT_TOPICS = Object.freeze([
+  "vault/status",
   "inner-modal",
   "close-inner-modal",
   "isMaximizable",

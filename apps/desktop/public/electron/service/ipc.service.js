@@ -52,6 +52,7 @@ class IpcService extends IpcRouter {
     this.executorService = group.executorService;
     this.syncV2Service = group.syncV2Service;
     this.releaseAlertService = group.releaseAlertService;
+    this.vaultWorkspaceService = group.vaultWorkspaceService;
   }
 
   /**

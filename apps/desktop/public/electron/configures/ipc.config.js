@@ -64,6 +64,21 @@ const {
  * @param s {IpcService}
  */
 module.exports = function (s) {
+  const vaultActions={
+    "vault/getStatus":()=>s.vaultWorkspaceService.status(),
+    "vault/create":password=>s.vaultWorkspaceService.create(password),
+    "vault/unlock":(method,password)=>s.vaultWorkspaceService.unlock(method,password),
+    "vault/lock":()=>{s.vaultWorkspaceService.lock();return true;},
+    "vault/intakes":()=>s.vaultWorkspaceService.intakes(),
+    "vault/reviews":request=>s.vaultWorkspaceService.reviews(request),
+  };
+  for(const [topic,action] of Object.entries(vaultActions))s.register(topic,async(event,reqId,...args)=>{
+    try{
+      const uid=s.userService.getCurrent(),data=await action(...args);
+      if(uid!==s.userService.getCurrent())throw Error("VAULT_SESSION_CHANGED");
+      event.sender.send(topic,reqId,{success:true,data});
+    }catch{event.sender.send(topic,reqId,{success:false,data:{code:"VAULT_ACTION_FAILED"}});}
+  });
   for (const action of ["get", "download", "showFile"]) {
     const topic = "release-alert/" + action;
     s.register(topic, async (event, reqId) => {

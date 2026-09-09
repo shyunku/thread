@@ -11,6 +11,7 @@ const UpdaterService = require("../service/updater.service");
 const TransitionService = require("../service/transition.service");
 const { SyncV2Service } = require("../sync-v2/service");
 const { ReleaseAlertService } = require("../service/releaseAlert.service");
+const { VaultWorkspaceService } = require("../e2ee/workspaceService");
 
 const WindowConfigure = require("../configures/window.config");
 const SessionConfigure = require("../configures/session.config");
@@ -31,6 +32,7 @@ class ServiceGroup {
     this.transitionService = new TransitionService();
     this.syncV2Service = new SyncV2Service();
     this.releaseAlertService = new ReleaseAlertService();
+    this.vaultWorkspaceService = new VaultWorkspaceService();
   }
 
   injectReferences() {
@@ -47,6 +49,7 @@ class ServiceGroup {
     this.transitionService.inject(this);
     this.syncV2Service.inject(this);
     this.releaseAlertService.inject(this);
+    this.vaultWorkspaceService.inject(this);
   }
 
   configureAndRun() {

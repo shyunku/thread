@@ -73,6 +73,14 @@ const silentSender = (topic, param, ...arg) => {
 };
 
 const IpcSender = {
+  vault: {
+    status:callback=>sender("vault/getStatus",callback),
+    create:(password,callback)=>sender("vault/create",callback,password),
+    unlock:(method,password,callback)=>sender("vault/unlock",callback,method,password),
+    lock:callback=>sender("vault/lock",callback),
+    intakes:callback=>sender("vault/intakes",callback),
+    reviews:(request,callback)=>sender("vault/reviews",callback,request),
+  },
   releaseAlerts: {
     get: callback => sender("release-alert/get", callback),
     download: callback => sender("release-alert/download", callback),

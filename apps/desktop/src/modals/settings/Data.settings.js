@@ -3,11 +3,13 @@ import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { accountInfoSlice } from "../../store/accountSlice";
 import IpcSender from "../../utils/IpcSender";
+import VaultWorkspace from "../../components/VaultWorkspace";
 
 const SettingData = () => {
   const { uid } = useSelector(accountInfoSlice);
   const [status, setStatus] = useState(null);
   const [requestError, setRequestError] = useState(false);
+  const [showVault,setShowVault]=useState(false);
 
   useEffect(() => {
     let active = true;
@@ -69,6 +71,13 @@ const SettingData = () => {
             </div>
             <button disabled={!current?.canSync || current?.syncing} onClick={retry}>다시 동기화</button>
           </div>
+        </div>
+      </div>
+      <div className="setting-item">
+        <div className="head"><div className="label">보관함 개발 검증</div></div>
+        <div className="body">
+          <button onClick={()=>setShowVault(value=>!value)}>{showVault?"검증 화면 닫기":"보관함 검증 열기"}</button>
+          {showVault&&<VaultWorkspace key={uid} uid={uid}/>}
         </div>
       </div>
     </div>

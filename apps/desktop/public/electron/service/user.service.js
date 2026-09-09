@@ -6,9 +6,10 @@ class UserService {
   /**
    * @param serviceGroup {ServiceGroup}
    */
-  inject(serviceGroup) {}
+  inject(serviceGroup) { this.group=serviceGroup; }
 
   setCurrent(userId) {
+    if(this.userId!==userId)this.group?.vaultWorkspaceService?.reset();
     this.userId = userId;
   }
 

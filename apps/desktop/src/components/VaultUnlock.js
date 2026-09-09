@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import "./VaultUnlock.scss";
 
-export default function VaultUnlock({ setup = false, osAvailable = false, passwordAvailable = true,
+export default function VaultUnlock({ setup = false, osAvailable = false, passwordAvailable = true, preparationOnly = false,
   onOSUnlock, onPasswordUnlock, onCreate, onUnlocked }) {
   const [method, setMethod] = useState(osAvailable ? "os" : "password");
   const [busy, setBusy] = useState(false);
@@ -40,8 +40,8 @@ export default function VaultUnlock({ setup = false, osAvailable = false, passwo
   };
   return <section className="vault-unlock" aria-labelledby="vault-unlock-title">
     <h2 id="vault-unlock-title">{setup ? "보관함 비밀번호 만들기" : "보관함 잠금 해제"}</h2>
-    <p>로그인 비밀번호와 별개로, 이 기기의 암호화된 할 일 데이터를 여는 비밀번호예요.</p>
-    <p className="vault-unlock-note">복구 키와도 달라요. 비밀번호를 잊었을 때를 위해 복구 키는 따로 안전하게 보관해주세요.</p>
+    <p>{preparationOnly?"로그인 비밀번호와 별개로, 준비 중인 로컬 보관함을 여는 비밀번호예요. 기존 할 일은 아직 옮기지 않습니다.":"로그인 비밀번호와 별개로, 이 기기의 암호화된 할 일 데이터를 여는 비밀번호예요."}</p>
+    <p className="vault-unlock-note">{preparationOnly?"이 단계에서는 계정 복구 키를 생성하지 않습니다. 비밀번호와 OS 인증을 모두 사용할 수 없으면 임의로 초기화하지 마세요.":"복구 키와도 달라요. 비밀번호를 잊었을 때를 위해 복구 키는 따로 안전하게 보관해주세요."}</p>
     {!setup && <div className="vault-unlock-methods" role="group" aria-label="잠금 해제 방법">
       <button type="button" disabled={busy || !osAvailable} aria-pressed={method === "os"} onClick={() => select("os")}>Windows Hello / Touch ID</button>
       <button type="button" disabled={busy || !passwordAvailable} aria-pressed={method === "password"} onClick={() => select("password")}>보관함 비밀번호</button>
