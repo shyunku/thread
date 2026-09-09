@@ -167,10 +167,10 @@ func (s *State) Validate() error {
 
 	// check if tasks' categories exists
 	for _, task := range s.Tasks {
-		for categoryId, category := range task.Categories {
+		for categoryId := range task.Categories {
 			_, exists := s.Categories[categoryId]
 			if !exists {
-				return fmt.Errorf("task %s has non-existing category %s", task.Id, category)
+				return fmt.Errorf("task %s has non-existing category %s", task.Id, categoryId)
 			}
 		}
 	}

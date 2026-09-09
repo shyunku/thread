@@ -23,7 +23,7 @@ func Printf(format string, params ...any) (int, error) {
 }
 
 func Errorf(format string, params ...any) error {
-	return fmt.Errorf(format, params)
+	return fmt.Errorf(format, params...)
 }
 
 func Sprintf(format string, params ...interface{}) string {
