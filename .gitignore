@@ -5,6 +5,7 @@
 !/apps/desktop/.env.local.example
 
 # Migration and local caches
+/apps/desktop/e2ee/
 /apps/desktop/public/resources/native/
 /.tmp/
 /.monorepo-build/
