@@ -4,6 +4,7 @@ const { encode, decode } = require("./protocol");
 const BUCKETS = new Set(["confirmed", "visible", "outbox", "recovery", "search"]);
 class EncryptedStore {
   #db;
+  #scope;
   constructor({ filename, key, scope, create = false }) {
     if (!Buffer.isBuffer(key) || key.length !== 32) throw Error("INVALID_LDK");
     if (!scope || !["development", "production"].includes(scope.environment) ||
@@ -28,6 +29,7 @@ class EncryptedStore {
       if (!pinned || !Buffer.from(pinned.scope).equals(encode(scope))) throw Error("STORE_SCOPE_MISMATCH");
       db.pragma("journal_mode=WAL"); db.pragma("synchronous=FULL");
       this.#db = db;
+      this.#scope = decode(encode(scope));
     } catch (error) { db?.close(); throw error; } // Never delete or reset on bad keys.
   }
   #ready(bucket) {
@@ -39,6 +41,7 @@ class EncryptedStore {
     if (typeof id !== "string" || !id || id.length > 256) throw Error("INVALID_RECORD_ID");
     this.#ready(bucket).prepare("INSERT INTO records VALUES(?,?,?) ON CONFLICT(bucket,id) DO UPDATE SET payload=excluded.payload").run(bucket,id,encode(value));
   }
+  scope() { this.#ready("confirmed"); return decode(encode(this.#scope)); }
   get(bucket, id) {
     const row = this.#ready(bucket).prepare("SELECT payload FROM records WHERE bucket=? AND id=?").get(bucket,id);
     return row ? decode(Buffer.from(row.payload)) : null;
