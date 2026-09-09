@@ -24,4 +24,4 @@ This authenticates account lookup only. JWT possession alone must never approve/
 
 Unit tests cover invalid/missing roles, reserved admin subject, expiry, wrong algorithm, untrusted accountId, and additive schema structure. The existing disposable MySQL migration harness also tests account/revision uniqueness, same-vault event provenance and envelope recipient constraints. It must run on an empty thread_migration_test_* database, never an application database.
 
-MySQL execution is pending Docker availability. Protocol-level signed requests, approval/revoke/recovery/CAS tests and mobile interoperability remain unfinished (#47/#49).
+MySQL 8.0 execution passed on 2026-09-09 10:04 KST in an isolated tmpfs database: additive/repeated/concurrent migrations, original fixture preservation, dirty-history rejection and vault relational constraints. The disposable container is removed after verification. Protocol-level signed requests, approval/revoke/recovery/CAS tests and mobile interoperability remain unfinished (#47/#49).
