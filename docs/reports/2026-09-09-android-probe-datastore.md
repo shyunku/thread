@@ -21,3 +21,7 @@ For future native-dependency changes, verify both resolved Android runtime varia
 ## Device result — 2026-09-09 12:47 (KST)
 
 Wireless replacement succeeded without clearing data. `am start -W` reported a successful cold launch (172 ms); the new process remained alive on a later check. Its scoped log showed React Native starting `thread_mobile` and no AndroidRuntime fatal error. No screen capture, unrelated app log collection, biometric approval, PIN entry, or key creation was performed. Stop here for the user to test authenticated key creation/read/cancel/reopen; this startup verification does not mark task #53 DONE.
+
+## User confirmation — 2026-09-09 12:50 (KST)
+
+The user confirmed all four requested scenarios work: synthetic key creation, authenticated read, cancelled read after waiting 10 seconds, and authenticated read after app restart. This closes the Android key-storage verification gate for this device, not the full mobile E2EE task. Screen-lock/background behavior and iOS were not explicitly confirmed. No additional device access was used to record this confirmation.
