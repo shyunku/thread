@@ -4,8 +4,8 @@ function check(value){if(!value)throw Error("INVALID_SYNC_RESPONSE");}
 // One main-process session per unlocked vault. No keys or plaintext leave this
 // object except through the encrypted replica; closing cancels late responses.
 class EncryptedSynchronizer {
- constructor({replica,history,device,deviceId,epoch,keyForGeneration,transport}){
-  Object.assign(this,{replica,history,device,deviceId,epoch,keyForGeneration,transport});
+ constructor({replica,history,device,deviceId,epoch,keyForGeneration,transport,refreshKeys}){
+  Object.assign(this,{replica,history,device,deviceId,epoch,keyForGeneration,transport,refreshKeys});
   this.abort=new AbortController();this.running=null;
  }
  ready(){if(this.abort.signal.aborted)throw Error("SYNC_CANCELLED");}
@@ -27,7 +27,7 @@ class EncryptedSynchronizer {
    check(fromWire(page.genesis).equals(p.encode(this.history.genesis)));
    const prior=this.history.current.revision;
    await this.history.appendPage(page);this.ready();
-   if(!page.more)return;
+   if(!page.more){await this.refreshKeys?.(this.history);this.ready();return;}
    check(this.history.current.revision>prior);
   }
   throw Error("MEMBERSHIP_HISTORY_LIMIT");

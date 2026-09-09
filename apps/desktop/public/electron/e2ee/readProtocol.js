@@ -19,14 +19,14 @@ async function createReadRequest({state,epoch,deviceId,device,operation,paramete
  return {body,signature:await p.sign(device.signing.privateKey,"request",body)};
 }
 class MembershipHistory {
- constructor(genesis,pin){this.genesis=genesis;this.pin=pin;this.states=new Map();}
+ constructor(genesis,pin){this.genesis=genesis;this.pin=pin;this.states=new Map();this.records=new Map();}
  async initialize(){this.current=await m.verifyGenesis(this.genesis,this.pin);this.states.set(0,this.current);return this;}
  at(revision){const state=this.states.get(revision);check(state,"MEMBERSHIP_HISTORY_MISSING");return state;}
  async append(record){
   check(this.current&&this.states.size<4096,"MEMBERSHIP_HISTORY_LIMIT");
   const next=record.body.schema===1&&record.body.envelopes?await m.applyTransition(this.current,record):
    record.body.operation==="recover"?await m.applyRecovery(this.current,record):await m.applyMembership(this.current,record);
-  this.states.set(next.revision,next);this.current=next;return next;
+  this.states.set(next.revision,next);this.records.set(next.revision,record);this.current=next;return next;
  }
  async appendPage(page){
   check(page&&page.head?.vaultId===this.current.vaultId&&Number.isSafeInteger(page.next)&&Array.isArray(page.records)&&page.records.length<=128);
