@@ -1,5 +1,7 @@
 import {useEffect,useRef,useState} from "react";
 import IpcSender from "../utils/IpcSender";
+import PairingQR from "./PairingQR";
+import {readPairingImage} from "../utils/pairingQrImage";
 export default function DevicePairing({osAvailable=false}){
  const [pin,setPin]=useState(""),[request,setRequest]=useState(null),[preview,setPreview]=useState(null),[confirmed,setConfirmed]=useState(false);
  const [method,setMethod]=useState("password"),[busy,setBusy]=useState(false),[message,setMessage]=useState(""),[error,setError]=useState(false);
@@ -12,16 +14,29 @@ export default function DevicePairing({osAvailable=false}){
    if(response.success)done(response.data);else setError(true);
   });
  };
- return <section aria-label="파일로 기기 연결">
-  <h3>파일로 기기 연결</h3>
+ const readImage=async event=>{
+  const file=event.target.files?.[0];event.target.value="";if(!file||pending.current)return;
+  pending.current=true;setBusy(true);setError(false);
+  try{
+   const qr=await readPairingImage(file);pending.current=false;
+   if(!mounted.current)return;
+   run("previewQR",{qr},value=>{setPreview(value);setConfirmed(false);});
+  }catch{pending.current=false;if(mounted.current){setBusy(false);setError(true);}}
+ };
+ return <section aria-label="QR·파일로 기기 연결">
+  <h3>QR·파일로 기기 연결</h3>
   <p>두 기기에 같은 계정으로 로그인해야 합니다. 보관함 지문과 요청 지문을 직접 비교하세요. 요청은 10분 후 만료됩니다.</p>
   <h4>새 기기에서</h4>
   <label>기존 기기의 보관함 지문<input value={pin} maxLength={64} disabled={busy} onChange={event=>setPin(event.target.value.trim())}/></label>
   <button disabled={busy||!/^[a-f0-9]{64}$/.test(pin)} onClick={()=>run("request",{fingerprint:pin},value=>{setRequest(value);setMessage(value.saved?"연결 요청 파일을 저장했습니다. 기존 기기로 옮겨주세요.":"파일 저장을 취소했습니다. 같은 요청으로 다시 저장할 수 있습니다.");})}>연결 요청 파일 만들기</button>
+  <button disabled={busy||!/^[a-f0-9]{64}$/.test(pin)} onClick={()=>run("requestQR",{fingerprint:pin},value=>setRequest(value))}>연결 요청 QR 표시</button>
+  {request?.qr&&<PairingQR request={request}/>}
   {request&&<p>요청 지문: <code>{request.fingerprint}</code></p>}
   <button disabled={busy} onClick={()=>run("accept",{},value=>{if(value?.phase==="PAIRED")setMessage("기기 키 연결을 완료했습니다. 기존 데이터 이관·동기화는 아직 실행하지 않았습니다.");})}>승인받은 키 전달 파일 열기</button>
   <h4>기존 기기에서</h4>
   <button disabled={busy} onClick={()=>run("preview",{},value=>{setPreview(value);setConfirmed(false);})}>연결 요청 파일 열기</button>
+  <label>연결 QR 이미지 열기<input type="file" accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={readImage}/></label>
+  <p>QR에는 공개 연결 요청만 들어 있습니다. 이미지는 이 기기에서 판독하며 키 전달은 승인 후 암호화 파일로 진행합니다.</p>
   {preview&&<>
    <p>요청 지문: <code>{preview.fingerprint}</code></p><p>권한: {preview.role==="read"?"조회만":"조회·편집"} · 만료: {new Date(preview.expiresAt).toLocaleString()}</p>
    <label><input type="checkbox" checked={confirmed} disabled={busy} onChange={event=>setConfirmed(event.target.checked)}/>새 기기에 표시된 요청 지문과 동일함을 확인했습니다.</label>

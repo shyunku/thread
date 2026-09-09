@@ -91,7 +91,7 @@ class VaultWorkspaceService{
  }
  async pairing(action,input={}){
   if(this.busy)throw Error("VAULT_BUSY");
-  if(!["request","preview","approve","accept"].includes(action)||!input||typeof input!=="object")throw Error("INVALID_PAIR_ACTION");
+  if(!["request","requestQR","preview","previewQR","approve","accept"].includes(action)||!input||typeof input!=="object")throw Error("INVALID_PAIR_ACTION");
   const entry=this.context(),generation=this.generation,store=entry.controller.use(value=>value),signal=entry.abort.signal;
   const check=()=>{if(this.active!==entry||generation!==this.generation||signal.aborted)throw Error("VAULT_SESSION_CHANGED");entry.controller.use(()=>{});};
   const base=this.transportFor(entry),transport={membership:after=>{check();return base.membership(after,signal);},approve:record=>{check();return base.approve(record,signal);}};
@@ -114,13 +114,21 @@ class VaultWorkspaceService{
   };
   this.busy=true;
   try{
-   if(action==="request"){
+   if(action==="request"||action==="requestQR"){
     const value=await pair.createRecipientRequest({store,transport,fingerprint:input.fingerprint});check();
+    if(action==="requestQR"){
+     const codec=require("./pairing"),record=await codec.fromRequestFile(await pair.requestFile(store));check();
+     return {...value,qr:codec.toQR(record)};
+    }
     return {...value,saved:await save(await pair.requestFile(store),"thread-pair-request")};
    }
    if(action==="preview"){
     const bytes=await read("thread-pair-request",2048);if(!bytes)return null;
     const value=await pair.previewRequest(store,bytes);check();return value;
+   }
+   if(action==="previewQR"){
+    const codec=require("./pairing"),record=await codec.fromQR(input.qr);check();
+    const value=await pair.previewRequest(store,codec.toRequestFile(record));check();return value;
    }
    if(action==="approve"){
     const reauthenticate=async()=>{
