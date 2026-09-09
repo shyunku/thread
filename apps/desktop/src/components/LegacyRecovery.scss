@@ -1,0 +1,6 @@
+.legacy-recovery {
+  article { border: 1px solid currentColor; border-radius: 8px; padding: 16px; margin: 12px 0; }
+  .legacy-recovery-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+  pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 240px; overflow-y: auto; font: inherit; }
+  button { margin-right: 8px; }
+}

@@ -46,3 +46,19 @@ test("corrupt intake or failed decision write commits neither a draft nor a coun
  assert.throws(()=>reconcileLegacyPending(f),/DIGEST/);
  assert.equal(f.replica.pending().length,0);
 });
+test("review API is lock-gated, paginated and excludes raw requests",async t=>{
+ const f=fixture(t,[{...entry(),status:"accepted"}]);
+ reconcileLegacyPending(f);
+ const {createVaultController}=require("../public/electron/e2ee/vaultController");
+ const controller=createVaultController({vault:{open:()=>f.store},osAuth:{verify:async()=>true},getWindow:()=>null,clearRenderer:()=>{}});
+ assert.throws(()=>controller.legacyReviews({id:f.id}),/LOCKED/);
+ await controller.unlock("os");
+ const result=controller.legacyReviews({id:f.id,limit:1});
+ assert.equal(result.total,1);assert.equal(result.next,null);
+ assert.equal(result.items[0].local.title,"after");
+ assert.equal(result.items[0].original.title,"before");
+ assert.equal(Object.hasOwn(result.items[0],"request"),false);
+ assert.throws(()=>controller.legacyReviews({id:f.id,limit:51}),/INVALID_REVIEW_PAGE/);
+ controller.lock();assert.throws(()=>controller.legacyReviews({id:f.id}),/LOCKED/);
+ controller.dispose();
+});

@@ -8,7 +8,7 @@
 | 57 | security/release | 2026-09-08 12:35 | 🔴 TODO |  | #46, #54, #55, #56 | E2EE 보안 검토·운영 전환 게이트 ([기록](tasks/0057.md)) | 외부 리뷰·성능·purge/restore·사용자 승인 후 출시. |
 | 56 | privacy/ux | 2026-09-09 14:04 | 🟡 WIP |  | #50, #54, #55 | 보호 상태·로그·개인정보 안내 ([기록](tasks/0056.md)) | 보호 상태·평문 잔존·복구 안내와 synthetic 누출 검사. |
 | 55 | security/recovery | 2026-09-09 14:32 | 🟡 WIP |  | #50, #52, #53 | 분실·키 회전·암호화 백업 복원 ([기록](tasks/0055.md)) | 전체 기기 분실·해지·세대 전환·백업 복원 검증. |
-| 54 | migration | 2026-09-09 18:42 | 🟡 WIP |  | #50, #52, #53 | v2→E2EE 이관·중단 복구 ([기록](tasks/0054.md)) | freeze/CAS commit·실패 재개·늦은 기기 pending 무손실 검증. |
+| 54 | migration | 2026-09-09 18:47 | 🟡 WIP |  | #50, #52, #53 | v2→E2EE 이관·중단 복구 ([기록](tasks/0054.md)) | freeze/CAS commit·실패 재개·늦은 기기 pending 무손실 검증. |
 | 53 | mobile/sync | 2026-09-09 15:57 | 🟡 WIP |  | #50, #51 | 모바일 암호문 조회·복구 프로토콜 ([기록](tasks/0053.md)) | 키 승인·snapshot/delta·잠금·재접속 조회 실기기 확인. |
 | 52 | desktop/sync | 2026-09-09 14:04 | 🟡 WIP |  | #48, #51 | 암호화 오프라인 편집·충돌·반복 ([기록](tasks/0052.md)) | 동시 편집·삭제·반복·정렬과 pending 보존 검증. |
 | 51 | api/sync | 2026-09-09 13:38 | 🟢 DONE | 2026-09-09 13:38 | #49 | 암호문 push/pull·snapshot ([기록](tasks/0051.md)) | 원본 서명 provenance·CAS·멱등성·snapshot 무결성 검증. |

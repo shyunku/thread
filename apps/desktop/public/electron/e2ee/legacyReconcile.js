@@ -84,4 +84,22 @@ function reconcileLegacyPending({replica,id}){
   return summary;
  });
 }
-module.exports={compareEdit,reconcileLegacyPending};
+function listLegacyReviews(store,{id,offset=0,limit=20}={}){
+ if(!Number.isSafeInteger(offset)||offset<0||!Number.isSafeInteger(limit)||limit<1||limit>50)throw Error("INVALID_REVIEW_PAGE");
+ return store.transaction(db=>{
+  const {bases,entries}=intake(db,id),objects=currentObjects(db),reviews=[];
+  for(const entry of entries){
+   if(typeof entry.change_id!=="string")throw Error("INVALID_CHANGE_ID");
+   const key="$legacy-decision-"+id+"-"+createHash("sha256").update(entry.change_id).digest("hex");
+   const decision=db.get("recovery",key);
+   if(decision?.status!=="REVIEW_REQUIRED")continue;
+   let edit;try{edit=JSON.parse(entry.request);}catch{}
+   const identityKey=edit&&identity(edit),base=bases.get(identityKey),current=objects.get(identityKey)?.row;
+   // Deliberately expose only bounded text fields, never raw requests/keys/paths.
+   const textFields=value=>Object.fromEntries(["title","memo"].filter(field=>typeof value?.[field]==="string").map(field=>[field,value[field].slice(0,4096)]));
+   reviews.push({changeId:entry.change_id,reason:decision.reason,original:textFields(base?.fields),local:textFields(edit?.changes),remote:textFields(current?.fields),deleted:!live(current)});
+  }
+  return {items:reviews.slice(offset,offset+limit),total:reviews.length,next:offset+limit<reviews.length?offset+limit:null};
+ });
+}
+module.exports={compareEdit,reconcileLegacyPending,listLegacyReviews};

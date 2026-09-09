@@ -1,5 +1,6 @@
 // Main-process coordinator. No keys or database handles cross the renderer bridge.
 const { VaultSession } = require("./localStore");
+const { listLegacyReviews } = require("./legacyReconcile");
 function createVaultController({ vault, osAuth, getWindow, clearRenderer, powerMonitor }) {
   let disposed = false;
   const session = new VaultSession({
@@ -22,6 +23,10 @@ function createVaultController({ vault, osAuth, getWindow, clearRenderer, powerM
     use(operation) {
       if (disposed) throw Error("VAULT_SESSION_CLOSED");
       return session.use(operation);
+    },
+    legacyReviews(request) {
+      if (disposed) throw Error("VAULT_SESSION_CLOSED");
+      return session.use(store => listLegacyReviews(store, request));
     },
     lock() { session.lock(); },
     dispose() { if (!disposed) { disposed = true; stop(); } },
