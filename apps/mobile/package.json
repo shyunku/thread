@@ -15,6 +15,7 @@
     "app_server_api_version": "v1"
   },
   "dependencies": {
+    "@noble/hashes": "1.8.0",
     "@react-native-async-storage/async-storage": "^1.18.1",
     "@react-native-community/blur": "^4.3.0",
     "@react-native-google-signin/google-signin": "^10.0.1",
@@ -29,6 +30,7 @@
     "axios": "^1.3.4",
     "babel-plugin-module-resolver": "^5.0.0",
     "buffer": "^6.0.3",
+    "cborg": "4.2.9",
     "moment": "^2.29.4",
     "react": "18.2.0",
     "react-native": "0.71.3",
@@ -37,6 +39,7 @@
     "react-native-gesture-handler": "^2.9.0",
     "react-native-get-random-values": "^1.8.0",
     "react-native-keychain": "10.0.0",
+    "react-native-libsodium": "1.7.0",
     "react-native-linear-gradient": "^2.6.2",
     "react-native-modal": "^13.0.1",
     "react-native-reanimated": "3.5.4",
@@ -79,7 +82,8 @@
   },
   "pnpm": {
     "patchedDependencies": {
-      "react-native-gradle-plugin@0.71.19": "patches/react-native-gradle-plugin@0.71.19.patch"
+      "react-native-gradle-plugin@0.71.19": "patches/react-native-gradle-plugin@0.71.19.patch",
+      "react-native-libsodium@1.7.0": "patches/react-native-libsodium@1.7.0.patch"
     }
   }
 }

@@ -7,7 +7,7 @@ module.exports = {
   dependencies: {
     ...(process.env.THREAD_E2EE_PROBE === '1'
       ? Object.fromEntries(Object.keys(require('./package.json').dependencies)
-          .filter(name => name !== 'react-native-keychain')
+          .filter(name => !['react-native-keychain', 'react-native-libsodium'].includes(name))
           .map(name => [name, {platforms: {android: null, ios: null}}]))
       : {}),
     'react-native-vector-icons': {

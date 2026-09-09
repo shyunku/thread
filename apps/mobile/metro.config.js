@@ -13,6 +13,10 @@ module.exports = (async () => {
     resolver: {sourceExts},
   } = await getDefaultConfig();
   return {
+    watchFolders: [
+      require('path').resolve(__dirname, '../../docs/protocol'),
+      require('path').resolve(__dirname, '../desktop/public/electron/e2ee'),
+    ],
     transformer: {
       babelTransformerPath: require.resolve('react-native-sass-transformer'),
     },

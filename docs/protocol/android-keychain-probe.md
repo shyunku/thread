@@ -10,6 +10,11 @@ This is not the mobile E2EE client. It has a separate application ID (`kr.thread
 
 ## Build
 
+The crypto probe now shares this output path and application ID. Rebuild without
+`-PthreadCryptoProbe` for the key-storage UI; see [crypto probe](android-crypto-probe.md).
+The historical SHA256 above describes the earlier user-verified artifact, not
+whatever was built most recently at that path.
+
 From `apps/mobile/android`, with a Gradle-compatible JDK (tested locally with JDK 18):
 
 ```powershell

@@ -16,7 +16,7 @@ if (threadE2eeProbe != (System.getenv("THREAD_E2EE_PROBE") == "1")) {
  */
 react {
     if (threadE2eeProbe) {
-        entryFile = file("../../tests/keychainProbe.js")
+        entryFile = file(project.hasProperty("threadCryptoProbe") ? "../../tests/protocolProbe.js" : "../../tests/keychainProbe.js")
         extraPackagerArgs = ["--max-workers", "2"]
     }
     /* Folders */
