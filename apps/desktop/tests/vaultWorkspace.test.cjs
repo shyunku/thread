@@ -19,6 +19,7 @@ test("actual workspace creation, password reopen, lock and account isolation pre
  assert.deepEqual(s.outboxReviews(),{items:[],next:"",more:false});
  f.power.emit("lock-screen");assert.throws(()=>s.intakes(),/LOCKED/);
  assert.throws(()=>s.outboxReviews(),/LOCKED/);
+ assert.throws(()=>s.outboxDetail({id:"0".repeat(32),objectId:"task"}),/LOCKED/);
  await assert.rejects(s.unlock("password","wrong"),/./);
  assert.equal((await s.unlock("os")).phase,"UNLOCKED");
  const before=fs.readdirSync(f.dir);f.switchAccount("other");

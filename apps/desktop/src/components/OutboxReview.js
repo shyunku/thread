@@ -1,5 +1,6 @@
 import {useEffect,useRef,useState} from "react";
 import IpcSender from "../utils/IpcSender";
+import OutboxDetail from "./OutboxDetail";
 const labels={REVIEW_REQUIRED:"확인 필요",ACK_UNCERTAIN:"서버 반영 여부 확인 필요",QUEUED:"전송 대기"};
 export default function OutboxReview(){
  const [page,setPage]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState(false),live=useRef(true),pending=useRef(false);
@@ -22,10 +23,10 @@ export default function OutboxReview(){
    <p>요청 ID: {item.id}</p>
    {item.reason==="STALE_SIGNED_REQUEST"&&<p>기기 권한 또는 키 세대 변경 후 거절된 원본입니다. 미반영이 확정된 것은 아닙니다.</p>}
    {item.reason==="OBJECT_CONFLICT"&&<p>다른 변경과 충돌하여 원본을 보존했습니다.</p>}
-   <ul>{item.objects.map(object=><li key={object.id}>{object.id} · 기준 버전 {object.baseVersion} · {object.deleted?"삭제 요청":"필드 "+object.fieldCount+"개 변경"}</li>)}</ul>
+   <ul>{item.objects.map(object=><li key={object.id}>{object.id} · 기준 버전 {object.baseVersion} · {object.deleted?"삭제 요청":"필드 "+object.fieldCount+"개 변경"}<OutboxDetail key={item.id+":"+object.id} id={item.id} objectId={object.id}/></li>)}</ul>
    {item.moreObjects&&<p>항목이 많아 처음 20개만 표시합니다.</p>}
   </article>)}
   {page?.more&&<button disabled={busy} onClick={()=>load(page.next)}>다음 20개</button>}
-  <p>내용 비교·재적용 기능은 아직 준비 중입니다. 확인 필요 항목도 자동으로 버리지 않습니다.</p>
+  <p>내용 비교는 읽기 전용입니다. 재적용 기능은 아직 준비 중이며, 확인 필요 항목도 자동으로 버리지 않습니다.</p>
  </section>;
 }

@@ -15,6 +15,20 @@ async function fixture(t){
 }
 const changes=[{objectId:"task",baseVersion:"0",deleted:false,fields:[{slot:1,value:{title:"SYNTHETIC_PENDING_PRIVATE"}}]}];
 
+test("outbox detail compares bounded fields without mutating drafts or returning signatures",async t=>{
+ const f=await fixture(t),{outboxDetail}=require("../public/electron/e2ee/outboxReview");
+ const id=f.replica.enqueue([{...changes[0],fields:Array.from({length:21},(_,slot)=>({slot,value:"x".repeat(2100)}))}]);
+ await f.replica.prepare(id,f.context);const before=f.store.get("outbox",id);
+ const page=outboxDetail(f.store,{id,objectId:"task"});
+ assert.equal(page.fields.length,20);assert.equal(page.more,true);assert.equal(page.baseMissing,true);
+ assert.equal(page.fields[0].local.text.length,2000);assert.equal(page.fields[0].local.truncated,true);
+ assert.equal(page.fields[0].current.present,false);assert.equal(JSON.stringify(page).includes('"record"'),false);
+ const tail=outboxDetail(f.store,{id,objectId:"task",offset:page.next});assert.equal(tail.fields.length,1);assert.equal(tail.more,false);
+ assert.deepEqual(f.store.get("outbox",id),before);
+ assert.throws(()=>outboxDetail(f.store,{id,objectId:"unrelated"}),/REVIEW_NOT_FOUND/);
+ assert.throws(()=>outboxDetail(f.store,{id:"$owner-identity",objectId:"task"}),/INVALID_REVIEW_DETAIL/);
+});
+
 test("outbox review is bounded, read-only and excludes raw private payloads",async t=>{
  const f=await fixture(t),{outboxReviews}=require("../public/electron/e2ee/outboxReview");
  const first=f.replica.enqueue(changes);await f.replica.prepare(first,f.context);f.replica.preserveConflict(first,"STALE_SIGNED_REQUEST");

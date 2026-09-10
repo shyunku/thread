@@ -20,6 +20,16 @@ test("deterministic encoding and strict decoder",()=>{
  assert.throws(()=>p.encode({a:NaN}));
  assert.throws(()=>p.decode(Buffer.concat([p.encode(1),p.encode(2)])));
 });
+
+test("large canonical records round-trip completely and oversized aggregates are rejected",()=>{
+ for(const size of [20000,700000]){
+  const value={title:"x".repeat(size),tail:{retained:true},bytes:Buffer.alloc(123,7)};
+  assert.deepEqual(p.decode(p.encode(value)),value);
+ }
+ const many=Array.from({length:400},(_,index)=>({index,value:"x".repeat(1000)}));
+ assert.deepEqual(p.decode(p.encode(many)),many);
+ assert.throws(()=>p.encode(Array.from({length:2000},()=>({text:"x".repeat(1000)}))),/ENCODING_SIZE/);
+});
 test("field AEAD authenticates every context field, rejects tampering, fresh nonce",async()=>{
  const key=crypto.randomBytes(32), value={title:"synthetic-private",memo:"fixture"};
  const encrypted=await p.encrypt(key,ctx,value);

@@ -41,6 +41,19 @@ test("real TUF validates role signatures, hash/length and signed target attribut
  await info.verify(Readable.from([f.data]));
  await assert.rejects(info.verify(Readable.from([Buffer.from("MZ-bad")]))); 
 });
+
+test("single offline root authorizes renewal but online role keys cannot replace it",()=>{
+ const f=fixture(),root=JSON.parse(f.rootBytes);
+ assert.equal(root.signed.roles.root.threshold,1);
+ assert.equal(root.signed.roles.root.keyids.length,1);
+ for(const role of ["targets","snapshot","timestamp"])assert.notEqual(root.signed.roles[role].keyids[0],root.signed.roles.root.keyids[0]);
+ const next=m.Root.fromJSON({...root.signed,version:2});
+ const store=new TrustedMetadataStore(f.rootBytes);
+ assert.throws(()=>store.updateRoot(f.signed(next,"targets")));
+ store.updateRoot(f.signed(next,"root"));
+ assert.equal(store.root.signed.version,2);
+ assert.throws(()=>store.updateRoot(f.rootBytes));
+});
 test("real TUF rejects modified mandatory metadata, expiry and timestamp rollback",()=>{
  const f=fixture();
  const invalid=JSON.parse(f.targets);invalid.signed.targets[f.target.path].custom.thread.mandatory=false;

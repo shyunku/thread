@@ -51,7 +51,7 @@ export default function VaultWorkspace({uid}){
   {error&&<p role="alert">보관함 상태를 확인하지 못했습니다. 기존 데이터는 삭제되지 않았습니다.</p>}
   {!current?<p>상태 확인 중…</p>:current.phase==="RECOVERY_REQUIRED"?<p role="alert">보관함 파일이 불완전합니다. 새로 만들거나 초기화하지 말고 복구가 필요합니다.</p>:
    current.phase==="UNLOCKED"?<>
-    <p role="status">로컬 보관함 잠금 해제됨 · 서버 E2EE 미전환</p>
+    <p role="status">로컬 보관함 잠금 해제됨 · 서버 보호 상태는 아래 동기화 확인에서 별도로 확인하세요.</p>
     <RecoverySetup key={uid+":"+current.generation}/>
     <DevicePairing key={"pair:"+uid+":"+current.generation} osAvailable={current.osAvailable}/>
     <EncryptedSync key={"sync:"+uid+":"+current.generation}/>

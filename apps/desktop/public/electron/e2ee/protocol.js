@@ -21,7 +21,9 @@ function validate(value, depth = 0) {
 }
 function encode(value) {
   validate(value);
-  const encoded = cbor.encodeCanonical(value);
+  // Synchronous cbor encoding can stop at the stream high-water mark.
+  // Keep it above our accepted size so a partial result can never be accepted.
+  const encoded = cbor.encodeOne(value, { canonical: true, highWaterMark: MAX_BYTES + 1 });
   check(encoded.length <= MAX_BYTES, "ENCODING_SIZE");
   return encoded;
 }

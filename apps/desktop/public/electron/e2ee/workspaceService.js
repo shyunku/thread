@@ -37,7 +37,7 @@ class VaultWorkspaceService{
   const entry=this.context(),generation=this.generation,osAvailable=await this.runtime().osAuth.availability();
   if(entry!==this.active||entry.uid!==this.runtime().getAccount()||generation!==this.generation)throw Error("VAULT_SESSION_CHANGED");
   const state=entry.vault.inspect();
-  return {enabled:true,uid:entry.uid,...state,phase:entry.unlocked?"UNLOCKED":state.phase,osAvailable,generation:this.generation,serverEncrypted:false};
+  return {enabled:true,uid:entry.uid,...state,phase:entry.unlocked?"UNLOCKED":state.phase,osAvailable,generation:this.generation,serverEncrypted:null};
  }
  async create(password){
   if(this.busy)throw Error("VAULT_BUSY");
@@ -65,6 +65,7 @@ class VaultWorkspaceService{
  }
  reviews(request){return this.context().controller.legacyReviews(request);}
  outboxReviews(request){return this.context().controller.use(store=>require("./outboxReview").outboxReviews(store,request));}
+ outboxDetail(request){return this.context().controller.use(store=>require("./outboxReview").outboxDetail(store,request));}
  async syncEncrypted(){
   if(this.busy)throw Error("VAULT_BUSY");
   const entry=this.context(),generation=this.generation;entry.controller.use(()=>{});this.busy=true;

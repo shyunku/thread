@@ -69,6 +69,8 @@ E2EE 보관함 잠금 해제는 Windows Hello/Touch ID 우선 및 별도 보관�
 
 ## 배포 구조
 
+업데이트 신뢰 초기 정책(2026-09-10 17:29 KST): 최상위 root 키는 1개(threshold 1), 배포 키와 분리한다. 앱은 내장 공개 신뢰 정보로 검증하며 개인키를 포함하지 않는다. 운영 키 생성 및 배포는 별도 승인 대상이다. 이후 서명된 root 교체로 키 구성/threshold를 변경할 수 있다. [운영 경계](protocol/update-signing-policy.md).
+
 E2EE v3 서버 API는 E2EE_API_ENABLED 기본 false로 분리한다. 활성화하더라도 기존 계정을 자동 이관하지 않으며, 계정 JWT와 기기 서명을 별도로 검사한다. 승인 만료·키 세대 회전·수신자 전용 키 전달 및 암호문 동기화의 구현 계약은 [E2EE v3 API](protocol/e2ee-v3-api.md)에 기록한다. 사용자 앱 통합과 운영 전환·보안 검토는 별도 완료 조건이다.
 
 이관 API는 E2EE_MIGRATION_ENABLED 기본 false로 추가 분리하며 현재 개발/rehearsal 전용이다. [prepare 계약](protocol/e2ee-migration-prepare.md)에 이어 [upload/readback/CAS 활성화 계약](protocol/e2ee-migration-activation.md)을 구현했다. 사용자 승인 후 업로드/검증 단계 취소의 임시 암호문 정리를 구현했으며 원본·활성 데이터는 보존한다. 일반 앱 UI·local cutover·늦은 기기 pending은 미완료다. [암호화 백업](protocol/encrypted-data-backup.md) 가져오기는 원본 DB를 덮어쓰지 않는 복구 사본만 만들고 활성 계정이나 이전 기기 identity로 자동 전환하지 않는다.
