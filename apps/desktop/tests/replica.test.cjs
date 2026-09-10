@@ -47,6 +47,32 @@ test("application routing handles normal requests without legacy fallback and fa
  entry.applicationActive=false;assert.equal(await intercept(service,"task/addTask","old",[]),false);
 });
 
+test("recurring completion clones the completed occurrence and resets the next task atomically",async t=>{
+ const f=await fixture(t),{ApplicationAdapter}=require("../public/electron/e2ee/applicationAdapter");
+ const start=Date.parse("2025-01-31T00:00:00Z"),now=Date.parse("2025-02-01T00:00:00Z"),due=Date.parse("2025-03-03T00:00:00Z");
+ const app=new ApplicationAdapter(f.replica,{now:()=>now});
+ app.mutate("category/createCategory",[{cid:"cat",title:"Work"}]);
+ app.mutate("task/addTask",[{tid:"repeat",title:"Recurring",due_date:start,repeat_period:"month",categories:["cat"]}]);
+ app.mutate("task/createSubtask",[{sid:"child",title:"Child",done:true,due_date:start},"repeat"]);
+ const before=f.replica.pending().length;
+ app.mutate("task/updateTaskDone",["repeat",true]);
+ assert.equal(f.replica.pending().length,before+1);
+ const lists=app.lists(),original=lists.tasks.find(row=>row.tid==="repeat"),clone=lists.tasks.find(row=>row.tid!=="repeat");
+ assert.equal(original.done,false);assert.equal(original.due_date,due);assert.equal(original.recurrence_generation,"1");
+ assert.equal(clone.done,true);assert.equal(clone.repeat_period,"");assert.equal(clone.done_at,now);
+ assert.equal(lists.relations.length,2);assert.equal(lists.subtasks.length,2);
+ assert.equal(lists.subtasks.find(row=>row.tid==="repeat").due_date,due);
+ assert.equal(lists.subtasks.find(row=>row.tid==="repeat").done,false);
+ assert.equal(lists.subtasks.find(row=>row.tid===clone.tid).done,true);
+ assert.equal(new ApplicationAdapter(f.reopen()).lists().tasks.length,2);
+});
+test("invalid recurring schedule leaves the encrypted application unchanged",async t=>{
+ const f=await fixture(t),{ApplicationAdapter}=require("../public/electron/e2ee/applicationAdapter"),app=new ApplicationAdapter(f.replica);
+ assert.throws(()=>app.mutate("task/addTask",[{tid:"bad",repeat_period:"day",due_date:0}]),/RANGE/);
+ assert.equal(app.lists().tasks.length,0);assert.equal(f.replica.pending().length,0);
+ assert.equal(f.store.entries("recovery").length,0);
+});
+
 async function resolutionFixture(t){
  const f=await fixture(t);
  const base={objectId:"task",version:"1",deleted:false,fields:[{slot:1,value:"before"}]};

@@ -55,6 +55,9 @@ func TestFieldValidation(t *testing.T) {
 	}
 }
 func TestRecurrenceMatchesServerCalendar(t *testing.T) {
+	if occurrenceID("fixture", "task", "0", "task") != "772a1eb2-b5b4-5cc3-99c8-fe97b9447e29" {
+		t.Fatal("desktop occurrence ID differs")
+	}
 	cases := []struct {
 		start, now, want time.Time
 		period           string

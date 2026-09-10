@@ -1,9 +1,10 @@
 const {randomBytes,createHash}=require("node:crypto"),p=require("./protocol");
 const {command,entityLists,mutationTopics}=require("../sync-v2/entities");
 const {optimistic,identity}=require("../sync-v2/replica");
+const {prepareSchedule,completeRecurring}=require("./recurrence");
 const clean=value=>JSON.parse(JSON.stringify(value));
 class ApplicationAdapter{
- constructor(replica){this.replica=replica;}
+ constructor(replica,{now=()=>Date.now()}={}){this.replica=replica;this.now=now;}
  objects(){
   const objects=new Map();let after="";
   for(let n=0;n<4000;n++){
@@ -27,12 +28,12 @@ class ApplicationAdapter{
   return this.replica.store.transaction(db=>{
    const objects=this.objects(),rows=new Map([...objects].map(([key,item])=>[key,clean(item.row)]));
    const action=command(topic,args,{rows:[...rows.values()]});
-   // Recurrence needs the final client calendar implementation, not v2 server calls.
-   if(action.operation==="completeRecurringTask")throw Error("RECURRENCE_UPGRADE_REQUIRED");
-   optimistic(rows,{...action,localTime:Date.now()});
+   const now=this.now();
+   if(action.operation==="completeRecurringTask")completeRecurring(rows,action,db.scope().accountId,now);
+   else optimistic(rows,{...action,localTime:now});
    const changes=[];
    for(const [key,raw] of rows){
-    const row=clean(raw),old=objects.get(key);
+    const row=clean(raw),old=objects.get(key);prepareSchedule(row);
     if(old&&p.encode(clean(old.row)).equals(p.encode(row)))continue;
     const mapKey="$application-object-"+createHash("sha256").update(key).digest("hex");
     const mapped=db.get("recovery",mapKey);
