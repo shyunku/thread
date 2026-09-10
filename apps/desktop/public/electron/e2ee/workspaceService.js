@@ -24,7 +24,12 @@ class VaultWorkspaceService{
    const vault=new LocalVault({baseDirectory:d.baseDirectory,scope,protector:d.protector});
    const entry={uid,vault,unlocked:false,abort:new AbortController()};
    entry.controller=createVaultController({vault,osAuth:d.osAuth,getWindow:d.getWindow,powerMonitor:d.powerMonitor,
-    clearRenderer:()=>{entry.unlocked=false;entry.abort.abort();entry.sync?.close();entry.sync=null;this.generation++;d.notify?.({uid,phase:"LOCKED",generation:this.generation});}});
+    clearRenderer:()=>{entry.unlocked=false;entry.abort.abort();entry.sync?.close();entry.sync=null;
+     if(entry.applicationActive&&d.getAccount()===uid){
+      this.group?.ipcService.sender("sync-v2/state",null,true,{uid,tasks:[],categories:[],subtasks:[],relations:[]});
+      this.group?.ipcService.sender("sync-v2/status",null,true,{uid,ready:false,connected:false,error:"VAULT_LOCKED",pending:null});
+     }
+     this.generation++;d.notify?.({uid,phase:"LOCKED",generation:this.generation});}});
    this.active=entry;
    const window=d.getWindow(),closed=()=>{if(this.active===entry)this.reset();},rendererGone=()=>entry.controller.lock();
    window?.once?.("closed",closed);window?.webContents?.on?.("render-process-gone",rendererGone);
@@ -64,6 +69,7 @@ class VaultWorkspaceService{
   });
  }
  reviews(request){return this.context().controller.legacyReviews(request);}
+ interceptApplication(topic,reqId,args){return require("./applicationRouting").intercept(this,topic,reqId,args);}
  outboxReviews(request){return this.context().controller.use(store=>require("./outboxReview").outboxReviews(store,request));}
  outboxDetail(request){return this.context().controller.use(store=>require("./outboxReview").outboxDetail(store,request));}
  resolveConflict(request){
@@ -84,9 +90,13 @@ class VaultWorkspaceService{
     if(this.active!==entry||generation!==this.generation){result.close?.();throw Error("VAULT_SESSION_CHANGED");}
     if(result.phase!=="ACTIVE")return result;
     entry.sync=result;
+    entry.applicationActive=true;
+    const legacy=this.group?.syncV2Service?.sessions.get(entry.uid);
+    if(legacy)this.group.syncV2Service.stop(legacy);
    }
    const status=await entry.sync.engine.run();
    if(this.active!==entry||generation!==this.generation)throw Error("VAULT_SESSION_CHANGED");
+   require("./applicationRouting").publish(this,entry);
    return {phase:"ACTIVE",...status,epoch:entry.sync.epoch};
   }finally{this.busy=false;}
  }

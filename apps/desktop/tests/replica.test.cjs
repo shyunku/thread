@@ -15,6 +15,38 @@ async function fixture(t){
 }
 const changes=[{objectId:"task",baseVersion:"0",deleted:false,fields:[{slot:1,value:{title:"SYNTHETIC_PENDING_PRIVATE"}}]}];
 
+test("application adapter stores ordinary CRUD in encrypted outbox and projects existing UI lists",async t=>{
+ const f=await fixture(t),{ApplicationAdapter}=require("../public/electron/e2ee/applicationAdapter"),app=new ApplicationAdapter(f.replica);
+ app.mutate("category/createCategory",[{cid:"cat",title:"Work",color:"blue"}]);
+ app.mutate("task/addTask",[{tid:"todo",title:"Private task",categories:["cat"]}]);
+ app.mutate("task/createSubtask",[{sid:"sub",title:"Child"},"todo"]);
+ app.mutate("task/updateTaskTitle",["todo","Changed"]);
+ assert.equal(app.lists().tasks[0].title,"Changed");
+ assert.deepEqual(app.lists().relations,[{tid:"todo",cid:"cat"}]);
+ assert.equal(app.lists().subtasks[0].tid,"todo");
+ const reopened=new ApplicationAdapter(f.reopen());assert.equal(reopened.lists().tasks[0].title,"Changed");
+ const pending=reopened.replica.pending().length;
+ assert.throws(()=>reopened.mutate("category/deleteCategory",["cat"]),/CATEGORY_IN_USE/);
+ assert.equal(reopened.replica.pending().length,pending);
+ reopened.mutate("task/deleteTask",["todo"]);
+ assert.equal(reopened.lists().tasks.length,0);assert.equal(reopened.lists().subtasks.length,0);assert.equal(reopened.lists().relations.length,0);
+ assert.throws(()=>reopened.mutate("task/addTask",[{tid:"todo",title:"Resurrect"}]),/RECREATE_REVIEW/);
+});
+test("application routing handles normal requests without legacy fallback and fails closed on lock",async t=>{
+ const f=await fixture(t),{intercept}=require("../public/electron/e2ee/applicationRouting"),events=[];
+ let locked=false;
+ const entry={uid:"fixture",applicationActive:true,controller:{use:fn=>{if(locked)throw Error("VAULT_LOCKED");return fn(f.store);}}};
+ const service={active:entry,busy:false,runtime:()=>({getAccount:()=>"fixture"}),group:{ipcService:{sender:(...args)=>events.push(args)}},syncEncrypted:async()=>{}};
+ assert.equal(await intercept(service,"task/addTask","req",[{tid:"app",title:"Visible"}]),true);
+ assert.ok(events.some(event=>event[0]==="sync-v2/state"&&event[3].tasks[0].title==="Visible"));
+ locked=true;events.length=0;
+ assert.equal(await intercept(service,"task/getAllTaskList","locked",[]),true);
+ assert.equal(events[0][2],false);assert.equal(events[0][3].code,"VAULT_LOCKED");
+ assert.equal(await intercept(service,"task/unknownFutureWrite","unsupported",[]),true);
+ assert.equal(events.at(-1)[3].code,"UNSUPPORTED_APPLICATION_ACTION");
+ entry.applicationActive=false;assert.equal(await intercept(service,"task/addTask","old",[]),false);
+});
+
 async function resolutionFixture(t){
  const f=await fixture(t);
  const base={objectId:"task",version:"1",deleted:false,fields:[{slot:1,value:"before"}]};

@@ -115,6 +115,7 @@ class IpcService extends IpcRouter {
         );
       }
       try {
+        if (await this.vaultWorkspaceService?.interceptApplication(topic, reqId, arg)) return;
         if (await this.syncV2Service?.intercept(topic, reqId, arg)) return;
         return await originalCallback(event, reqId, ...arg);
       } catch (err) {
