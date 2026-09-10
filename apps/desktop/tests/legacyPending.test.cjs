@@ -20,6 +20,18 @@ async function fixture(t){
  t.after(()=>{store.close();fs.rmSync(dir,{recursive:true,force:true});});
  return {dir,filename,store};
 }
+test("application capture refuses a live v2 replica and preserves late edits only once",async t=>{
+ const f=await fixture(t),{capture}=require("../public/electron/e2ee/captureLegacy");
+ const entry={uid:"fixture",abort:new AbortController(),controller:{use:fn=>fn(f.store)}},sessions=new Map([["fixture",{}]]);
+ const service={active:entry,generation:0,group:{syncV2Service:{sessions,opening:new Map(),file:()=>f.filename}}};
+ const before=fs.readFileSync(f.filename);
+ await assert.rejects(capture(service,entry),/RESTART_REQUIRED/);
+ sessions.clear();await capture(service,entry);
+ const marker=f.store.get("recovery","$migration-local-intake");assert.ok(marker.id);
+ const rows=f.store.entries("recovery");await capture(service,entry);assert.deepEqual(f.store.entries("recovery"),rows);
+ assert.deepEqual(fs.readFileSync(f.filename),before);
+ assert.equal(f.store.entries("outbox").length,0);
+});
 test("read-only late-device intake preserves bases, unknown ACK and recovery, without replay",async t=>{
  const f=await fixture(t),before=fs.readFileSync(f.filename);
  const result=await preserveLegacyPending({...f,accountId:"fixture"});

@@ -1,6 +1,8 @@
-import {useEffect,useState} from "react";
+import {useEffect,useRef,useState} from "react";
 import "./LegacyRecovery.scss";
 const reasons={
+ READY_FOR_REVIEW:"제목·메모를 안전하게 병합할 수 있는 후보입니다. 아래 동의 후 다시 검사합니다.",
+ ALREADY_PRESENT:"같은 값이 검증 사본에 있습니다. 과거 요청의 수신 확정을 의미하지는 않습니다.",
  FIELD_CONFLICT:"같은 필드가 다른 기기에서도 변경되었습니다.",
  DELETED_OR_MISSING:"현재 항목이 삭제되었거나 없습니다.",
  ACK_OR_REJECTION_REVIEW:"이전 서버의 처리 결과를 확인해야 합니다.",
@@ -8,10 +10,12 @@ const reasons={
  LOCAL_PENDING_CONFLICT:"이 기기에 다른 미전송 변경이 있습니다.",
 };
 // Mount only inside an unlocked, account-scoped vault screen.
-export default function LegacyRecovery({sessionKey,unlocked,intakeId,loadPage}){
+export default function LegacyRecovery({sessionKey,unlocked,intakeId,loadPage,onReconcile}){
  const [state,setState]=useState(null),[offset,setOffset]=useState(0);
+ const [ack,setAck]=useState(false),[busy,setBusy]=useState(false),[result,setResult]=useState(null);
+ const generation=useRef(0),pending=useRef(false);
  const scope=JSON.stringify([sessionKey,intakeId,unlocked]);
- useEffect(()=>{setOffset(0);},[scope]);
+ useEffect(()=>{generation.current++;setOffset(0);setAck(false);setResult(null);setBusy(false);return()=>{generation.current++;};},[scope]);
  useEffect(()=>{
   let active=true;setState(null);
   if(unlocked)Promise.resolve().then(()=>loadPage({id:intakeId,offset,limit:20})).then(page=>{
@@ -21,10 +25,23 @@ export default function LegacyRecovery({sessionKey,unlocked,intakeId,loadPage}){
  },[scope,offset,unlocked,intakeId,loadPage]);
  if(!unlocked)return <p>보관함 잠금을 해제하면 복구 자료를 확인할 수 있어요.</p>;
  const current=state?.scope===scope&&state.offset===offset?state:null;
+ const reconcile=async()=>{
+  if(!ack||pending.current)return;pending.current=true;
+  const ticket=generation.current;setBusy(true);setResult(null);
+  try{const value=await onReconcile({id:intakeId,confirmed:true});if(ticket===generation.current){setResult(value);setAck(false);}}
+  catch{if(ticket===generation.current)setResult({error:true});}
+  finally{pending.current=false;if(ticket===generation.current)setBusy(false);}
+ };
  return <section className="legacy-recovery" aria-label="이전 기기 변경 검토">
   <h2>이전 기기 변경 검토</h2>
   <p>원본은 보존되어 있어요. 이 화면을 열거나 닫아도 변경을 전송하거나 삭제하지 않습니다.</p>
   <p>제목과 메모는 각각 최대 4,096자까지 미리 표시합니다. 그 밖의 변경과 전체 원본도 보존되어 있습니다.</p>
+  {onReconcile&&<>
+   <p>동의하면 충돌하지 않는 제목·메모만 새 전송 대기에 등록합니다. 삭제·구조 변경·불확실한 ACK와 종속 변경은 복구 자료에 남습니다.</p>
+   <label><input type="checkbox" checked={ack} disabled={busy} onChange={event=>setAck(event.target.checked)}/>안전하게 병합 가능한 제목·메모의 재등록에 동의합니다.</label>
+   <button disabled={!ack||busy} onClick={reconcile}>검사 후 안전한 텍스트 복구</button>
+   {result&&<p role="status">{result.error?"적용하지 못했습니다. 원본은 보존되어 있습니다.":`새 대기 ${result.queued}개 · 추가 검토 ${result.review}개 · 같은 값 ${result.present}개`}</p>}
+  </>}
   {current?.error?<p role="alert">복구 자료를 읽지 못했습니다. 보관함 상태를 확인해주세요.</p>:!current?<p role="status">확인 중…</p>:<>
    <p>검토할 변경 {current.page.total}개</p>
    {current.page.items.map(item=><article key={item.changeId}>

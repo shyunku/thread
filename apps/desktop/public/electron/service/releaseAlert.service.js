@@ -1,6 +1,4 @@
-const axios = require("axios");
 const versions = require("compare-versions");
-const PackageJson = require("../../../package.json");
 const Util = require("../modules/util");
 const FileSystem = require("../modules/filesystem");
 
@@ -58,22 +56,7 @@ class ReleaseAlertService {
     if (this.checking) return this.checking;
     this.checking = (async () => {
       try {
-        const response = await axios.get(
-          process.env.RMS_ENTRY + "/default/release-alert",
-          {
-            params: {
-              category: Util.getSystemArchCategory(),
-              include_beta: !!PackageJson.enableBetaUpdate,
-            },
-            timeout: 10000,
-          }
-        );
-        if (response.data?.code !== 200) return this.current;
-        const next = selectRelease(
-          response.data.data,
-          PackageJson.version,
-          !!PackageJson.enableBetaUpdate
-        );
+        const next = await this.group.updaterService.latestTrustedRelease();
         if (next && this.current?.version === next.version) {
           this.current.mandatory = next.mandatory;
         } else {

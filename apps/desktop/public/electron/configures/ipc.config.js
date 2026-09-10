@@ -65,6 +65,11 @@ const {
  */
 module.exports = function (s) {
   const vaultActions={
+    "vault/reconcileLegacy":input=>s.vaultWorkspaceService.reconcileLegacy(input),
+    "vault/groupConflict":(action,input)=>s.vaultWorkspaceService.groupConflict(action,input),
+    "vault/rotation":(action,input)=>s.vaultWorkspaceService.rotation(action,input),
+    "vault/migrationStatus":()=>s.vaultWorkspaceService.migrationStatus(),
+    "vault/migration":(action,input)=>s.vaultWorkspaceService.migration(action,input),
     "vault/bootstrap":uid=>s.vaultWorkspaceService.bootstrap(uid),
     "vault/sync":()=>s.vaultWorkspaceService.syncEncrypted(),
     "vault/outboxReviews":request=>s.vaultWorkspaceService.outboxReviews(request),

@@ -3,6 +3,7 @@ import TodoContent from "./TodoContent";
 import Task from "../objects/Task";
 import Category from "../objects/Category";
 import IpcSender from "../utils/IpcSender";
+import {fromSyncV2View} from "../utils/syncV2View";
 
 let mockContext;
 jest.mock("react-router-dom", () => ({ useOutletContext: () => mockContext }));
@@ -126,6 +127,27 @@ test("search and completion filters preserve secret-category visibility", () => 
   expect(rows()[0]).toHaveTextContent("배포 완료");
 });
 
+test("decrypted application view keeps rank/date sorting and local title, memo, category search",()=>{
+ const view={
+  tasks:[
+   {tid:"a",title:"Alpha",memo:"",created_at:300,due_date:3000,next:"b"},
+   {tid:"b",title:"Beta",memo:"Needle",created_at:100,due_date:1000,next:"c"},
+   {tid:"c",title:"Gamma",memo:"",created_at:200,due_date:0,next:null}],
+  categories:[{cid:"work",title:"검색카테고리",secret:false,locked:false}],
+  subtasks:[],relations:[{tid:"a",cid:"work"}]
+ };
+ mockContext={...mockContext,states:fromSyncV2View(view)};
+ const {container,rerender}=render(<TodoContent/>);
+ const titles=()=>[...container.querySelectorAll(".todo-item-wrapper")].map(row=>["Alpha","Beta","Gamma"].find(title=>row.textContent.includes(title)));
+ fireEvent.click(screen.getByRole("button",{name:"기한 순"}));expect(titles()).toEqual(["Beta","Alpha","Gamma"]);
+ fireEvent.click(screen.getByRole("button",{name:"중요도 순"}));expect(titles()).toEqual(["Alpha","Beta","Gamma"]);
+ fireEvent.click(screen.getByRole("button",{name:"생성일 순"}));expect(titles()).toEqual(["Alpha","Gamma","Beta"]);
+ for(const [query,expected] of [["needle",["Beta"]],["검색카테고리",["Alpha"]],["GAMMA",["Gamma"]]]){
+  mockContext={...mockContext,searchQuery:query};rerender(<TodoContent/>);expect(titles()).toEqual(expected);
+ }
+ mockContext={...mockContext,states:fromSyncV2View({tasks:[],categories:[],subtasks:[],relations:[]})};
+ rerender(<TodoContent/>);expect(titles()).toEqual([]);
+});
 test("quick add and completion keep the existing IPC mutation contract", () => {
   render(<TodoContent />);
   const input = screen.getByRole("textbox", { name: "새 할 일" });

@@ -107,6 +107,15 @@ class EncryptedReplica {
     if(!p.encode(current).equals(p.encode(initial)))throw Error("REPLICA_CHANGED");
     if(migrationJournal&&!p.encode(migrationJournal.get()).equals(p.encode(migration)))throw Error("MIGRATION_CHANGED");
     const values=staged(),map=new Map(values.map(row=>[row.value.objectId,row.value]));
+    if(migrationJournal){
+     const prefix="$migration-expected-"+migration.id+"-";
+     for(const {id,value:expected} of rows(db,"recovery"))if(id.startsWith(prefix)){
+      const next=map.get(expected.objectId);
+      if(!next||sync.decimal(next.version)<1n)throw Error("MIGRATION_OBJECT_OMITTED");
+      if(next.version==="1"&&(next.deleted!==(expected.row.operation==="delete")||next.fields.length!==1||next.fields[0].slot!==0||
+        !p.encode(next.fields[0].value).equals(p.encode(expected.row))))throw Error("MIGRATION_OBJECT_CHANGED");
+     }
+    }
     // A server cannot erase or roll back an object already pinned locally.
     for(const row of rows(db,"confirmed"))if(row.id!==META){
      const next=map.get(row.id);if(!next||sync.decimal(next.version)<sync.decimal(row.value.version))throw Error("SNAPSHOT_OBJECT_ROLLBACK");

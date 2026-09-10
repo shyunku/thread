@@ -29,6 +29,30 @@ async function fixture(t){
   reopen(){session.close();store.close();store=new EncryptedStore({filename,key,scope});session=make();return session;}
  };
 }
+test("v3 source preparation survives ACK loss and restart without using retired v2",async t=>{
+ const f=await fixture(t);let calls=0;
+ f.transport.migrationSourceSnapshot=async record=>{
+  assert.equal(record.body.operation,"source-snapshot");
+  assert.deepEqual(await p.verify(f.device.signing.publicKey,"migration",record.body,record.signature),record.body);
+  calls++;return snapshot;
+ };
+ const prepare=f.transport.migrationPrepare;
+ f.transport.migrationPrepare=async record=>{await prepare(record);throw Error("SYNC_UNAVAILABLE");};
+ await assert.rejects(f.session.prepareCurrent(),/SYNC_UNAVAILABLE/);
+ const id=f.session.journal.get().id;f.reopen();f.transport.migrationPrepare=prepare;
+ assert.equal((await f.session.prepareCurrent()).id,id);
+ assert.equal(calls,1);
+});
+test("malformed or cancelled v3 source descriptor never freezes",async t=>{
+ const f=await fixture(t);let freezes=0;
+ f.transport.migrationPrepare=async()=>{freezes++;};
+ f.transport.migrationSourceSnapshot=async()=>({...snapshot,pageCount:0});
+ await assert.rejects(f.session.prepareCurrent(),/INVALID_MIGRATION_RESPONSE/);
+ assert.equal(freezes,0);
+ f.transport.migrationSourceSnapshot=async()=>{f.session.close();return snapshot;};
+ await assert.rejects(f.session.prepareCurrent(),/MIGRATION_CANCELLED/);
+ assert.equal(freezes,0);
+});
 test("prepare ACK loss resumes the same migration; large source pages persist encrypted across restart",async t=>{
  const f=await fixture(t),prepare=f.transport.migrationPrepare;
  f.transport.migrationPrepare=async record=>{await prepare(record);throw Error("SYNC_UNAVAILABLE");};

@@ -37,6 +37,7 @@ vault. Status/source/cancel are restricted to the recorded coordinator.
 
 | Endpoint | Operation | Parameters |
 | --- | --- | --- |
+| /v3/migration/source/snapshot | source-snapshot | migrationId |
 | /v3/migration/prepare | prepare | migrationId, sourceEpoch, sourceSnapshotId, freezeSeq (decimal string) |
 | /v3/migration/status | status | migrationId |
 | /v3/migration/source | source-page | migrationId, page (zero-based integer) |
@@ -44,7 +45,14 @@ vault. Status/source/cancel are restricted to the recorded coordinator.
 
 ## Freeze and retry
 
-Prepare requires a pending vault and a current, unexpired v2 snapshot. It first
+The dedicated signed source/snapshot endpoint creates or reuses a matching
+canonical snapshot without calling a retired v2 HTTP route. It authenticates
+the current authorizing device and locks account/vault in the same transaction
+as snapshot creation. Only checkpoint metadata is returned; plaintext pages
+remain coordinator-only after prepare. Pending vault and v2 account mode are
+required. It does not freeze or activate the account.
+
+Prepare requires a pending vault and a current, unexpired canonical snapshot. It first
 locks the same `sync_users` row as v2 writes, then the vault row. The snapshot
 epoch/sequence must match the locked account checkpoint. Therefore either a
 concurrent v2 write finishes first and prepare rejects its stale checkpoint, or
@@ -90,6 +98,11 @@ Cancellation requires a second matching status query before the local journal
 becomes CANCELLED. Local source/recovery copies remain preserved. Closing the
 session prevents late network responses from changing the local journal.
 
-MigrationSession handles preparation/source/cancel; MigrationTransfer now
-handles upload/readback/commit/status. Neither is connected to the ordinary UI
-or automatically switches/deletes the original local v2 database.
+MigrationSession handles preparation/source/cancel; MigrationTransfer handles
+upload/readback/commit/status. The ordinary desktop migration screen now connects
+these through explicit consent and reauthentication. A live v2 replica requires
+restarting first. The verified ACTIVE journal/readback anchors local snapshot
+installation and retained device counters; the old v2 file is never replaced.
+Lost-coordinator recovery, restart after cancelled/stale attempts and full
+late-device structural recovery remain production prerequisites. No real account
+was migrated by implementing or testing this code.

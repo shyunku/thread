@@ -3,16 +3,11 @@ const Util = require("../modules/util");
 const FileSystem = require("../modules/filesystem");
 const ArchCategory = require("../constants/ArchCategory.constants");
 const PackageJson = require("../../../package.json");
-const Request = require("../core/request");
-const VersionComparator = require("compare-versions");
 const path = require("path");
 const fs = require("fs-extra");
-const axios = require("axios");
-const StreamProgress = require("progress-stream");
 const ArchCategoryConstants = require("../constants/ArchCategory.constants");
 const ChildProcess = require("child_process");
 const dmg = require("../modules/dmg");
-const LEGACY_SERVER_CODE = require("../util/LegacyServerCode");
 const { isTrustedEvent } = require("../modules/windowSecurity");
 
 const serverHost = process.env.RMS_ENTRY;
@@ -136,81 +131,46 @@ class UpdaterService {
     }
   }
 
+  trustedCoordinator() {
+    if(!this.trusted){
+      const {TrustedUpdates}=require("../e2ee/trustedUpdates");
+      const {UpdateCoordinator}=require("../e2ee/updateCoordinator");
+      const platform=Util.getSystemArchCategory(),arch=platform==="mac"&&PackageJson.build?.mac?.target?.some(target=>target.arch?.includes("universal"))?"universal":process.arch;
+      this.trusted=new UpdateCoordinator(new TrustedUpdates({
+        rootFile:path.join(__dirname,"../../resources/update-trust/root.json"),
+        cacheDir:path.join(FileSystem.getUserDataPath(),"trusted-updates",platform+"-"+arch),
+        repositoryURL:new URL("/tuf/",serverHost).href,
+        platform,arch,installedVersion:PackageJson.version,
+      }));
+    }
+    return this.trusted;
+  }
+
+  latestTrustedRelease() {return this.trustedCoordinator().latest(!!PackageJson.enableBetaUpdate);}
+
   async checkForUpdates(category) {
-    try {
-      const currentClientVersion = PackageJson.version;
-      const latestVersionResult = await Request.get(
-        serverHost,
-        `/default/latest-version?exclude_beta=${!PackageJson.enableBetaUpdate}&only_verified=true&category=${category}`,
-        { timeout: 10000 }
-      );
-
-      if (latestVersionResult.code === Request.ok) {
-        const latestVersionInfo = latestVersionResult.data;
-        const latestVersion = latestVersionInfo.version;
-        const isLatestBeta = latestVersion.beta;
-
-        console.info(
-          `Latest version fetched: ${currentClientVersion} -> ${latestVersion} ?`
-        );
-
-        const updateNeeded = VersionComparator.compare(
-          currentClientVersion,
-          latestVersion,
-          "<"
-        );
-        console.info(
-          updateNeeded ? "Update needed." : "Already latest version."
-        );
-
-        if (updateNeeded) {
-          return {
-            result: UPDATER_RESULT_FLAG.NEW_VERSION_FOUND,
-            data: {
-              version: latestVersion,
-              isBeta: isLatestBeta,
-            },
-          };
-        } else {
-          this.ipcService.silentSender("release_download@skip", true, null);
-          return {
-            result: UPDATER_RESULT_FLAG.ALREADY_LATEST,
-            data: null,
-          };
-        }
-      } else {
-        const code = latestVersionResult?.code ?? null;
-        const interpreted = LEGACY_SERVER_CODE[code] ?? code;
-        console.error(`Couldn't check update, code: ${interpreted}`);
-        return {
-          result: UPDATER_RESULT_FLAG.UPDATE_CHECK_FAIL,
-          data: new Error(
-            `Couldn't check update, code: ${latestVersionResult?.code ?? "?"}`
-          ),
-        };
-      }
-    } catch (err) {
-      console.error(err);
-
-      return {
-        result: UPDATER_RESULT_FLAG.UPDATE_CHECK_FAIL,
-        data: err,
-      };
+    try{
+      if(category!==Util.getSystemArchCategory())throw Error("INVALID_UPDATE_PLATFORM");
+      const release=await this.latestTrustedRelease();
+      if(release)return {result:UPDATER_RESULT_FLAG.NEW_VERSION_FOUND,data:release};
+      this.ipcService.silentSender("release_download@skip",true,null);
+      return {result:UPDATER_RESULT_FLAG.ALREADY_LATEST,data:null};
+    }catch{
+      return {result:UPDATER_RESULT_FLAG.UPDATE_CHECK_FAIL,data:"SIGNED_UPDATE_UNAVAILABLE"};
     }
   }
 
   async updateToNewVersion(osCategory, userDataPath, version) {
-    const { downloadRelease } = require("../modules/downloadRelease");
+    if(osCategory!==Util.getSystemArchCategory())throw Error("INVALID_UPDATE_PLATFORM");
     this.ipcService.silentSender("release_download@initial", true, version);
-    const file = await downloadRelease({
-      axios, serverHost, userDataPath, category: osCategory, version,
-      onProgress: progress => this.ipcService.silentSender("release_download@state", true, progress),
-    });
+    const file = await this.trustedCoordinator().download(version);
     this.ipcService.silentSender("release_download@done", true, null);
     return file;
   }
 
   async installNewVersion(osCategory, userDataPath, installerPath) {
+    if(osCategory!==Util.getSystemArchCategory())throw Error("INVALID_UPDATE_PLATFORM");
+    await this.trustedCoordinator().verify(installerPath);
     if (fs.existsSync(installerPath)) {
       switch (osCategory) {
         case ArchCategoryConstants.Windows:

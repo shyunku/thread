@@ -12,6 +12,7 @@ import (
 )
 
 type MigrationStore interface {
+	CreateMigrationSourceSnapshot(context.Context, string, []byte) (vault.MigrationSourceSnapshot, error)
 	MigrationPush(context.Context, string, []byte) (vault.PushResult, error)
 	MigrationSnapshot(context.Context, string, []byte) (vault.Snapshot, error)
 	MigrationSnapshotPage(context.Context, string, []byte) (vault.SnapshotPage, error)
@@ -66,6 +67,9 @@ func RegisterMigration(r *gin.Engine, s MigrationStore, secret []byte) {
 			c.JSON(status, gin.H{"code": code})
 		}
 	}
+	g.POST("/source/snapshot", handle(func(ctx context.Context, u string, b []byte) (interface{}, error) {
+		return s.CreateMigrationSourceSnapshot(ctx, u, b)
+	}))
 	g.POST("/prepare", handle(func(ctx context.Context, u string, b []byte) (interface{}, error) {
 		return s.PrepareMigration(ctx, u, b)
 	}))

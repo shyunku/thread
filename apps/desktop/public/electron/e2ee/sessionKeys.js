@@ -22,9 +22,10 @@ async function refreshSessionKeys({store,identityKey,identity,history,epoch,read
   store.transaction(db=>{
    const saved=db.get("recovery",identityKey);
    if(!same(saved,identity))throw Error("IDENTITY_CHANGED");
-   db.put("recovery",identityKey,{...saved,keyring:ring});
+   db.put("recovery",identityKey,{...saved,keyring:ring,...(identityKey==="$owner-identity"?{recoveryStale:true}:{})});
   });
   identity.keyring=ring;
+  if(identityKey==="$owner-identity")identity.recoveryStale=true;
   for(const entry of original.keys)entry.key.fill(0);
  }finally{
   for(const candidate of temporary)if(candidate!==identity.keyring)for(const entry of candidate.keys)entry.key.fill(0);

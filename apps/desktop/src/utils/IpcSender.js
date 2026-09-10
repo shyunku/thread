@@ -74,6 +74,11 @@ const silentSender = (topic, param, ...arg) => {
 
 const IpcSender = {
   vault: {
+    reconcileLegacy:(input,callback)=>sender("vault/reconcileLegacy",callback,input),
+    groupConflict:(action,input,callback)=>sender("vault/groupConflict",callback,action,input),
+    rotation:(action,input,callback)=>sender("vault/rotation",callback,action,input),
+    migrationStatus:callback=>sender("vault/migrationStatus",callback),
+    migration:(action,input,callback)=>sender("vault/migration",callback,action,input),
     sync:callback=>sender("vault/sync",callback),
     bootstrap:(uid,callback)=>sender("vault/bootstrap",callback,uid),
     outboxReviews:(request,callback)=>sender("vault/outboxReviews",callback,request),

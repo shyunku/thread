@@ -18,6 +18,10 @@ type migrationFixture struct {
 	err   error
 }
 
+func (s *migrationFixture) CreateMigrationSourceSnapshot(_ context.Context, u string, _ []byte) (vault.MigrationSourceSnapshot, error) {
+	return vault.MigrationSourceSnapshot{}, s.call(u)
+}
+
 func (s *migrationFixture) MigrationPush(_ context.Context, u string, _ []byte) (vault.PushResult, error) {
 	return vault.PushResult{}, s.call(u)
 }
@@ -56,6 +60,10 @@ func TestMigrationHTTPBoundary(t *testing.T) {
 		err                     error
 		status                  int
 	}{
+		{"source/snapshot", "x", "application/cbor", token, nil, 200},
+		{"source/snapshot", "x", "application/cbor", "", nil, 401},
+		{"source/snapshot?accountId=other", "x", "application/cbor", token, vault.ErrForbidden, 403},
+		{"source/snapshot", "x", "application/cbor", token, vault.ErrConflict, 409},
 		{"prepare", "x", "application/cbor", token, nil, 200},
 		{"push", "x", "application/cbor", token, nil, 200},
 		{"snapshot", "x", "application/cbor", token, nil, 200},

@@ -36,7 +36,15 @@ async function bootstrap(service,uid){
  const local=entry.vault.inspect();
  if(local.phase==="RECOVERY_REQUIRED")return {mode:"RECOVERY_REQUIRED"};
  if(local.phase!=="ABSENT"&&!entry.unlocked)return {mode:"LOCKED"};
+ if(entry.unlocked){
+  const migration=entry.controller.use(store=>require("./applicationMigration").stateFor(store).get());
+  if(migration&&!["ACTIVE","CANCELLED"].includes(migration.phase)){
+   entry.migrationActive=true;return {mode:"MIGRATION_REQUIRED"};
+  }
+  if(migration?.phase==="ACTIVE")entry.migrationActive=false;
+ }
  if(entry.unlocked&&entry.controller.use(pinnedApplication)){
+  await require("./captureLegacy").capture(service,entry);check();
   selectApplication(service,entry);return {mode:"E2EE"};
  }
  const hasReplica=entry.unlocked&&entry.controller.use(store=>!!store.get("confirmed","$sync-state"));
@@ -62,6 +70,7 @@ async function bootstrap(service,uid){
   if(!entry.unlocked)return {mode:"SETUP_REQUIRED"};
   const identity=entry.controller.use(store=>store.get("recovery","$paired-device")||store.get("recovery","$owner-identity"));
   if(!identity)return {mode:"SETUP_REQUIRED"};
+  await require("./captureLegacy").capture(service,entry);check();
   const result=await service.syncEncrypted();check();
   if(result.phase!=="ACTIVE")throw Error("APPLICATION_MODE_UNAVAILABLE");
   return {mode:"E2EE"};

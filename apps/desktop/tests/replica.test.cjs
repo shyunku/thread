@@ -32,6 +32,33 @@ test("application adapter stores ordinary CRUD in encrypted outbox and projects 
  assert.equal(reopened.lists().tasks.length,0);assert.equal(reopened.lists().subtasks.length,0);assert.equal(reopened.lists().relations.length,0);
  assert.throws(()=>reopened.mutate("task/addTask",[{tid:"todo",title:"Resurrect"}]),/RECREATE_REVIEW/);
 });
+test("whole pending resolution preserves dependent edits and refuses still-valid signatures",async t=>{
+ const f=await fixture(t),{ApplicationAdapter}=require("../public/electron/e2ee/applicationAdapter"),group=require("../public/electron/e2ee/groupConflict");
+ const app=new ApplicationAdapter(f.replica);
+ const first=app.mutate("task/addTask",[{tid:"a",title:"first"}]);
+ await f.replica.prepare(first,f.context);
+ app.mutate("task/updateTaskTitle",["a","final"]);
+ let page=group.review(f.replica);assert.equal(page.canResolve,false);
+ const original=f.store.entries("outbox");
+ assert.throws(()=>group.resolve(f.replica,{confirmed:true,choice:"local",expectedRevision:page.revision}),/ROTATION/);
+ assert.deepEqual(f.store.entries("outbox"),original);
+ f.store.put("recovery","$last-sync-authority",{epoch:"1",keyGeneration:2,cursor:"0",head:"synthetic"});
+ page=group.review(f.replica);assert.equal(page.canResolve,true);
+ const request={confirmed:true,choice:"local",expectedRevision:page.revision},result=group.resolve(f.replica,request);
+ assert.equal(result.archived,2);assert.equal(f.replica.pending().length,1);assert.equal(app.lists().tasks[0].title,"final");
+ assert.deepEqual(group.resolve(f.replica,request),result);
+ for(const item of original)assert.deepEqual(f.store.get("recovery","$resolved-group-"+page.revision+"-"+item.id),item.value);
+});
+test("whole pending choice rejects changed reviews and archives removals without losing originals",async t=>{
+ const f=await fixture(t),{ApplicationAdapter}=require("../public/electron/e2ee/applicationAdapter"),group=require("../public/electron/e2ee/groupConflict");
+ const app=new ApplicationAdapter(f.replica);app.mutate("task/addTask",[{tid:"a",title:"original"}]);
+ const before=group.review(f.replica);app.mutate("task/deleteTask",["a"]);
+ assert.throws(()=>group.resolve(f.replica,{confirmed:true,choice:"current",expectedRevision:before.revision}),/REVIEW_CHANGED/);
+ const page=group.review(f.replica),original=f.store.entries("outbox");
+ assert.equal(group.resolve(f.replica,{confirmed:true,choice:"current",expectedRevision:page.revision}).archived,2);
+ assert.equal(f.replica.pending().length,0);assert.equal(app.lists().tasks.length,0);
+ for(const row of original)assert.deepEqual(f.store.get("recovery","$resolved-group-"+page.revision+"-"+row.id),row.value);
+});
 test("application routing handles normal requests without legacy fallback and fails closed on lock",async t=>{
  const f=await fixture(t),{intercept}=require("../public/electron/e2ee/applicationRouting"),events=[];
  let locked=false;

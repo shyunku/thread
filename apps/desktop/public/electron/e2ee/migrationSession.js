@@ -15,7 +15,7 @@ async function createMigrationRequest({state,device,deviceId,epoch,operation,par
   check(Object.keys(parameters).length===6&&uuid(parameters.snapshotId)&&/^[a-f0-9]{64}$/.test(parameters.ciphertextManifest)&&Number.isSafeInteger(parameters.sourcePageCount)&&parameters.sourcePageCount>0&&Number.isSafeInteger(parameters.sourceObjectCount)&&parameters.sourceObjectCount>=0);decimal(parameters.freezeSeq);
  }else if(operation==="commit"){
   check(Object.keys(parameters).length===4&&uuid(parameters.targetEpoch)&&/^[a-f0-9]{64}$/.test(parameters.ciphertextManifest));decimal(parameters.freezeSeq);
- }else check(["status","cancel"].includes(operation)&&Object.keys(parameters).length===1);
+ }else check(["source-snapshot","status","cancel"].includes(operation)&&Object.keys(parameters).length===1);
  const body={schema:1,vaultId:state.vaultId,deviceId,epoch,membershipRevision:state.revision,keyGeneration:state.keyGeneration,operation,parameters,requestId:randomBytes(16).toString("hex"),expiresAt:now+60000};
  return {body,signature:await p.sign(device.signing.privateKey,"migration",body)};
 }
@@ -29,7 +29,7 @@ class MigrationSession{
  ready(){if(this.abort.signal.aborted)throw Error("MIGRATION_CANCELLED");}
  async request(operation,parameters){
   this.ready();const record=await createMigrationRequest({state:this.history.current,device:this.device,deviceId:this.deviceId,epoch:this.epoch,operation,parameters});
-  this.ready();const method={"prepare":"migrationPrepare","status":"migrationStatus","source-page":"migrationSource","cancel":"migrationCancel","verify":"migrationVerify","commit":"migrationCommit"}[operation];
+  this.ready();const method={"source-snapshot":"migrationSourceSnapshot","prepare":"migrationPrepare","status":"migrationStatus","source-page":"migrationSource","cancel":"migrationCancel","verify":"migrationVerify","commit":"migrationCommit"}[operation];
   const result=await this.transport[method](record,this.abort.signal);this.ready();return result;
  }
  validateStatus(status,plan,phase){
@@ -42,6 +42,17 @@ class MigrationSession{
  plan(){
   const state=this.journal.get();check(state,"MIGRATION_NOT_STARTED");
   const plan=this.store.get("recovery","$migration-plan-"+state.id);check(plan,"MIGRATION_PLAN_MISSING");return plan;
+ }
+ async prepareCurrent(){
+  this.ready();
+  const state=this.journal.get()||this.journal.begin(randomBytes(16).toString("hex"));
+  check(["PREPARING","FROZEN"].includes(state.phase),"MIGRATION_PHASE_CONFLICT");
+  const plan=this.store.get("recovery","$migration-plan-"+state.id);
+  // Once prepare may have reached the server, keep the exact source and ID.
+  // A stale source is an explicit conflict, never a silent new migration.
+  const snapshot=plan?{epoch:plan.sourceEpoch,snapshotId:plan.sourceSnapshotId,seq:plan.freezeSeq,pageCount:plan.pageCount}:
+   await this.request("source-snapshot",{migrationId:state.id});
+  return this.prepare(snapshot);
  }
  async prepare(snapshot){
   this.ready();check(snapshot&&uuid(snapshot.epoch)&&uuid(snapshot.snapshotId)&&Number.isSafeInteger(snapshot.pageCount)&&snapshot.pageCount>0&&snapshot.pageCount<=100000);

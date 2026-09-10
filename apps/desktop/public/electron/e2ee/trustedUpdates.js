@@ -48,6 +48,31 @@ class TrustedUpdates {
     const filename = await this.#client.downloadTarget(info);
     return { ...release, filename };
   }
+  async latest(includeBeta=false) {
+    await this.#client.refresh();
+    const catalogInfo=await this.#client.getTargetInfo("releases.json");
+    if(!catalogInfo||!Number.isSafeInteger(catalogInfo.length)||catalogInfo.length<1||catalogInfo.length>128*1024)
+      throw Error("INVALID_RELEASE_CATALOG");
+    const filename=await this.#client.downloadTarget(catalogInfo);
+    const raw=fs.readFileSync(filename);
+    if(raw.length>128*1024)throw Error("INVALID_RELEASE_CATALOG");
+    // Verify again after reading the local cache, before using catalog fields.
+    await catalogInfo.verify(require("node:stream").Readable.from([raw]));
+    const catalog=JSON.parse(raw.toString("utf8"));
+    if(catalog?.schema!==1||!Array.isArray(catalog.releases)||catalog.releases.length>512)
+      throw Error("INVALID_RELEASE_CATALOG");
+    const {platform,arch,installedVersion}=this.#options,candidates=[];
+    for(const row of catalog.releases){
+      if(!row||!["win","mac"].includes(row.platform)||!["ia32","x64","arm64","universal"].includes(row.arch)||
+        !versions.validate(row.version)||!/^[0-9A-Za-z.+-]+$/.test(row.version))throw Error("INVALID_RELEASE_CATALOG");
+      if(row.platform!==platform||row.arch!==arch||!versions.compare(row.version,installedVersion,">")||
+        (!includeBeta&&row.version.split("+")[0].includes("-")))continue;
+      const info=await this.#client.getTargetInfo([platform,arch,row.version,platform==="win"?"installer.exe":"installer.dmg"].join("/"));
+      candidates.push(validateTarget(info,{...this.#options,version:row.version}));
+    }
+    candidates.sort((a,b)=>versions.compare(a.version,b.version,">")?-1:versions.compare(a.version,b.version,"<")?1:0);
+    return candidates.length?{...candidates[0],mandatory:candidates.some(row=>row.mandatory)}:null;
+  }
   async verifyBeforeInstall(release) {
     // Verify fresh metadata and the current bytes, even if the target was cached.
     await this.#client.refresh();

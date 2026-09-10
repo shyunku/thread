@@ -54,7 +54,7 @@ class EncryptedSynchronizer {
   }
   throw Error("SYNC_PAGE_LIMIT");
  }
- async snapshot(){
+ async snapshot(migrationJournal=null){
   await this.refreshMembership();
   const snapshot=await this.read("snapshot",{}),self=this;
   const pages=(async function*(){
@@ -66,7 +66,7 @@ class EncryptedSynchronizer {
    }
    throw Error("SYNC_PAGE_LIMIT");
   })();
-  await this.replica.installSnapshot({snapshot,history:this.history,keyForGeneration:this.keyForGeneration,pages});this.ready();
+  await this.replica.installSnapshot({snapshot,history:this.history,keyForGeneration:this.keyForGeneration,pages,migrationJournal});this.ready();
  }
  async settle(record,receipt){
   sync.verifyReceipt(record,receipt);

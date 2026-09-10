@@ -60,6 +60,26 @@ func testMigrationFreeze(t *testing.T, db *sql.DB) {
 			"operation": operation, "parameters": params, "requestId": uuid.NewString(), "expiresAt": uint64(time.Now().Add(time.Minute).UnixMilli()),
 		})
 	}
+	sourceProof := proof("source-snapshot", map[string]interface{}{"migrationId": "attempt-one"})
+	if _, e = store.CreateMigrationSourceSnapshot(ctx, "other-user", sourceProof); !errors.Is(e, ErrForbidden) {
+		t.Fatal("source snapshot crossed accounts", e)
+	}
+	badProof := append([]byte(nil), sourceProof...)
+	badProof[len(badProof)-1] ^= 1
+	if _, e = store.CreateMigrationSourceSnapshot(ctx, uid, badProof); e == nil {
+		t.Fatal("unsigned source snapshot allowed")
+	}
+	if _, e = db.ExecContext(ctx, "UPDATE sync_snapshots SET expires_at=0 WHERE user_id=? AND id=?", user, snapshot.ID); e != nil {
+		t.Fatal(e)
+	}
+	migrationSource, e := store.CreateMigrationSourceSnapshot(ctx, uid, sourceProof)
+	if e != nil || migrationSource.ID == snapshot.ID || migrationSource.Seq != snapshot.Seq || migrationSource.Epoch != epoch {
+		t.Fatal("dedicated source snapshot", migrationSource, e)
+	}
+	snapshot.ID = migrationSource.ID
+	if again, e := store.CreateMigrationSourceSnapshot(ctx, uid, sourceProof); e != nil || again != migrationSource {
+		t.Fatal("source snapshot retry", again, e)
+	}
 	params := map[string]interface{}{"migrationId": "attempt-one", "sourceEpoch": epoch, "sourceSnapshotId": snapshot.ID, "freezeSeq": "0"}
 	if _, e = store.PrepareMigration(ctx, uid, proof("prepare", params)); !errors.Is(e, ErrConflict) {
 		t.Fatal("stale source accepted", e)
@@ -68,6 +88,9 @@ func testMigrationFreeze(t *testing.T, db *sql.DB) {
 	frozen, e := store.PrepareMigration(ctx, uid, proof("prepare", params))
 	if e != nil || frozen.Phase != "FROZEN" || frozen.ObjectCount != 1 {
 		t.Fatal("prepare", frozen, e)
+	}
+	if _, e = store.CreateMigrationSourceSnapshot(ctx, uid, sourceProof); !errors.Is(e, ErrConflict) {
+		t.Fatal("source snapshot allowed after freeze", e)
 	}
 	if _, e = source.Apply(ctx, uid, mutation()); canonical.ErrorCode(e) != "UPDATE_REQUIRED" {
 		t.Fatal("v2 write passed freeze", e)

@@ -1,11 +1,10 @@
-jest.mock("axios", () => ({ get: jest.fn() }));
 jest.mock("../../public/electron/modules/util", () => ({
   getSystemArchCategory: () => "win",
 }));
 jest.mock("../../public/electron/modules/filesystem", () => ({
   getUserDataPath: () => "fixture",
 }));
-const axios = require("axios");
+const latest=jest.fn();
 const {
   ReleaseAlertService,
   selectRelease,
@@ -38,18 +37,16 @@ test("ignores current/older/invalid/beta versions and carries mandatory boundary
   });
 });
 test("coalesces socket/poll requests and automatically downloads mandatory releases once", async () => {
-  axios.get.mockResolvedValue({
-    data: { code: 200, data: [{ version: "2.0.0", mandatory: true }] },
-  });
+  latest.mockResolvedValue({version:"2.0.0",mandatory:true});
   const service = new ReleaseAlertService();
   const download = jest.fn().mockResolvedValue("fixture/2.0.0.exe");
   service.inject({
     ipcService: { sender: jest.fn() },
-    updaterService: { updateToNewVersion: download },
+    updaterService: { updateToNewVersion: download, latestTrustedRelease:latest },
   });
   await Promise.all([service.check(), service.check()]);
   await service.downloading;
-  expect(axios.get).toHaveBeenCalledTimes(1);
+  expect(latest).toHaveBeenCalledTimes(1);
   expect(download).toHaveBeenCalledTimes(1);
   expect(service.current.status).toBe("ready");
   await service.check();
@@ -60,16 +57,12 @@ test("optional releases wait for selection; failed required downloads retry with
   const download = jest.fn().mockRejectedValue(Error("offline"));
   service.inject({
     ipcService: { sender: jest.fn() },
-    updaterService: { updateToNewVersion: download },
+    updaterService: { updateToNewVersion: download, latestTrustedRelease:latest },
   });
-  axios.get.mockResolvedValue({
-    data: { code: 200, data: [{ version: "2.0.0", mandatory: false }] },
-  });
+  latest.mockResolvedValue({version:"2.0.0",mandatory:false});
   await service.check();
   expect(download).not.toHaveBeenCalled();
-  axios.get.mockResolvedValue({
-    data: { code: 200, data: [{ version: "2.0.0", mandatory: true }] },
-  });
+  latest.mockResolvedValue({version:"2.0.0",mandatory:true});
   await service.check();
   await service.downloading;
   expect(service.current.status).toBe("failed");
@@ -77,7 +70,7 @@ test("optional releases wait for selection; failed required downloads retry with
   await service.check();
   await service.downloading;
   expect(service.current.status).toBe("ready");
-  axios.get.mockRejectedValue(Error("offline"));
+  latest.mockRejectedValue(Error("offline"));
   await service.check();
   expect(service.current.mandatory).toBe(true);
 });

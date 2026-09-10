@@ -23,7 +23,7 @@ export default function RecoverySetup(){
   <h3>기기 키와 복구 준비</h3>
   <p>먼저 로컬 기기 키와 복구 자료를 준비합니다. 서버 등록은 복구 확인 후 별도로 요청하며 데이터 이관은 하지 않습니다.</p>
   {!state?<button disabled={busy} onClick={()=>run(async()=>{const value=await call("prepareIdentity");if(live.current)setState(value);})}>기기 키 준비</button>:<>
-   <p>{state.phase==="RECOVERY_CONFIRMED"?"복구 파일·코드 검증 완료":"복구 파일·코드 확인 필요"}</p>
+   <p>{state.recoveryStale?"다른 기기에서 키가 바뀌어 기존 복구 자료가 최신이 아닙니다. 기기 해지와 키 회전에서 새 복구 자료를 준비하세요.":state.phase==="RECOVERY_CONFIRMED"?"복구 파일·코드 검증 완료":"복구 파일·코드 확인 필요"}</p>
    <p>이 기기의 보관함 지문: <code>{state.fingerprint}</code></p>
    {state.phase==="RECOVERY_CONFIRMED"&&<VaultRegistration/>}
    <p>복구 코드와 암호화 파일이 모두 필요합니다. 서로 다른 안전한 곳에 보관하고 채팅이나 로그에 붙여넣지 마세요.</p>

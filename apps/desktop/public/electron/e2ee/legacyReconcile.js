@@ -91,10 +91,11 @@ function listLegacyReviews(store,{id,offset=0,limit=20}={}){
   for(const entry of entries){
    if(typeof entry.change_id!=="string")throw Error("INVALID_CHANGE_ID");
    const key="$legacy-decision-"+id+"-"+createHash("sha256").update(entry.change_id).digest("hex");
-   const decision=db.get("recovery",key);
-   if(decision?.status!=="REVIEW_REQUIRED")continue;
+   let decision=db.get("recovery",key);
+   if(decision&&decision.status!=="REVIEW_REQUIRED")continue;
    let edit;try{edit=JSON.parse(entry.request);}catch{}
    const identityKey=edit&&identity(edit),base=bases.get(identityKey),current=objects.get(identityKey)?.row;
+   if(!decision){const compared=compareEdit(entry,base,current);decision={reason:compared.status==="READY"?"READY_FOR_REVIEW":compared.status==="ALREADY_PRESENT"?"ALREADY_PRESENT":compared.reason};}
    // Deliberately expose only bounded text fields, never raw requests/keys/paths.
    const textFields=value=>Object.fromEntries(["title","memo"].filter(field=>typeof value?.[field]==="string").map(field=>[field,value[field].slice(0,4096)]));
    reviews.push({changeId:entry.change_id,reason:decision.reason,original:textFields(base?.fields),local:textFields(edit?.changes),remote:textFields(current?.fields),deleted:!live(current)});

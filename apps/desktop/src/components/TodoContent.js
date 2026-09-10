@@ -215,7 +215,7 @@ const TodoContent = (callback, deps) => {
         };
       case SORT_MODE.CREATED_DATE:
         return (t1, t2) => {
-          return moment(t2.createdDate).diff(moment(t1.createdDate));
+          return moment(t2.createdAt).diff(moment(t1.createdAt));
         };
       default:
         return null;

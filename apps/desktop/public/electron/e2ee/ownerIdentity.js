@@ -21,19 +21,21 @@ async function prepareOwner(store){
   keyring.keys[0].key.fill(0);kit.secret.fill(0);
  }
 }
-function publicIdentity(value){return value?{phase:value.phase,deviceId:value.deviceId,fingerprint:value.fingerprint}:null;}
+function publicIdentity(value){return value?{phase:value.phase,deviceId:value.deviceId,fingerprint:value.fingerprint,...(value.recoveryStale?{recoveryStale:true}:{})}:null;}
 function ownerStatus(store){return publicIdentity(store.get("recovery",KEY));}
 function recoveryMaterial(store){
  const value=store.get("recovery",KEY);if(!value)throw Error("IDENTITY_REQUIRED");
+ if(value.recoveryStale)throw Error("RECOVERY_REFRESH_REQUIRED");
  return {code:files.formatCode(value.recoverySecret),bytes:files.exportBundle(value.recoveryBundle),fingerprint:value.fingerprint};
 }
 async function confirmOwnerRecovery(store,code,bytes){
  const before=store.get("recovery",KEY);if(!before)throw Error("IDENTITY_REQUIRED");
+ if(before.recoveryStale)throw Error("RECOVERY_REFRESH_REQUIRED");
  let restored;
  try{
   restored=await files.unlockBundle(code,bytes,{vaultId:store.scope().vaultId,genesisFingerprint:before.fingerprint});
   if(!p.encode(restored.keyring).equals(p.encode(before.keyring)))throw Error("RECOVERY_CONTENT_MISMATCH");
-  await p.verify(before.genesis.body.recoveryKey,"recovery-check",before.fingerprint,
+  await p.verify(before.recoveryKey||before.genesis.body.recoveryKey,"recovery-check",before.fingerprint,
    await p.sign(restored.recoveryAuthoritySecret,"recovery-check",before.fingerprint));
   return store.transaction(db=>{
    const current=db.get("recovery",KEY);

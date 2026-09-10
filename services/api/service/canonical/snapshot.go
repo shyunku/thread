@@ -38,6 +38,23 @@ func (p *Protocol) Snapshot(ctx context.Context, uid, epoch string) (Snapshot, e
 		return result, e
 	}
 	defer tx.Rollback()
+	result, e = p.SnapshotInTransaction(ctx, tx, uid, epoch)
+	if e != nil {
+		return Snapshot{}, e
+	}
+	if e = tx.Commit(); e != nil {
+		return Snapshot{}, e
+	}
+	return result, nil
+}
+
+// SnapshotInTransaction keeps snapshot creation inside the caller's account
+// and authorization locks. The caller owns commit/rollback; no account mode changes.
+func (p *Protocol) SnapshotInTransaction(ctx context.Context, tx *sql.Tx, uid, epoch string) (Snapshot, error) {
+	result := Snapshot{}
+	if len(p.Key) < 32 {
+		return result, fail("SYNC_UNAVAILABLE")
+	}
 	a, e := account(ctx, tx, uid, " FOR UPDATE")
 	if e != nil {
 		return result, e
@@ -114,9 +131,6 @@ func (p *Protocol) Snapshot(ctx context.Context, uid, epoch string) (Snapshot, e
 		if _, e = tx.ExecContext(ctx, "INSERT INTO sync_snapshot_pages(user_id,snapshot_id,page_number,payload,checksum) VALUES (?,?,?,?,?)", a.User, result.ID, i, raw, hex.EncodeToString(hash[:])); e != nil {
 			return Snapshot{}, e
 		}
-	}
-	if e = tx.Commit(); e != nil {
-		return Snapshot{}, e
 	}
 	return result, nil
 }

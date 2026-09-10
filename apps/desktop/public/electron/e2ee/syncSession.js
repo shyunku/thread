@@ -2,6 +2,7 @@ const {historyFor}=require("./filePairing"),{validateKeys}=require("./keyTransit
 const {EncryptedReplica}=require("./replica"),{EncryptedSynchronizer}=require("./synchronize");
 const {refreshSessionKeys}=require("./sessionKeys");
 async function openSyncSession({store,transport,signal}){
+ if(store.get("recovery","$pending-rotation")?.phase==="COMMITTING")throw Error("ROTATION_RECONCILE_REQUIRED");
  const ready=()=>{if(signal?.aborted)throw Error("SYNC_CANCELLED");store.scope();};
  ready();const state=await transport.accountStatus(signal);ready();
  if(state.accountMode!=="e2ee"||state.vaultMode!=="active")return {phase:"WAITING_FOR_MIGRATION"};
@@ -28,7 +29,8 @@ async function openSyncSession({store,transport,signal}){
  };
  signal?.addEventListener("abort",close,{once:true});
  try{
-  ready();await engine.snapshot();ready();
+  const journal=require("./applicationMigration").stateFor(store),migration=journal.get();
+  ready();await engine.snapshot(migration&&migration.phase!=="CANCELLED"?journal:null);ready();
   const latest=await transport.accountStatus(signal);ready();
   if(latest.accountMode!=="e2ee"||latest.vaultMode!=="active"||latest.vaultId!==state.vaultId||latest.epoch!==state.epoch)throw Error("SYNC_STATE_CHANGED");
   return {phase:"ACTIVE",engine,replica,close,epoch:state.epoch};

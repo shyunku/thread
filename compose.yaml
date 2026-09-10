@@ -94,6 +94,7 @@ services:
       - "127.0.0.1:${RMS_PORT:-4034}:4034"
     volumes:
       - rms-releases:/workspace/service/releases
+      - rms-tuf:/workspace/service/tuf-repository:ro
     depends_on:
       mysql:
         condition: service_healthy
@@ -133,3 +134,4 @@ volumes:
   mysql-data:
   redis-data:
   rms-releases:
+  rms-tuf:

@@ -46,10 +46,48 @@ async function fixture(t,{empty=false}={}){
  const attach=()=>{session=new MigrationSession({store,journal:new MigrationJournal(store,{vaultId:"vault"}),history,device,deviceId:"owner",epoch:"1",transport});transfer=new MigrationTransfer({session,keyForGeneration:async()=>key});};
  attach();await session.prepare(source);
  t.after(()=>{session.close();store.close();fs.rmSync(dir,{recursive:true,force:true});});
- return {get store(){return store;},get session(){return session;},get transfer(){return transfer;},get remote(){return remote;},accepted,transport,rows,key,history,dir,
+ return {get store(){return store;},get session(){return session;},get transfer(){return transfer;},get remote(){return remote;},accepted,transport,rows,key,history,device,dir,
   reopen(){session.close();store.close();store=new EncryptedStore({filename,key:ldk,scope});attach();}
  };
 }
+test("application migration requires consent and authentication, preserves journal on failure and resumes transfer",async t=>{
+ const f=await fixture(t),{execute,status}=require("../public/electron/e2ee/applicationMigration");
+ f.store.put("recovery","$owner-identity",{phase:"RECOVERY_CONFIRMED",device:f.device,deviceId:"owner",fingerprint:f.history.current.head,keyring:{keys:[{generation:1,key:f.key}]}});
+ f.transport.accountStatus=async()=>({vaultId:"vault",epoch:target,revision:0,head:f.history.current.head,keyGeneration:1});
+ f.transport.membership=async()=>({genesis:p.encode(f.history.genesis).toString("base64"),head:{vaultId:"vault",revision:0,digest:f.history.current.head},records:[],more:false,next:0});
+ const entry={uid:"fixture",abort:new AbortController(),controller:{use:fn=>fn(f.store)}};
+ let authenticated=false;
+ const service={active:entry,generation:0,busy:false,context:()=>entry,transportFor:()=>f.transport,
+  runtime:()=>({osAuth:{verify:async()=>authenticated},getWindow:()=>null}),
+  group:{syncV2Service:{sessions:new Map(),opening:new Map(),file:()=>path.join(f.dir,"absent")}}};
+ await assert.rejects(execute(service,"transfer",{}),/CONSENT/);
+ await assert.rejects(execute(service,"transfer",{confirmed:true,method:"os"}),/AUTH_CANCELLED/);
+ assert.equal(status(service).phase,"FROZEN");assert.equal(f.accepted.length,0);
+ authenticated=true;service.group.syncV2Service.sessions.set("fixture",{});
+ await assert.rejects(execute(service,"transfer",{confirmed:true,method:"os"}),/RESTART_REQUIRED/);
+ service.group.syncV2Service.sessions.clear();
+ const push=f.transport.migrationPush;let first=true;
+ f.transport.migrationPush=async record=>{const result=await push(record);if(first){first=false;throw Error("SYNC_UNAVAILABLE");}return result;};
+ await assert.rejects(execute(service,"transfer",{confirmed:true,method:"os"}),/SYNC_UNAVAILABLE/);
+ assert.equal(service.busy,false);assert.equal(entry.migrationActive,true);
+ assert.equal(status(service).phase,"UPLOADING");
+ assert.equal((await execute(service,"transfer",{confirmed:true,method:"os"})).phase,"ACTIVE");
+ assert.equal(f.accepted.length,2);assert.ok(f.store.get("recovery","$owner-identity").device.signing.privateKey.some(v=>v!==0));
+});
+test("application cutover pins migrated objects and preserves the device counter",async t=>{
+ const f=await fixture(t);await f.transfer.run();
+ const {EncryptedReplica}=require("../public/electron/e2ee/replica"),{EncryptedSynchronizer}=require("../public/electron/e2ee/synchronize");
+ const replica=new EncryptedReplica(f.store,{vaultId:"vault",epoch:target,deviceId:"owner"},{initialize:false});
+ f.transport.membership=async()=>({genesis:p.encode(f.history.genesis).toString("base64"),head:{vaultId:"vault",revision:0,digest:f.history.current.head},records:[],more:false,next:0});
+ f.transport.snapshot=f.transport.migrationSnapshot;f.transport.snapshotPage=f.transport.migrationSnapshotPage;
+ const engine=new EncryptedSynchronizer({replica,history:f.history,device:f.device,deviceId:"owner",epoch:target,keyForGeneration:async()=>f.key,transport:f.transport});
+ t.after(()=>engine.close());
+ await engine.snapshot(f.session.journal);
+ assert.equal(f.store.get("recovery","$migration-local-"+f.session.journal.get().id).phase,"READY");
+ const old=BigInt(f.store.get("recovery","$migration-counter-owner"));
+ const id=replica.enqueue([{objectId:"new-task",baseVersion:"0",deleted:false,fields:[{slot:0,value:{title:"new"}}]}]);
+ assert.ok(BigInt(f.store.get("outbox",id).counter)>old);
+});
 test("all canonical fields, identities, tombstones and relationships survive encrypted migration before activation",async t=>{
  const f=await fixture(t),running=f.transfer.run();assert.equal(f.transfer.run(),running);
  assert.equal((await running).phase,"ACTIVE");assert.equal(f.remote.phase,"ACTIVE");

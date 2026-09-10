@@ -4,6 +4,10 @@ const blocked=new Set(["auth/initializeDatabase","system/migrateLegacyDatabase",
 const passive=new Set(["auth/isDatabaseReady","system/isLegacyMigrationAvailable","system/localLastBlockNumber","system/remoteLastBlockNumber","system/migrateCheckDoneSignal","system/lastTxUpdateTime"]);
 async function intercept(service,topic,reqId,args){
  const entry=service.active,ipc=service.group?.ipcService;
+ if(entry?.migrationActive&&entry.uid===service.runtime().getAccount()&&ipc&&
+  (mutationTopics.has(topic)||reads[topic]||blocked.has(topic)||passive.has(topic)||/^(task|category|tasks_categories|sync-v2|socket)\//.test(topic)||["system/stateListenReady","system/isDatabaseClear"].includes(topic))){
+  ipc.sender(topic,reqId,false,{code:"MIGRATION_IN_PROGRESS"});return true;
+ }
  if(!entry?.applicationActive||entry.uid!==service.runtime().getAccount()||!ipc)return false;
  const supported=mutationTopics.has(topic)||reads[topic]||blocked.has(topic)||passive.has(topic)||["socket/connect","socket/disconnect","category/getCategoryTasks","system/isDatabaseClear","system/stateListenReady","sync-v2/getStatus","sync-v2/retry"].includes(topic);
  const handled=supported||/^(task|category|tasks_categories)\//.test(topic);
