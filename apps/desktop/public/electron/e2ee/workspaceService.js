@@ -66,6 +66,15 @@ class VaultWorkspaceService{
  reviews(request){return this.context().controller.legacyReviews(request);}
  outboxReviews(request){return this.context().controller.use(store=>require("./outboxReview").outboxReviews(store,request));}
  outboxDetail(request){return this.context().controller.use(store=>require("./outboxReview").outboxDetail(store,request));}
+ resolveConflict(request){
+  if(this.busy)throw Error("VAULT_BUSY");
+  return this.context().controller.use(store=>{
+   const meta=store.get("confirmed","$sync-state");
+   if(!meta)throw Error("SYNC_REQUIRED");
+   const {EncryptedReplica}=require("./replica");
+   return require("./resolveConflict").resolveUnsignedConflict(new EncryptedReplica(store,meta.scope,{initialize:false}),request);
+  });
+ }
  async syncEncrypted(){
   if(this.busy)throw Error("VAULT_BUSY");
   const entry=this.context(),generation=this.generation;entry.controller.use(()=>{});this.busy=true;

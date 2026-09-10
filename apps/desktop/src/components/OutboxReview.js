@@ -27,6 +27,6 @@ export default function OutboxReview(){
    {item.moreObjects&&<p>항목이 많아 처음 20개만 표시합니다.</p>}
   </article>)}
   {page?.more&&<button disabled={busy} onClick={()=>load(page.next)}>다음 20개</button>}
-  <p>내용 비교는 읽기 전용입니다. 재적용 기능은 아직 준비 중이며, 확인 필요 항목도 자동으로 버리지 않습니다.</p>
+  <p>서명 전 단일 충돌만 명시적으로 선택할 수 있습니다. 전송 여부가 불확실하거나 종속 변경이 있으면 원본을 보존하고 재적용하지 않습니다.</p>
  </section>;
 }

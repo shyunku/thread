@@ -20,6 +20,8 @@ test("actual workspace creation, password reopen, lock and account isolation pre
  f.power.emit("lock-screen");assert.throws(()=>s.intakes(),/LOCKED/);
  assert.throws(()=>s.outboxReviews(),/LOCKED/);
  assert.throws(()=>s.outboxDetail({id:"0".repeat(32),objectId:"task"}),/LOCKED/);
+ assert.throws(()=>s.resolveConflict({}),/LOCKED/);
+ s.busy=true;assert.throws(()=>s.resolveConflict({}),/VAULT_BUSY/);s.busy=false;
  await assert.rejects(s.unlock("password","wrong"),/./);
  assert.equal((await s.unlock("os")).phase,"UNLOCKED");
  const before=fs.readdirSync(f.dir);f.switchAccount("other");

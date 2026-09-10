@@ -15,6 +15,53 @@ async function fixture(t){
 }
 const changes=[{objectId:"task",baseVersion:"0",deleted:false,fields:[{slot:1,value:{title:"SYNTHETIC_PENDING_PRIVATE"}}]}];
 
+async function resolutionFixture(t){
+ const f=await fixture(t);
+ const base={objectId:"task",version:"1",deleted:false,fields:[{slot:1,value:"before"}]};
+ f.store.put("confirmed","task",base);
+ const id=f.replica.enqueue([{objectId:"task",baseVersion:"1",deleted:false,fields:[{slot:1,value:"mine"}]}]);
+ f.store.put("confirmed","task",{...base,version:"2",fields:[{slot:1,value:"remote"}]});
+ f.replica.preserveConflict(id);
+ const {outboxDetail}=require("../public/electron/e2ee/outboxReview"),{resolveUnsignedConflict}=require("../public/electron/e2ee/resolveConflict");
+ const request={id,objectId:"task",expectedRevision:outboxDetail(f.store,{id,objectId:"task"}).revision,choice:"local"};
+ return {...f,id,request,resolve:request=>resolveUnsignedConflict(f.replica,request)};
+}
+test("unsigned conflict selection archives originals and queues only once against current version",async t=>{
+ const f=await resolutionFixture(t),original=f.store.get("outbox",f.id),result=f.resolve(f.request);
+ assert.equal(result.phase,"QUEUED");assert.notEqual(result.newId,f.id);
+ const pending=f.store.get("outbox",result.newId);
+ assert.equal(pending.changes[0].baseVersion,"2");assert.equal(pending.changes[0].fields[0].value,"mine");
+ assert.equal(pending.record,undefined);
+ assert.deepEqual(f.store.get("recovery","$resolved-conflict-"+f.id).original,original);
+ assert.deepEqual(f.resolve(f.request),result);assert.equal(f.replica.pending().length,1);
+ assert.throws(()=>f.resolve({...f.request,choice:"current"}),/RESOLUTION_CHANGED/);
+ const reopened=f.reopen();assert.deepEqual(reopened.store.get("recovery","$resolved-conflict-"+f.id).result,result);
+});
+test("choosing confirmed copy keeps the abandoned local edit in encrypted recovery",async t=>{
+ const f=await resolutionFixture(t),result=f.resolve({...f.request,choice:"current"});
+ assert.deepEqual(result,{phase:"CURRENT_SELECTED",newId:null});assert.equal(f.replica.pending().length,0);
+ assert.equal(f.store.get("visible","task").fields[0].value,"remote");
+ assert.equal(f.store.get("recovery","$resolved-conflict-"+f.id).original.changes[0].fields[0].value,"mine");
+});
+test("changed comparison, signed requests and dependent edits refuse resolution without writes",async t=>{
+ const f=await resolutionFixture(t),original=f.store.get("outbox",f.id);
+ assert.throws(()=>f.resolve({...f.request,expectedRevision:"0".repeat(64)}),/REVIEW_CHANGED/);
+ f.store.put("outbox",f.id,{...original,record:Buffer.from("synthetic-signed-record")});
+ assert.throws(()=>f.resolve(f.request),/ACK_RECONCILIATION_REQUIRED/);
+ f.store.put("outbox",f.id,original);
+ f.store.put("outbox","f".repeat(32),{status:"draft",counter:"2",changes:[{...original.changes[0],baseVersion:"2"}],bases:[]});
+ assert.throws(()=>f.resolve(f.request),/DEPENDENT_REVIEW_REQUIRED/);
+ assert.deepEqual(f.store.get("outbox",f.id),original);
+ assert.equal(f.store.get("recovery","$resolved-conflict-"+f.id),null);
+});
+test("failure saving the resolution rolls back outbox, overlay and reserved counter together",async t=>{
+ const f=await resolutionFixture(t),before=f.store.entries("outbox"),visible=f.store.get("visible","task"),meta=f.store.get("confirmed","$sync-state"),put=f.store.put;
+ f.store.put=function(bucket,id,value){if(id.startsWith("$resolved-conflict-"))throw Error("SYNTHETIC_DISK_FAILURE");return put.call(this,bucket,id,value);};
+ assert.throws(()=>f.resolve(f.request),/SYNTHETIC_DISK_FAILURE/);f.store.put=put;
+ assert.deepEqual(f.store.entries("outbox"),before);assert.deepEqual(f.store.get("visible","task"),visible);
+ assert.deepEqual(f.store.get("confirmed","$sync-state"),meta);
+});
+
 test("outbox detail compares bounded fields without mutating drafts or returning signatures",async t=>{
  const f=await fixture(t),{outboxDetail}=require("../public/electron/e2ee/outboxReview");
  const id=f.replica.enqueue([{...changes[0],fields:Array.from({length:21},(_,slot)=>({slot,value:"x".repeat(2100)}))}]);

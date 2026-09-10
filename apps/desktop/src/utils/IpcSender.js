@@ -77,6 +77,7 @@ const IpcSender = {
     sync:callback=>sender("vault/sync",callback),
     outboxReviews:(request,callback)=>sender("vault/outboxReviews",callback,request),
     outboxDetail:(request,callback)=>sender("vault/outboxDetail",callback,request),
+    resolveConflict:(request,callback)=>sender("vault/resolveConflict",callback,request),
     pairing:(action,input,callback)=>sender("vault/pairing",callback,action,input),
     registrationEndpoint:callback=>sender("vault/registrationEndpoint",callback),
     registerIdentity:callback=>sender("vault/registerIdentity",callback),

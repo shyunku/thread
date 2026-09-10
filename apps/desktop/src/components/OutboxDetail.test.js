@@ -1,7 +1,7 @@
 import {act,fireEvent,render,screen} from "@testing-library/react";
 import OutboxDetail from "./OutboxDetail";
 import IpcSender from "../utils/IpcSender";
-jest.mock("../utils/IpcSender",()=>({vault:{outboxDetail:jest.fn()}}));
+jest.mock("../utils/IpcSender",()=>({vault:{outboxDetail:jest.fn(),resolveConflict:jest.fn()}}));
 beforeEach(()=>jest.clearAllMocks());
 const data={baseVersion:"1",currentVersion:"2",fields:[{slot:0,base:{present:true,text:"before"},local:{present:true,text:"<script>private</script>"},current:{present:true,text:"remote"}}],more:false};
 test("contents are explicit, escaped text and hidden on request",()=>{
@@ -31,4 +31,21 @@ test("next page sends the same comparison revision and changed data clears the v
  expect(IpcSender.vault.outboxDetail.mock.calls[1][0]).toEqual({id:"fixture",objectId:"task",offset:20,expectedRevision:"a".repeat(64)});
  expect(screen.queryByText("before")).not.toBeInTheDocument();
  expect(screen.getByRole("alert")).toHaveTextContent("처음부터 다시");
+});
+
+test("resolution requires explicit acknowledgement and preserves the displayed revision",()=>{
+ IpcSender.vault.outboxDetail.mockImplementation((request,cb)=>cb({success:true,data:{...data,revision:"a".repeat(64),canResolve:true}}));
+ IpcSender.vault.resolveConflict.mockImplementation((request,cb)=>cb({success:true,data:{phase:"QUEUED"}}));
+ render(<OutboxDetail id="fixture" objectId="task"/>);fireEvent.click(screen.getByText("내용 비교 열기"));
+ const button=screen.getByText("내 변경을 전송 대기에 등록");expect(button).toBeDisabled();
+ fireEvent.click(button);expect(IpcSender.vault.resolveConflict).not.toHaveBeenCalled();
+ fireEvent.click(screen.getByRole("checkbox"));fireEvent.click(button);
+ expect(IpcSender.vault.resolveConflict.mock.calls[0][0]).toEqual({id:"fixture",objectId:"task",expectedRevision:"a".repeat(64),choice:"local"});
+ expect(screen.getByRole("status")).toHaveTextContent("아직 서버에 전송하지 않았습니다");
+});
+
+test("unresolved signed requests do not expose resolution actions",()=>{
+ IpcSender.vault.outboxDetail.mockImplementation((request,cb)=>cb({success:true,data:{...data,canResolve:false}}));
+ render(<OutboxDetail id="fixture" objectId="task"/>);fireEvent.click(screen.getByText("내용 비교 열기"));
+ expect(screen.queryByText("내 변경을 전송 대기에 등록")).not.toBeInTheDocument();
 });

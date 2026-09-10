@@ -4,6 +4,7 @@ const REQUEST_TOPICS = Object.freeze([
   "vault/sync",
   "vault/outboxReviews",
   "vault/outboxDetail",
+  "vault/resolveConflict",
   "vault/pairing",
   "vault/registrationEndpoint", "vault/registerIdentity",
   "vault/prepareIdentity", "vault/identityStatus", "vault/recoveryCode", "vault/exportRecovery", "vault/confirmRecovery",
