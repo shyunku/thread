@@ -14,6 +14,20 @@ async function fixture(t){
   reopen(){store.close();store=new EncryptedStore({filename,key,scope});return new EncryptedReplica(store,replicaScope);},dir};
 }
 const changes=[{objectId:"task",baseVersion:"0",deleted:false,fields:[{slot:1,value:{title:"SYNTHETIC_PENDING_PRIVATE"}}]}];
+
+test("outbox review is bounded, read-only and excludes raw private payloads",async t=>{
+ const f=await fixture(t),{outboxReviews}=require("../public/electron/e2ee/outboxReview");
+ const first=f.replica.enqueue(changes);await f.replica.prepare(first,f.context);f.replica.preserveConflict(first,"STALE_SIGNED_REQUEST");
+ f.replica.enqueue([{...changes[0],objectId:"other"}]);
+ const before=f.store.entries("outbox"),page=outboxReviews(f.store,{limit:1});
+ assert.equal(page.items.length,1);assert.equal(page.more,true);
+ const next=outboxReviews(f.store,{after:page.next,limit:1});
+ assert.equal(next.items.length,1);assert.equal(next.more,false);assert.notEqual(page.items[0].id,next.items[0].id);
+ const result=JSON.stringify(outboxReviews(f.store));
+ assert.equal(result.includes("SYNTHETIC_PENDING_PRIVATE"),false);assert.equal(result.includes('"record"'),false);
+ assert.deepEqual(f.store.entries("outbox"),before);
+ for(const request of [{limit:0},{limit:51},{after:"$owner-identity"}])assert.throws(()=>outboxReviews(f.store,request),/INVALID_REVIEW_PAGE/);
+});
 test("normal drafts never reuse a migration counter, including reserved unsent counters",async t=>{
  const f=await fixture(t);
  f.store.put("recovery","$migration-counter-owner","42");

@@ -64,6 +64,7 @@ class VaultWorkspaceService{
   });
  }
  reviews(request){return this.context().controller.legacyReviews(request);}
+ outboxReviews(request){return this.context().controller.use(store=>require("./outboxReview").outboxReviews(store,request));}
  async syncEncrypted(){
   if(this.busy)throw Error("VAULT_BUSY");
   const entry=this.context(),generation=this.generation;entry.controller.use(()=>{});this.busy=true;

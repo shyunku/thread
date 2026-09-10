@@ -16,11 +16,14 @@ test("actual workspace creation, password reopen, lock and account isolation pre
  await assert.rejects(s.create("synthetic test password"),/EXISTS/);
  assert.equal((await s.unlock("password","synthetic test password")).phase,"UNLOCKED");
  assert.deepEqual(s.intakes(),[]);
+ assert.deepEqual(s.outboxReviews(),{items:[],next:"",more:false});
  f.power.emit("lock-screen");assert.throws(()=>s.intakes(),/LOCKED/);
+ assert.throws(()=>s.outboxReviews(),/LOCKED/);
  await assert.rejects(s.unlock("password","wrong"),/./);
  assert.equal((await s.unlock("os")).phase,"UNLOCKED");
  const before=fs.readdirSync(f.dir);f.switchAccount("other");
  assert.equal((await s.status()).phase,"ABSENT");assert.deepEqual(fs.readdirSync(f.dir),before);
+ assert.throws(()=>s.outboxReviews(),/LOCKED/);
  f.switchAccount("fixture");assert.equal((await s.status()).phase,"LOCKED");
  assert.equal((await s.unlock("password","synthetic test password")).phase,"UNLOCKED");
  f.window.webContents.emit("render-process-gone");

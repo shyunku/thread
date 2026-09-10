@@ -1,5 +1,6 @@
 import {useEffect,useRef,useState} from "react";
 import IpcSender from "../utils/IpcSender";
+import OutboxReview from "./OutboxReview";
 export default function EncryptedSync(){
  const [result,setResult]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState(false),live=useRef(true),pending=useRef(false);
  useEffect(()=>{live.current=true;return ()=>{live.current=false;};},[]);
@@ -14,5 +15,6 @@ export default function EncryptedSync(){
   {result?.phase==="WAITING_FOR_MIGRATION"&&<p role="status">서버 계정이 아직 E2EE로 전환되지 않았습니다. 기존 데이터는 그대로 유지합니다.</p>}
   {result?.phase==="ACTIVE"&&<p role="status">암호화 동기화 완료 · 반영 번호 {result.cursor} · 미전송 {result.pending}개 · 충돌 {result.conflicts}개</p>}
   {error&&<p role="alert">동기화를 확인하지 못했습니다. 기기 연결·키 세대·서버 상태를 확인해주세요. 초기화하지 말고 다시 시도하세요.</p>}
+  <OutboxReview/>
  </section>;
 }
