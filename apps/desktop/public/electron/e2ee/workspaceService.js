@@ -90,6 +90,19 @@ class VaultWorkspaceService{
    return {phase:"ACTIVE",...status,epoch:entry.sync.epoch};
   }finally{this.busy=false;}
  }
+ async reconcileConflict(request){
+  if(this.busy)throw Error("VAULT_BUSY");
+  if(typeof request?.expectedRevision!=="string"||!/^[a-f0-9]{64}$/.test(request.expectedRevision))throw Error("REVIEW_REVISION_REQUIRED");
+  const entry=this.context(),generation=this.generation;
+  entry.controller.use(store=>require("./outboxReview").outboxDetail(store,request));
+  if(!entry.sync)throw Error("SYNC_REQUIRED");
+  this.busy=true;
+  try{
+   const result=await entry.sync.engine.reconcile(request.id);
+   if(this.active!==entry||generation!==this.generation)throw Error("VAULT_SESSION_CHANGED");
+   return result;
+  }finally{this.busy=false;}
+ }
  registrationEndpoint(){
   const raw=this.runtime().endpoint||require("../modules/util").getServerFinalEndpoint().replace(/\/v[0-9]+\/?$/,"");
   const url=new URL(raw);

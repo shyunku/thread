@@ -318,6 +318,35 @@ test("old accepted request behind snapshot still settles after membership change
  assert.equal(f.accepted.length,1);assert.equal(f.store.get("recovery",id),null);
 });
 
+test("explicit reconciliation verifies an accepted archived request without duplicate application",async t=>{
+ const f=await engineFixture(t),id=f.replica.enqueue(changes),record=await f.replica.prepare(id,f.context);
+ await f.transport.push(record);await f.replica.installSnapshot(await snapshotInput(f,[record],"1"));f.replica.preserveConflict(id,"STALE_SIGNED_REQUEST");
+ await advanceMembership(f);
+ assert.deepEqual(await f.engine.reconcile(id),{phase:"APPLIED"});
+ assert.equal(f.accepted.length,1);assert.equal(f.replica.pending().length,0);
+ assert.deepEqual(f.store.get("recovery",id).record,p.encode(record));
+});
+test("explicit reconciliation preserves originals on rejection, timeout and forged receipt",async t=>{
+ const f=await engineFixture(t),id=f.replica.enqueue(changes);await f.replica.prepare(id,f.context);f.replica.preserveConflict(id);
+ const original=f.store.get("outbox",id);
+ f.transport.push=async()=>{throw Error("SYNC_CHECKPOINT_CONFLICT");};
+ assert.deepEqual(await f.engine.reconcile(id),{phase:"REVIEW_REQUIRED"});assert.deepEqual(f.store.get("outbox",id),original);
+ f.transport.push=async()=>{throw Error("SYNC_UNAVAILABLE");};
+ await assert.rejects(f.engine.reconcile(id),/SYNC_UNAVAILABLE/);assert.deepEqual(f.store.get("outbox",id),original);
+ f.transport.push=async()=>({seq:"1",versions:{task:"99"}});
+ await assert.rejects(f.engine.reconcile(id));assert.deepEqual(f.store.get("outbox",id),original);
+});
+test("reconciliation serializes operations and a close blocks late ACK",async t=>{
+ const f=await engineFixture(t),id=f.replica.enqueue(changes);await f.replica.prepare(id,f.context);
+ const original=f.store.get("outbox",id),push=f.transport.push;let ready,finish;
+ const reached=new Promise(resolve=>{ready=resolve;});
+ f.transport.push=async record=>{ready();await new Promise(resolve=>{finish=resolve;});return push(record);};
+ const running=f.engine.reconcile(id);await reached;
+ await assert.rejects(f.engine.reconcile(id),/SYNC_BUSY/);
+ f.engine.close();finish();await assert.rejects(running,/SYNC_CANCELLED/);
+ assert.deepEqual(f.store.get("outbox",id),original);
+});
+
 test("snapshot cannot overwrite an edit queued while pages are being verified",async t=>{
  const f=await fixture(t);
  const input=await snapshotInput(f,[],"0");

@@ -1,7 +1,7 @@
 import {act,fireEvent,render,screen} from "@testing-library/react";
 import OutboxDetail from "./OutboxDetail";
 import IpcSender from "../utils/IpcSender";
-jest.mock("../utils/IpcSender",()=>({vault:{outboxDetail:jest.fn(),resolveConflict:jest.fn()}}));
+jest.mock("../utils/IpcSender",()=>({vault:{outboxDetail:jest.fn(),resolveConflict:jest.fn(),reconcileConflict:jest.fn()}}));
 beforeEach(()=>jest.clearAllMocks());
 const data={baseVersion:"1",currentVersion:"2",fields:[{slot:0,base:{present:true,text:"before"},local:{present:true,text:"<script>private</script>"},current:{present:true,text:"remote"}}],more:false};
 test("contents are explicit, escaped text and hidden on request",()=>{
@@ -48,4 +48,15 @@ test("unresolved signed requests do not expose resolution actions",()=>{
  IpcSender.vault.outboxDetail.mockImplementation((request,cb)=>cb({success:true,data:{...data,canResolve:false}}));
  render(<OutboxDetail id="fixture" objectId="task"/>);fireEvent.click(screen.getByText("내용 비교 열기"));
  expect(screen.queryByText("내 변경을 전송 대기에 등록")).not.toBeInTheDocument();
+});
+
+test("signed retry requires consent and reports unresolved rejection without claiming success",()=>{
+ IpcSender.vault.outboxDetail.mockImplementation((request,cb)=>cb({success:true,data:{...data,revision:"b".repeat(64),canRetrySigned:true,canResolve:false}}));
+ IpcSender.vault.reconcileConflict.mockImplementation((request,cb)=>cb({success:true,data:{phase:"REVIEW_REQUIRED"}}));
+ render(<OutboxDetail id="fixture" objectId="task"/>);fireEvent.click(screen.getByText("내용 비교 열기"));
+ const button=screen.getByText("원본 재시도·반영 확인");expect(button).toBeDisabled();
+ fireEvent.click(screen.getByRole("checkbox"));fireEvent.click(button);
+ expect(IpcSender.vault.reconcileConflict.mock.calls[0][0]).toEqual({id:"fixture",objectId:"task",expectedRevision:"b".repeat(64)});
+ expect(screen.getByRole("status")).toHaveTextContent("미반영이 확정된 것은 아니며");
+ expect(IpcSender.vault.resolveConflict).not.toHaveBeenCalled();
 });

@@ -40,7 +40,7 @@ function outboxDetail(store,{id,objectId,offset=0,expectedRevision}={}){
   return {slot,base:preview(b),local:preview(l),current:preview(c),
    status:fieldStatus(b,l,c,!!base&&base.version===local.baseVersion&&!base.deleted&&!!current&&!current.deleted&&!local.deleted)};
  });
- return {id,objectId,revision,canResolve:draft.status==="conflict"&&!draft.record&&draft.changes.length===1&&!!current&&!current.deleted&&!local.deleted,baseVersion:local.baseVersion,currentVersion:current?.version??null,
+ return {id,objectId,revision,canRetrySigned:!!draft.record,canResolve:draft.status==="conflict"&&!draft.record&&draft.changes.length===1&&!!current&&!current.deleted&&!local.deleted,baseVersion:local.baseVersion,currentVersion:current?.version??null,
   baseMissing:!base,currentMissing:!current,localDeleted:local.deleted,currentDeleted:current?.deleted??false,
   fields,next:offset+fields.length,more:offset+fields.length<slots.length};
 }

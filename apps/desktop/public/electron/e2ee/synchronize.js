@@ -83,6 +83,31 @@ class EncryptedSynchronizer {
   if(this.running)return this.running;
   this.running=this.runOnce().finally(()=>{this.running=null;});return this.running;
  }
+ reconcile(id){
+  if(this.running)return Promise.reject(Error("SYNC_BUSY"));
+  this.running=this.reconcileOnce(id).finally(()=>{this.running=null;});return this.running;
+ }
+ async reconcileOnce(id){
+  this.ready();
+  if(typeof id!=="string"||!/^[a-f0-9]{32}$/.test(id))throw Error("INVALID_RECONCILIATION");
+  const draft=this.replica.store.get("outbox",id);
+  if(!draft?.record)throw Error("SIGNED_REQUEST_REQUIRED");
+  const record=p.decode(draft.record);
+  check(record.body.mutationId===id&&record.body.deviceId===this.deviceId&&record.body.epoch===this.epoch);
+  await this.refreshMembership();await this.pull();this.ready();
+  if(!this.replica.store.get("outbox",id))return {phase:"APPLIED"};
+  check(this.replica.store.get("outbox",id).record?.equals(draft.record));
+  let receipt;
+  try{receipt=await this.transport.push(record,this.abort.signal);this.ready();}
+  catch(error){
+   this.ready();
+   if(["OBJECT_CONFLICT","SYNC_CHECKPOINT_CONFLICT"].includes(error.message))return {phase:"REVIEW_REQUIRED"};
+   throw error;
+  }
+  await this.settle(record,receipt);this.ready();
+  check(!this.replica.store.get("outbox",id));
+  return {phase:"APPLIED"};
+ }
  async runOnce(){
   await this.refreshMembership();await this.pull();
   for(const item of this.replica.pending()){

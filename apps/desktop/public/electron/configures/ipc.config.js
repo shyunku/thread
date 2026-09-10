@@ -69,6 +69,7 @@ module.exports = function (s) {
     "vault/outboxReviews":request=>s.vaultWorkspaceService.outboxReviews(request),
     "vault/outboxDetail":request=>s.vaultWorkspaceService.outboxDetail(request),
     "vault/resolveConflict":request=>s.vaultWorkspaceService.resolveConflict(request),
+    "vault/reconcileConflict":request=>s.vaultWorkspaceService.reconcileConflict(request),
     "vault/pairing":(action,input)=>s.vaultWorkspaceService.pairing(action,input),
     "vault/registrationEndpoint":()=>{s.vaultWorkspaceService.context();return s.vaultWorkspaceService.registrationEndpoint();},
     "vault/registerIdentity":()=>s.vaultWorkspaceService.registerIdentity(),
