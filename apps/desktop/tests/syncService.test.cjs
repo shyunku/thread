@@ -32,8 +32,9 @@ test("desktop service connects the v2 wire, recovers a lost ACK, blocks legacy c
       created_at: 1,
     },
   };
-  let dropped = false;
+  let dropped = false, retired = false, alertChecks = 0;
   const fakeAxios = async (config) => {
+    if (retired) throw { response: { status: 426, data: { code: "UPDATE_REQUIRED", version: "2.0.0" } } };
     const url = new URL(config.url),
       route = url.pathname.replace("/v2/sync", "");
     let data;
@@ -139,6 +140,7 @@ test("desktop service connects the v2 wire, recovers a lost ACK, blocks legacy c
     syncerService: { userSyncerContexts: new Map() },
     databaseService: { getUserDatabaseContext: async () => ({ db: legacy }) },
     ipcService: { sender: (...event) => events.push(event) },
+    releaseAlertService: { check: async () => { alertChecks++; } },
   });
   t.after(async () => {
     for (const s of service.sessions.values()) {
@@ -192,4 +194,12 @@ test("desktop service connects the v2 wire, recovers a lost ACK, blocks legacy c
       (e) => e[0] === "sync-v2/state" && e[3].tasks[0]?.title === "offline"
     )
   );
+  retired = true;
+  await service.intercept("task/updateTaskTitle", "release-pending", ["a", "preserved after release"]);
+  for (let n = 0; s.running && n < 100; n++)
+    await new Promise(resolve => setTimeout(resolve, 10));
+  assert.equal((await service.settingsStatus()).error, "UPDATE_REQUIRED");
+  assert.equal((await service.settingsStatus()).pending, 1);
+  assert.ok(alertChecks > 0);
+  assert.equal(sent.length, 1);
 });

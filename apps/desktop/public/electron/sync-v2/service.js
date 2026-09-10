@@ -283,6 +283,8 @@ class SyncV2Service {
         if (s.generation !== generation) throw Error("SESSION_CHANGED");
         return r.data;
       } catch (e) {
+        if (e.response?.status === 426 && e.response?.data?.code === "UPDATE_REQUIRED")
+          void this.group.releaseAlertService?.check();
         throw Error(
           e.response?.data?.code ||
             (e.response?.status === 401

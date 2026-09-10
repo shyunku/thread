@@ -31,6 +31,7 @@ func UseRouter(r *gin.Engine) {
 func Register(r *gin.Engine, p *canonical.Protocol, secret []byte) {
 	g := r.Group("/v2/sync")
 	g.Use(auth(secret))
+	g.Use(releaseGate())
 	g.Use(func(c *gin.Context) { c.Header("Cache-Control", "no-store"); c.Next() })
 	g.GET("/capabilities", func(c *gin.Context) {
 		a, e := p.Account(c.Request.Context(), c.GetString("uid"))
