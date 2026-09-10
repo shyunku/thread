@@ -1,5 +1,6 @@
 import TopBar from "components/TopBar";
 import SyncWarning from "components/SyncWarning";
+import ApplicationGate from "components/ApplicationGate";
 import Loading from "molecules/Loading";
 import Prompt from "molecules/Prompt";
 import Toast from "molecules/Toast";
@@ -554,4 +555,7 @@ const RootLayout = () => {
   );
 };
 
-export default RootLayout;
+export default function GuardedRootLayout(){
+ const account=useSelector(accountInfoSlice);
+ return <ApplicationGate key={account.uid} uid={account.uid}><RootLayout/></ApplicationGate>;
+}

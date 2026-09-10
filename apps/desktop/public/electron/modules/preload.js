@@ -2,6 +2,7 @@
 // Main imports the same contract; renderer executes only the bridge installation.
 const REQUEST_TOPICS = Object.freeze([
   "vault/sync",
+  "vault/bootstrap",
   "vault/outboxReviews",
   "vault/outboxDetail",
   "vault/resolveConflict",

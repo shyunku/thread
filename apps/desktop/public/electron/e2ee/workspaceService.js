@@ -6,8 +6,8 @@ class VaultWorkspaceService{
  runtime(){
   if(this.dependencies)return this.dependencies;
   const {app,safeStorage,systemPreferences,powerMonitor}=require("electron");
-  return this.dependencies={enabled:!app.isPackaged,baseDirectory:path.join(require("../modules/filesystem").getUserDataPath(),"e2ee"),
-   environment:"development",protector:require("../modules/keyProtection").createKeyProtection({app,safeStorage}),
+  return this.dependencies={enabled:true,baseDirectory:path.join(require("../modules/filesystem").getUserDataPath(),"e2ee"),
+   environment:app.isPackaged?"production":"development",protector:require("../modules/keyProtection").createKeyProtection({app,safeStorage}),
    osAuth:require("./osAuth").createOSAuth({app,systemPreferences}),powerMonitor,
    getWindow:()=>this.group.windowService.mainWindow,getAccount:()=>this.group.userService.getCurrent(),
    notify:data=>{const w=this.group.windowService.mainWindow;if(w&&!w.isDestroyed())w.webContents.send("vault/status",null,{success:true,data});}};
@@ -24,7 +24,7 @@ class VaultWorkspaceService{
    const vault=new LocalVault({baseDirectory:d.baseDirectory,scope,protector:d.protector});
    const entry={uid,vault,unlocked:false,abort:new AbortController()};
    entry.controller=createVaultController({vault,osAuth:d.osAuth,getWindow:d.getWindow,powerMonitor:d.powerMonitor,
-    clearRenderer:()=>{entry.unlocked=false;entry.abort.abort();entry.sync?.close();entry.sync=null;
+    clearRenderer:()=>{entry.unlocked=false;entry.abort.abort();entry.sync?.close();entry.sync=null;entry.connected=false;clearInterval(entry.poller);entry.poller=null;
      if(entry.applicationActive&&d.getAccount()===uid){
       this.group?.ipcService.sender("sync-v2/state",null,true,{uid,tasks:[],categories:[],subtasks:[],relations:[]});
       this.group?.ipcService.sender("sync-v2/status",null,true,{uid,ready:false,connected:false,error:"VAULT_LOCKED",pending:null});
@@ -69,6 +69,7 @@ class VaultWorkspaceService{
   });
  }
  reviews(request){return this.context().controller.legacyReviews(request);}
+ bootstrap(uid){return require("./applicationBootstrap").bootstrap(this,uid);}
  interceptApplication(topic,reqId,args){return require("./applicationRouting").intercept(this,topic,reqId,args);}
  outboxReviews(request){return this.context().controller.use(store=>require("./outboxReview").outboxReviews(store,request));}
  outboxDetail(request){return this.context().controller.use(store=>require("./outboxReview").outboxDetail(store,request));}
@@ -89,15 +90,20 @@ class VaultWorkspaceService{
     const result=await entry.controller.use(store=>require("./syncSession").openSyncSession({store,transport:this.transportFor(entry),signal:entry.abort.signal}));
     if(this.active!==entry||generation!==this.generation){result.close?.();throw Error("VAULT_SESSION_CHANGED");}
     if(result.phase!=="ACTIVE")return result;
+    try{entry.controller.use(require("./applicationBootstrap").pinApplication);}
+    catch(error){result.close?.();throw error;}
     entry.sync=result;
-    entry.applicationActive=true;
-    const legacy=this.group?.syncV2Service?.sessions.get(entry.uid);
-    if(legacy)this.group.syncV2Service.stop(legacy);
+    require("./applicationBootstrap").selectApplication(this,entry);
    }
    const status=await entry.sync.engine.run();
    if(this.active!==entry||generation!==this.generation)throw Error("VAULT_SESSION_CHANGED");
+   entry.connected=true;
    require("./applicationRouting").publish(this,entry);
    return {phase:"ACTIVE",...status,epoch:entry.sync.epoch};
+  }catch(error){
+   entry.connected=false;
+   if(this.active===entry&&entry.unlocked&&entry.applicationActive)require("./applicationRouting").publish(this,entry);
+   throw error;
   }finally{this.busy=false;}
  }
  async reconcileConflict(request){

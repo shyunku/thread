@@ -65,6 +65,7 @@ const {
  */
 module.exports = function (s) {
   const vaultActions={
+    "vault/bootstrap":uid=>s.vaultWorkspaceService.bootstrap(uid),
     "vault/sync":()=>s.vaultWorkspaceService.syncEncrypted(),
     "vault/outboxReviews":request=>s.vaultWorkspaceService.outboxReviews(request),
     "vault/outboxDetail":request=>s.vaultWorkspaceService.outboxDetail(request),

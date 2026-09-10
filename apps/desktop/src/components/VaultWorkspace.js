@@ -43,10 +43,10 @@ export default function VaultWorkspace({uid}){
   return true;
  };
  const loadPage=useCallback(request=>invoke("reviews",request),[]);
- if(status?.enabled===false)return <p>이 빌드에서는 보관함 개발 검증이 비활성화되어 있습니다.</p>;
+ if(status?.enabled===false)return <p>이 빌드에서는 보관함을 사용할 수 없습니다.</p>;
  const current=status?.uid===uid?status:null;
- return <section aria-label="보관함 개발 검증">
-  <h3>보관함 개발 검증</h3>
+ return <section aria-label="보관함 관리">
+  <h3>보관함 관리</h3>
   <p>로컬 보관함을 준비하고 복구 확인 후 서버 등록을 별도로 요청할 수 있습니다. 기존 할 일 이관이나 서버 E2EE 활성화는 수행하지 않습니다.</p>
   {error&&<p role="alert">보관함 상태를 확인하지 못했습니다. 기존 데이터는 삭제되지 않았습니다.</p>}
   {!current?<p>상태 확인 중…</p>:current.phase==="RECOVERY_REQUIRED"?<p role="alert">보관함 파일이 불완전합니다. 새로 만들거나 초기화하지 말고 복구가 필요합니다.</p>:

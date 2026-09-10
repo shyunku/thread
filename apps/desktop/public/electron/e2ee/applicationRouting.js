@@ -1,15 +1,17 @@
 const {ApplicationAdapter,mutationTopics}=require("./applicationAdapter");
 const reads={"task/getAllTaskList":"tasks","task/getAllSubtaskList":"subtasks","category/getCategoryList":"categories","tasks_categories/getTasksCategoriesList":"relations"};
-const blocked=new Set(["system/migrateLegacyDatabase","system/truncateLegacyDatabase","system/mismatchTxAcceptTheirs","system/mismatchTxAcceptMine","system/initializeState","system/clearStatePermanently"]);
+const blocked=new Set(["auth/initializeDatabase","system/migrateLegacyDatabase","system/truncateLegacyDatabase","system/mismatchTxAcceptTheirs","system/mismatchTxAcceptMine","system/initializeState","system/clearStatePermanently"]);
+const passive=new Set(["auth/isDatabaseReady","system/isLegacyMigrationAvailable","system/localLastBlockNumber","system/remoteLastBlockNumber","system/migrateCheckDoneSignal","system/lastTxUpdateTime"]);
 async function intercept(service,topic,reqId,args){
  const entry=service.active,ipc=service.group?.ipcService;
  if(!entry?.applicationActive||entry.uid!==service.runtime().getAccount()||!ipc)return false;
- const supported=mutationTopics.has(topic)||reads[topic]||blocked.has(topic)||["socket/connect","socket/disconnect","category/getCategoryTasks","system/isDatabaseClear","system/stateListenReady","sync-v2/getStatus","sync-v2/retry"].includes(topic);
+ const supported=mutationTopics.has(topic)||reads[topic]||blocked.has(topic)||passive.has(topic)||["socket/connect","socket/disconnect","category/getCategoryTasks","system/isDatabaseClear","system/stateListenReady","sync-v2/getStatus","sync-v2/retry"].includes(topic);
  const handled=supported||/^(task|category|tasks_categories)\//.test(topic);
  if(!handled)return false;
  try{
   if(!supported)throw Error("UNSUPPORTED_APPLICATION_ACTION");
   if(blocked.has(topic))throw Error("E2EE_LEGACY_ACTION_BLOCKED");
+  if(topic==="auth/isDatabaseReady"&&args[0]!==entry.uid)throw Error("ACCOUNT_MISMATCH");
   if(topic==="socket/connect"){await service.syncEncrypted();ipc.sender(topic,reqId,true);return true;}
   if(topic==="socket/disconnect"){service.lock();ipc.sender(topic,reqId,true);return true;}
   if(service.busy&&mutationTopics.has(topic))throw Error("VAULT_BUSY");
@@ -19,10 +21,11 @@ async function intercept(service,topic,reqId,args){
    if(!meta)throw Error("SYNC_REQUIRED");
    const replica=new EncryptedReplica(store,meta.scope,{initialize:false}),adapter=new ApplicationAdapter(replica);
    if(mutationTopics.has(topic))return {syncV2Ack:true,clientChangeId:adapter.mutate(topic,args)};
+   if(passive.has(topic))return ["auth/isDatabaseReady","system/migrateCheckDoneSignal"].includes(topic)?true:0;
    if(reads[topic])return adapter.lists()[reads[topic]];
    if(topic==="category/getCategoryTasks")return adapter.lists().relations.filter(row=>row.cid===args[0]);
    if(topic==="system/isDatabaseClear")return adapter.lists().tasks.length===0;
-   if(topic==="sync-v2/getStatus"){const status=replica.status();return {uid:entry.uid,ready:true,connected:!!entry.sync,canSync:true,seq:status.cursor,pending:status.pending,recovery:status.conflicts,error:null};}
+   if(topic==="sync-v2/getStatus"){const status=replica.status();return {uid:entry.uid,protocolVersion:3,ready:true,connected:!!entry.connected,canSync:true,seq:status.cursor,pending:status.pending,recovery:status.conflicts,error:null};}
    return true;
   });
   publish(service,entry);ipc.sender(topic,reqId,true,result);
@@ -41,6 +44,6 @@ function publish(service,entry){
   const {EncryptedReplica}=require("./replica"),meta=store.get("confirmed","$sync-state");
   return new EncryptedReplica(store,meta.scope,{initialize:false}).status();
  });
- service.group?.ipcService.sender("sync-v2/status",null,true,{uid:entry.uid,ready:true,connected:!!entry.sync,canSync:true,seq:status.cursor,pending:status.pending,recovery:status.conflicts,error:null});
+ service.group?.ipcService.sender("sync-v2/status",null,true,{uid:entry.uid,protocolVersion:3,ready:true,connected:!!entry.connected,canSync:true,seq:status.cursor,pending:status.pending,recovery:status.conflicts,error:null});
 }
 module.exports={intercept,publish};

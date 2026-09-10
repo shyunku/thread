@@ -75,6 +75,7 @@ const silentSender = (topic, param, ...arg) => {
 const IpcSender = {
   vault: {
     sync:callback=>sender("vault/sync",callback),
+    bootstrap:(uid,callback)=>sender("vault/bootstrap",callback,uid),
     outboxReviews:(request,callback)=>sender("vault/outboxReviews",callback,request),
     outboxDetail:(request,callback)=>sender("vault/outboxDetail",callback,request),
     resolveConflict:(request,callback)=>sender("vault/resolveConflict",callback,request),
