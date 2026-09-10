@@ -23,7 +23,7 @@ test("outbox detail compares bounded fields without mutating drafts or returning
  assert.equal(page.fields.length,20);assert.equal(page.more,true);assert.equal(page.baseMissing,true);
  assert.equal(page.fields[0].local.text.length,2000);assert.equal(page.fields[0].local.truncated,true);
  assert.equal(page.fields[0].current.present,false);assert.equal(JSON.stringify(page).includes('"record"'),false);
- const tail=outboxDetail(f.store,{id,objectId:"task",offset:page.next});assert.equal(tail.fields.length,1);assert.equal(tail.more,false);
+ const tail=outboxDetail(f.store,{id,objectId:"task",offset:page.next,expectedRevision:page.revision});assert.equal(tail.fields.length,1);assert.equal(tail.more,false);
  assert.deepEqual(f.store.get("outbox",id),before);
  assert.throws(()=>outboxDetail(f.store,{id,objectId:"unrelated"}),/REVIEW_NOT_FOUND/);
  assert.throws(()=>outboxDetail(f.store,{id:"$owner-identity",objectId:"task"}),/INVALID_REVIEW_DETAIL/);
@@ -41,6 +41,26 @@ test("outbox review is bounded, read-only and excludes raw private payloads",asy
  assert.equal(result.includes("SYNTHETIC_PENDING_PRIVATE"),false);assert.equal(result.includes('"record"'),false);
  assert.deepEqual(f.store.entries("outbox"),before);
  for(const request of [{limit:0},{limit:51},{after:"$owner-identity"}])assert.throws(()=>outboxReviews(f.store,request),/INVALID_REVIEW_PAGE/);
+});
+
+test("review classifies full three-way values and rejects mixed-page versions",async t=>{
+ const f=await fixture(t),{outboxDetail}=require("../public/electron/e2ee/outboxReview");
+ const fields=values=>values.map((value,slot)=>({slot,value}));
+ const base={objectId:"task",version:"1",deleted:false,fields:fields(["same","base","base","base","base","base","x".repeat(2100)+"base"])};
+ f.store.put("confirmed","task",base);
+ const id=f.replica.enqueue([{objectId:"task",baseVersion:"1",deleted:false,fields:fields(["same","local","base","equal","local",null,"x".repeat(2100)+"local"])}]);
+ const current={...base,version:"2",fields:fields(["same","base","remote","equal","remote","base","x".repeat(2100)+"remote"])};
+ f.store.put("confirmed","task",current);
+ const page=outboxDetail(f.store,{id,objectId:"task"});
+ assert.deepEqual(page.fields.map(field=>field.status),["UNCHANGED","LOCAL_ONLY","REMOTE_ONLY","MATCHING_VALUES","FIELD_CONFLICT","LOCAL_ONLY","FIELD_CONFLICT"]);
+ assert.equal(page.fields[6].local.text,page.fields[6].current.text);
+ assert.equal(page.fields[6].local.truncated,true);
+ assert.throws(()=>outboxDetail(f.store,{id,objectId:"task",offset:1}),/REVISION_REQUIRED/);
+ f.store.put("confirmed","task",{...current,version:"3"});
+ assert.throws(()=>outboxDetail(f.store,{id,objectId:"task",offset:1,expectedRevision:page.revision}),/REVIEW_CHANGED/);
+ const refreshed=outboxDetail(f.store,{id,objectId:"task"});assert.notEqual(refreshed.revision,page.revision);
+ f.store.put("confirmed","task",{...current,deleted:true});
+ assert.ok(outboxDetail(f.store,{id,objectId:"task"}).fields.every(field=>field.status==="REVIEW_REQUIRED"));
 });
 test("normal drafts never reuse a migration counter, including reserved unsent counters",async t=>{
  const f=await fixture(t);

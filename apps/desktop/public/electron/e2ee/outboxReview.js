@@ -1,4 +1,13 @@
 // Read-only summaries: no signed records, keys or arbitrary recovery rows.
+const p=require("./protocol"),{createHash}=require("node:crypto");
+const same=(a,b)=>p.encode(a??null).equals(p.encode(b??null));
+function fieldStatus(base,local,current,canCompare){
+ if(!canCompare)return "REVIEW_REQUIRED";
+ if(same(local,current))return same(base,local)?"UNCHANGED":"MATCHING_VALUES";
+ if(same(base,current))return "LOCAL_ONLY";
+ if(same(base,local))return "REMOTE_ONLY";
+ return "FIELD_CONFLICT";
+}
 function outboxReviews(store,{after="",limit=20}={}){
  if(typeof after!=="string"||(after!==""&&!/^[a-f0-9]{32}$/.test(after))||!Number.isInteger(limit)||limit<1||limit>50)throw Error("INVALID_REVIEW_PAGE");
  const rows=store.entries("outbox",after,limit+1),page=rows.slice(0,limit);
@@ -15,16 +24,23 @@ function preview(field){
  const text=JSON.stringify(field.value)??"null";
  return {present:true,text:text.slice(0,2000),truncated:text.length>2000};
 }
-function outboxDetail(store,{id,objectId,offset=0}={}){
+function outboxDetail(store,{id,objectId,offset=0,expectedRevision}={}){
  if(typeof id!=="string"||!/^[a-f0-9]{32}$/.test(id)||typeof objectId!=="string"||!/^[A-Za-z0-9_-]{1,128}$/.test(objectId)||
   !Number.isInteger(offset)||offset<0||offset>768)throw Error("INVALID_REVIEW_DETAIL");
+ if(expectedRevision!==undefined&&(typeof expectedRevision!=="string"||!/^[a-f0-9]{64}$/.test(expectedRevision)))throw Error("INVALID_REVIEW_DETAIL");
+ if(offset>0&&!expectedRevision)throw Error("REVIEW_REVISION_REQUIRED");
  const draft=store.get("outbox",id),local=draft?.changes.find(change=>change.objectId===objectId);
  if(!local)throw Error("REVIEW_NOT_FOUND");
  const base=draft.bases?.find(entry=>entry.objectId===objectId)?.value??null,current=store.get("confirmed",objectId);
+ const revision=createHash("sha256").update(p.encode(draft)).update(p.encode(current)).digest("hex");
+ if(expectedRevision&&expectedRevision!==revision)throw Error("REVIEW_CHANGED");
  const slots=[...new Set([...(base?.fields||[]),...local.fields,...(current?.fields||[])].map(field=>field.slot))].sort((a,b)=>a-b);
- const fields=slots.slice(offset,offset+20).map(slot=>({slot,base:preview(base?.fields?.find(field=>field.slot===slot)),
-  local:preview(local.fields.find(field=>field.slot===slot)),current:preview(current?.fields?.find(field=>field.slot===slot))}));
- return {id,objectId,baseVersion:local.baseVersion,currentVersion:current?.version??null,
+ const fields=slots.slice(offset,offset+20).map(slot=>{
+  const b=base?.fields?.find(field=>field.slot===slot),l=local.fields.find(field=>field.slot===slot),c=current?.fields?.find(field=>field.slot===slot);
+  return {slot,base:preview(b),local:preview(l),current:preview(c),
+   status:fieldStatus(b,l,c,!!base&&base.version===local.baseVersion&&!base.deleted&&!!current&&!current.deleted&&!local.deleted)};
+ });
+ return {id,objectId,revision,baseVersion:local.baseVersion,currentVersion:current?.version??null,
   baseMissing:!base,currentMissing:!current,localDeleted:local.deleted,currentDeleted:current?.deleted??false,
   fields,next:offset+fields.length,more:offset+fields.length<slots.length};
 }
