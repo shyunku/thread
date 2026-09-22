@@ -181,6 +181,9 @@ func (s *Store) push(ctx context.Context, uid string, raw []byte, migrating bool
 		return PushResult{}, ErrConflict
 	}
 	seq++
+	if _, e = tx.ExecContext(ctx, `INSERT INTO encrypted_records(vault_id,record_digest,signed_record) VALUES(?,?,?) ON DUPLICATE KEY UPDATE signed_record=IF(signed_record=VALUES(signed_record),signed_record,NULL)`, id, digest[:], raw); e != nil {
+		return PushResult{}, e
+	}
 	result := PushResult{strconv.FormatUint(seq, 10), map[string]string{}}
 	for index, op := range ops {
 		var version uint64
@@ -192,7 +195,7 @@ func (s *Store) push(ctx context.Context, uid string, raw []byte, migrating bool
 		if version != op.Base || deleted || (version == 0 && op.Deleted && !migrating) || (migrating && (op.Base != 0 || version != 0)) {
 			return PushResult{}, ErrObjectConflict
 		}
-		_, e = tx.ExecContext(ctx, `INSERT INTO encrypted_objects(vault_id,object_id,version,seq,deleted,operation_index,signed_record) VALUES(?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE version=VALUES(version),seq=VALUES(seq),deleted=VALUES(deleted),operation_index=VALUES(operation_index),signed_record=VALUES(signed_record)`, id, op.ID, version+1, seq, op.Deleted, index, raw)
+		_, e = tx.ExecContext(ctx, `INSERT INTO encrypted_objects(vault_id,object_id,version,seq,deleted,operation_index,record_digest) VALUES(?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE version=VALUES(version),seq=VALUES(seq),deleted=VALUES(deleted),operation_index=VALUES(operation_index),record_digest=VALUES(record_digest)`, id, op.ID, version+1, seq, op.Deleted, index, digest[:])
 		if e != nil {
 			return PushResult{}, e
 		}
@@ -202,7 +205,7 @@ func (s *Store) push(ctx context.Context, uid string, raw []byte, migrating bool
 	if e != nil {
 		return PushResult{}, e
 	}
-	_, e = tx.ExecContext(ctx, `INSERT INTO encrypted_changes(vault_id,seq,signed_record,result) VALUES(?,?,?,?)`, id, seq, raw, encoded)
+	_, e = tx.ExecContext(ctx, `INSERT INTO encrypted_changes(vault_id,seq,record_digest,result) VALUES(?,?,?,?)`, id, seq, digest[:], encoded)
 	if e != nil {
 		return PushResult{}, e
 	}

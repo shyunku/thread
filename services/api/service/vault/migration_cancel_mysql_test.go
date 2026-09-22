@@ -174,7 +174,7 @@ func testMigrationCancellation(t *testing.T, db *sql.DB) {
 		// Corrupt provenance is retained, never treated as safe disposable data.
 		bad := append([]byte(nil), raw...)
 		bad[len(bad)-1] ^= 1
-		if _, e := db.Exec("UPDATE encrypted_changes SET signed_record=? WHERE vault_id=?", bad, f.vault); e != nil {
+		if _, e := db.Exec("UPDATE encrypted_records SET signed_record=? WHERE vault_id=?", bad, f.vault); e != nil {
 			t.Fatal(e)
 		}
 		if _, e := f.cancel(f.status.ID); !errors.Is(e, ErrConflict) {
@@ -183,7 +183,7 @@ func testMigrationCancellation(t *testing.T, db *sql.DB) {
 		if f.count("encrypted_objects") != 1 {
 			t.Fatal("provenance failure mutated data")
 		}
-		if _, e := db.Exec("UPDATE encrypted_changes SET signed_record=? WHERE vault_id=?", raw, f.vault); e != nil {
+		if _, e := db.Exec("UPDATE encrypted_records SET signed_record=? WHERE vault_id=?", raw, f.vault); e != nil {
 			t.Fatal(e)
 		}
 		if _, e := db.Exec(`CREATE TRIGGER fail_cancel_cleanup BEFORE DELETE ON encrypted_changes FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='synthetic cancel failure'`); e != nil {
