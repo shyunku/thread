@@ -20,4 +20,16 @@ Verification: synthetic TUF tests confirm threshold 1/root-role isolation, valid
 - Every listed installer needs a target at `platform/arch/version/installer.exe` (Windows) or `installer.dmg` (macOS), with signed `custom.thread` schema/platform/arch/version/mandatory attributes. An older mandatory boundary carries forward to a newer selected version.
 - Checks, notices, downloads and execution use signed metadata. Local file bytes are reverified after download and immediately before installation. Only downloads verified by this process are executable.
 - Missing root/catalog is an update-check failure, not permission to use unsigned RMS data. The existing failure page can continue the installed app. Previously deployed clients still use their original update implementation.
-- A repository-generation/signing pipeline, approved root provisioning and OS-signed release verification remain required before shipping this client.
+- The offline repository generator is implemented below. Approved root provisioning and OS-signed release verification remain required before shipping this client.
+
+## Offline generator (2026-09-22 15:00 KST)
+
+`apps/desktop/scripts/updateRepository.cjs` creates a **new** public repository directory; it never generates keys, signs roots, uploads artifacts or changes RMS. Only temporary synthetic keys were used for implementation tests.
+
+- Test without operational material: from `apps/desktop`, run `node --test tests/updateRepository.test.cjs`.
+- After separate operational approval, the CLI accepts one JSON plan path: `node scripts/updateRepository.cjs <absolute-plan-path>`.
+- Plan fields: `root` (approved signed public root path), `keys.targets/snapshot/timestamp` (distinct Ed25519 private key paths outside repository/RMS), `output` (new absolute directory), `version` (increasing metadata version), and `expires.targets/snapshot/timestamp` (future ISO times, timestamp ≤ snapshot ≤ targets ≤ root).
+- `releases` is a list of `{file,platform,arch,version,mandatory}`; installer paths and mandatory flags must be explicitly selected. Beta cannot be mandatory.
+- Supply `previous` with the last public repository for renewal; explicit `bootstrap:true` is required for first creation. Previous signatures, catalog, hashes and installer bytes are reverified and retained, including mandatory version boundaries. Existing version paths cannot be replaced.
+- This initial tool requires `consistent_snapshot:false` and the same approved root. Root/threshold rotation is a separate signed-root-chain workflow, not a flag to bypass trust.
+- Only a successful directory with `READY` may be considered for **separately approved** publishing. A failed partial directory has no READY and is not automatically deleted or deployed. Grant the serving account read access to public artifacts only; no private key/plan belongs in `rms-tuf`.
