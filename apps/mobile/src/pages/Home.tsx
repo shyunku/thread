@@ -102,17 +102,16 @@ const Home = (): JSX.Element => {
         setLocalBlockNumber(lastRemoteBlockNumber);
       }
       } catch (err) {
-        console.error(err);
+        console.error('HOME_LOAD_FAILED');
       }
     };
     void refresh();
 
     onMessage('broadcast_transaction', (data: any) => {
-      console.log('tx', data);
     });
     onMessage('last_block_number', (data: any) => {
       const lastBlockNumber = data.data;
-      console.log('last_block_number', lastBlockNumber);
+      console.log('LEGACY_CHECKPOINT_RECEIVED');
       setRemoteBlockNumber(lastBlockNumber);
       void refresh();
     });
@@ -149,7 +148,6 @@ const Home = (): JSX.Element => {
       try {
         const categories: Map<string, Category> = task.categories;
         if (categories == undefined) {
-          console.log(task.categories, task instanceof Task, task);
           console.error('categories is undefined');
           return false;
         }
@@ -159,7 +157,7 @@ const Home = (): JSX.Element => {
         }
         return true;
       } catch (err) {
-        console.error(err);
+        console.error('TASK_FILTER_FAILED');
         return false;
       }
     },

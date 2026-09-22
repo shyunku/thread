@@ -70,7 +70,6 @@ const initializeState = async (reqId, serviceGroup, txReq, blockNumber) => {
   }
 
   if (reverseSortedTasks.length !== Object.keys(tasks).length) {
-    console.debug(tasks, reverseSortedTasks);
     throw new Error("Tasks are not sorted correctly");
   }
 

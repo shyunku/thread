@@ -70,9 +70,8 @@ const Login = (): JSX.Element => {
       );
 
       Toast.show({type: 'success', text1: '로그인 성공'});
-      console.log(resp);
     } catch (err) {
-      console.error(err);
+      console.error('LOGIN_REQUEST_FAILED');
       const code = err?.response?.status ?? null;
       switch (code) {
         case 400:
@@ -126,12 +125,12 @@ const Login = (): JSX.Element => {
         Toast.show({type: 'success', text1: '로그인 성공'});
       } catch (err) {
         if (err instanceof AxiosError) {
-          console.error(err.response?.statusText);
+          console.error('GOOGLE_LOGIN_REQUEST_FAILED');
         }
-        console.error(err);
+        console.error('GOOGLE_LOGIN_FAILED');
       }
     } catch (err) {
-      console.error(err);
+      console.error('GOOGLE_AUTH_FAILED');
     }
   };
 
@@ -223,7 +222,7 @@ const Login = (): JSX.Element => {
           <WebView
             source={{uri: GOOGLE_AUTHEN_URL}}
             onMessage={e => {
-              console.log(e);
+              console.error('LOGIN_ACTION_FAILED');
             }}
           />
         </View>

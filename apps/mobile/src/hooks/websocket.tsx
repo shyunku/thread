@@ -56,7 +56,7 @@ const useSocket = (enabled = true) => {
         } catch (err) {
           clearTimeout(timeoutHandler);
           queue.delete(reqId);
-          console.error(err);
+          console.error('SOCKET_SEND_FAILED');
           reject(err);
         }
       });
@@ -90,7 +90,7 @@ const useSocket = (enabled = true) => {
     messageHandlers.clear();
     queue.clear();
 
-    console.log(`Connecting to server: ${WEBSOCKET_ENDPOINT}`);
+    console.log('SOCKET_CONNECTING');
     const ws = new WebSocket(WEBSOCKET_ENDPOINT, null, {
       headers: {
         Authorization: `Bearer ${authInfo.accessToken}`,
@@ -106,7 +106,7 @@ const useSocket = (enabled = true) => {
       console.log('Disconnected from server');
     };
     ws.onerror = error => {
-      console.log('Error: ', error);
+      console.error('SOCKET_CONNECTION_FAILED');
       if (error?.message?.includes('401')) {
         console.log('Unauthorized User, deleting auth info');
         dispatch(removeAuth());
@@ -125,7 +125,7 @@ const useSocket = (enabled = true) => {
           // formalized data
           const reqId = data.reqId;
           if (reqId == null) {
-            console.warn(`Request ID not present for message: ${data.topic}`);
+            console.warn('SOCKET_REQUEST_ID_MISSING');
             return;
           }
 
@@ -148,14 +148,14 @@ const useSocket = (enabled = true) => {
           if (handler != null && typeof handler === 'function') {
             handler(data);
           } else {
-            console.warn(`Unhandled message from websocket: ${data.topic}`);
+            console.warn('SOCKET_MESSAGE_UNHANDLED');
           }
         } else {
           // raw data
-          console.warn(`Unhandled raw message from websocket:`, data);
+          console.warn('SOCKET_MESSAGE_INVALID');
         }
       } catch (err) {
-        console.error(err);
+        console.error('SOCKET_MESSAGE_FAILED');
       }
     };
     setSocket(ws);

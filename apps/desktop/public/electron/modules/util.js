@@ -1,6 +1,5 @@
 const Constants = require("./constants");
 const ArchCategory = require("../constants/ArchCategory.constants");
-const Request = require("../core/request");
 const isBuildMode = !process.env.ELECTRON_START_URL;
 const PackageJson = require("../../../package.json");
 
@@ -41,70 +40,17 @@ function shorten(obj, maxLength = 100) {
   return str;
 }
 
-function registerSocketLogger(socket, color = console.RESET) {
-  let originalSocketListener = socket.on;
-  socket.on = function (topic, callback, ...socketArguments) {
-    let originalCallback = callback;
-    callback = (data_, ...arg) => {
-      if (!Constants.SocketSilentTopics.includes(topic)) {
-        let mergedArguments = arg
-          .map((param) => console.shorten(param))
-          .join(" ");
-
-        if (data_) {
-          if (data_.code) {
-            let { code, data } = data_;
-            let arrow =
-              code === Request.ok
-                ? console.wrap("<--", console.GREEN)
-                : console.wrap("<-X-", console.RED);
-            console.system(
-              `${console.wrap("Socket", color)} ${arrow} ${console.wrap(
-                topic,
-                console.MAGENTA
-              )} ${console.shorten(data)} ${mergedArguments}`
-            );
-          } else {
-            console.system(
-              `${console.wrap("Socket", color)} ${console.wrap(
-                "<--",
-                console.GREEN
-              )} ${console.wrap(topic, console.MAGENTA)} ${console.shorten(
-                data_
-              )} ${mergedArguments}`
-            );
-          }
-        } else {
-          let arrow = console.wrap("<--", console.GREEN);
-          console.system(
-            `${console.wrap("Socket", color)} ${arrow} ${console.wrap(
-              topic,
-              console.MAGENTA
-            )}`
-          );
-        }
-      }
-
-      originalCallback(data_, ...arg);
-    };
-
-    originalSocketListener.apply(socket, [topic, callback, ...socketArguments]);
+function registerSocketLogger(socket) {
+  const originalOn = socket.on, originalEmit = socket.emit;
+  socket.on = function (topic, callback, ...options) {
+    return originalOn.call(socket, topic, function (...args) {
+      if (!Constants.SocketSilentTopics.includes(topic)) console.system("SOCKET_RECEIVED");
+      return callback.apply(this, args);
+    }, ...options);
   };
-
-  let originalSocketEventEmitter = socket.emit;
-  socket.emit = function (topic, ...socketArguments) {
-    if (!Constants.SocketSilentTopics.includes(topic)) {
-      let mergedArguments = socketArguments
-        .map((param) => console.shorten(param))
-        .join(" ");
-      console.system(
-        `${console.wrap("Socket", color)} ${console.wrap(
-          "-->",
-          console.CYAN
-        )} ${console.wrap(topic, console.MAGENTA)} ${mergedArguments}`
-      );
-    }
-    originalSocketEventEmitter.apply(socket, [topic, ...socketArguments]);
+  socket.emit = function (topic, ...args) {
+    if (!Constants.SocketSilentTopics.includes(topic)) console.system("SOCKET_SENT");
+    return originalEmit.call(socket, topic, ...args);
   };
 }
 

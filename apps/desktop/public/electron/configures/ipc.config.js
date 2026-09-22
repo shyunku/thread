@@ -579,8 +579,7 @@ module.exports = function (s) {
             }
           );
         } catch (err) {
-          console.error(err);
-          console.debug(err?.response?.data);
+          console.error("GOOGLE_SIGNUP_FAILED");
           s.sender(
             "auth/signUpWithGoogleAuth",
             reqId,
@@ -764,7 +763,7 @@ module.exports = function (s) {
           encrypted_password: sha256(signinRequest.encryptedPassword),
         });
       } catch (err) {
-        console.debug(err?.response?.data);
+        console.warn("LOGIN_REQUEST_FAILED");
 
         let data = {
           serverStatus: err?.response?.status,
