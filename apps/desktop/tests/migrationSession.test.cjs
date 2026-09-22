@@ -104,6 +104,32 @@ test("restart rejects changed server state and session cancellation without repl
  await assert.rejects(f.session.restart(),/MIGRATION_CANCELLED/);
  assert.deepEqual(f.session.journal.get(),old);
 });
+test("expired source refresh keeps attempt ID and reconciles a late old prepare without losing either plan",async t=>{
+ const f=await fixture(t),prepare=f.transport.migrationPrepare;
+ f.transport.migrationPrepare=async()=>{throw Error("MIGRATION_CONFLICT");};
+ await assert.rejects(f.session.prepare(snapshot),/MIGRATION_CONFLICT/);
+ const before=f.session.journal.get(),old=f.session.plan(),status=f.transport.migrationStatus;
+ let first=true;
+ f.transport.migrationStatus=async record=>{if(first){first=false;throw Error("NOT_FOUND");}return status(record);};
+ f.transport.migrationSourceSnapshot=async()=>({...snapshot,snapshotId:"00000000-0000-0000-0000-000000000004",seq:"9007199254740994"});
+ f.transport.migrationPrepare=async record=>{
+  await prepare(await createMigrationRequest({state:f.state,device:f.device,deviceId:"owner",epoch:"1",operation:"prepare",
+   parameters:{migrationId:before.id,sourceEpoch:old.sourceEpoch,sourceSnapshotId:old.sourceSnapshotId,freezeSeq:old.freezeSeq}}));
+  throw Error("MIGRATION_CONFLICT");
+ };
+ const result=await f.session.refreshSource();
+ assert.equal(result.id,before.id);assert.equal(result.sourceSnapshotId,snapshot.snapshotId);
+ assert.equal(f.session.journal.get().phase,"FROZEN");assert.deepEqual(f.session.plan(),old);
+ assert.deepEqual(f.store.get("recovery","$migration-plan-"+before.id+"-history")[0],old);
+ assert.equal(f.store.get("recovery","$migration-plan-"+before.id+"-history").length,2);
+});
+test("refresh reuses an accepted prepare without requesting a replacement snapshot",async t=>{
+ const f=await fixture(t),prepare=f.transport.migrationPrepare;
+ f.transport.migrationPrepare=async record=>{await prepare(record);throw Error("UNKNOWN_ACK");};
+ await assert.rejects(f.session.prepare(snapshot),/UNKNOWN_ACK/);
+ f.transport.migrationSourceSnapshot=async()=>{throw Error("MUST_NOT_REPLACE");};
+ assert.equal((await f.session.refreshSource()).phase,"FROZEN");
+});
 test("closing during prepare blocks late local state changes; read-only members cannot coordinate",async t=>{
  const f=await fixture(t),prepare=f.transport.migrationPrepare;
  f.transport.migrationPrepare=async record=>{const result=await prepare(record);f.session.close();return result;};

@@ -22,12 +22,10 @@ socket.token = null;
 socket.email = null;
 
 /* ---------------------------------------- Default ---------------------------------------- */
-console.system(`Websocket connecting to ${connectUrl}`);
+console.system("SOCKET_SERVICE_SYSTEM");
 
 socket.on("connect", () => {
-  console.system(
-    console.wrap(`Websocket connected to (${connectUrl})`, console.CYAN)
-  );
+  console.system("SOCKET_SERVICE_SYSTEM");
   if (socket.token && socket.email) {
     // auto reconnect with authentication
     let { email, token } = socket;
@@ -36,11 +34,11 @@ socket.on("connect", () => {
 });
 
 socket.on("error", (err) => {
-  console.error(`Socket error occurred: ${err}`);
+  console.error("SOCKET_SERVICE_ERROR");
 });
 
 socket.on("disconnect", (reason) => {
-  console.info("Disconnect with socket, reason: " + reason);
+  console.info("SOCKET_SERVICE_INFO");
 });
 
 socket.on("connect_failed", (reason) => {
@@ -56,12 +54,12 @@ socket.on("alert:/version/new", (data) => {
   const curVersionValid = CompareVersion.validate(currentVersion);
 
   if (!newVersionValid) {
-    console.error(`New version is not valid: ${version}`);
+    console.error("SOCKET_SERVICE_ERROR");
     return;
   }
 
   if (!curVersionValid) {
-    console.error(`Current version is not valid: ${currentVersion}`);
+    console.error("SOCKET_SERVICE_ERROR");
     return;
   }
 

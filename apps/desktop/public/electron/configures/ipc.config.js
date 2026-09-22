@@ -68,6 +68,10 @@ module.exports = function (s) {
     "vault/reconcileLegacy":input=>s.vaultWorkspaceService.reconcileLegacy(input),
     "vault/groupConflict":(action,input)=>s.vaultWorkspaceService.groupConflict(action,input),
     "vault/rotation":(action,input)=>s.vaultWorkspaceService.rotation(action,input),
+    "vault/lostRecovery":(action,input)=>s.vaultWorkspaceService.lostRecovery(action,input),
+    "vault/backup":(action,input)=>s.vaultWorkspaceService.backup(action,input),
+    "vault/reencryption":(action,input)=>s.vaultWorkspaceService.reencryption(action,input),
+    "vault/legacyManual":(action,input)=>s.vaultWorkspaceService.legacyManual(action,input),
     "vault/migrationStatus":()=>s.vaultWorkspaceService.migrationStatus(),
     "vault/migration":(action,input)=>s.vaultWorkspaceService.migration(action,input),
     "vault/bootstrap":uid=>s.vaultWorkspaceService.bootstrap(uid),
@@ -291,9 +295,7 @@ module.exports = function (s) {
       let transactions = await db.all("SELECT * FROM transactions;");
       let localClear = transactions.length === 0;
       if (!localClear) {
-        console.debug(
-          `Local transactions are not clear: ${transactions.length} remaining`
-        );
+        console.debug("IPC_CONFIG_DEBUG");
         s.sender("system/isDatabaseClear", reqId, true, false);
         return;
       }
@@ -715,7 +717,7 @@ module.exports = function (s) {
             );
           } catch (err) {
             // that's ok, maybe next time?
-            console.error(err);
+            console.error("IPC_CONFIG_ERROR");
           }
           s.sender("auth/signUp", reqId, false, "TRY_TO_BIND_GOOGLE");
           return;
@@ -777,7 +779,7 @@ module.exports = function (s) {
             data.localUser = { uid, username, googleEmail };
           }
         } catch (err) {
-          console.error(err);
+          console.error("IPC_CONFIG_ERROR");
         }
 
         s.sender("auth/login", reqId, false, data);
@@ -998,7 +1000,7 @@ module.exports = function (s) {
         await syncerCtx.sendTransaction(tx);
       } catch (err) {
         s.sender("task/updateTaskOrder", reqId, false);
-        console.error(err);
+        console.error("IPC_CONFIG_ERROR");
       }
     }
   );

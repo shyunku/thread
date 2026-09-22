@@ -45,6 +45,7 @@ function createTransport({endpoint,token,fetch:send=globalThis.fetch,timeout=150
   push:(record,signal)=>request("/v3/sync/push",record,signal),
   envelope:(record,signal)=>request("/v3/sync/envelope",record,signal),
   transition:(record,signal)=>request("/v3/vault/transition",record,signal),
+  recoverPending:(record,signal)=>request("/v3/vault/recovery",record,signal),
   createVault:(record,signal)=>request("/v3/vault",record,signal),
   approve:(record,signal)=>request("/v3/vault/membership",record,signal),
   pull:(record,signal)=>request("/v3/sync/pull",record,signal),

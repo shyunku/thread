@@ -77,7 +77,7 @@ class UpdaterService {
           break;
         }
       case UPDATER_RESULT_FLAG.UPDATE_CHECK_FAIL:
-        console.error(`Couldn't check update. Continuing program...`, data);
+        console.error("UPDATER_SERVICE_ERROR");
         await this.showUpdateCheckFailure(window);
         break;
     }

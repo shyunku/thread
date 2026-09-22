@@ -24,7 +24,7 @@ const UpdateChecker = () => {
 
   useEffect(() => {
     IpcSender.onAll("release_download@initial", (data) => {
-      console.log(data);
+      console.log("UPDATECHECKER_LOG");
     });
 
     IpcSender.onAll("release_download@state", ({ data }) => {

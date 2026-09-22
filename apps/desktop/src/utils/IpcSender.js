@@ -53,11 +53,7 @@ const sender = (topic, callback, ...arg) => {
   autoSubscribe(topic);
   const sendId = uuid.v4();
   if (topic !== "system/subscribe" && !topic.startsWith("vault/")) {
-    console.debug(
-      `IpcRenderer --> ${colorize.yellow(
-        `[${sendId?.substring(0, 3) ?? "unknown"}]`
-      )} ${colorize.magenta(topic)}`
-    );
+    console.debug("IPCSENDER_DEBUG");
   }
   let listener = IpcSender.on(topic, (reqId, ...result) => {
     if (reqId !== sendId) return;
@@ -77,6 +73,10 @@ const IpcSender = {
     reconcileLegacy:(input,callback)=>sender("vault/reconcileLegacy",callback,input),
     groupConflict:(action,input,callback)=>sender("vault/groupConflict",callback,action,input),
     rotation:(action,input,callback)=>sender("vault/rotation",callback,action,input),
+    lostRecovery:(action,input,callback)=>sender("vault/lostRecovery",callback,action,input),
+    backup:(action,input,callback)=>sender("vault/backup",callback,action,input),
+    reencryption:(action,input,callback)=>sender("vault/reencryption",callback,action,input),
+    legacyManual:(action,input,callback)=>sender("vault/legacyManual",callback,action,input),
     migrationStatus:callback=>sender("vault/migrationStatus",callback),
     migration:(action,input,callback)=>sender("vault/migration",callback,action,input),
     sync:callback=>sender("vault/sync",callback),
@@ -424,11 +424,7 @@ const IpcSender = {
     const originalCallback = callback;
     const newCallback = (e, reqId, ...data) => {
       if (reqId == null) return;
-      console.debug(
-        `IpcRenderer <-- ${colorize.cyan(
-          `[${reqId?.substr(0, 3) ?? "unknown"}]`
-        )} ${colorize.magenta(topic)}`
-      );
+      console.debug("IPCSENDER_DEBUG");
       originalCallback(reqId, ...data);
     };
     ipcRenderer.on(topic, newCallback);
@@ -441,11 +437,7 @@ const IpcSender = {
       // v2 mutations publish one durable view event, not legacy per-action
       // transitions. Request-scoped callbacks still receive their ACK.
       if (data[0]?.data?.syncV2Ack) return;
-      console.debug(
-        `IpcRenderer <-- ${colorize.yellow(`[ALL]`)} ${colorize.magenta(
-          topic
-        )}`
-      );
+      console.debug("IPCSENDER_DEBUG");
       return callback(...data);
     };
 

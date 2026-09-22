@@ -6,8 +6,8 @@ import (
 	"database/sql"
 )
 
-// RecoverPending replaces authority for a not-yet-active vault. Active recovery
-// must also rotate ciphertext keys and remains blocked until that transaction exists.
+// RecoverPending replaces authority for a not-yet-active vault. A frozen
+// migration is cancelled atomically only after recovery-authority verification.
 func (s *Store) RecoverPending(ctx context.Context, uid string, raw []byte) (Head, error) {
 	if !validAccount(uid) {
 		return Head{}, ErrForbidden
@@ -44,6 +44,13 @@ func (s *Store) RecoverPending(ctx context.Context, uid string, raw []byte) (Hea
 		return Head{}, e
 	}
 	defer tx.Rollback()
+	// Keep the same lock order as migration prepare/commit and v2 mutations.
+	var user, sequence uint64
+	var accountMode, sourceEpoch string
+	e = tx.QueryRowContext(ctx, `SELECT id,mode,epoch,last_seq FROM sync_users WHERE uid=? FOR UPDATE`, uid).Scan(&user, &accountMode, &sourceEpoch, &sequence)
+	if e != nil && e != sql.ErrNoRows {
+		return Head{}, e
+	}
 	var current, currentGeneration uint64
 	var head, authority []byte
 	var mode string
@@ -54,7 +61,7 @@ func (s *Store) RecoverPending(ctx context.Context, uid string, raw []byte) (Hea
 	if e != nil {
 		return Head{}, e
 	}
-	if mode != "pending" {
+	if mode != "pending" && mode != "migrating" {
 		return Head{}, ErrRotationRequired
 	}
 	if revision <= current {
@@ -69,6 +76,14 @@ func (s *Store) RecoverPending(ctx context.Context, uid string, raw []byte) (Hea
 	}
 	if e = r.Verify(authority, "recovery"); e != nil {
 		return Head{}, e
+	}
+	if mode == "migrating" {
+		if accountMode != "e2ee_frozen" {
+			return Head{}, ErrConflict
+		}
+		if e = cancelLostCoordinator(ctx, tx, uid, id, user, sequence, sourceEpoch); e != nil {
+			return Head{}, e
+		}
 	}
 	digest, e := Fingerprint(r.Value)
 	if e != nil {

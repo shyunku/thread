@@ -51,4 +51,4 @@ function resolve(replica,{expectedRevision,choice,confirmed}={}){
   db.put("recovery",name,{choice,result});return result;
  });
 }
-module.exports={review,resolve};
+module.exports={review,resolve,validateApplication};

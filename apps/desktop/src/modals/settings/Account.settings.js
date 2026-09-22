@@ -16,7 +16,7 @@ const SettingData = ({modalRef, ...props}) => {
   const accountInfo = useSelector(accountInfoSlice);
   const dispatch = useDispatch();
 
-  console.log(props);
+  console.log("ACCOUNT_SETTINGS_LOG");
 
   const logout = () => {
     Prompt.float("로그아웃", "정말 로그아웃 하시겠습니까?", {
@@ -30,7 +30,7 @@ const SettingData = ({modalRef, ...props}) => {
           Toast.info("로그아웃 되었습니다.");
           modalRef?.current?.close();
         } catch (err) {
-          console.log(err);
+          console.log("ACCOUNT_SETTINGS_LOG");
           Toast.error("인증 정보 삭제에 실패했습니다. 다시 시도해주세요.");
         }
       },

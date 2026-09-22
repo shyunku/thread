@@ -103,4 +103,4 @@ function listLegacyReviews(store,{id,offset=0,limit=20}={}){
   return {items:reviews.slice(offset,offset+limit),total:reviews.length,next:offset+limit<reviews.length?offset+limit:null};
  });
 }
-module.exports={compareEdit,reconcileLegacyPending,listLegacyReviews};
+module.exports={compareEdit,reconcileLegacyPending,listLegacyReviews,intake};

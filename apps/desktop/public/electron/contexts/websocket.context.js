@@ -69,10 +69,10 @@ class WebsocketContext {
     if (reconnect) {
       this.reconnectTimeout = this.reconnectTimeout * 2;
       if (this.reconnectTimeout > 10000) this.reconnectTimeout = 10000;
-      console.debug(`Reconnect timeout ramp-up to ${this.reconnectTimeout}`);
+      console.debug("WEBSOCKET_CONTEXT_DEBUG");
     } else {
       this.reconnectTimeout = 500;
-      console.debug(`Reconnect timeout reset to ${this.reconnectTimeout}`);
+      console.debug("WEBSOCKET_CONTEXT_DEBUG");
     }
 
     if (reconnect === false && this.alreadyAuthorized === true) {
@@ -92,7 +92,7 @@ class WebsocketContext {
         this.ipcService.sender("system/socketError", null, true, 401);
         return;
       }
-      console.error(err);
+      console.error("WEBSOCKET_CONTEXT_ERROR");
       this.reconnectTimeoutThread = setTimeout(() => {
         this.connect(accessToken, refreshToken, true);
       }, this.reconnectTimeout);
@@ -124,12 +124,7 @@ class WebsocketContext {
     }
 
     // set self-signed certificate false
-    console.system(
-      console.wrap(
-        `Websocket connecting to ${websocketFinalEndpoint}`,
-        console.ORANGE
-      )
-    );
+    console.system("WEBSOCKET_CONTEXT_SYSTEM");
     this.socket = new WebSocket(websocketFinalEndpoint, {
       rejectUnauthorized: false,
       headers: {
@@ -163,7 +158,7 @@ class WebsocketContext {
           // formalized data
           const reqId = data.reqId;
           if (reqId == null) {
-            console.warn(`Request ID not present for message: ${data.topic}`);
+            console.warn("WEBSOCKET_CONTEXT_WARN");
             return;
           }
 
@@ -188,24 +183,19 @@ class WebsocketContext {
             const handler = handlers[data?.topic];
             handler(data);
           } else {
-            console.warn(`Unhandled message from websocket: ${data.topic}`);
+            console.warn("WEBSOCKET_CONTEXT_WARN");
           }
         } else {
           // raw data
-          console.warn(`Unhandled raw message from websocket:`, data);
+          console.warn("WEBSOCKET_CONTEXT_WARN");
         }
       } catch (err) {
-        console.error(err);
+        console.error("WEBSOCKET_CONTEXT_ERROR");
       }
     });
 
     this.on("open", async () => {
-      console.system(
-        console.wrap(
-          `Websocket connected to (${websocketFinalEndpoint})`,
-          console.CYAN
-        )
-      );
+      console.system("WEBSOCKET_CONTEXT_SYSTEM");
       this.ipcService.emiter("socket/connected", null, null);
       const syncer = await this.syncerService.getUserSyncerContext(this.userId);
       if (syncer.stateListenReady) {
@@ -214,7 +204,7 @@ class WebsocketContext {
     });
 
     this.on("error", (err) => {
-      console.error(`Socket error occurred`, err);
+      console.error("WEBSOCKET_CONTEXT_ERROR");
       if (err.message.includes("401")) {
         this.ipcService.sender("system/socketError", null, true, 401);
       }
@@ -222,18 +212,18 @@ class WebsocketContext {
 
     this.on("close", (code) => {
       const commonReason = getCommonCloseReasonByCode(code);
-      console.warn(`Disconnect with socket (${code}), reason: ${commonReason}`);
+      console.warn("WEBSOCKET_CONTEXT_WARN");
       this.ipcService.emiter("socket/disconnected", null, { code });
 
       // reconnect
-      console.info(`Reconnecting socket in ${this.reconnectTimeout}ms...`);
+      console.info("WEBSOCKET_CONTEXT_INFO");
       this.reconnectTimeoutThread = setTimeout(async () => {
         await this.connect(accessToken, refreshToken, true);
       }, this.reconnectTimeout);
     });
 
     this.onMessage("test", ({ data }) => {
-      console.debug(data);
+      console.debug("WEBSOCKET_CONTEXT_DEBUG");
     });
 
     this.onMessage("broadcast_transaction", ({ data: block }) => {
@@ -254,7 +244,7 @@ class WebsocketContext {
       let lastRemoteBlock = await this.sendSync("lastRemoteBlock", null, 10000);
       await this.handleLastRemoteBlock(lastRemoteBlock);
     } catch (err) {
-      console.error(`Waiting block number error`, err);
+      console.error("WEBSOCKET_CONTEXT_ERROR");
     }
   }
 
@@ -310,13 +300,11 @@ class WebsocketContext {
         if (accessToken_ == null) accessToken_ = user.access_token ?? null;
         if (refreshToken_ == null) refreshToken_ = user.refresh_token ?? null;
       } catch (err) {
-        console.error(err);
+        console.error("WEBSOCKET_CONTEXT_ERROR");
       }
 
       // if error is 401, then try refresh token
-      console.debug(
-        `Token check status=${err?.response?.status}; token values omitted`
-      );
+      console.debug("WEBSOCKET_CONTEXT_DEBUG");
       if (
         err?.response?.status === 401 &&
         refreshToken_ != null &&
@@ -355,7 +343,7 @@ class WebsocketContext {
             refreshToken: refreshToken_,
           });
         } catch (err) {
-          console.error("Token refresh failed; status:", err?.response?.status);
+          console.error("Token refresh failed; status:");
 
           // refresh failed: must re-login
           throw new Error("Unauthorized");
@@ -374,12 +362,12 @@ class WebsocketContext {
     const syncer = await this.syncerService.getUserSyncerContext(this.userId);
     const db = await this.databaseService.getUserDatabaseContext(this.userId);
 
-    console.info(`Remote Last block number: ${remoteLastBlockNumber}`);
+    console.info("WEBSOCKET_CONTEXT_INFO");
     syncer.setRemoteLastBlockNumber(remoteLastBlockNumber);
 
     // local last block number
     let localLastBlockNumber = await syncer.getLocalLastBlockNumber();
-    console.info(`Local Last block number: ${localLastBlockNumber}`);
+    console.info("WEBSOCKET_CONTEXT_INFO");
     let commonBlockNumber = Math.min(
       localLastBlockNumber,
       remoteLastBlockNumber
@@ -390,14 +378,10 @@ class WebsocketContext {
       // test local empty hash
       let zeroBlock = Block.emptyBlock();
       if (zeroBlock.hash !== remoteZeroBlockHash) {
-        console.error(
-          `Initial hash mismatch, local: ${zeroBlock.hash}, remote: ${remoteZeroBlockHash}`
-        );
+        console.error("WEBSOCKET_CONTEXT_ERROR");
         throw new Error("Initial hash mismatch");
       } else {
-        console.debug(
-          `Initial hash matched, local: ${zeroBlock.hash}, remote: ${remoteZeroBlockHash}`
-        );
+        console.debug("WEBSOCKET_CONTEXT_DEBUG");
       }
     } else if (commonBlockNumber > 0) {
       let lastCommonLocalBlockHash = await syncer.getLocalBlockHash(
@@ -413,19 +397,14 @@ class WebsocketContext {
         const justSync = true;
 
         if (justSync) {
-          console.warn(
-            `Mismatch block hash detected at ${commonBlockNumber},` +
-              ` local: ${lastCommonLocalBlockHash}, remote: ${lastCommonRemoteBlockHash}`
-          );
+          console.warn("WEBSOCKET_CONTEXT_WARN");
           // last common mismatch, need to find un-dirty block
           let oldestLocalBlockNumber = await syncer.getOldestLocalBlockNumber();
           if (oldestLocalBlockNumber == null) {
             throw new Error("Cannot find oldest local block number");
           }
 
-          console.info(
-            `finding mismatch start block number in (${oldestLocalBlockNumber} ~ ${commonBlockNumber})`
-          );
+          console.info("WEBSOCKET_CONTEXT_INFO");
           const mismatchStartBlockNumber =
             await syncer.findBlockHashMismatchStartNumber(
               oldestLocalBlockNumber,
@@ -481,19 +460,14 @@ class WebsocketContext {
             }
           }
         } else {
-          console.warn(
-            `Mismatch block hash detected at ${commonBlockNumber},` +
-              ` local: ${lastCommonLocalBlockHash}, remote: ${lastCommonRemoteBlockHash}`
-          );
+          console.warn("WEBSOCKET_CONTEXT_WARN");
           // last common mismatch, need to find un-dirty block
           let oldestLocalBlockNumber = await syncer.getOldestLocalBlockNumber();
           if (oldestLocalBlockNumber == null) {
             throw new Error("Cannot find oldest local block number");
           }
 
-          console.info(
-            `finding mismatch start block number in (${oldestLocalBlockNumber} ~ ${commonBlockNumber})`
-          );
+          console.info("WEBSOCKET_CONTEXT_INFO");
           const mismatchStartBlockNumber =
             await syncer.findBlockHashMismatchStartNumber(
               oldestLocalBlockNumber,
@@ -530,21 +504,17 @@ class WebsocketContext {
       const snapSyncTolerance = 0; // originally 20, but disabled (for a while)
       if (txCountToSync > snapSyncTolerance) {
         // snap sync
-        console.debug(
-          `Too many (${txCountToSync}) blocks to sync, so try Snap-Sync.`
-        );
+        console.debug("WEBSOCKET_CONTEXT_DEBUG");
         // await syncer.snapSync(remoteLastBlockNumber);
         await syncer.applySnapshot(remoteLastBlockNumber); // this is fastest (maybe?)
       } else {
         // full sync
-        console.debug(`Syncing ${txCountToSync} blocks with Full-Sync.`);
+        console.debug("WEBSOCKET_CONTEXT_DEBUG");
         await syncer.fullSync(localLastBlockNumber + 1, remoteLastBlockNumber);
       }
     } else if (localLastBlockNumber > remoteLastBlockNumber) {
       // commit blocks needed (local is ahead)
-      console.info(
-        `Local block number (${localLastBlockNumber}) is ahead remote (${remoteLastBlockNumber}), waiting...`
-      );
+      console.info("WEBSOCKET_CONTEXT_INFO");
       // upload database snapshot to remote
       const db = await this.databaseService.getUserDatabaseContext(this.userId);
       const txContent = await db.getDatabaseSnapshot();
@@ -556,9 +526,7 @@ class WebsocketContext {
       await syncer.sendTransaction(tx);
     } else {
       // no sync needed (already synced)
-      console.info(
-        `Local block number is already synced with remote as ${localLastBlockNumber}`
-      );
+      console.info("WEBSOCKET_CONTEXT_INFO");
     }
   }
 
@@ -578,34 +546,16 @@ class WebsocketContext {
         if (dataStr.length > 5000) {
           dataStr = dataStr.substring(0, 5000) + "...";
         }
-        console.info(
-          `${coloredSocket} ${console.wrap(
-            `<-${reqIdTag(reqId)}--`,
-            console.GREEN
-          )} ${console.wrap(topic, console.MAGENTA)}`,
-          dataStr
-        );
+        console.info("WEBSOCKET_CONTEXT_INFO");
         resolve(data);
       };
       const errorHandler = (err) => {
-        console.info(
-          `${coloredSocket} ${console.wrap(
-            `<-${reqIdTag(reqId)}--`,
-            console.RED
-          )} ${console.wrap(topic, console.MAGENTA)} ${
-            err?.message ?? "unknown error"
-          }`
-        );
+        console.info("WEBSOCKET_CONTEXT_INFO");
         reject(err);
       };
 
       let timeoutHandler = setTimeout(() => {
-        console.info(
-          `${coloredSocket} ${console.wrap(
-            `|-${reqIdTag(reqId)}--`,
-            console.ORANGE
-          )} ${console.wrap(topic, console.MAGENTA)}`
-        );
+        console.info("WEBSOCKET_CONTEXT_INFO");
         reject(`Request timeout`);
       }, timeout);
 
@@ -616,17 +566,11 @@ class WebsocketContext {
       try {
         this.socket.send(packetJson);
       } catch (err) {
-        console.error(err);
+        console.error("WEBSOCKET_CONTEXT_ERROR");
         reject(err);
       }
 
-      console.info(
-        `${coloredSocket} ${console.wrap(
-          `--${reqIdTag(reqId)}->`,
-          console.CYAN
-        )} ${console.wrap(topic, console.MAGENTA)}`,
-        data
-      );
+      console.info("WEBSOCKET_CONTEXT_INFO");
     });
   }
 
@@ -642,16 +586,10 @@ class WebsocketContext {
     try {
       this.socket.send(packetJson);
     } catch (err) {
-      console.error(err);
+      console.error("WEBSOCKET_CONTEXT_ERROR");
     }
 
-    console.info(
-      `${coloredSocket} ${console.wrap(
-        `--${reqIdTag(reqId)}->`,
-        console.CYAN
-      )} ${console.wrap(topic, console.MAGENTA)}`,
-      data
-    );
+    console.info("WEBSOCKET_CONTEXT_INFO");
   }
 
   on(topic, callback) {
@@ -689,22 +627,9 @@ class WebsocketContext {
       const reqId = data?.reqId;
 
       if (success) {
-        console.info(
-          `${coloredSocket} ${console.wrap(
-            `<-${reqIdTag(reqId)}--`,
-            console.GREEN
-          )} ${console.wrap(topic, console.MAGENTA)}`,
-          data?.data
-        );
+        console.info("WEBSOCKET_CONTEXT_INFO");
       } else {
-        console.info(
-          `${coloredSocket} ${console.wrap(
-            `<-${reqIdTag(reqId)}--`,
-            console.RED
-          )} ${console.wrap(topic, console.MAGENTA)} ${
-            data?.err_message ?? "unknown fail error"
-          }`
-        );
+        console.info("WEBSOCKET_CONTEXT_INFO");
       }
 
       if (success) {

@@ -83,6 +83,26 @@ class VaultWorkspaceService{
  migrationStatus(){return require("./applicationMigration").status(this);}
  migration(action,input){return require("./applicationMigration").execute(this,action,input);}
  rotation(action,input){return require("./rotationWorkspace").execute(this,action,input);}
+ lostRecovery(action,input){return require("./lostRecoveryWorkspace").execute(this,action,input);}
+ backup(action,input){return require("./backupWorkspace").execute(this,action,input);}
+ reencryption(action,input){
+  if(this.busy)throw Error("VAULT_BUSY");
+  const entry=this.context();if(!entry.applicationActive)throw Error("E2EE_APPLICATION_REQUIRED");
+  return entry.controller.use(store=>{
+   const meta=store.get("confirmed","$sync-state");if(!meta)throw Error("SYNC_REQUIRED");
+   return require("./reencryption").execute(new (require("./replica").EncryptedReplica)(store,meta.scope,{initialize:false}),action,input);
+  });
+ }
+ legacyManual(action,input){
+  if(this.busy)throw Error("VAULT_BUSY");
+  if(!["review","resolve"].includes(action))throw Error("INVALID_REVIEW_ACTION");
+  const entry=this.context();if(!entry.applicationActive)throw Error("E2EE_APPLICATION_REQUIRED");
+  return entry.controller.use(store=>{
+   const meta=store.get("confirmed","$sync-state");if(!meta)throw Error("SYNC_REQUIRED");
+   const replica=new (require("./replica").EncryptedReplica)(store,meta.scope,{initialize:false});
+   return require("./legacyManual")[action](replica,input);
+  });
+ }
  interceptApplication(topic,reqId,args){return require("./applicationRouting").intercept(this,topic,reqId,args);}
  outboxReviews(request){return this.context().controller.use(store=>require("./outboxReview").outboxReviews(store,request));}
  outboxDetail(request){return this.context().controller.use(store=>require("./outboxReview").outboxDetail(store,request));}
@@ -124,8 +144,9 @@ class VaultWorkspaceService{
    entry.connected=true;
    entry.controller.use(store=>store.put("recovery","$last-sync-authority",{epoch:entry.sync.epoch,
     keyGeneration:entry.sync.engine.history.current.keyGeneration,head:entry.sync.engine.history.current.head,cursor:status.cursor}));
+   require("./reencryption").advance(entry.sync.replica);
    require("./applicationRouting").publish(this,entry);
-   return {phase:"ACTIVE",...status,epoch:entry.sync.epoch};
+   return {phase:"ACTIVE",...status,...entry.sync.replica.status(),epoch:entry.sync.epoch};
   }catch(error){
    entry.connected=false;
    if(this.active===entry&&entry.unlocked&&entry.applicationActive)require("./applicationRouting").publish(this,entry);

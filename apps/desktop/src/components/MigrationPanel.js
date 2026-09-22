@@ -39,6 +39,7 @@ export default function MigrationPanel({osAvailable,onContinue}){
    {method==="password"&&<label>보관함 비밀번호<input ref={password} type="password" autoComplete="off" maxLength={1024} disabled={waiting}/></label>}
    {["NOT_STARTED","PREPARING","FROZEN"].includes(phase)&&<button disabled={!consent||waiting} onClick={()=>run("prepare")}>원본 준비·재확인</button>}
    {phase==="CANCELLED"&&<button disabled={!consent||waiting} onClick={()=>run("restart")}>새 이관 시도 만들기</button>}
+   {phase==="PREPARING"&&<button disabled={!consent||waiting} onClick={()=>run("refresh")}>만료된 원본 다시 확인</button>}
    {["FROZEN","UPLOADING","VERIFIED","COMMITTING"].includes(phase)&&<button disabled={!consent||waiting} onClick={()=>run("transfer")}>암호화 전환·재개</button>}
    {["PREPARING","FROZEN","UPLOADING","VERIFIED","COMMITTING"].includes(phase)&&<button disabled={!consent||waiting} onClick={()=>run("cancel")}>이관 취소 요청</button>}
   </>}

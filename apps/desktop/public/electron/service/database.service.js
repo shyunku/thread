@@ -79,7 +79,7 @@ class DatabaseService {
 
   async deleteUserDatabase(userId) {
     if (userId == null) throw new Error("User ID is not valid.");
-    console.info("Deleting User Database... [User ID: " + userId + "]");
+    console.info("DATABASE_SERVICE_INFO");
 
     const userDataPath = FileSystem.getUserDataPath();
     const schemeVersion = "v" + packageJson.config["scheme_version"];
@@ -105,9 +105,7 @@ class DatabaseService {
     const datafileDirPath = path.join(userDataPath, "datafiles");
 
     if (rootSchemeVersion !== "v1") {
-      console.warn(
-        `Elder version of database scheme doesn't support migration. (current: ${rootSchemeVersion}, target: v1)`
-      );
+      console.warn("DATABASE_SERVICE_WARN");
       return 0;
     }
 
@@ -135,9 +133,7 @@ class DatabaseService {
     let datafileDirPath = path.join(userDataPath, "datafiles");
 
     if (rootSchemeVersion !== "v1") {
-      console.warn(
-        `Elder version of database scheme doesn't support migration. (current: ${rootSchemeVersion}, target: v1)`
-      );
+      console.warn("DATABASE_SERVICE_WARN");
       throw new Error(
         "Elder version of database scheme doesn't support migration."
       );

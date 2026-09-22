@@ -2,6 +2,7 @@ const {randomBytes}=require("node:crypto"),p=require("./protocol"),m=require("./
 const recovery=require("./recovery"),files=require("./recoveryFile");
 const KEY="$owner-identity";
 async function prepareOwner(store){
+ const pending=store.get("recovery","$lost-device-recovery");if(pending&&!["ACTIVE","CANCELLED"].includes(pending.phase))throw Error("RECOVERY_ALREADY_PENDING");
  const old=store.get("recovery",KEY);if(old)return publicIdentity(old);
  const scope=store.scope(),device=await p.createDevice(),authority=await p.createDevice(),deviceId=randomBytes(16).toString("hex");
  const body={schema:1,vaultId:scope.vaultId,recoveryKey:authority.signing.publicKey,

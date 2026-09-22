@@ -84,3 +84,13 @@ E2EE v3 서버 API는 E2EE_API_ENABLED 기본 false로 분리한다. 활성화�
 운영 환경에서는 EC2 호스트에서 실행하는 Cloudflare Tunnel이 `127.0.0.1`에만 게시된 site, admin-site, API 및 RMS 포트로 연결한다. 외부 TLS는 Cloudflare가 종료하고 private origin은 HTTP를 사용하므로 `USE_HTTPS=false`를 사용한다. `USE_HTTPS=true`는 Go API가 인증서 파일을 직접 읽고 TLS를 종료하는 배포에서만 사용한다. 실제 `.env`와 `.env.production`은 저장소에 커밋하지 않는다.
 
 관리자 사이트의 릴리스 업로드는 Cloudflare의 단일 요청 크기 제한을 넘지 않도록 파일을 8MiB 청크로 순차 전송한다. RMS는 업로드별 메타데이터와 청크를 임시 저장하고 전체 청크의 존재 및 결합 파일 크기를 검증한 뒤 최종 릴리스 경로로 원자적으로 이동한다. 실패한 업로드의 임시 청크는 관리자 사이트의 정리 요청으로 삭제하며, 최종 릴리스는 Compose의 `rms-releases` 볼륨에 영속화한다.
+
+## Desktop recovery implementation — 2026-09-22 15:00 KST
+
+| 범위 | 확정 동작 |
+| --- | --- |
+| 분실 복구 | 새 로컬 identity에서 기존 복구 코드/파일 검증 → 새 복구 자료 보관/재확인 → 기존 기기 해지·새 권한 승인. 활성 vault와 이관 중 pending 복구 분리; ACK 유실은 같은 서명으로 재확인 |
+| 백업 | 별도 암호화 사본으로 가져오고 재인증·동의 후 새 ID로 데이터 복원. 기존 DB·identity·서명 outbox 덮어쓰기 금지, 같은 사본 적용 멱등 |
+| 키 보존 | 과거 키 자동 삭제 없음. 동의한 재암호화 작업은 검증된 sync 이후 최대 100개씩 진행, 충돌/키 변경 시 중지. 과거 사본 회수나 forward secrecy를 보장하지 않음 |
+| 이관 예외 | 동일 ID의 만료 source 재확인·과거 계획 보존, 이전 구조/반복/종속 변경은 revision 확인 후 명시적 새 의도로 등록 |
+| 출시 경계 | 모바일은 후순위. 운영 키·실제 DB 이관·배포·평문 삭제 미실행. 새 조정 기기 분실 복구의 MySQL 통합 검증은 Docker 가동 대기 |

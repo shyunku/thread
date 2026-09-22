@@ -10,7 +10,7 @@ function initialize(isBuildMode, appDataPath) {
     ? path.resolve(appDataPath, "..")
     : path.resolve(appDataPath, "logs");
 
-  console.log(`Logger Directory Path: ${loggerDirPath}`);
+  console.log("LOGGER_LOG");
 
   const currentTime = moment(Date.now()).format("YYYY-MM-DD_HHmmss");
   const logFilename = `${currentTime}.log`;
@@ -21,7 +21,7 @@ function initialize(isBuildMode, appDataPath) {
       fse.mkdirSync(loggerDirPath);
       console.log(`Make directory for logger`);
     } catch (err) {
-      console.error(err);
+      console.error("LOGGER_ERROR");
       process.exit(-3);
     }
   }
@@ -32,12 +32,12 @@ function initialize(isBuildMode, appDataPath) {
       fse.writeFileSync(loggerFilePath, "");
       console.log(`Make file for logger`);
     } catch (err) {
-      console.error(err);
+      console.error("LOGGER_ERROR");
       process.exit(-4);
     }
   }
 
-  console.log(`Final Logger Path: ${loggerFilePath}`);
+  console.log("LOGGER_LOG");
   ElectronLogger.transports.console.level = false;
   ElectronLogger.transports.file.level = "debug";
   ElectronLogger.transports.file.resolvePathFn = () => loggerFilePath;

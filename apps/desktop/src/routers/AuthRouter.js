@@ -41,7 +41,7 @@ const AuthRouter = () => {
           dispatch(setAuth({ accessToken, refreshToken }));
         }
       } catch (err) {
-        console.log(err);
+        console.log("AUTHROUTER_LOG");
       }
     };
 

@@ -386,4 +386,5 @@ func TestMySQLSignedMembership(t *testing.T) {
 	}
 	testMigrationFreeze(t, db)
 	testMigrationCancellation(t, db)
+	testLostMigrationCoordinator(t, db)
 }

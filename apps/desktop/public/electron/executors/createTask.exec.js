@@ -44,7 +44,7 @@ const createTaskPre = async (db) => {
     "SELECT tid FROM tasks WHERE next IS NULL LIMIT 1;"
   );
   if (lastTidList.length > 1) {
-    console.log(lastTidList);
+    console.log("CREATETASK_EXEC_LOG");
     throw new Error(
       `tasks that ID is null is more than 1. (${lastTidList.length})`
     );

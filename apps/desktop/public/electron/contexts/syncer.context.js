@@ -143,11 +143,11 @@ class SyncerContext {
         for (const key in copied) {
           const promise = copied[key];
           await promise();
-          console.debug(`handled event ${key}`);
+          console.debug("SYNCER_CONTEXT_DEBUG");
           this.remainEvents--;
         }
       } catch (err) {
-        console.error(`Event handling error`, err);
+        console.error("SYNCER_CONTEXT_ERROR");
       } finally {
         this.handlingEvents = false;
       }
@@ -174,7 +174,7 @@ class SyncerContext {
           await socket.requestLastRemoteBlock();
         }
       } catch (err) {
-        console.error(`Waiting block number error`, err);
+        console.error("SYNCER_CONTEXT_ERROR");
       }
     }
   }
@@ -202,7 +202,7 @@ class SyncerContext {
         throw new Error("not-connected");
       }
     } catch (err) {
-      console.error(err);
+      console.error("SYNCER_CONTEXT_ERROR");
       this.ipcService.sender("transaction/error", null, false, err.message, tx);
     }
   }
@@ -214,9 +214,7 @@ class SyncerContext {
    */
   async commitTransactions(startBlockNumber, endBlockNumber) {
     if (endBlockNumber === -1 && startBlockNumber > endBlockNumber) {
-      console.warn(
-        `Invalid range for tx commits: ${startBlockNumber} ~ ${endBlockNumber}`
-      );
+      console.warn("SYNCER_CONTEXT_WARN");
       return;
     }
 
@@ -265,7 +263,7 @@ class SyncerContext {
       await this.socket.sendSync("commitTransactions", txRequests);
     } catch (err) {
       console.warn(`Error occurred while committing transactions`);
-      console.error(err);
+      console.error("SYNCER_CONTEXT_ERROR");
     }
   }
 
@@ -286,11 +284,11 @@ class SyncerContext {
               );
               const localBlockNumber = await this.getLocalLastBlockNumber();
               if (localBlockNumber >= number) {
-                console.info(`Block ${number} is already saved`);
+                console.info("SYNCER_CONTEXT_INFO");
                 return;
               }
-              console.info(`Applying ${transitions.length} transitions...`);
-              console.debug(transitions);
+              console.info("SYNCER_CONTEXT_INFO");
+              console.debug("SYNCER_CONTEXT_DEBUG");
               await this.trs.applyTransitions(tx, blockHash, transitions);
               await this.setLocalLastBlockNumber(tx.blockNumber);
               // await this.executorService.applyTransaction(null, tx, blockHash);
@@ -320,16 +318,14 @@ class SyncerContext {
       await this.fullSync(startBlockNumber + 1, endBlockNumber);
     } catch (err) {
       console.error(`Error occurred while snap sync`);
-      console.error(err);
+      console.error("SYNCER_CONTEXT_ERROR");
     }
   }
 
   async fullSync(startBlockNumber, endBlockNumber) {
     try {
       if (endBlockNumber < startBlockNumber) {
-        console.debug(
-          `No need to sync, startBlockNumber: ${startBlockNumber}, endBlockNumber: ${endBlockNumber}`
-        );
+        console.debug("SYNCER_CONTEXT_DEBUG");
         return;
       }
 
@@ -356,14 +352,12 @@ class SyncerContext {
           await this.saveBlockAndExecute(block);
         }
       } catch (err) {
-        console.error(
-          `Error occurred while syncing blocks at block number ${syncingBlock}`
-        );
+        console.error("SYNCER_CONTEXT_ERROR");
         throw err;
       }
     } catch (err) {
       console.error(`Error occurred while full sync`);
-      console.error(err);
+      console.error("SYNCER_CONTEXT_ERROR");
       throw err;
     }
   }
@@ -396,7 +390,7 @@ class SyncerContext {
                 await this.databaseService.deleteUserDatabase(this.userId);
                 await this.databaseService.initializeUserDatabase(this.userId);
               } catch (cErr) {
-                console.error(cErr);
+                console.error("SYNCER_CONTEXT_ERROR");
                 throw err;
               } finally {
                 this.db = await this.databaseService.getUserDatabaseContext(
@@ -451,12 +445,12 @@ class SyncerContext {
   // clear transactions & states
   async handleDeleteTransactionsAfter(blockNumber) {
     try {
-      console.info(`Deleting transactions after block number ${blockNumber}`);
+      console.info("SYNCER_CONTEXT_INFO");
       const newLastBlockNumber = blockNumber - 1;
       await this.applySnapshot(newLastBlockNumber);
       this.ipcService.sender("system/stateRollback", null, true);
     } catch (err) {
-      console.error(err);
+      console.error("SYNCER_CONTEXT_ERROR");
       this.ipcService.sender("system/stateRollback", null, false);
     }
   }
@@ -526,7 +520,7 @@ class SyncerContext {
   // find mismatched block number with binary search even if local db has missing area
   // best: O(logN), worst: O(N)
   async findBlockHashMismatchStartNumber(left, right) {
-    console.debug(`[MFA] searching ${left} ~ ${right}...`);
+    console.debug("SYNCER_CONTEXT_DEBUG");
     if (left > right) return null;
     if (left <= 0) return null;
 
@@ -536,9 +530,7 @@ class SyncerContext {
     if (localBlockHash != null) {
       // local db has this transaction
       const remoteBlockHash = await this.getRemoteBlockHash(mid);
-      console.debug(
-        `[MFA] comparing ${mid} local: ${localBlockHash}, remote: ${remoteBlockHash}`
-      );
+      console.debug("SYNCER_CONTEXT_DEBUG");
       if (localBlockHash === remoteBlockHash)
         return await this.findBlockHashMismatchStartNumber(mid + 1, right);
       let leftSide = await this.findBlockHashMismatchStartNumber(left, mid - 1);
@@ -551,9 +543,7 @@ class SyncerContext {
     let leftMost = await this.findLeftMostLocalBlockNumber(mid - 1);
     let rightMost = await this.findRightMostLocalBlockNumber(mid + 1);
 
-    console.debug(
-      `[MFA] No route on ${mid}, split: [~${leftMost}] | [${rightMost}~]`
-    );
+    console.debug("SYNCER_CONTEXT_DEBUG");
 
     // R1 doesn't exist, find just left side
     if (rightMost == null)

@@ -7,7 +7,7 @@ const { EventEmitter } = require("events");
 const policy = require("../public/electron/modules/windowSecurity");
 const contract = require("../public/electron/modules/preload");
 test("vault lifecycle and review capabilities are main-window only",()=>{
- for(const topic of ["vault/create","vault/unlock","vault/reviews","vault/intakes"]){
+ for(const topic of ["vault/create","vault/unlock","vault/reviews","vault/intakes","vault/lostRecovery","vault/backup","vault/reencryption","vault/legacyManual"]){
   assert.equal(policy.canRequest("main",topic),true);
   assert.equal(policy.canRequest("popup",topic),false);
   assert.equal(policy.canRequest("updater",topic),false);

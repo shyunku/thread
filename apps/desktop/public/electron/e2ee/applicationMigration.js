@@ -6,7 +6,7 @@ function status(service){
  return entry.controller.use(store=>({phase:stateFor(store).get()?.phase||"NOT_STARTED",busy:service.busy}));
 }
 async function execute(service,action,input={}){
- if(!["prepare","transfer","cancel","restart"].includes(action)||input.confirmed!==true)throw Error("MIGRATION_CONSENT_REQUIRED");
+ if(!["prepare","transfer","cancel","restart","refresh"].includes(action)||input.confirmed!==true)throw Error("MIGRATION_CONSENT_REQUIRED");
  if(service.busy)throw Error("VAULT_BUSY");
  const entry=service.context(),generation=service.generation,store=entry.controller.use(value=>value);
  // The release-gated entry screen has not opened v2. Do not race a live old
@@ -45,6 +45,7 @@ async function execute(service,action,input={}){
    entry.migrationActive=true;
    if(action==="prepare")await session.prepareCurrent();
    else if(action==="restart")await session.restart();
+   else if(action==="refresh")await session.refreshSource();
    else if(action==="cancel")await session.cancel();
    else await new MigrationTransfer({session,keyForGeneration:async generation=>{
     check();const key=identity.keyring.keys.find(value=>value.generation===generation);

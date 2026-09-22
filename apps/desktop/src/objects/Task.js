@@ -41,7 +41,7 @@ class Task extends Mutatable {
 
   addSubtask(subtask) {
     if (!(subtask instanceof Subtask)) {
-      console.error("invalid subtask", subtask);
+      console.error("invalid subtask");
       return;
     }
     this.subtasks[subtask.id] = subtask;
@@ -53,8 +53,8 @@ class Task extends Mutatable {
 
   addCategory(category) {
     if (!(category instanceof Category)) {
-      console.error("invalid category", category);
-      console.log(this);
+      console.error("invalid category");
+      console.log("TASK_LOG");
       return;
     }
     this.categories[category.id] = true;

@@ -41,11 +41,7 @@ export const applyTransitions = (addPromise, transitions) => {
       const updates = await applyTransition(newStates, opcode, params);
 
       const opName = opcodeName(opcode);
-      console.debug(
-        `Transition applied: ${opName} (${opcode})`,
-        params,
-        updates
-      );
+      console.debug("USETRANSITION_DEBUG");
       for (let key in updates) {
         newStates[key] = {...updates[key]};
       }
@@ -100,11 +96,11 @@ const applyTransition = async (states, opcode, params) => {
       case TYPES.OP_UPDATE_CATEGORY_COLOR:
         return updateCategoryColor(states, params);
       default:
-        console.error(`Unknown transition opcode: ${opcode}`, params);
+        console.error("USETRANSITION_ERROR");
         break;
     }
   } catch (err) {
-    console.error(err);
+    console.error("USETRANSITION_ERROR");
   }
   return states;
 };
@@ -138,7 +134,7 @@ const createTask = (states, params) => {
   task.id = tid;
   task.title = title;
 
-  console.debug(`create task`, task);
+  console.debug("USETRANSITION_DEBUG");
   uTaskMap[tid] = task;
   return {taskMap: uTaskMap};
 };
@@ -150,7 +146,7 @@ const deleteTask = (states, params) => {
   const {tid} = params;
 
   delete uTaskMap[tid];
-  console.debug(`delete task`, tid);
+  console.debug("USETRANSITION_DEBUG");
   return {taskMap: uTaskMap};
 };
 
@@ -163,7 +159,7 @@ const updateTaskNext = (states, params) => {
   const task = uTaskMap[tid];
   task.next = uTaskMap[next];
 
-  console.debug(`update task next`, task, next);
+  console.debug("USETRANSITION_DEBUG");
   uTaskMap[tid] = task;
   return {taskMap: uTaskMap};
 };
@@ -177,7 +173,7 @@ const updateTaskTitle = (states, params) => {
   const task = uTaskMap[tid];
   task.title = title;
 
-  console.debug(`update task title`, task, title);
+  console.debug("USETRANSITION_DEBUG");
   uTaskMap[tid] = task;
   return {taskMap: uTaskMap};
 };
@@ -191,7 +187,7 @@ const updateTaskDueDate = (states, params) => {
   const task = uTaskMap[tid];
   task.dueDate = clearDate(dueDate);
 
-  console.debug(`update task dueDate`, task, dueDate);
+  console.debug("USETRANSITION_DEBUG");
   uTaskMap[tid] = task;
   return {taskMap: uTaskMap};
 };
@@ -205,7 +201,7 @@ const updateTaskMemo = (states, params) => {
   const task = uTaskMap[tid];
   task.memo = memo;
 
-  console.debug(`update task memo`, task, memo);
+  console.debug("USETRANSITION_DEBUG");
   uTaskMap[tid] = task;
   return {taskMap: uTaskMap};
 };
@@ -219,7 +215,7 @@ const updateTaskDone = (states, params) => {
   const task = uTaskMap[tid];
   task.done = clearBool(done);
 
-  console.debug(`update task done`, task, done);
+  console.debug("USETRANSITION_DEBUG");
   uTaskMap[tid] = task;
   return {taskMap: uTaskMap};
 };
@@ -233,7 +229,7 @@ const updateTaskDoneAt = (states, params) => {
   const task = uTaskMap[tid];
   task.doneAt = clearDate(doneAt);
 
-  console.debug(`update task doneAt`, task, doneAt);
+  console.debug("USETRANSITION_DEBUG");
   uTaskMap[tid] = task;
   return {taskMap: uTaskMap};
 };
@@ -247,7 +243,7 @@ const updateTaskRepeatPeriod = (states, params) => {
   const task = uTaskMap[tid];
   task.repeatPeriod = clearConst(repeatPeriod);
 
-  console.debug(`update task repeatPeriod`, task, repeatPeriod);
+  console.debug("USETRANSITION_DEBUG");
   uTaskMap[tid] = task;
   return {taskMap: uTaskMap};
 };
@@ -261,7 +257,7 @@ const updateTaskRepeatStartAt = (states, params) => {
   const task = uTaskMap[tid];
   task.repeatStartAt = clearDate(repeatStartAt);
 
-  console.debug(`update task repeatStartAt`, task, repeatStartAt);
+  console.debug("USETRANSITION_DEBUG");
   uTaskMap[tid] = task;
   return {taskMap: uTaskMap};
 };
@@ -393,7 +389,7 @@ const createCategory = (states, params) => {
   category.createdAt = clearDate(createdAt);
   category.title = title;
 
-  console.debug(`create category`, category);
+  console.debug("USETRANSITION_DEBUG");
   uCategoryMap[cid] = category;
   return {categories: uCategoryMap};
 };
@@ -405,7 +401,7 @@ const deleteCategory = (states, params) => {
   const {cid} = params;
 
   delete uCategoryMap[cid];
-  console.debug(`delete category`, cid);
+  console.debug("USETRANSITION_DEBUG");
   return {categories: uCategoryMap};
 };
 
@@ -418,7 +414,7 @@ const updateCategoryColor = (states, params) => {
   const category = uCategoryMap[cid];
   category.color = color;
 
-  console.debug(`update category color`, category, color);
+  console.debug("USETRANSITION_DEBUG");
   uCategoryMap[cid] = category;
   return {categories: uCategoryMap};
 };

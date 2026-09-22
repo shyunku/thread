@@ -21,6 +21,7 @@ async function historyFor(store,transport,pin){
  throw Error("MEMBERSHIP_HISTORY_LIMIT");
 }
 async function createRecipientRequest({store,transport,fingerprint,now=Date.now()}){
+ const pending=store.get("recovery","$lost-device-recovery");if(pending&&!["ACTIVE","CANCELLED"].includes(pending.phase))throw Error("RECOVERY_ALREADY_PENDING");
  if(typeof fingerprint!=="string"||!/^[a-f0-9]{64}$/.test(fingerprint))throw Error("GENESIS_PIN_REQUIRED");
  if(store.get("recovery","$paired-device"))throw Error("DEVICE_ALREADY_PAIRED");
  const history=await historyFor(store,transport,fingerprint),current=store.get("recovery","$pair-current");

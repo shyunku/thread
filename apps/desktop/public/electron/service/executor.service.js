@@ -83,7 +83,7 @@ class ExecutorService {
       // empty 32 bytes hash (initial block)
       const initialBlock = Block.emptyBlock();
       prevBlockHash = initialBlock.hash;
-      console.debug(`Initial state hash: ${prevBlockHash}`);
+      console.debug("EXECUTOR_SERVICE_DEBUG");
     } else {
       // standard block hash
       const [prevRawTx] = await db.all(
@@ -95,7 +95,7 @@ class ExecutorService {
       prevBlockHash = prevRawTx.block_hash;
     }
     const currentBlock = new Block(blockNumber, txHash, prevBlockHash);
-    console.debug(currentBlock);
+    console.debug("EXECUTOR_SERVICE_DEBUG");
     return currentBlock.hash;
   }
 
@@ -128,7 +128,7 @@ class ExecutorService {
     }
 
     // console.debug(JSON.stringify(tx, null, 4));
-    console.debug(tx);
+    console.debug("EXECUTOR_SERVICE_DEBUG");
 
     const userId = await this.userService.getCurrent();
     const db = await this.databaseService.getUserDatabaseContext(userId);
@@ -244,7 +244,7 @@ class ExecutorService {
       try {
         await db.rollback();
       } catch (err) {
-        console.error(err);
+        console.error("EXECUTOR_SERVICE_ERROR");
       }
       throw err;
     }

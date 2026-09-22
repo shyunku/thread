@@ -23,7 +23,7 @@ class IpcRouter {
 
   broadcast = (topic, reqId, data, ...extra) => {
     if (!this.listenerMap.hasOwnProperty(topic)) {
-      console.warn(`You are trying to broadcast nowhere: '${topic}'`);
+      console.warn("IPCROUTER_WARN");
     } else {
       let webContentsIdList = this.listenerMap[topic];
       if (webContentsIdList.length === 0) {
@@ -36,7 +36,7 @@ class IpcRouter {
         if (webContent) {
           webContent.send(topic, reqId, data, ...extra);
         } else {
-          console.warn(`WebContents$${webContentsId} doesn't exists.`);
+          console.warn("IPCROUTER_WARN");
         }
       }
 

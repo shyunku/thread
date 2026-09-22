@@ -55,7 +55,7 @@ const isFieldsSorted = (obj) => {
   let prevKey = "";
   for (let key of keys) {
     if (prevKey > key) {
-      console.warn(`prevKey: ${prevKey}, key: ${key}`);
+      console.warn("TXUTIL_WARN");
       return false;
     }
     if (!isFieldsSorted(obj[key])) return false;

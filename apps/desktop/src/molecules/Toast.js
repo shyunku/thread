@@ -181,7 +181,7 @@ const promise = async (
 };
 
 const addToastItem = (type, message, extra = null, options) => {
-  console.debug(message);
+  console.debug("TOAST_DEBUG");
   const toastEvent = new Event("custom_toast", { bubbles: true });
   toastEvent.data = {
     type,

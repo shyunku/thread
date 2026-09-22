@@ -104,7 +104,7 @@ const LeftSidebar = ({
         for (const cid in task.categories) {
           if (cntMap[cid] == null) {
             cntMap[cid] = 0;
-            console.warn(`Task ${tid} has invalid category ${cid}`);
+            console.warn("LEFTSIDEBAR_WARN");
           }
           cntMap[cid] += 1;
         }

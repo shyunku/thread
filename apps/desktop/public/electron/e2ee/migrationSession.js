@@ -50,6 +50,43 @@ class MigrationSession{
   this.validateStatus(await this.request("status",{migrationId:before.id}),plan,"CANCELLED");
   return this.journal.restart(before,randomBytes(16).toString("hex"));
  }
+ async refreshSource(){
+  this.ready();const before=this.journal.get();
+  check(before?.phase==="PREPARING","MIGRATION_PHASE_CONFLICT");
+  const key="$migration-plan-"+before.id;
+  const accept=remote=>{
+   const current=this.store.get("recovery",key),archive=this.store.get("recovery",key+"-history")||[];
+   const plan=[current,...archive].find(plan=>plan&&plan.sourceEpoch===remote.sourceEpoch&&plan.sourceSnapshotId===remote.sourceSnapshotId&&plan.freezeSeq===remote.freezeSeq&&plan.pageCount===remote.pageCount);
+   check(plan,"MIGRATION_SOURCE_CHANGED");this.validateStatus(remote,plan,"FROZEN");
+   this.store.transaction(db=>{
+    check(p.encode(this.journal.get()).equals(p.encode(before)),"MIGRATION_CHANGED");
+    if(current&&!p.encode(current).equals(p.encode(plan))&&!archive.some(row=>p.encode(row).equals(p.encode(current)))){
+     check(archive.length<101,"MIGRATION_RETRY_LIMIT");db.put("recovery",key+"-history",[...archive,current]);
+    }
+    db.put("recovery",key,plan);
+    this.journal.advance("PREPARING","FROZEN",{freezeSeq:plan.freezeSeq,sourceEpoch:plan.sourceEpoch,sourceSnapshotId:plan.sourceSnapshotId,sourcePageCount:plan.pageCount,sourceObjectCount:remote.objectCount,targetEpoch:remote.targetEpoch});
+   });return remote;
+  };
+  try{return accept(await this.request("status",{migrationId:before.id}));}
+  catch(error){if(!["NOT_FOUND","MIGRATION_NOT_FOUND"].includes(error.message))throw error;}
+  // NOT_FOUND is not proof that an earlier prepare cannot arrive later.
+  // Keep the SAME ID and every attempted plan; server row locking chooses one.
+  const snapshot=await this.request("source-snapshot",{migrationId:before.id});
+  check(snapshot&&uuid(snapshot.epoch)&&uuid(snapshot.snapshotId)&&Number.isSafeInteger(snapshot.pageCount)&&snapshot.pageCount>0&&snapshot.pageCount<=100000);decimal(snapshot.seq);
+  this.store.transaction(db=>{
+   check(p.encode(this.journal.get()).equals(p.encode(before)),"MIGRATION_CHANGED");
+   const previous=db.get("recovery",key),archive=db.get("recovery",key+"-history")||[];
+   if(previous&&!archive.some(row=>p.encode(row).equals(p.encode(previous))))archive.push(previous);
+   check(archive.length<=100,"MIGRATION_RETRY_LIMIT");
+   db.put("recovery",key+"-history",archive);
+   db.put("recovery",key,{migrationId:before.id,sourceEpoch:snapshot.epoch,sourceSnapshotId:snapshot.snapshotId,freezeSeq:snapshot.seq,pageCount:snapshot.pageCount});
+  });
+  try{return await this.prepare(snapshot);}
+  catch(error){
+   if(!["MIGRATION_CONFLICT","INVALID_MIGRATION_RESPONSE"].includes(error.message))throw error;
+   return accept(await this.request("status",{migrationId:before.id}));
+  }
+ }
  async prepareCurrent(){
   this.ready();
   const state=this.journal.get()||this.journal.begin(randomBytes(16).toString("hex"));

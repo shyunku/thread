@@ -293,7 +293,7 @@ export const applyUpdateSubtaskTitle = ({ addPromise, success, data }) => {
           const task = taskMap[tid];
           const subtask = task.subtasks[sid];
           if (subtask == null) {
-            console.error("subtask is null", tid, sid, title);
+            console.error("subtask is null");
             return taskMap;
           }
           subtask.title = title;
@@ -315,7 +315,7 @@ export const applyUpdateSubtaskDueDate = ({ addPromise, success, data }) => {
           const task = taskMap[tid];
           const subtask = task.subtasks[sid];
           if (subtask == null) {
-            console.error("subtask is null", tid, sid, dueDate);
+            console.error("subtask is null");
             return taskMap;
           }
           subtask.dueDate = dueDate ? new Date(dueDate) : null;
@@ -337,7 +337,7 @@ export const applyUpdateSubtaskDone = ({ addPromise, success, data }) => {
           const task = taskMap[tid];
           const subtask = task.subtasks[sid];
           if (subtask == null) {
-            console.error("subtask is null", tid, sid, done, doneAt);
+            console.error("subtask is null");
             return taskMap;
           }
           subtask.done = done;

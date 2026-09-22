@@ -15,6 +15,34 @@ async function fixture(t){
 }
 const changes=[{objectId:"task",baseVersion:"0",deleted:false,fields:[{slot:1,value:{title:"SYNTHETIC_PENDING_PRIVATE"}}]}];
 
+test("reencryption advances only after verified mutation receipt and keeps historical key material",async t=>{
+ const f=await fixture(t),job=require("../public/electron/e2ee/reencryption");
+ const first=f.replica.enqueue(changes),record=await f.replica.prepare(first,f.context);
+ await f.replica.applyChange({record,result:{seq:"1",versions:{task:"1"}}},f.context);
+ f.store.put("recovery","historical-key",Buffer.alloc(32,9));
+ f.store.put("recovery","$last-sync-authority",{epoch:"1",keyGeneration:1,cursor:"1",head:f.context.state.head});
+ assert.equal(job.execute(f.replica,"start",{confirmed:true}).phase,"READY");
+ job.advance(f.replica);assert.equal(job.execute(f.replica,"status").phase,"WAITING");
+ const pending=f.replica.pending()[0];
+ assert.throws(()=>job.execute(f.replica,"step",{confirmed:true}),/RECEIPT_REQUIRED/);
+ const encrypted=await f.replica.prepare(pending.id,f.context);
+ await f.replica.applyChange({record:encrypted,result:{seq:"2",versions:{task:"2"}}},f.context);
+ f.store.put("recovery","$last-sync-authority",{epoch:"1",keyGeneration:1,cursor:"2",head:f.context.state.head});
+ assert.equal(job.execute(f.reopen(),"step",{confirmed:true}).phase,"DONE");
+ assert.deepEqual(f.store.get("recovery","historical-key"),Buffer.alloc(32,9));
+ assert.equal(f.store.get("confirmed","task").fields[0].value.title,"SYNTHETIC_PENDING_PRIVATE");
+});
+test("reencryption cancellation preserves pending work and authority changes cannot silently resume",async t=>{
+ const f=await fixture(t),job=require("../public/electron/e2ee/reencryption");
+ f.store.put("confirmed","task",{...changes[0],version:"1"});
+ f.store.put("visible","task",{...changes[0],version:"1"});
+ f.store.put("recovery","$last-sync-authority",{epoch:"1",keyGeneration:1,cursor:"0"});
+ job.execute(f.replica,"start",{confirmed:true});job.execute(f.replica,"step",{confirmed:true});
+ const pending=f.store.entries("outbox");
+ f.store.put("recovery","$last-sync-authority",{epoch:"1",keyGeneration:2,cursor:"0"});
+ assert.throws(()=>job.execute(f.replica,"step",{confirmed:true}),/KEY_GENERATION_CHANGED/);
+ job.execute(f.replica,"cancel",{confirmed:true});assert.deepEqual(f.store.entries("outbox"),pending);
+});
 test("application adapter stores ordinary CRUD in encrypted outbox and projects existing UI lists",async t=>{
  const f=await fixture(t),{ApplicationAdapter}=require("../public/electron/e2ee/applicationAdapter"),app=new ApplicationAdapter(f.replica);
  app.mutate("category/createCategory",[{cid:"cat",title:"Work",color:"blue"}]);

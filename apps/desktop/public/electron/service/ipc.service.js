@@ -107,12 +107,7 @@ class IpcService extends IpcRouter {
         return;
       }
       if (!silentTopics.includes(topic) && !topic.startsWith("vault/")) {
-        console.system(
-          `${TAG} ${console.wrap(
-            `<-${reqIdTag(reqId)}--`,
-            console.GREEN
-          )} ${console.wrap(topic, console.MAGENTA)}`
-        );
+        console.system("IPC_SERVICE_SYSTEM");
       }
       try {
         if (await this.vaultWorkspaceService?.interceptApplication(topic, reqId, arg)) return;
@@ -133,25 +128,12 @@ class IpcService extends IpcRouter {
   // send data with success flag
   sender(topic, reqId, success, data = null, ...extra) {
     if (typeof success !== "boolean")
-      console.error(
-        `[IpcMain]: success flag is not boolean (${console.wrap(
-          topic,
-          console.MAGENTA
-        )})`
-      );
+      console.error("IPC_SERVICE_ERROR");
     let packagedData = { success, data };
     let sendeeCount = this.broadcast(topic, reqId, packagedData, ...extra);
 
     if (silentTopics.includes(topic)) return;
-    console.system(
-      `${TAG} ${console.wrap(
-        `--${reqIdTag(reqId)}-${success ? ">" : "X"}`,
-        success ? console.CYAN : console.RED
-      )} ${console.wrap(topic, console.MAGENTA)} ${console.wrap(
-        `(${sendeeCount})`,
-        console.BLUE
-      )}`
-    );
+    console.system("IPC_SERVICE_SYSTEM");
   }
 
   // send raw data (without success flag)
@@ -159,12 +141,7 @@ class IpcService extends IpcRouter {
     let sendeeCount = this.broadcast(topic, reqId, data);
 
     if (silentTopics.includes(topic)) return;
-    console.system(
-      `${TAG} --${reqIdTag(reqId)}-> ${console.wrap(
-        topic,
-        console.MAGENTA
-      )} ${console.wrap(`(${sendeeCount})`, console.BLUE)}`
-    );
+    console.system("IPC_SERVICE_SYSTEM");
   }
 
   fastSender(topic, socketResponse) {
@@ -179,15 +156,7 @@ class IpcService extends IpcRouter {
     let sendeeCount = this.broadcast(topic, null, packagedData);
 
     if (silentTopics.includes(topic)) return;
-    console.system(
-      `${TAG} ${console.wrap(
-        `--${reqIdTag("NIL")}->`,
-        console.CYAN
-      )} ${console.wrap(topic, console.MAGENTA)} ${console.wrap(
-        `(${sendeeCount})`,
-        console.BLUE
-      )}`
-    );
+    console.system("IPC_SERVICE_SYSTEM");
   }
 
   silentSender(topic, success, data) {

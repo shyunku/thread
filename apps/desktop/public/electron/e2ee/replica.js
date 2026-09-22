@@ -52,7 +52,7 @@ class EncryptedReplica {
    const current=db.get("confirmed",META);if(!p.encode(current).equals(p.encode(meta)))throw Error("REPLICA_CHANGED");
    const local=db.get("outbox",record.body.mutationId);if(local&&(!local.record||!local.record.equals(p.encode(record))))throw Error("MUTATION_ID_COLLISION");
    for(const object of objects)if((db.get("confirmed",object.objectId)?.version??"0")!==object.baseVersion)throw Error("CONFIRMED_VERSION_MISMATCH");
-   if(local)db.delete("outbox",record.body.mutationId);
+   if(local){require("./reencryption").receipt(db,record);db.delete("outbox",record.body.mutationId);}
    const pending=this.pending();
    for(const object of objects){db.put("confirmed",object.objectId,object);if(!pending.some(row=>row.value.changes.some(c=>c.objectId===object.objectId)))db.put("visible",object.objectId,{...object,pending:false});}
    db.put("confirmed",META,{...meta,cursor:result.seq,deviceCounters:[...meta.deviceCounters.filter(d=>d.deviceId!==record.body.deviceId),{deviceId:record.body.deviceId,counter:record.body.counter}]});
@@ -77,6 +77,7 @@ class EncryptedReplica {
     if(!confirmed||sync.decimal(confirmed.version)<sync.decimal(object.version))throw Error("SNAPSHOT_OBJECT_ROLLBACK");
     if(confirmed.version===object.version&&!p.encode(confirmed).equals(p.encode(object)))throw Error("SNAPSHOT_OBJECT_FORK");
    }
+   require("./reencryption").receipt(db,record);
    db.delete("outbox",record.body.mutationId);
    const pending=this.pending();
    for(const object of objects){

@@ -7,6 +7,10 @@ import DevicePairing from "./DevicePairing";
 import EncryptedSync from "./EncryptedSync";
 import MigrationPanel from "./MigrationPanel";
 import RotationPanel from "./RotationPanel";
+import LostRecoveryPanel from "./LostRecoveryPanel";
+import BackupPanel from "./BackupPanel";
+import LegacyStructureReview from "./LegacyStructureReview";
+import ReencryptionPanel from "./ReencryptionPanel";
 const invoke=(method,...args)=>new Promise((resolve,reject)=>{
  if(!IpcSender.vault?.[method])return reject(Error("UNAVAILABLE"));
  IpcSender.vault[method](...args,response=>response?.success?resolve(response.data):reject(Error("VAULT_ACTION_FAILED")));
@@ -60,10 +64,14 @@ export default function VaultWorkspace({uid,onContinue}){
     <EncryptedSync key={"sync:"+uid+":"+current.generation}/>
     <MigrationPanel key={"migration:"+uid+":"+current.generation} osAvailable={current.osAvailable} onContinue={onContinue}/>
     <RotationPanel key={"rotation:"+uid+":"+current.generation} osAvailable={current.osAvailable}/>
+    <LostRecoveryPanel key={"lost:"+uid+":"+current.generation} osAvailable={current.osAvailable} onContinue={onContinue}/>
+    <BackupPanel key={"backup:"+uid+":"+current.generation} osAvailable={current.osAvailable}/>
+    <ReencryptionPanel key={"reencrypt:"+uid+":"+current.generation}/>
     <button onClick={()=>{generation.current++;setIntakes([]);setSelected("");setStatus({...current,phase:"LOCKED"});invoke("lock").catch(()=>setError(true));}}>보관함 잠그기</button>
     {!intakes.length?<p>보존된 이전 기기 변경이 없습니다.</p>:<>
      <label>복구 자료 <select value={selected} onChange={event=>setSelected(event.target.value)}>{intakes.map((item,index)=><option key={item.id} value={item.id}>자료 {index+1} · {item.count}개</option>)}</select></label>
      {selected&&<LegacyRecovery key={selected} sessionKey={uid+":"+current.generation} intakeId={selected} unlocked loadPage={loadPage} onReconcile={reconcileLegacy}/>}
+     {selected&&<LegacyStructureReview key={"structure:"+selected} intakeId={selected}/>}
     </>}
    </>:<VaultUnlock preparationOnly key={uid+":"+current.phase} setup={current.phase==="ABSENT"} osAvailable={current.osAvailable} passwordAvailable={current.passwordAvailable}
     onCreate={password=>act("create",password)} onOSUnlock={()=>act("unlock","os",undefined)} onPasswordUnlock={password=>act("unlock","password",password)}/>}
