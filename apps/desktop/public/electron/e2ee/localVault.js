@@ -1,4 +1,5 @@
-// Main-process only. VaultSession must authenticate before open.
+// Main-process only. VaultSession must authenticate before opening user data.
+// isPreparationOnly is a closed, read-only routing probe: no session or data escapes.
 // Never migrate, regenerate a missing key, reset, or delete an existing vault.
 const fs = require("node:fs");
 const path = require("node:path");
@@ -90,7 +91,15 @@ class LocalVault {
       throw error;
     } finally { key?.fill(0); }
   }
-  open() {
+  isPreparationOnly() {
+    let store;
+    try {
+      store = this.#open(true);
+      return require("./applicationBootstrap").preparationOnly(store);
+    } finally { store?.close(); }
+  }
+  open() { return this.#open(false); }
+  #open(readonly) {
     let key;
     try {
       const directory = fs.lstatSync(this.#directory);
@@ -102,7 +111,7 @@ class LocalVault {
       requireFile(keyFile, 16384);
       requireFile(path.join(this.#directory, "vault.db"), Number.MAX_SAFE_INTEGER);
       key = this.#protector.unprotect(fs.readFileSync(keyFile), this.#keyContext());
-      return new EncryptedStore({ filename: path.join(this.#directory, "vault.db"), key, scope: this.#scope });
+      return new EncryptedStore({ filename: path.join(this.#directory, "vault.db"), key, scope: this.#scope, readonly });
     } catch (error) {
       if (error.code === "ENOENT") throw Error("VAULT_RECOVERY_REQUIRED");
       throw error;

@@ -5,7 +5,8 @@ const BUCKETS = new Set(["confirmed", "visible", "outbox", "recovery", "search"]
 class EncryptedStore {
   #db;
   #scope;
-  constructor({ filename, key, scope, create = false }) {
+  constructor({ filename, key, scope, create = false, readonly = false }) {
+    if (create && readonly) throw Error("READONLY_CREATE_FORBIDDEN");
     if (!Buffer.isBuffer(key) || key.length !== 32) throw Error("INVALID_LDK");
     if (!scope || !["development", "production"].includes(scope.environment) ||
         typeof scope.accountId !== "string" || !scope.accountId ||
@@ -14,7 +15,7 @@ class EncryptedStore {
     else if (!fs.existsSync(filename) || fs.statSync(filename).size === 0) throw Error("VAULT_MISSING");
     let db;
     try {
-      db = new Database(filename, { fileMustExist: true });
+      db = new Database(filename, { fileMustExist: true, readonly });
       db.pragma("cipher='chacha20'");
       db.key(key);
       db.pragma("temp_store=MEMORY");
@@ -27,7 +28,7 @@ class EncryptedStore {
       })();
       const pinned = db.prepare("SELECT scope FROM vault_meta WHERE id=1").get();
       if (!pinned || !Buffer.from(pinned.scope).equals(encode(scope))) throw Error("STORE_SCOPE_MISMATCH");
-      db.pragma("journal_mode=WAL"); db.pragma("synchronous=FULL");
+      if (!readonly) { db.pragma("journal_mode=WAL"); db.pragma("synchronous=FULL"); }
       this.#db = db;
       this.#scope = decode(encode(scope));
     } catch (error) { db?.close(); throw error; } // Never delete or reset on bad keys.
