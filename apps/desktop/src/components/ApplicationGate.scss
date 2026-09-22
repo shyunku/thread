@@ -1,0 +1,54 @@
+.application-gate {
+  box-sizing: border-box;
+  width: 100%; height: 100vh; height: 100dvh;
+  overflow: auto; padding: clamp(20px, 5vh, 56px) 20px;
+  display: flex; flex-direction: column; align-items: center;
+  background: #101216; color: #edf1f7;
+  font-size: 14px; line-height: 1.65;
+  .application-gate__card {
+    box-sizing: border-box; width: min(100%, 520px); margin: auto 0;
+    padding: clamp(20px, 4vw, 32px); border: 1px solid #2b303b;
+    border-radius: 16px; background: #15181e;
+    box-shadow: 0 16px 48px #0003; overflow-wrap: anywhere;
+  }
+  &--workspace .application-gate__card { width: min(100%, 880px); }
+  .application-gate__header { margin-bottom: 24px; }
+  .application-gate__brand { color: #83aaff; font-size: 14px; font-weight: 700; }
+  h1 { margin: 8px 0 0; font-size: 24px; line-height: 1.4; }
+  h2 { font-size: 20px; } h3 { font-size: 17px; }
+  p { margin: 12px 0; color: #aab5c6; }
+  .application-gate__notice { padding: 14px 16px; background: #1c2433; border-radius: 8px; }
+  .application-gate__checking { display: flex; align-items: center; gap: 16px; min-height: 100px; }
+  .application-gate__footer {
+    border-top: 1px solid #2b303b; margin-top: 24px; padding-top: 20px;
+    display: flex; flex-direction: column; gap: 12px;
+    small { color: #8e9aad; text-align: center; }
+  }
+  button, input, select, textarea {
+    box-sizing: border-box; max-width: 100%; font: inherit; color: inherit;
+    border: 1px solid #354052; border-radius: 8px; background: #101216;
+    padding: 9px 12px;
+    &:focus-visible { outline: 2px solid #6294ff; outline-offset: 3px; }
+  }
+  button {
+    cursor: pointer; min-height: 40px; white-space: normal;
+    &:hover:not(:disabled) { background: #24324a; border-color: #6294ff; }
+    &:disabled { opacity: .5; cursor: default; }
+  }
+  input[type="checkbox"], input[type="radio"] { accent-color: #6294ff; }
+  textarea { width: 100%; resize: vertical; }
+  pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+  [role="alert"] { color: #f3afb5; }
+  .vault-unlock { width: 100%; padding: 0; border: 0; background: transparent; }
+  .vault-unlock-methods { display: grid; grid-template-columns: 1fr 1fr; }
+  .vault-unlock h2 { font-size: 18px; margin-top: 24px; }
+  section[aria-label="보관함 관리"] > section {
+    border-top: 1px solid #2b303b; padding: 20px 0; margin-top: 16px;
+    > button { margin: 4px 8px 4px 0; }
+  }
+  @media (max-width: 420px) {
+    padding: 12px;
+    h1 { font-size: 21px; }
+    .vault-unlock-methods { grid-template-columns: 1fr; }
+  }
+}

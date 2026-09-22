@@ -35,3 +35,11 @@ test("late bootstrap for old account never renders its app",async()=>{
  expect(await screen.findByText("Setup panel")).toBeInTheDocument();
  act(()=>finish({success:true,data:{mode:"E2EE"}}));expect(screen.queryByText("App")).not.toBeInTheDocument();
 });
+
+test.each(["LOCKED","ERROR","RECOVERY_REQUIRED","SETUP_REQUIRED","MIGRATION_REQUIRED"])("%s keeps retry inside the same card without mounting the app",async mode=>{
+ IpcSender.vault.bootstrap.mockImplementation((uid,cb)=>cb({success:true,data:{mode}}));
+ render(<ApplicationGate uid="u"><p>Private application</p></ApplicationGate>);
+ const retry=await screen.findByRole("button",{name:"저장소 다시 확인"});
+ expect(retry.closest(".application-gate__card")).toContainElement(screen.getByRole("heading",{level:1}));
+ expect(screen.queryByText("Private application")).not.toBeInTheDocument();
+});
