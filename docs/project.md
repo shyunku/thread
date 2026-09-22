@@ -41,7 +41,11 @@ Desktop 개발 실행은 Thread Dev 및 kr.threadapp.desktop.dev로 구분하고
 
 새 서버는 v2 sync만 제공한다. SYNC_V2_ENABLED=false도 v1을 재개하지 않는다. 운영 DB·백업·로그·실제 env는 사용자가 관리하며 운영 이관/배포는 직접 수행한다. 사용자가 명시적으로 제공한 백업 사본의 격리 리허설은 Codex가 원문 출력 없이 수행할 수 있다. [클라이언트 검증 게이트](sync-v2-implementation.md)는 별도로 유지한다.
 
-## E2EE 개발
+## v3 개발 (암호화 보관함)
+
+2026-09-22 20:56 (KST): 데스크톱 최초 설정·이관은 620×820 전용 창에서 잠금 설정→복구 자료 확인·서버 등록→명시적 이관 순서로 진행한다. 작은 화면에서는 작업 영역 안에 맞추고 세로 스크롤을 제공하며, 앱 진입 시 기존 창 크기를 복원한다. 설정 > 데이터는 상태와 작업별 보관함 메뉴를 분리한다. 복구/기기 연결/키 관리 기능은 이후에도 접근할 수 있다.
+
+API schema11은 signed batch를 `encrypted_records`에 vault별 SHA-256 digest로 공유 저장한다. object/change/snapshot은 digest와 기존 operation index로 원문을 조회하며, 클라이언트가 받는 서명 원문은 그대로다. 기존 BLOB는 보존하므로 과거 중복의 공간 회수는 별도 승인 사항이다. 구 API와 혼용하지 않으며 운영 적용·평문 삭제·서명 배포는 수행하지 않았다. [측정과 배포 경계](reports/2026-09-22-v3-record-storage.md).
 
 2026-09-10 21:14 (KST): 일반 앱 이관 화면·signed v3 원본 snapshot·readback 기반 local cutover, 새 복구 자료 확인을 선행하는 키 회전, 제한된 전체 pending 선택을 연결했다. 자동 운영 실행은 없으며 실제 DB 이관/전체 분실/모바일 조회/최종 기기 검증은 남아 있다. 새 updater는 승인된 내장 공개 root와 서명 catalog가 필요하고, 미설정이면 unsigned 다운로드로 우회하지 않는다.
 
