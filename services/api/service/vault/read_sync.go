@@ -55,7 +55,7 @@ func (s *Store) Pull(ctx context.Context, uid, epoch string, after, until uint64
 		return Changes{}, ErrConflict
 	}
 	result := Changes{strconv.FormatUint(until, 10), strconv.FormatUint(after, 10), false, make([]Change, 0)}
-	rows, e := tx.QueryContext(ctx, `SELECT c.seq,COALESCE(r.signed_record,c.signed_record),c.result FROM encrypted_changes c LEFT JOIN encrypted_records r ON r.vault_id=c.vault_id AND r.record_digest=c.record_digest WHERE c.vault_id=? AND c.seq>? AND c.seq<=? ORDER BY c.seq LIMIT 32`, id, after, until)
+	rows, e := tx.QueryContext(ctx, `SELECT c.seq,r.signed_record,c.result FROM encrypted_changes c JOIN encrypted_records r ON r.vault_id=c.vault_id AND r.record_digest=c.record_digest WHERE c.vault_id=? AND c.seq>? AND c.seq<=? ORDER BY c.seq LIMIT 32`, id, after, until)
 	if e != nil {
 		return Changes{}, e
 	}
@@ -177,7 +177,7 @@ func (s *Store) Snapshot(ctx context.Context, uid string) (Snapshot, error) {
 	if activeSnapshots >= 4 {
 		return Snapshot{}, ErrQuota
 	}
-	rows, e := tx.QueryContext(ctx, `SELECT o.object_id,o.version,o.seq,o.deleted,o.operation_index,COALESCE(r.signed_record,o.signed_record) FROM encrypted_objects o LEFT JOIN encrypted_records r ON r.vault_id=o.vault_id AND r.record_digest=o.record_digest WHERE o.vault_id=? ORDER BY o.object_id`, id)
+	rows, e := tx.QueryContext(ctx, `SELECT o.object_id,o.version,o.seq,o.deleted,o.operation_index,r.signed_record FROM encrypted_objects o JOIN encrypted_records r ON r.vault_id=o.vault_id AND r.record_digest=o.record_digest WHERE o.vault_id=? ORDER BY o.object_id`, id)
 	if e != nil {
 		return Snapshot{}, e
 	}
@@ -213,7 +213,7 @@ func (s *Store) Snapshot(ctx context.Context, uid string) (Snapshot, error) {
 	if e != nil {
 		return Snapshot{}, e
 	}
-	_, e = tx.ExecContext(ctx, `INSERT INTO encrypted_snapshot_objects(snapshot_id,vault_id,object_id,version,seq,deleted,operation_index,record_digest,signed_record) SELECT ?,vault_id,object_id,version,seq,deleted,operation_index,record_digest,IF(record_digest IS NULL,signed_record,NULL) FROM encrypted_objects WHERE vault_id=?`, snapshotID, id)
+	_, e = tx.ExecContext(ctx, `INSERT INTO encrypted_snapshot_objects(snapshot_id,vault_id,object_id,version,seq,deleted,operation_index,record_digest) SELECT ?,vault_id,object_id,version,seq,deleted,operation_index,record_digest FROM encrypted_objects WHERE vault_id=?`, snapshotID, id)
 	if e != nil {
 		return Snapshot{}, e
 	}
@@ -239,7 +239,7 @@ func (s *Store) SnapshotPage(ctx context.Context, uid, id, after string) (Snapsh
 	if e = checkReadProof(ctx, tx, vaultID); e != nil {
 		return SnapshotPage{}, e
 	}
-	rows, e := tx.QueryContext(ctx, `SELECT o.object_id,o.version,o.seq,o.deleted,o.operation_index,COALESCE(r.signed_record,o.signed_record) FROM encrypted_snapshot_objects o LEFT JOIN encrypted_records r ON r.vault_id=o.vault_id AND r.record_digest=o.record_digest WHERE o.snapshot_id=? AND o.object_id>? ORDER BY o.object_id LIMIT 33`, id, after)
+	rows, e := tx.QueryContext(ctx, `SELECT o.object_id,o.version,o.seq,o.deleted,o.operation_index,r.signed_record FROM encrypted_snapshot_objects o JOIN encrypted_records r ON r.vault_id=o.vault_id AND r.record_digest=o.record_digest WHERE o.snapshot_id=? AND o.object_id>? ORDER BY o.object_id LIMIT 33`, id, after)
 	if e != nil {
 		return SnapshotPage{}, e
 	}

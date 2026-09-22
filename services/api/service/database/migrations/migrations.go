@@ -18,6 +18,11 @@ type Migration struct {
 	Name           string
 	Statements     []string
 	RequiredTables map[string][]string
+	Preflight      []PreflightCheck `json:",omitempty"`
+}
+type PreflightCheck struct {
+	Query string
+	Name  string
 }
 type Applied struct {
 	Version  int
@@ -129,6 +134,18 @@ func Run(ctx context.Context, db *sql.DB, manifest []Migration) (version int, er
 					table, column).Scan(&count); err != nil || count != 1 {
 					return version, fmt.Errorf("migration %d: required column %s.%s missing or inaccessible", m.Version, table, column)
 				}
+			}
+		}
+		for _, check := range m.Preflight {
+			var violations int
+			if check.Query == "" || check.Name == "" {
+				return version, fmt.Errorf("migration %d has an invalid preflight check", m.Version)
+			}
+			if err = conn.QueryRowContext(ctx, check.Query).Scan(&violations); err != nil {
+				return version, fmt.Errorf("migration %d preflight %s could not be verified", m.Version, check.Name)
+			}
+			if violations != 0 {
+				return version, fmt.Errorf("migration %d preflight %s found %d violations; no schema changes applied", m.Version, check.Name, violations)
 			}
 		}
 		_, err = conn.ExecContext(ctx, "INSERT INTO thread_schema_migrations(version,name,checksum,state) VALUES (?,?,?,'applying')",

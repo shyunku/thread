@@ -15,7 +15,7 @@ func clearMigrationCiphertext(ctx context.Context, tx *sql.Tx, uid string, statu
 	if e := tx.QueryRowContext(ctx, `SELECT signing_public_key FROM vault_devices WHERE vault_id=? AND device_id=? AND revoked_revision IS NULL`, status.VaultID, status.Coordinator).Scan(&key); e != nil {
 		return e
 	}
-	records, e := tx.QueryContext(ctx, `SELECT c.seq,COALESCE(r.signed_record,c.signed_record) FROM encrypted_changes c LEFT JOIN encrypted_records r ON r.vault_id=c.vault_id AND r.record_digest=c.record_digest WHERE c.vault_id=? ORDER BY c.seq`, status.VaultID)
+	records, e := tx.QueryContext(ctx, `SELECT c.seq,r.signed_record FROM encrypted_changes c JOIN encrypted_records r ON r.vault_id=c.vault_id AND r.record_digest=c.record_digest WHERE c.vault_id=? ORDER BY c.seq`, status.VaultID)
 	if e != nil {
 		return e
 	}
@@ -75,8 +75,8 @@ func clearMigrationCiphertext(ctx context.Context, tx *sql.Tx, uid string, statu
 		return ErrConflict
 	}
 	for _, query := range []string{
-		`SELECT COUNT(*) FROM encrypted_objects o LEFT JOIN encrypted_changes c ON c.vault_id=o.vault_id AND c.seq=o.seq WHERE o.vault_id=? AND (c.seq IS NULL OR NOT(COALESCE(o.record_digest,UNHEX(SHA2(o.signed_record,256))) <=> COALESCE(c.record_digest,UNHEX(SHA2(c.signed_record,256)))))`,
-		`SELECT COUNT(*) FROM encrypted_snapshot_objects o JOIN encrypted_snapshots s ON s.id=o.snapshot_id LEFT JOIN encrypted_changes c ON c.vault_id=s.vault_id AND c.seq=o.seq WHERE s.vault_id=? AND (c.seq IS NULL OR NOT(COALESCE(o.record_digest,UNHEX(SHA2(o.signed_record,256))) <=> COALESCE(c.record_digest,UNHEX(SHA2(c.signed_record,256)))))`,
+		`SELECT COUNT(*) FROM encrypted_objects o LEFT JOIN encrypted_changes c ON c.vault_id=o.vault_id AND c.seq=o.seq WHERE o.vault_id=? AND (c.seq IS NULL OR NOT(o.record_digest <=> c.record_digest))`,
+		`SELECT COUNT(*) FROM encrypted_snapshot_objects o JOIN encrypted_snapshots s ON s.id=o.snapshot_id LEFT JOIN encrypted_changes c ON c.vault_id=s.vault_id AND c.seq=o.seq WHERE s.vault_id=? AND (c.seq IS NULL OR NOT(o.record_digest <=> c.record_digest))`,
 	} {
 		if e = tx.QueryRowContext(ctx, query, status.VaultID).Scan(&count); e != nil {
 			return e

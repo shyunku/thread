@@ -71,10 +71,10 @@ func TestMySQLRecordStorageMigration(t *testing.T) {
 			t.Fatal(e)
 		}
 	}
-	if _, e = migrations.Run(ctx, db, migrations.Server); e != nil {
+	if _, e = migrations.Run(ctx, db, migrations.Server[:11]); e != nil {
 		t.Fatal(e)
 	}
-	if _, e = migrations.Run(ctx, db, migrations.Server); e != nil {
+	if _, e = migrations.Run(ctx, db, migrations.Server[:11]); e != nil {
 		t.Fatal("repeat", e)
 	}
 	for _, table := range []string{"encrypted_objects", "encrypted_changes", "encrypted_snapshot_objects"} {
@@ -94,6 +94,41 @@ func TestMySQLRecordStorageMigration(t *testing.T) {
 	record, e := ParseRecord(restored)
 	if e != nil || record.Verify(key.Public().(ed25519.PublicKey), "mutation") != nil {
 		t.Fatal("signature lost")
+	}
+	if _, e = db.ExecContext(ctx, "UPDATE encrypted_objects SET signed_record='mismatch' WHERE vault_id='storage' LIMIT 1"); e != nil {
+		t.Fatal(e)
+	}
+	if _, e = migrations.Run(ctx, db, migrations.Server); e == nil {
+		t.Fatal("cleanup accepted mismatched legacy payload")
+	}
+	if _, e = db.ExecContext(ctx, "UPDATE encrypted_objects SET signed_record=? WHERE vault_id='storage'", original); e != nil {
+		t.Fatal(e)
+	}
+	if _, e = db.ExecContext(ctx, "UPDATE encrypted_records SET signed_record='corrupt' WHERE vault_id='storage'"); e != nil {
+		t.Fatal(e)
+	}
+	if _, e = migrations.Run(ctx, db, migrations.Server); e == nil {
+		t.Fatal("cleanup accepted corrupt shared payload")
+	}
+	if _, e = db.ExecContext(ctx, "UPDATE encrypted_records SET signed_record=? WHERE vault_id='storage'", original); e != nil {
+		t.Fatal(e)
+	}
+	if _, e = migrations.Run(ctx, db, migrations.Server); e != nil {
+		t.Fatal("cleanup", e)
+	}
+	if _, e = migrations.Run(ctx, db, migrations.Server); e != nil {
+		t.Fatal("cleanup repeat", e)
+	}
+	for _, table := range []string{"encrypted_objects", "encrypted_changes", "encrypted_snapshot_objects"} {
+		if e = db.QueryRowContext(ctx, "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=? AND column_name='signed_record'", table).Scan(&count); e != nil || count != 0 {
+			t.Fatal("duplicate column retained", table, e)
+		}
+		if e = db.QueryRowContext(ctx, "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=? AND column_name='record_digest' AND is_nullable='NO'", table).Scan(&count); e != nil || count != 1 {
+			t.Fatal("record reference remained nullable", table, e)
+		}
+	}
+	if e = db.QueryRowContext(ctx, "SELECT signed_record FROM encrypted_records WHERE vault_id='storage'").Scan(&restored); e != nil || !bytes.Equal(restored, original) {
+		t.Fatal("cleanup changed shared record", e)
 	}
 	for _, target := range []int{1000, 10000, 100000} {
 		start := time.Now()

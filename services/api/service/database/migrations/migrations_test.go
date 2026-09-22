@@ -44,6 +44,11 @@ func TestChecksumCoversSQLAndBaseline(t *testing.T) {
 	if a.Checksum() == b.Checksum() {
 		t.Fatal("baseline omitted from checksum")
 	}
+	b = a
+	b.Preflight = []PreflightCheck{{Name: "valid", Query: "SELECT 0"}}
+	if a.Checksum() == b.Checksum() {
+		t.Fatal("preflight omitted from checksum")
+	}
 	if Validate(Server, nil) != nil {
 		t.Fatal("invalid shipped manifest")
 	}
