@@ -15,7 +15,7 @@ const Modal = forwardRef(
     const closeHandler = async () => {
       const modalElem = modalRef.current;
       if (!modalElem) return;
-      console.log("MODAL_LOG");
+      console.log(modalElem);
       const modalUuid = modalElem.getAttribute("data-uuid");
       if (!modalUuid) return;
       const modalCloseTopic = `modal_close_signal_${modalUuid}`;
@@ -66,7 +66,7 @@ export const Modaler = ({ children }) => {
       const realModalId = `modal-${modalId}`;
       // check if modal is already opened
       if (activeModals[modalId]) {
-        console.log("MODAL_LOG");
+        console.log(`Modal with id ${modalId} is already opened.`);
         return;
       }
 
@@ -74,7 +74,7 @@ export const Modaler = ({ children }) => {
         `.modal#${realModalId}`
       );
       if (!targetModalElement) {
-        console.error("MODAL_ERROR");
+        console.error(`Modal with id ${modalId} not found.`);
         return;
       }
       targetModalElement.classList.add("active");
@@ -88,7 +88,7 @@ export const Modaler = ({ children }) => {
       const closeSignalId = `modal_close_signal_${uuid}`;
       const closeListener = (e2) => {
         if (!targetModalElement) {
-          console.error("MODAL_ERROR");
+          console.error(`Modal with id ${modalId} not found.`);
           return;
         }
         targetModalElement.classList.remove("active");

@@ -1,18 +1,19 @@
 const {test}=require("node:test"),assert=require("node:assert/strict"),fs=require("node:fs"),path=require("node:path"),vm=require("node:vm");
 const secret="SYNTHETIC_PRIVATE_TITLE_TOKEN_PASSWORD";
 function logger(logs){return {info:(...a)=>logs.push(a),error:(...a)=>logs.push(a),system:(...a)=>logs.push(a),RGB:()=>"",wrap:v=>v,shorten:JSON.stringify};}
-test("HTTP logging omits URLs, bodies, headers and raw errors without changing results",async()=>{
+test("secure HTTP logging hides restored detail without changing results",async()=>{
  const logs=[],response={title:secret},failure=Object.assign(Error(secret),{response:{status:409,data:secret}});
  let fail=false;const axios={post:async()=>{if(fail)throw failure;return {status:200,data:response};},get:async()=>({status:200,data:response})};
  const context={module:{exports:{}},console:logger(logs),require:()=>({default:{create:()=>axios}})};
+ require("../public/electron/modules/secureLogs").silence(context.console);
  vm.runInNewContext(fs.readFileSync(path.join(__dirname,"../public/electron/core/request.js"),"utf8"),context);
  const request=context.module.exports;
  assert.equal(await request.post("https://"+secret,"/"+secret,{secret},{headers:{secret}}),response);
  assert.equal(await request.get("https://"+secret,"/?token="+secret),response);
  fail=true;await assert.rejects(request.post("https://fixture","/",{}),e=>e===failure);
- assert.equal(JSON.stringify(logs).includes(secret),false);assert.ok(JSON.stringify(logs).includes("409"));
+ assert.deepEqual(logs,[]);
 });
-test("IPC main logs omit request, response and exception payloads",async()=>{
+test("secure IPC main logs omit request, response and exception payloads",async()=>{
  const logs=[],callbacks=new Map();
  class Router{broadcast(){return 1;}}
  const context={module:{exports:{}},console:logger(logs),require:name=>{
@@ -23,6 +24,7 @@ test("IPC main logs omit request, response and exception payloads",async()=>{
   if(name.endsWith("windowSecurity"))return {isTrustedEvent:()=>true,canRequest:()=>true};
   throw Error(name);
  }};
+ require("../public/electron/modules/secureLogs").silence(context.console);
  vm.runInNewContext(fs.readFileSync(path.join(__dirname,"../public/electron/service/ipc.service.js"),"utf8"),context);
  const service=new context.module.exports();service.windowService={trustedWindows:new Map([[1,"main"]])};
  service.register("fixture/action",()=>{throw Error(secret)});

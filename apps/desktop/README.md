@@ -53,3 +53,8 @@ Each environment still allows only one instance of its own.
 
 Thread is developed with Electron, React, and Golang. \
 If you want to contribute to the development of Thread, please contact us.
+# Logging modes
+
+Normal runs retain detailed diagnostics, which can contain task content or authentication data. Do not share raw logs without reviewing them.
+
+From the repository root on Windows, use `pnpm dev:desktop:secure` to suppress application console and file logging, including renderer console output. For direct Electron or installed-app launches, add `--secure-logs`. This flag does not remove existing log files, change database encryption, or suppress OS/Chromium diagnostics and crash dialogs.

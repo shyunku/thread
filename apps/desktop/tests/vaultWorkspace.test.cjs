@@ -9,6 +9,16 @@ function fixture(t){
  t.after(()=>{service.reset();fs.rmSync(dir,{recursive:true,force:true});});
  return {service,deps,window,power,events,dir,switchAccount:value=>{service.reset();uid=value;}};
 }
+test("closing a destroyed BrowserWindow does not read its destroyed webContents getter",async t=>{
+ const f=fixture(t),s=f.service,contents=f.window.webContents;let destroyed=false;
+ Object.defineProperty(f.window,"webContents",{get(){if(destroyed)throw Error("Object has been destroyed");return contents;}});
+ f.window.isDestroyed=()=>destroyed;contents.isDestroyed=()=>destroyed;
+ const entry=s.context();destroyed=true;
+ assert.doesNotThrow(()=>f.window.emit("closed"));
+ assert.equal(s.active,null);assert.equal(f.power.listenerCount("lock-screen"),0);
+ assert.throws(()=>entry.controller.use(()=>{}),/CLOSED/);assert.doesNotThrow(()=>s.reset());
+});
+
 test("actual workspace creation, password reopen, lock and account isolation preserve existing files",async t=>{
  const f=fixture(t),s=f.service;
  assert.equal((await s.status()).phase,"ABSENT");assert.deepEqual(fs.readdirSync(f.dir),[]);

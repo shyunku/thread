@@ -102,7 +102,7 @@ class WindowPropertyFactory {
         this.setProperty("modal", false);
         break;
       default:
-        console.system("WINDOWPROPERTYFACTORY_SYSTEM");
+        console.system(`WindowType '${modalType}' is not valid input.`);
         break;
     }
     return this;

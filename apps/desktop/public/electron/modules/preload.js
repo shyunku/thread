@@ -133,6 +133,7 @@ if (process.type === "renderer") {
     }
     contextBridge.exposeInMainWorld("thread", Object.freeze({
       isDevelopment: process.env.NODE_ENV !== "production",
+      secureLogs: process.env.THREAD_SECURE_LOGS === "1",
       requests: Object.freeze(requests),
       listen(topic, callback) {
         if (!canReceive(topic) || typeof callback !== "function")

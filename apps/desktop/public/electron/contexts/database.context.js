@@ -55,7 +55,9 @@ class DatabaseContext {
     }
 
     if (!fs.existsSync(rootDatabaseFilePath)) {
-      console.warn("DATABASE_CONTEXT_WARN");
+      console.warn(
+        `Root Database file (${rootSchemeVersion}) doesn't exists, newly create (${rootDatabaseTemplatePath} -> ${rootDatabaseFilePath})`
+      );
       fs.copyFileSync(rootDatabaseTemplatePath, rootDatabaseFilePath);
     }
 
@@ -66,7 +68,9 @@ class DatabaseContext {
    * @returns {Promise<void>}
    */
   async initialize() {
-    console.info("DATABASE_CONTEXT_INFO");
+    console.info(
+      "Initializing User Database... [User ID: " + this.userId + "]"
+    );
 
     const userDataPath = getUserDataPath();
     const appResourcePath = FileSystem.getAppResourcesPath();
@@ -87,12 +91,16 @@ class DatabaseContext {
     }
 
     if (!fs.existsSync(databaseDirPath)) {
-      console.warn("DATABASE_CONTEXT_WARN");
+      console.warn(
+        `Database directory (${schemeVersion}) doesn't exists, newly create`
+      );
       fs.mkdirSync(databaseDirPath);
     }
 
     if (!fs.existsSync(databaseFilePath)) {
-      console.warn("DATABASE_CONTEXT_WARN");
+      console.warn(
+        `Database file (${schemeVersion}) doesn't exists, newly create (${databaseTemplatePath} -> ${databaseFilePath})`
+      );
 
       // copy template db to destination
       fs.copyFileSync(databaseTemplatePath, databaseFilePath);
@@ -113,7 +121,7 @@ class DatabaseContext {
     });
     try {
       const result = await migrate(this.db, scope, databaseFilePath);
-      console.info("DATABASE_CONTEXT_INFO");
+      console.info(`Database ready: ${scope} schema ${result.version}`);
     } catch (error) {
       await new Promise((resolve) => this.db.close(() => resolve()));
       this.db = null;
@@ -261,7 +269,7 @@ class DatabaseContext {
             };
             let parentTaskNewId = taskIdRemapping[oldSubtask.tid];
             if (parentTaskNewId == null) {
-              console.warn("DATABASE_CONTEXT_WARN");
+              console.warn(`Parent task Id of ${oldSubtask.tid} is not found`);
               continue;
             }
             let parentTask = tasks[parentTaskNewId];
@@ -493,7 +501,7 @@ class DatabaseContext {
         `SELECT COUNT(*) AS count FROM ${table.name};`
       );
       if (count.count > 0) {
-        console.debug("DATABASE_CONTEXT_DEBUG");
+        console.debug(`table ${table.name} not clear`);
         return false;
       }
     }
@@ -501,7 +509,12 @@ class DatabaseContext {
   }
 
   get(query, ...args) {
-    console.system("DATABASE_CONTEXT_SYSTEM");
+    console.system(
+      `${TAG} ${console.wrap(`<-[GET]->`, console.BLUE)} ${console.wrap(
+        "sqlite3: " + query,
+        console.YELLOW
+      )} ${args.join(", ")}`
+    );
     let params = Array.isArray(args?.[0]) ? args[0] : args;
     return new Promise((resolve, reject) => {
       this.db.get(query, params, (err, row) => {
@@ -512,15 +525,30 @@ class DatabaseContext {
   }
 
   async run(query, ...args) {
-    console.system("DATABASE_CONTEXT_SYSTEM");
+    console.system(
+      `${TAG} ${console.wrap(`--[RUN]->`, console.BLUE)} ${console.wrap(
+        "sqlite3: " + query,
+        console.YELLOW
+      )} ${args.map((e) => e ?? null).join(", ")}`
+    );
     let params = Array.isArray(args?.[0]) ? args[0] : args;
     return new Promise((resolve, reject) => {
       this.db.run(query, params, function (err) {
         if (err) {
-          console.system("DATABASE_CONTEXT_SYSTEM");
+          console.system(
+            `IpcMain ${console.wrap(`X-[RES]--`, console.RED)} ${console.wrap(
+              `sqlite3`,
+              console.RED
+            )} Run failed: ${err}`
+          );
           reject(err);
         } else {
-          console.system("DATABASE_CONTEXT_SYSTEM");
+          console.system(
+            `IpcMain ${console.wrap(`<-[RES]--`, console.BLUE)} ${console.wrap(
+              `[${this.changes ?? "-"} row(s) affected]`,
+              console.GREEN
+            )}`
+          );
           resolve(this);
         }
       });
@@ -542,7 +570,12 @@ class DatabaseContext {
    * @returns {Promise<any[]>}
    */
   all(query, ...args) {
-    console.system("DATABASE_CONTEXT_SYSTEM");
+    console.system(
+      `${TAG} ${console.wrap(`<-[ALL]->`, console.BLUE)} ${console.wrap(
+        "sqlite3: " + query,
+        console.YELLOW
+      )} ${args.map((e) => e ?? null).join(", ")}`
+    );
     let params = Array.isArray(args?.[0]) ? args[0] : args;
     return new Promise((resolve, reject) => {
       this.db.all(query, params, (err, row) => {
@@ -553,7 +586,12 @@ class DatabaseContext {
   }
 
   begin() {
-    console.system("DATABASE_CONTEXT_SYSTEM");
+    console.system(
+      `${TAG} ${console.wrap(`--[BEG]->`, console.BLUE)} ${console.wrap(
+        "sqlite3: begin transaction;",
+        console.ORANGE
+      )}`
+    );
     return new Promise((resolve, reject) => {
       this.db.run("BEGIN", (err) => {
         if (err) reject(err);
@@ -563,7 +601,12 @@ class DatabaseContext {
   }
 
   commit() {
-    console.system("DATABASE_CONTEXT_SYSTEM");
+    console.system(
+      `${TAG} ${console.wrap(`--[COM]->`, console.BLUE)} ${console.wrap(
+        "sqlite3: commit transactions",
+        console.ORANGE
+      )}`
+    );
     return new Promise((resolve, reject) => {
       this.db.run("COMMIT", (err) => {
         if (err) reject(err);
@@ -573,7 +616,12 @@ class DatabaseContext {
   }
 
   rollback() {
-    console.system("DATABASE_CONTEXT_SYSTEM");
+    console.system(
+      `${TAG} ${console.wrap(`--[ROL]-|`, console.BLUE)} ${console.wrap(
+        "sqlite3: rollback transactions",
+        console.ORANGE
+      )}`
+    );
     return new Promise((resolve, reject) => {
       this.db.run("ROLLBACK", (err) => {
         if (err) reject(err);

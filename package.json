@@ -11,6 +11,7 @@
     "install:admin": "pnpm --dir apps/web/admin install --frozen-lockfile",
     "install:rms": "pnpm --dir services/rms install --frozen-lockfile",
     "dev:desktop": "pnpm --dir apps/desktop win-all",
+    "dev:desktop:secure": "set THREAD_SECURE_LOGS=1&& pnpm dev:desktop",
     "dev:mobile": "pnpm --dir apps/mobile android",
     "dev:site": "pnpm --dir apps/web/site start",
     "dev:admin": "pnpm --dir apps/web/admin start",

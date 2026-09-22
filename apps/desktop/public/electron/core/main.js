@@ -1,4 +1,5 @@
 /* ---------------------------------------- import ---------------------------------------- */
+require("../modules/secureLogs").initialize();
 const { app } = require("electron");
 const packageJson = require("../../../package.json");
 const { configureDevelopmentIdentity, getDesktopAppId } = require("../modules/appIdentity");
@@ -14,7 +15,7 @@ configureDevelopmentIdentity(app, getDesktopAppId(packageJson));
 const isBuildMode = !process.env.ELECTRON_START_URL;
 const appDataPath = app.getAppPath();
 
-console.log("MAIN_LOG");
+console.log(`This is ${isBuildMode ? "build" : "dev"} mode`);
 
 require("../modules/initializer").all(isBuildMode, appDataPath);
 const ArchCategory = require("../constants/ArchCategory.constants");
@@ -48,16 +49,16 @@ const userDataPath = FileSystem.getUserDataPath();
 
 /* ---------------------------------------- Pre-execute statements ---------------------------------------- */
 if (!isWindowsOS && !isMacOS) {
-  console.error("MAIN_ERROR");
+  console.error(`[Platform/OS] ${osLabel} (${osCategory}) is not supported`);
   process.exit(-1);
 }
-console.debug("MAIN_DEBUG");
-console.debug("MAIN_DEBUG");
-console.debug("MAIN_DEBUG");
-console.debug("MAIN_DEBUG");
-console.debug("MAIN_DEBUG");
-console.debug("MAIN_DEBUG");
-console.debug("MAIN_DEBUG");
+console.debug(`[Platform/OS] ${osLabel} (${osCategory})`);
+console.debug(`[Build Level] ${buildLevel}`);
+console.debug(`[Execution Mode] ${process.env.NODE_ENV}`);
+console.debug(`[Production Mode] ${isProdMode}`);
+console.debug(`[Build Mode] ${isBuildMode}`);
+console.debug(`[AppData Path] ${appDataPath}`);
+console.debug(`[UserData Path] ${userDataPath}`);
 
 /* ---------------------------------------- Main execute statements ---------------------------------------- */
 // auto start app on startup of OS (only on production mode)
@@ -82,7 +83,7 @@ app.on("ready", async () => {
     // powerSaveBlocker.start('prevent-app-suspension');
     // app.commandLine.appendSwitch('webrtc-max-cpu-consumption-percentage', '100');
   } catch (err) {
-    console.error("MAIN_ERROR");
+    console.error(err);
     app.quit();
     throw err;
   }

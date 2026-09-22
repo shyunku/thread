@@ -73,7 +73,7 @@ class TransitionContext {
       try {
         await this.db.rollback();
       } catch (err) {
-        console.error("TRANSITION_CONTEXT_ERROR");
+        console.error(err);
       }
       throw err;
     } finally {
@@ -83,7 +83,7 @@ class TransitionContext {
   }
 
   async applyTransition(opcode, params) {
-    console.debug("TRANSITION_CONTEXT_DEBUG");
+    console.debug(`Applying transition: ${opcode}`, params);
     switch (opcode) {
       case TrsTypes.OP_INITIALIZE:
         await this.initializeAll(params);

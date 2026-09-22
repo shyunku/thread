@@ -163,7 +163,7 @@ const TodoItem = ({
 
   useEffect(() => {
     if (!(todo instanceof Task)) {
-      console.error("TODOITEM_ERROR");
+      console.error(`todo is not an instance of Task: ${todo}`);
       return;
     }
     const timeCounterThread = fastInterval(() => {

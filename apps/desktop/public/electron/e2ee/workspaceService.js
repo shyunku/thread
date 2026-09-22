@@ -13,7 +13,8 @@ class VaultWorkspaceService{
    notify:data=>{const w=this.group.windowService.mainWindow;if(w&&!w.isDestroyed())w.webContents.send("vault/status",null,{success:true,data});}};
  }
  reset(){
-  this.generation++;const old=this.active;this.active=null;old?.unwatch?.();old?.controller.dispose();
+  this.generation++;const old=this.active;this.active=null;
+  try{old?.unwatch?.();}finally{old?.controller.dispose();}
  }
  context(){
   const d=this.runtime();if(!d.enabled)throw Error("VAULT_NOT_ENABLED");
@@ -31,9 +32,12 @@ class VaultWorkspaceService{
      }
      this.generation++;d.notify?.({uid,phase:"LOCKED",generation:this.generation});}});
    this.active=entry;
-   const window=d.getWindow(),closed=()=>{if(this.active===entry)this.reset();},rendererGone=()=>entry.controller.lock();
-   window?.once?.("closed",closed);window?.webContents?.on?.("render-process-gone",rendererGone);
-   entry.unwatch=()=>{window?.removeListener?.("closed",closed);window?.webContents?.removeListener?.("render-process-gone",rendererGone);};
+   const window=d.getWindow(),contents=window?.webContents,closed=()=>{if(this.active===entry)this.reset();},rendererGone=()=>entry.controller.lock();
+   window?.once?.("closed",closed);contents?.on?.("render-process-gone",rendererGone);
+   entry.unwatch=()=>{
+    if(!window?.isDestroyed?.())window?.removeListener?.("closed",closed);
+    if(!contents?.isDestroyed?.())contents?.removeListener?.("render-process-gone",rendererGone);
+   };
   }
   return this.active;
  }

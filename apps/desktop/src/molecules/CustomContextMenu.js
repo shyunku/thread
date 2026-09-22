@@ -165,7 +165,7 @@ export const useContextMenu = ({
     };
 
     if (e.currentTarget != e.target) {
-      console.log("CUSTOMCONTEXTMENU_LOG");
+      console.log(e.currentTarget, e.target);
       // if ancestor of e.target is openerRef, just open context menu & make children as no pointer events
       let foundOpener = false;
       let parent = e.target.parentElement;
@@ -189,7 +189,7 @@ export const useContextMenu = ({
           }
         }
 
-        console.log("opened with in-openerRef handler");
+        console.log("opened with in-openerRef handler", openerRef.current);
         finalize();
         return;
       }

@@ -21,7 +21,12 @@ const TaskListView = forwardRef(
         // console.log(sorted, taskMap);
         for (let tid in taskMap) {
           let task = taskMap[tid];
-          console.log("TASKLISTVIEW_LOG");
+          console.log(
+            `${task?.prev?.id?.substr(0, 5) ?? null} <- ${tid?.substr(
+              0,
+              5
+            )} -> ${task?.next?.id?.substr(0, 5) ?? null}`
+          );
         }
         for (let t of Object.values(taskMap)) {
           if (sorted.indexOf(t) === -1) {

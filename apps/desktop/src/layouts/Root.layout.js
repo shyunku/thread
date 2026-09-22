@@ -95,7 +95,7 @@ const RootLayout = () => {
 
       try {
         const transition = await promise(states);
-        console.log("ROOT_LAYOUT_LOG");
+        console.log(colorize.blue(`[Execute promise ${poppedPromiseKey}]`));
         // console.log("<-- transition", transition, states);
         setStates((prev) => {
           if (transition == null) return emptyState;
@@ -106,7 +106,7 @@ const RootLayout = () => {
           return copied;
         });
       } catch (err) {
-        console.error("ROOT_LAYOUT_ERROR");
+        console.error(err);
       }
 
       return copied;
@@ -165,7 +165,7 @@ const RootLayout = () => {
           goBackToLoginPage();
           break;
         default:
-          console.log("ROOT_LAYOUT_LOG");
+          console.log(err);
           Toast.warn("서버가 연결되지 않았습니다. 편집이 불가능합니다.");
           break;
       }
@@ -299,7 +299,7 @@ const RootLayout = () => {
         }
         IpcSender.req.system.getLastBlockNumber();
       } catch (err) {
-        console.error("ROOT_LAYOUT_ERROR");
+        console.error(err);
         Toast.error(
           err?.message ??
             "알 수 없는 오류가 발생했습니다. 로그인 화면으로 이동합니다."
@@ -330,7 +330,7 @@ const RootLayout = () => {
     });
 
     IpcSender.onAll("transaction/error", ({ success, data }, tx) => {
-      console.error("transaction error");
+      console.error("transaction error", data, tx);
       if (data === "not-connected") {
         Toast.error("서버가 연결되어 있지 않습니다. 편집이 불가능합니다.");
         return;
@@ -481,7 +481,7 @@ const RootLayout = () => {
     });
 
     IpcSender.onAll("system/error", (err) => {
-      console.error("ROOT_LAYOUT_ERROR");
+      console.error(err);
     });
 
     IpcSender.onAll("state/transitions", ({ success, data }) => {

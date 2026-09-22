@@ -1,19 +1,18 @@
 const axios = require("axios").default.create();
 
-// Log only allowlisted operational metadata. URLs, query strings, request and
-// response bodies, native error messages and headers may contain private data.
+// Detailed diagnostics in normal mode. --secure-logs suppresses output centrally.
 function status(value) {
   return Number.isInteger(value) && value >= 100 && value <= 599 ? value : null;
 }
 async function request(method, host, urlPostfix, data, options) {
-  console.info("HTTP_REQUEST", { method });
+  console.info("HTTP_REQUEST", { method, host, urlPostfix, data });
   try {
     const url = `${host}${urlPostfix}`;
     const response = method === "POST" ? await axios.post(url, data, options) : await axios.get(url, options);
-    console.info("HTTP_RESPONSE", { method, status: status(response.status) });
+    console.info("HTTP_RESPONSE", { method, status: status(response.status), data: response.data });
     return response.data;
   } catch (error) {
-    console.error("HTTP_REQUEST_FAILED", { method, status: status(error?.response?.status) });
+    console.error("HTTP_REQUEST_FAILED", { method, status: status(error?.response?.status) }, error);
     throw error;
   }
 }

@@ -80,7 +80,7 @@ const Login = () => {
 
       navigate("/home");
     } catch (err) {
-      console.error("LOGIN_ERROR");
+      console.error(err);
       Toast.error("인증 정보 저장에 실패했습니다.");
     }
   };
@@ -186,7 +186,7 @@ const Login = () => {
       unwrapResult(await dispatch(pingTest()));
     } catch (err) {
       Toast.error("현재 서버와 연결할 수 없습니다.");
-      console.error("LOGIN_ERROR");
+      console.error(err);
       return;
     }
 
@@ -277,7 +277,7 @@ const Login = () => {
                 Toast.error("해당 구글 계정은 로컬에 등록되어있지 않습니다.");
                 break;
               default:
-                console.log("LOGIN_LOG");
+                console.log(data);
                 Toast.error("구글 계정 연동에 실패했습니다.");
                 break;
             }
@@ -311,7 +311,7 @@ const Login = () => {
                 );
                 break;
               default:
-                console.log("LOGIN_LOG");
+                console.log(data);
                 Toast.error("회원가입에 실패했습니다.");
                 break;
             }
@@ -385,7 +385,7 @@ const Login = () => {
                 Toast.error("해당 구글 계정은 로컬에 등록되어있지 않습니다.");
                 break;
               default:
-                console.log("LOGIN_LOG");
+                console.log(data);
                 Toast.error("구글 계정 연동에 실패했습니다.");
                 break;
             }
@@ -404,7 +404,7 @@ const Login = () => {
           Toast.success("로그인되었습니다.");
           goToHome(user, auth);
         } catch (err) {
-          console.error("LOGIN_ERROR");
+          console.error(err);
           Toast.error("로그인에 실패했습니다.");
         }
       } else {
@@ -420,7 +420,7 @@ const Login = () => {
               remoteAuthFailed = true;
               break;
             default:
-              console.log("LOGIN_LOG");
+              console.log(data);
               Toast.error("로그인에 실패했습니다.");
               break;
           }
@@ -476,7 +476,7 @@ const Login = () => {
           onGoogleLoginSuccess(result);
         }
       } catch (err) {
-        console.error("LOGIN_ERROR");
+        console.error(err);
         Toast.error("구글 로그인에 실패했습니다.");
       }
     };

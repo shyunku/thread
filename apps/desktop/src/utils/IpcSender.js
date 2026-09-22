@@ -53,7 +53,11 @@ const sender = (topic, callback, ...arg) => {
   autoSubscribe(topic);
   const sendId = uuid.v4();
   if (topic !== "system/subscribe" && !topic.startsWith("vault/")) {
-    console.debug("IPCSENDER_DEBUG");
+    console.debug(
+      `IpcRenderer --> ${colorize.yellow(
+        `[${sendId?.substring(0, 3) ?? "unknown"}]`
+      )} ${colorize.magenta(topic)}`
+    );
   }
   let listener = IpcSender.on(topic, (reqId, ...result) => {
     if (reqId !== sendId) return;
@@ -424,7 +428,11 @@ const IpcSender = {
     const originalCallback = callback;
     const newCallback = (e, reqId, ...data) => {
       if (reqId == null) return;
-      console.debug("IPCSENDER_DEBUG");
+      console.debug(
+        `IpcRenderer <-- ${colorize.cyan(
+          `[${reqId?.substr(0, 3) ?? "unknown"}]`
+        )} ${colorize.magenta(topic)}`
+      );
       originalCallback(reqId, ...data);
     };
     ipcRenderer.on(topic, newCallback);
@@ -437,7 +445,11 @@ const IpcSender = {
       // v2 mutations publish one durable view event, not legacy per-action
       // transitions. Request-scoped callbacks still receive their ACK.
       if (data[0]?.data?.syncV2Ack) return;
-      console.debug("IPCSENDER_DEBUG");
+      console.debug(
+        `IpcRenderer <-- ${colorize.yellow(`[ALL]`)} ${colorize.magenta(
+          topic
+        )}`
+      );
       return callback(...data);
     };
 

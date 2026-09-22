@@ -29,11 +29,11 @@ export const colorize = {
 };
 
 export const printf = (varName, variable, ...args) => {
-  console.log("COMMON_LOG");
+  console.log(`${colorize.green(varName)}`, variable, ...args);
 };
 
 export const errorf = (varName, variable, ...args) => {
-  console.error("COMMON_ERROR");
+  console.error(`${colorize.red(varName)}`, variable, ...args);
 };
 
 // absolute time to relative time text

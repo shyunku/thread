@@ -402,7 +402,7 @@ const TodoContent = (callback, deps) => {
         null
       );
     } else {
-      console.log("TODOCONTENT_LOG");
+      console.log(result);
     }
   };
 
@@ -464,7 +464,7 @@ const TodoContent = (callback, deps) => {
   };
 
   const onCategoryColorChange = (cid, color) => {
-    console.log("TODOCONTENT_LOG");
+    console.log(cid, color);
     IpcSender.req.category.updateCategoryColor(cid, color, null);
   };
 
