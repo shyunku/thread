@@ -96,11 +96,8 @@ module.exports = function (s) {
     "vault/reviews":request=>s.vaultWorkspaceService.reviews(request),
   };
   for(const [topic,action] of Object.entries(vaultActions))s.register(topic,async(event,reqId,...args)=>{
-    try{
-      const uid=s.userService.getCurrent(),data=await action(...args);
-      if(uid!==s.userService.getCurrent())throw Error("VAULT_SESSION_CHANGED");
-      event.sender.send(topic,reqId,{success:true,data});
-    }catch{event.sender.send(topic,reqId,{success:false,data:{code:"VAULT_ACTION_FAILED"}});}
+    const reply=await require("../e2ee/vaultIpcReply").vaultIpcReply(s,topic,action,args);
+    event.sender.send(topic,reqId,reply);
   });
   for (const action of ["get", "download", "showFile"]) {
     const topic = "release-alert/" + action;

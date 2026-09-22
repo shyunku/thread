@@ -4,7 +4,8 @@ import VaultUnlock from "./VaultUnlock";
 import VaultWorkspace from "./VaultWorkspace";
 import {CircularProgress} from "react-cssfx-loading";
 import "./ApplicationGate.scss";
-const invoke=(method,...args)=>new Promise((resolve,reject)=>IpcSender.vault[method](...args,result=>result?.success?resolve(result.data):reject(Error("APPLICATION_UNAVAILABLE"))));
+const diagnosticCodes=new Set(["AUTH_REQUIRED","ACCOUNT_MISMATCH","VAULT_SESSION_CHANGED","VAULT_BUSY","APPLICATION_MODE_CHANGED","APPLICATION_MODE_UNAVAILABLE","INSECURE_SYNC_ENDPOINT","SYNC_UNAVAILABLE","SYNC_CANCELLED","UNAUTHORIZED","USER_REQUIRED"]);
+const invoke=(method,...args)=>new Promise((resolve,reject)=>IpcSender.vault[method](...args,result=>result?.success?resolve(result.data):reject(Error(diagnosticCodes.has(result?.data?.code)?result.data.code:"APPLICATION_UNAVAILABLE"))));
 export default function ApplicationGate({uid,children}){
  const [screen,setScreen]=useState({mode:"CHECKING"}),sequence=useRef(0),live=useRef(true);
  const refresh=useCallback(async()=>{
@@ -13,7 +14,7 @@ export default function ApplicationGate({uid,children}){
    const result=await invoke("bootstrap",uid);
    const status=result.mode==="LOCKED"?await invoke("status"):null;
    if(live.current&&request===sequence.current)setScreen({...result,status});
-  }catch{if(live.current&&request===sequence.current)setScreen({mode:"ERROR"});}
+  }catch(error){if(live.current&&request===sequence.current)setScreen({mode:"ERROR",code:diagnosticCodes.has(error.message)?error.message:"APPLICATION_UNAVAILABLE"});}
  },[uid]);
  useEffect(()=>{
   live.current=true;void refresh();
@@ -38,6 +39,7 @@ export default function ApplicationGate({uid,children}){
    screen.mode==="MIGRATION_REQUIRED"?<><p className="application-gate__notice" role="alert">계정의 암호화 이관 준비가 필요합니다. 기존 데이터는 그대로 보존되어 있습니다. 동의와 인증 없이 자동으로 옮기지 않습니다.</p><VaultWorkspace uid={uid} onContinue={()=>void refresh()}/></>:
    screen.mode==="RECOVERY_REQUIRED"?<p role="alert">보관함 파일 확인이 필요합니다. 초기화하거나 기존 데이터를 삭제하지 마세요.</p>:
    <p role="alert">저장소 상태를 확인하지 못했습니다. 연결을 확인하고 다시 시도해주세요. 다른 저장소로 자동 전환하지 않습니다.</p>}
+  {screen.mode==="ERROR"&&<p className="application-gate__diagnostic">진단 코드: <code>{screen.code}</code></p>}
   {screen.mode!=="CHECKING"&&<footer className="application-gate__footer"><button type="button" onClick={()=>void refresh()}>저장소 다시 확인</button><small>기존 데이터는 초기화하거나 삭제하지 않습니다.</small></footer>}
   </div>
  </main>;

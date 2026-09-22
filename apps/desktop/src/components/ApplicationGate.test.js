@@ -27,6 +27,16 @@ test("mode failure does not mount legacy app and retry can recover",async()=>{
  expect(await screen.findByRole("alert")).toBeInTheDocument();expect(screen.queryByText("Legacy application")).not.toBeInTheDocument();
  fireEvent.click(screen.getByText("저장소 다시 확인"));expect(await screen.findByText("Legacy application")).toBeInTheDocument();
 });
+test("only allowlisted diagnostics are shown instead of raw error data",async()=>{
+ IpcSender.vault.bootstrap.mockImplementationOnce((uid,cb)=>cb({success:false,data:{code:"AUTH_REQUIRED"}}))
+  .mockImplementationOnce((uid,cb)=>cb({success:false,data:{code:"private token fixture"}}));
+ render(<ApplicationGate uid="u"><p>App</p></ApplicationGate>);
+ expect(await screen.findByText("AUTH_REQUIRED")).toBeInTheDocument();
+ fireEvent.click(screen.getByText("저장소 다시 확인"));
+ expect(await screen.findByText("APPLICATION_UNAVAILABLE")).toBeInTheDocument();
+ expect(screen.queryByText("private token fixture")).not.toBeInTheDocument();
+});
+
 test("late bootstrap for old account never renders its app",async()=>{
  let finish;IpcSender.vault.bootstrap.mockImplementationOnce((uid,cb)=>{finish=cb;})
   .mockImplementationOnce((uid,cb)=>cb({success:true,data:{mode:"SETUP_REQUIRED"}}));

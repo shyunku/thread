@@ -127,6 +127,15 @@ test("a prepared vault becoming encrypted while the server responds cannot selec
  assert.equal(s.active.unlocked,false);
 });
 
+test("real bootstrap through the IPC reply boundary accepts initial account selection",async t=>{
+ const f=fixture(t),s=f.service;let current=null;
+ f.deps.getAccount=()=>current;
+ f.deps.transport={accountStatus:async()=>({accountMode:"v2"}),legacyCapabilities:async()=>({mode:"v2",protocolVersion:2,enabled:true})};
+ const group={userService:{getCurrent:()=>current,setCurrent:uid=>{current=uid;}}};s.inject(group);
+ const {vaultIpcReply}=require("../public/electron/e2ee/vaultIpcReply");
+ assert.deepEqual(await vaultIpcReply(group,"vault/bootstrap",uid=>s.bootstrap(uid),["fixture"]),{success:true,data:{mode:"LEGACY"}});
+});
+
 test("bootstrap cannot pin a late response onto another account",async t=>{
  const f=fixture(t);let finish;
  f.deps.transport={accountStatus:()=>new Promise(resolve=>{finish=resolve;}),legacyCapabilities:async()=>({mode:"v2",protocolVersion:2,enabled:true})};
