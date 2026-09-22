@@ -83,6 +83,27 @@ test("cancel requires a matching status requery and preserves local recovery/sou
  assert.ok(f.store.entries("recovery").some(row=>row.id.startsWith("$migration-source-")));
  assert.equal(f.store.entries("confirmed").length,0);
 });
+test("cancelled attempt restarts only after matching remote proof and preserves all old records",async t=>{
+ const f=await fixture(t);await f.session.prepare(snapshot);await f.session.sourcePage(0);await f.session.cancel();
+ const old=f.session.journal.get(),plan=f.session.plan();
+ const next=await f.session.restart();
+ assert.notEqual(next.id,old.id);assert.equal(next.phase,"PREPARING");
+ assert.deepEqual(f.store.get("recovery","$migration-journal-"+old.id),old);
+ assert.deepEqual(f.store.get("recovery","$migration-plan-"+old.id),plan);
+ assert.ok(f.store.get("recovery","$migration-source-"+old.id+"-0"));
+ f.reopen();assert.equal(f.session.journal.get().id,next.id);
+ await assert.rejects(f.session.restart(),/MIGRATION_PHASE_CONFLICT/);
+});
+test("restart rejects changed server state and session cancellation without replacing journal",async t=>{
+ const f=await fixture(t);await f.session.prepare(snapshot);await f.session.cancel();
+ const old=f.session.journal.get(),status=f.transport.migrationStatus;
+ f.transport.migrationStatus=async record=>({...await status(record),phase:"ACTIVE"});
+ await assert.rejects(f.session.restart(),/INVALID_MIGRATION_RESPONSE/);
+ assert.deepEqual(f.session.journal.get(),old);
+ f.transport.migrationStatus=async record=>{const value=await status(record);f.session.close();return value;};
+ await assert.rejects(f.session.restart(),/MIGRATION_CANCELLED/);
+ assert.deepEqual(f.session.journal.get(),old);
+});
 test("closing during prepare blocks late local state changes; read-only members cannot coordinate",async t=>{
  const f=await fixture(t),prepare=f.transport.migrationPrepare;
  f.transport.migrationPrepare=async record=>{const result=await prepare(record);f.session.close();return result;};

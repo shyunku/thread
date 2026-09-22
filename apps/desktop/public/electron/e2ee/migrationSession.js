@@ -43,6 +43,13 @@ class MigrationSession{
   const state=this.journal.get();check(state,"MIGRATION_NOT_STARTED");
   const plan=this.store.get("recovery","$migration-plan-"+state.id);check(plan,"MIGRATION_PLAN_MISSING");return plan;
  }
+ async restart(){
+  this.ready();const before=this.journal.get();
+  check(before?.phase==="CANCELLED","MIGRATION_PHASE_CONFLICT");
+  const plan=this.plan();
+  this.validateStatus(await this.request("status",{migrationId:before.id}),plan,"CANCELLED");
+  return this.journal.restart(before,randomBytes(16).toString("hex"));
+ }
  async prepareCurrent(){
   this.ready();
   const state=this.journal.get()||this.journal.begin(randomBytes(16).toString("hex"));

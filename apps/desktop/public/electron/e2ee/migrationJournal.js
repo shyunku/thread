@@ -5,6 +5,17 @@ const transitions={PREPARING:"FROZEN",FROZEN:"UPLOADING",UPLOADING:"VERIFIED",VE
 class MigrationJournal{
  constructor(store,scope){this.store=store;this.scope=p.decode(p.encode(scope));}
  get(){const state=this.store.get("recovery",KEY);if(state&&!p.encode(state.scope).equals(p.encode(this.scope)))throw Error("MIGRATION_SCOPE_MISMATCH");return state;}
+ restart(expected,id){
+  if(typeof id!=="string"||!/^[A-Za-z0-9_-]{1,128}$/.test(id))throw Error("INVALID_MIGRATION_ID");
+  return this.store.transaction(db=>{
+   const old=this.get();
+   if(!old||old.phase!=="CANCELLED"||!p.encode(old).equals(p.encode(expected)))throw Error("MIGRATION_CHANGED");
+   const archive="$migration-journal-"+old.id;
+   if(id===old.id||db.get("recovery","$migration-plan-"+id)||db.get("recovery","$migration-journal-"+id)||db.get("recovery",archive))throw Error("MIGRATION_ALREADY_EXISTS");
+   db.put("recovery",archive,old);
+   const next={id,scope:this.scope,phase:"PREPARING",pages:[]};db.put("recovery",KEY,next);return next;
+  });
+ }
  begin(id){if(typeof id!=="string"||!/^[A-Za-z0-9_-]{1,128}$/.test(id))throw Error("INVALID_MIGRATION_ID");return this.store.transaction(db=>{const old=this.get();if(old){if(old.id!==id)throw Error("MIGRATION_ALREADY_EXISTS");return old;}const state={id,scope:this.scope,phase:"PREPARING",pages:[]};db.put("recovery",KEY,state);return state;});}
  advance(expected,phase,evidence){return this.store.transaction(db=>{
   const state=this.get();if(!state||state.phase!==expected||transitions[expected]!==phase)throw Error("MIGRATION_PHASE_CONFLICT");

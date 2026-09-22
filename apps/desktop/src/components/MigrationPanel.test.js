@@ -18,6 +18,16 @@ test("never migrates on mount and requires new explicit consent for each stage",
  fireEvent.click(await screen.findByText("저장소 다시 확인"));expect(next).toHaveBeenCalledTimes(1);
  expect(IpcSender.vault.migration).toHaveBeenNthCalledWith(1,"prepare",expect.objectContaining({confirmed:true,method:"os"}),expect.any(Function));
 });
+test("cancelled attempt requires consent to restart and separate consent to freeze again",async()=>{
+ IpcSender.vault.migrationStatus.mockImplementation(cb=>cb({success:true,data:{phase:"CANCELLED",busy:false}}));
+ IpcSender.vault.migration.mockImplementation((action,input,cb)=>cb({success:true,data:{phase:"PREPARING"}}));
+ render(<MigrationPanel osAvailable/>);
+ const restart=await screen.findByText("새 이관 시도 만들기");expect(restart).toBeDisabled();
+ fireEvent.click(screen.getByRole("checkbox"));fireEvent.click(restart);
+ expect(await screen.findByText("원본 준비·재확인")).toBeDisabled();
+ expect(IpcSender.vault.migration).toHaveBeenCalledTimes(1);
+ expect(IpcSender.vault.migration).toHaveBeenCalledWith("restart",expect.objectContaining({confirmed:true,method:"os"}),expect.any(Function));
+});
 test("late response after unmount does not continue or expose a result",async()=>{
  let done;IpcSender.vault.migration.mockImplementation((action,input,cb)=>{done=cb;});
  const next=jest.fn(),view=render(<MigrationPanel osAvailable onContinue={next}/>);

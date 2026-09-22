@@ -31,18 +31,19 @@ export default function MigrationPanel({osAvailable,onContinue}){
   <p>준비를 누르면 이 계정의 기존 편집이 중지됩니다. 전환 중에는 모든 기기를 닫아두세요. 원본 DB와 미전송 변경은 보존하며 자동 삭제하거나 재전송하지 않습니다.</p>
   <p role="status">{state?labels[phase]||"상태 확인 필요":"상태 확인 중"}</p>
   {error&&<p role="alert">이관을 완료하지 못했습니다. 서버 연결·복구 확인·기기 권한을 확인하세요. 기존 앱이 열려 있었다면 종료 후 다시 시작하세요. 전환 결과가 불확실하면 초기화하지 말고 같은 단계에서 재시도하세요.</p>}
-  {!["ACTIVE","CANCELLED"].includes(phase)&&<>
+  {phase!=="ACTIVE"&&<>
    <label><input type="checkbox" checked={consent} disabled={waiting} onChange={event=>setConsent(event.target.checked)}/>복구 자료를 보관했고, 기존 편집 중지와 검증 후 암호화 전환에 동의합니다.</label>
    <label>재인증 방법<select value={method} disabled={waiting} onChange={event=>setMethod(event.target.value)}>
     {osAvailable&&<option value="os">OS 인증</option>}<option value="password">보관함 비밀번호</option>
    </select></label>
    {method==="password"&&<label>보관함 비밀번호<input ref={password} type="password" autoComplete="off" maxLength={1024} disabled={waiting}/></label>}
    {["NOT_STARTED","PREPARING","FROZEN"].includes(phase)&&<button disabled={!consent||waiting} onClick={()=>run("prepare")}>원본 준비·재확인</button>}
+   {phase==="CANCELLED"&&<button disabled={!consent||waiting} onClick={()=>run("restart")}>새 이관 시도 만들기</button>}
    {["FROZEN","UPLOADING","VERIFIED","COMMITTING"].includes(phase)&&<button disabled={!consent||waiting} onClick={()=>run("transfer")}>암호화 전환·재개</button>}
    {["PREPARING","FROZEN","UPLOADING","VERIFIED","COMMITTING"].includes(phase)&&<button disabled={!consent||waiting} onClick={()=>run("cancel")}>이관 취소 요청</button>}
   </>}
   {phase==="ACTIVE"&&<p>서버 전환을 확인했습니다. 다음 단계에서 서명된 snapshot으로 이 기기를 연결합니다. 보존된 이전 변경은 별도로 검토하세요.</p>}
-  {phase==="CANCELLED"&&<p>기존 원본은 유지됩니다. 취소한 시도는 재사용하지 않으며 새 이관 준비는 별도 지원이 필요합니다.</p>}
+  {phase==="CANCELLED"&&<p>기존 원본과 이전 이관 기록은 유지됩니다. 재인증 후 서버의 취소 상태를 다시 확인하고 새 시도를 만들 수 있습니다. 원본 준비는 별도 동의 후 시작합니다.</p>}
   {onContinue&&["ACTIVE","CANCELLED"].includes(phase)&&<button onClick={onContinue}>저장소 다시 확인</button>}
  </section>;
 }
