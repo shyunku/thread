@@ -11,11 +11,14 @@ import LostRecoveryPanel from "./LostRecoveryPanel";
 import BackupPanel from "./BackupPanel";
 import LegacyStructureReview from "./LegacyStructureReview";
 import ReencryptionPanel from "./ReencryptionPanel";
+import VaultOnboarding from "./VaultOnboarding";
+import "./VaultWorkspace.scss";
 const invoke=(method,...args)=>new Promise((resolve,reject)=>{
  if(!IpcSender.vault?.[method])return reject(Error("UNAVAILABLE"));
  IpcSender.vault[method](...args,response=>response?.success?resolve(response.data):reject(Error("VAULT_ACTION_FAILED")));
 });
-export default function VaultWorkspace({uid,onContinue}){
+export default function VaultWorkspace({uid,onContinue,connectionOnly=false}){
+ const [panel,setPanel]=useState(null);
  const [status,setStatus]=useState(null),[error,setError]=useState(false),[intakes,setIntakes]=useState([]),[selected,setSelected]=useState("");
  const generation=useRef(0);
  const invalidate=useCallback(()=>{generation.current++;},[]);
@@ -52,21 +55,23 @@ export default function VaultWorkspace({uid,onContinue}){
  const reconcileLegacy=useCallback(request=>invoke("reconcileLegacy",request),[]);
  if(status?.enabled===false)return <p>이 빌드에서는 보관함을 사용할 수 없습니다.</p>;
  const current=status?.uid===uid?status:null;
- return <section aria-label="보관함 관리">
-  <h3>보관함 관리</h3>
-  <p>보관함 준비와 서버 등록만으로 기존 할 일이 이관되지는 않습니다. 암호화 전환은 아래 이관 화면의 명시적 동의·재인증 뒤에만 실행합니다.</p>
+ return <section className="vault-workspace" aria-label="보관함 관리">
+  {!onContinue&&<><h3>보관함 관리</h3><p>복구 자료와 연결된 기기를 관리하세요.</p></>}
   {error&&<p role="alert">보관함 상태를 확인하지 못했습니다. 기존 데이터는 삭제되지 않았습니다.</p>}
   {!current?<p>상태 확인 중…</p>:current.phase==="RECOVERY_REQUIRED"?<p role="alert">보관함 파일이 불완전합니다. 새로 만들거나 초기화하지 말고 복구가 필요합니다.</p>:
    current.phase==="UNLOCKED"?<>
-    <p role="status">로컬 보관함 잠금 해제됨 · 서버 보호 상태는 아래 동기화 확인에서 별도로 확인하세요.</p>
-    <RecoverySetup key={uid+":"+current.generation}/>
-    <DevicePairing key={"pair:"+uid+":"+current.generation} osAvailable={current.osAvailable}/>
-    <EncryptedSync key={"sync:"+uid+":"+current.generation}/>
-    <MigrationPanel key={"migration:"+uid+":"+current.generation} osAvailable={current.osAvailable} onContinue={onContinue}/>
-    <RotationPanel key={"rotation:"+uid+":"+current.generation} osAvailable={current.osAvailable}/>
-    <LostRecoveryPanel key={"lost:"+uid+":"+current.generation} osAvailable={current.osAvailable} onContinue={onContinue}/>
-    <BackupPanel key={"backup:"+uid+":"+current.generation} osAvailable={current.osAvailable}/>
-    <ReencryptionPanel key={"reencrypt:"+uid+":"+current.generation}/>
+    <p className="vault-status" role="status">로컬 보관함 잠금 해제됨</p>
+    {onContinue?<VaultOnboarding key={uid+":"+current.generation} osAvailable={current.osAvailable} onContinue={onContinue} connectionOnly={connectionOnly}/>:<>
+     {!panel?<nav className="vault-menu" aria-label="보관함 작업">{[["recovery","복구 자료","복구 코드와 파일 보관"],["pair","기기 연결","QR 또는 파일로 새 기기 승인"],["sync","동기화","연결 상태와 미전송 변경 확인"],["backup","암호화 백업","파일 내보내기·복원"],["rotation","기기·키 관리","기기 해지와 키 갱신"],["lost","기기 분실 복구","복구 자료로 접근 복원"],["migration","이전 데이터","v2 데이터 이관 상태"],["reencrypt","암호화 갱신","기존 데이터의 키 세대 갱신"]].map(([id,title,description])=><button key={id} onClick={()=>setPanel(id)}><strong>{title}</strong><span>{description}</span></button>)}</nav>:<button className="vault-back" onClick={()=>setPanel(null)}>← 보관함 메뉴</button>}
+     {panel==="recovery"&&<RecoverySetup/>}
+     {panel==="pair"&&<DevicePairing osAvailable={current.osAvailable}/>}
+     {panel==="sync"&&<EncryptedSync/>}
+     {panel==="migration"&&<MigrationPanel osAvailable={current.osAvailable}/>}
+     {panel==="rotation"&&<RotationPanel osAvailable={current.osAvailable}/>}
+     {panel==="lost"&&<LostRecoveryPanel osAvailable={current.osAvailable}/>}
+     {panel==="backup"&&<BackupPanel osAvailable={current.osAvailable}/>}
+     {panel==="reencrypt"&&<ReencryptionPanel/>}
+    </>}
     <button onClick={()=>{generation.current++;setIntakes([]);setSelected("");setStatus({...current,phase:"LOCKED"});invoke("lock").catch(()=>setError(true));}}>보관함 잠그기</button>
     {!intakes.length?<p>보존된 이전 기기 변경이 없습니다.</p>:<>
      <label>복구 자료 <select value={selected} onChange={event=>setSelected(event.target.value)}>{intakes.map((item,index)=><option key={item.id} value={item.id}>자료 {index+1} · {item.count}개</option>)}</select></label>

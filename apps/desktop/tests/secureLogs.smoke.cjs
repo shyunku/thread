@@ -8,6 +8,12 @@ app.on("window-all-closed",()=>{});
 app.whenReady().then(async()=>{
  const w=new BrowserWindow({show:false,webPreferences:{sandbox:true,contextIsolation:true,nodeIntegration:false,preload:path.resolve(__dirname,"../public/electron/modules/preload.js")}});
  await w.loadURL("data:text/html,<html><body>synthetic</body></html>");
+ const {setVaultWindow}=require("../public/electron/modules/vaultWindow");
+ const before=w.getBounds();
+ setVaultWindow(w,"setup",{x:0,y:0,width:1200,height:900});
+ assert.deepEqual([w.getBounds().width,w.getBounds().height],[620,820]);
+ assert.equal(w.isResizable(),false);
+ setVaultWindow(w,"app");assert.deepEqual(w.getBounds(),before);
  assert.equal(await w.webContents.executeJavaScript("window.thread.secureLogs"),true);
  const source=fs.readFileSync(path.resolve(__dirname,"../src/utils/secureLogs.js"),"utf8");
  assert.equal(await w.webContents.executeJavaScript("(()=>{let calls=0;console.log=()=>{calls++;};"+source+";console.log('SYNTHETIC_ONLY');return calls;})()"),0);
@@ -16,7 +22,7 @@ app.whenReady().then(async()=>{
  const service=new VaultWorkspaceService({enabled:true,baseDirectory:temp,environment:"development",getAccount:()=>"synthetic",getWindow:()=>w,powerMonitor:power});
  service.context();w.destroy();assert.equal(service.active,null);assert.equal(power.listenerCount("lock-screen"),0);
  clearTimeout(timeout);
- process.stdout.write("PASS: secure renderer flag, suppressed console, destroyed-window cleanup\n");
+ process.stdout.write("PASS: secure renderer flag, suppressed console, vault window bounds/restore, destroyed-window cleanup\n");
  app.quit();
 }).catch(()=>{process.stderr.write("FAIL: secure logging Electron smoke\n");app.exit(1);});
 app.on("will-quit",()=>{try{fs.rmSync(temp,{recursive:true,force:true});}catch{}});

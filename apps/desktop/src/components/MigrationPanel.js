@@ -1,5 +1,6 @@
 import {useEffect,useRef,useState} from "react";
 import IpcSender from "../utils/IpcSender";
+import PasswordField from "./PasswordField";
 const call=(name,...args)=>new Promise((resolve,reject)=>{
  if(!IpcSender.vault?.[name])return reject(Error("UNAVAILABLE"));
  IpcSender.vault[name](...args,result=>result?.success?resolve(result.data):reject(Error("MIGRATION_FAILED")));
@@ -27,8 +28,8 @@ export default function MigrationPanel({osAvailable,onContinue}){
  const phase=state?.phase,waiting=busy||state?.busy;
  return <section aria-label="암호화 이관">
   <h3>기존 할 일 암호화 이관</h3>
-  <p>배포 전에는 기존 앱을 그대로 사용하세요. 이관은 새 버전의 시작 화면에서, 복구 파일 확인과 서버 등록을 마친 뒤 진행합니다.</p>
-  <p>준비를 누르면 이 계정의 기존 편집이 중지됩니다. 전환 중에는 모든 기기를 닫아두세요. 원본 DB와 미전송 변경은 보존하며 자동 삭제하거나 재전송하지 않습니다.</p>
+  <p>기존 할 일을 암호화해 v3로 옮깁니다. 준비를 시작하면 기존 편집이 중지되므로 다른 기기의 Thread를 닫아주세요.</p>
+  <details><summary>데이터 보존 안내</summary><p>원본과 미전송 변경은 보존합니다. 전환 완료 후에도 서버에 남은 과거 평문과 백업은 별도 정리가 필요합니다.</p></details>
   <p role="status">{state?labels[phase]||"상태 확인 필요":"상태 확인 중"}</p>
   {error&&<p role="alert">이관을 완료하지 못했습니다. 서버 연결·복구 확인·기기 권한을 확인하세요. 기존 앱이 열려 있었다면 종료 후 다시 시작하세요. 전환 결과가 불확실하면 초기화하지 말고 같은 단계에서 재시도하세요.</p>}
   {phase!=="ACTIVE"&&<>
@@ -36,7 +37,7 @@ export default function MigrationPanel({osAvailable,onContinue}){
    <label>재인증 방법<select value={method} disabled={waiting} onChange={event=>setMethod(event.target.value)}>
     {osAvailable&&<option value="os">OS 인증</option>}<option value="password">보관함 비밀번호</option>
    </select></label>
-   {method==="password"&&<label>보관함 비밀번호<input ref={password} type="password" autoComplete="off" maxLength={1024} disabled={waiting}/></label>}
+   {method==="password"&&<><label htmlFor="migration-password">보관함 비밀번호</label><PasswordField ref={password} id="migration-password" label="보관함 비밀번호" autoComplete="off" maxLength={1024} disabled={waiting}/></>}
    {["NOT_STARTED","PREPARING","FROZEN"].includes(phase)&&<button disabled={!consent||waiting} onClick={()=>run("prepare")}>원본 준비·재확인</button>}
    {phase==="CANCELLED"&&<button disabled={!consent||waiting} onClick={()=>run("restart")}>새 이관 시도 만들기</button>}
    {phase==="PREPARING"&&<button disabled={!consent||waiting} onClick={()=>run("refresh")}>만료된 원본 다시 확인</button>}

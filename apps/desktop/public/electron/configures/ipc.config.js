@@ -65,6 +65,7 @@ const {
  */
 module.exports = function (s) {
   const vaultActions={
+    "vault/windowMode":mode=>{const w=s.windowService.mainWindow;if(!w||w.isDestroyed())return false;return require("../modules/vaultWindow").setVaultWindow(w,mode,require("electron").screen.getDisplayMatching(w.getBounds()).workArea);},
     "vault/reconcileLegacy":input=>s.vaultWorkspaceService.reconcileLegacy(input),
     "vault/groupConflict":(action,input)=>s.vaultWorkspaceService.groupConflict(action,input),
     "vault/rotation":(action,input)=>s.vaultWorkspaceService.rotation(action,input),

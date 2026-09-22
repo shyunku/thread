@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import "./VaultUnlock.scss";
+import PasswordField from "./PasswordField";
 
 export default function VaultUnlock({ setup = false, osAvailable = false, passwordAvailable = true, preparationOnly = false,
   onOSUnlock, onPasswordUnlock, onCreate, onUnlocked }) {
@@ -50,12 +51,12 @@ export default function VaultUnlock({ setup = false, osAvailable = false, passwo
     <form onSubmit={submit}>
       {(setup || (method === "password" && passwordAvailable)) && <>
         <label htmlFor="vault-password">보관함 비밀번호{setup ? " (12자 이상)" : ""}</label>
-        <input ref={password} id="vault-password" type="password" maxLength={256} disabled={busy}
+        <PasswordField ref={password} id="vault-password" label="보관함 비밀번호" maxLength={256} disabled={busy}
           autoComplete={setup ? "new-password" : "current-password"} required />
       </>}
       {setup && <>
         <label htmlFor="vault-password-confirm">비밀번호 확인</label>
-        <input ref={confirmation} id="vault-password-confirm" type="password" maxLength={256} disabled={busy} autoComplete="new-password" required />
+        <PasswordField ref={confirmation} id="vault-password-confirm" label="비밀번호 확인" maxLength={256} disabled={busy} autoComplete="new-password" required />
       </>}
       {error && <p role="alert">{error}</p>}
       <button type="submit" disabled={busy || (!setup && (method === "os" ? !osAvailable : !passwordAvailable))}>

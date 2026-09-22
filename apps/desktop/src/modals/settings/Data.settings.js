@@ -45,13 +45,13 @@ const SettingData = () => {
   };
 
   return (
-    <div className="settings">
+    <div className="settings data-settings">
       <div className="setting-item">
         <div className="head"><div className="label">데이터 보호</div></div>
         <div className="body">
-          {current?.protocolVersion===3?<p>현재 할 일은 암호화 보관함을 사용하며, E2EE 경로로 동기화합니다.</p>:current?<><p>현재 동기화 방식은 Sync v2이며, 종단간 암호화(E2EE)는 아직 적용되지 않았습니다.</p>
+          {current?.protocolVersion===3?<p>현재 할 일은 암호화 보관함을 사용하며, v3로 동기화합니다.</p>:current?<><p>현재 동기화 방식은 Sync v2이며, v3 암호화는 아직 적용되지 않았습니다.</p>
           <p>서버 운영자는 저장된 할 일 내용을 조회할 수 있습니다. 기기 잠금이나 HTTPS 연결만으로 서버에서 내용을 읽지 못하게 되는 것은 아닙니다.</p></>:<p>데이터 보호 상태를 확인하고 있습니다.</p>}
-          <p>E2EE 전환 후에도 이전 평문 백업과 로그의 정리 여부는 별도로 확인해야 합니다.</p>
+          <details><summary>이전 데이터에 대한 안내</summary><p>v3 전환 후에도 이전 평문 백업과 로그의 정리 여부는 별도로 확인해야 합니다.</p></details>
         </div>
       </div>
       <div className="setting-item sync-status">
@@ -77,7 +77,7 @@ const SettingData = () => {
         <div className="head"><div className="label">보관함 관리</div></div>
         <div className="body">
           <button onClick={()=>setShowVault(value=>!value)}>{showVault?"보관함 닫기":"보관함 열기"}</button>
-          {showVault&&<VaultWorkspace key={uid} uid={uid}/>}
+          {showVault&&<div className="data-settings__vault"><VaultWorkspace key={uid} uid={uid}/></div>}
         </div>
       </div>
     </div>

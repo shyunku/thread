@@ -1,0 +1,32 @@
+.vault-workspace {
+ --vault-border: #303846; color: #e8edf6; font-size: 14px; line-height: 1.65; min-width: 0; width: 100%;
+ &, * { box-sizing: border-box; }
+ h3,h4 { margin: 0 0 12px; font-size: 19px; line-height: 1.4; color: #edf1f7; }
+ h4 { font-size: 16px; }
+ p { margin: 10px 0 16px; color: #aab5c6; }
+ section { min-width: 0; padding: 20px 0; }
+ section section { margin-top: 20px; border-top: 1px solid var(--vault-border); }
+ form { display: grid; gap: 12px; margin: 16px 0; }
+ label { display: block; margin: 12px 0 6px; }
+ button,input,select,textarea { font: inherit; color: inherit; max-width: 100%; border: 1px solid var(--vault-border); border-radius: 8px; background: #101216; padding: 10px 12px; }
+ input:not([type=checkbox]):not([type=radio]),textarea { width: 100%; }
+ input[type=checkbox],input[type=radio] { accent-color: #6294ff; margin-right: 8px; }
+ button { cursor: pointer; min-height: 40px; white-space: normal; margin: 4px 8px 4px 0; }
+ button:disabled { opacity: .45; cursor: default; }
+ button:hover:not(:disabled) { border-color: #6294ff; background: #202b40; }
+ :focus-visible { outline: 2px solid #83aaff; outline-offset: 3px; }
+ pre,code { white-space: pre-wrap; overflow-wrap: anywhere; }
+ pre { padding: 16px; border-radius: 8px; background: #101216; }
+ details { margin: 12px 0; padding: 12px; border: 1px solid var(--vault-border); border-radius: 8px; }
+ summary { cursor: pointer; color: #aab5c6; }
+ [role=alert] { color: #f3afb5; padding: 12px; background: #352129; border-radius: 8px; }
+ .vault-status { color: #86c8ad; font-size: 12px; }
+ .vault-menu { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(210px,100%),1fr)); gap: 10px; }
+ .vault-menu button { text-align: left; margin: 0; padding: 16px; }
+ .vault-menu strong,.vault-menu span { display: block; }
+ .vault-menu span { color: #94a1b6; font-size: 12px; margin-top: 6px; }
+ .vault-steps { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 24px; padding: 0; font-size: 12px; color: #8290a6; }
+ .vault-steps li { padding: 6px 10px; border-bottom: 2px solid var(--vault-border); }
+ .vault-steps [aria-current=step] { color: #a6c0ff; border-color: #6294ff; }
+ .vault-unlock { border: 0; padding: 0; background: transparent; }
+}

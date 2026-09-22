@@ -11,6 +11,7 @@ const REQUEST_TOPICS = Object.freeze([
   "vault/legacyManual",
   "vault/migrationStatus", "vault/migration",
   "vault/bootstrap",
+  "vault/windowMode",
   "vault/outboxReviews",
   "vault/outboxDetail",
   "vault/resolveConflict",

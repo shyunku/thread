@@ -74,6 +74,7 @@ const silentSender = (topic, param, ...arg) => {
 
 const IpcSender = {
   vault: {
+    windowMode:(mode,callback)=>sender("vault/windowMode",callback,mode),
     reconcileLegacy:(input,callback)=>sender("vault/reconcileLegacy",callback,input),
     groupConflict:(action,input,callback)=>sender("vault/groupConflict",callback,action,input),
     rotation:(action,input,callback)=>sender("vault/rotation",callback,action,input),

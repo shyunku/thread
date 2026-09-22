@@ -8,7 +8,8 @@
   form { display: flex; flex-direction: column; gap: 10px; }
   input, button { border: 1px solid #2b303b; border-radius: 6px; padding: 10px; color: inherit; background: #101216; font: inherit; }
   button { cursor: pointer; }
-  button[aria-pressed="true"], button[type="submit"] { border-color: #6294ff; background: #263b60; }
+  button[aria-pressed="true"] { border-color: #6294ff; background: #1c2433; box-shadow: inset 0 -2px #6294ff; }
+  button[type="submit"] { border-color: #6294ff; background: #4779e7; color: white; font-weight: 600; }
   button:disabled { opacity: .5; cursor: default; }
   input:focus-visible, button:focus-visible { outline: 2px solid #6294ff; outline-offset: 2px; }
   [role="alert"] { color: #f0838b; }

@@ -1,6 +1,6 @@
 import {useEffect,useRef,useState} from "react";
 import IpcSender from "../utils/IpcSender";
-export default function VaultRegistration(){
+export default function VaultRegistration({onRegistered}){
  const [endpoint,setEndpoint]=useState(""),[confirmed,setConfirmed]=useState(false),[busy,setBusy]=useState(false),[result,setResult]=useState(""),[error,setError]=useState(false);
  const live=useRef(true),pending=useRef(false);
  useEffect(()=>{
@@ -15,7 +15,7 @@ export default function VaultRegistration(){
   pending.current=true;setBusy(true);setError(false);
   IpcSender.vault.registerIdentity(response=>{
    pending.current=false;if(!live.current)return;setBusy(false);
-   if(response.success)setResult(response.data.phase);else setError(true);
+    if(response.success){setResult(response.data.phase);if(response.data.phase==="REGISTERED")onRegistered?.();}else setError(true);
   });
  };
  return <section aria-label="서버 보관함 연결">
