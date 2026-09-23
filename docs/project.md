@@ -43,6 +43,10 @@ Desktop 개발 실행은 Thread Dev 및 kr.threadapp.desktop.dev로 구분하고
 
 ## v3 개발 (암호화 보관함)
 
+2026-09-23 16:28 (KST): 운영 전 계정별 v1/v2 평문 잔존량을 내용 없이 확인하는 읽기 전용 도구를 추가했다. 합성 MySQL의 평문·암호문 백업을 별도 DB에 복원하고 전체 행 해시를 대조했다. 서버 평문 정리 범위와 승인 조건은 [정리 계획](protocol/v3-plaintext-purge-plan.md)에 기록했다. 운영 purge 실행 코드는 미구현이며 [출시 검증 기록](reports/2026-09-23-v3-release-rehearsal.md)과 #57에서 계속 추적한다.
+
+2026-09-23 16:28 (KST): 운영 전 계정별 v1/v2 평문 잔존량을 내용 없이 확인하는 읽기 전용 도구를 추가했다. 합성 MySQL의 평문·암호문 백업을 별도 DB에 복원하고 전체 행 해시를 대조했다. 서버 평문 정리 범위와 승인 조건은 [정리 계획](protocol/v3-plaintext-purge-plan.md)에 기록했다. 운영 purge 실행 코드는 미구현이며 [출시 검증 기록](reports/2026-09-23-v3-release-rehearsal.md)과 #57에서 계속 추적한다.
+
 2026-09-22 20:56 (KST): 데스크톱 최초 설정·이관은 620×820 전용 창에서 잠금 설정→복구 자료 확인·서버 등록→명시적 이관 순서로 진행한다. 작은 화면에서는 작업 영역 안에 맞추고 세로 스크롤을 제공하며, 앱 진입 시 기존 창 크기를 복원한다. 설정 > 데이터는 상태와 작업별 보관함 메뉴를 분리한다. 복구/기기 연결/키 관리 기능은 이후에도 접근할 수 있다.
 
 API schema11은 signed batch를 `encrypted_records`에 vault별 SHA-256 digest로 공유 저장한다. schema12는 공유 SHA-256·참조·기존 digest·byte 일치를 모두 확인한 뒤 object/change/snapshot의 중복 BLOB 컬럼만 제거한다. 클라이언트가 받는 서명 원문은 그대로다. 구 API와 혼용하지 않으며 운영 적용·v2 평문 삭제·서명 배포는 수행하지 않았다. [측정과 배포 경계](reports/2026-09-22-v3-record-storage.md).
