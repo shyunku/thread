@@ -28,7 +28,7 @@
 - 공개키 pin genesis, membership revision+previous hash 체인, 조회 기기 쓰기 거부와 uint64 counter 재생 거부 구현. snapshot/CAS/원자적 counter 영속화는 #49/#51 범위다.
 - 기기 전달: X25519 sealed box + 발신자 Ed25519 signature. 요청 전문·수신 공개키·만료 대조. 일회성 소비와 사용자 fingerprint 확인 UI는 #50에 연결해야 한다.
 - 복구 secret은 32-byte CSPRNG. purpose=recovery와 vaultId/genesisFingerprint로 분리한 키로 keyring/복구 authority를 감싼다.
-- [고정 테스트 벡터](../protocol/e2ee-v1-vector.json)는 공개 synthetic 값이다. nonce를 고정하는 것은 테스트에만 허용한다.
+- [고정 테스트 벡터](../initiatives/v3-encryption/protocol/e2ee-v1-vector.json)는 공개 synthetic 값이다. nonce를 고정하는 것은 테스트에만 허용한다.
 - Node/Electron JS 벡터 일치만 검증했다. Mobile의 독립 구현 검증·QR 전체 schema·외부 암호 리뷰는 미완료다.
 
 ## #48: 로컬 저장소
@@ -40,5 +40,5 @@
 - VaultSession은 재인증 실패 시 열지 않고 잠금/절전/유휴 5분 때 핸들 종료 및 renderer 정리 callback을 수행한다. 실제 OS 재인증 및 renderer store 정리 연결은 미완료다.
 - Windows x64 Node 및 Electron 43에서 DB/WAL 평문 검사, 재열기, 잘못된 키/계정 거부, transaction rollback, 잠금 도중 인증 완료 경쟁 테스트 통과.
 - better-sqlite3-multiple-ciphers 13.0.3은 N-API prebuild를 포함한다. pnpm8이 불필요한 gyp rebuild를 시도하므로 이 패키지만 neverBuiltDependencies로 명시했다.
-- ia32 prebuild가 없어 기존 Windows 32비트 배포에 E2EE를 활성화할 수 없다. 2026-09-08 18:43 사용자 승인으로 x64 전용을 확정했고 [#48](../tasks/0048.md)에 패키지/교차 아키텍처 synthetic DB 검증을 기록했다. 실제 NSIS 덮어쓰기 검증은 별도다.
-- LDK 파일 영속화는 2026-09-08 19:02 LocalVault 모듈 및 Windows DPAPI synthetic smoke로 보강했다. 상세 결과와 잠금 해제 정책 승인 대기는 [#48](../tasks/0048.md)을 참조한다. 복구 확인 UI/기존 replica 연결/사용자 재인증/암호화 이관은 미완료. 원본 사용자 DB와 env는 읽거나 바꾸지 않았다.
+- ia32 prebuild가 없어 기존 Windows 32비트 배포에 E2EE를 활성화할 수 없다. 2026-09-08 18:43 사용자 승인으로 x64 전용을 확정했고 [#48](../tasks/done/0048.md)에 패키지/교차 아키텍처 synthetic DB 검증을 기록했다. 실제 NSIS 덮어쓰기 검증은 별도다.
+- LDK 파일 영속화는 2026-09-08 19:02 LocalVault 모듈 및 Windows DPAPI synthetic smoke로 보강했다. 당시 검증 상태와 후속 결과는 [#48](../tasks/done/0048.md)을 참조한다. 원본 사용자 DB와 env는 읽거나 바꾸지 않았다.

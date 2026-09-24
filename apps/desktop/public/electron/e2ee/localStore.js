@@ -94,11 +94,7 @@ class VaultSession {
   watch(powerMonitor) {
     const lock = () => this.lock();
     powerMonitor.on("lock-screen", lock); powerMonitor.on("suspend", lock);
-    const timer = setInterval(() => {
-      if (powerMonitor.getSystemIdleTime() >= 300) lock();
-    }, 1000);
-    timer.unref?.();
-    return () => { clearInterval(timer); powerMonitor.removeListener("lock-screen",lock); powerMonitor.removeListener("suspend",lock); this.lock(); };
+    return () => { powerMonitor.removeListener("lock-screen",lock); powerMonitor.removeListener("suspend",lock); this.lock(); };
   }
 }
 module.exports = { EncryptedStore, VaultSession };

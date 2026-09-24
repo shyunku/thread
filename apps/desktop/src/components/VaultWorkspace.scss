@@ -6,6 +6,7 @@
  p { margin: 10px 0 16px; color: #aab5c6; }
  section { min-width: 0; padding: 20px 0; }
  section section { margin-top: 20px; border-top: 1px solid var(--vault-border); }
+ .vault-onboarding > section { margin-top: 0; border-top: 0; padding-top: 0; }
  form { display: grid; gap: 12px; margin: 16px 0; }
  label { display: block; margin: 12px 0 6px; }
  button,input,select,textarea { font: inherit; color: inherit; max-width: 100%; border: 1px solid var(--vault-border); border-radius: 8px; background: #101216; padding: 10px 12px; }
@@ -25,8 +26,10 @@
  .vault-menu button { text-align: left; margin: 0; padding: 16px; }
  .vault-menu strong,.vault-menu span { display: block; }
  .vault-menu span { color: #94a1b6; font-size: 12px; margin-top: 6px; }
- .vault-steps { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 24px; padding: 0; font-size: 12px; color: #8290a6; }
- .vault-steps li { padding: 6px 10px; border-bottom: 2px solid var(--vault-border); }
- .vault-steps [aria-current=step] { color: #a6c0ff; border-color: #6294ff; }
+ .vault-progress { list-style: none; display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; margin: 0 0 24px; padding: 0; font-size: 12px; color: #8290a6; }
+ .vault-progress li { min-width: 0; padding-top: 8px; border-top: 4px solid var(--vault-border); }
+ .vault-progress .vault-progress__reached { border-color: #6294ff; color: #c5d7ff; }
+ .vault-progress [aria-current=step] { color: #edf1f7; font-weight: 700; }
  .vault-unlock { border: 0; padding: 0; background: transparent; }
+ .vault-unlock button { margin-right: 0; }
 }

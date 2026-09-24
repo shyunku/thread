@@ -84,9 +84,11 @@ module.exports = function (s) {
     "vault/pairing":(action,input)=>s.vaultWorkspaceService.pairing(action,input),
     "vault/registrationEndpoint":()=>{s.vaultWorkspaceService.context();return s.vaultWorkspaceService.registrationEndpoint();},
     "vault/registerIdentity":()=>s.vaultWorkspaceService.registerIdentity(),
+    "vault/activateEmpty":()=>s.vaultWorkspaceService.activateEmpty(),
     "vault/prepareIdentity":()=>s.vaultWorkspaceService.prepareIdentity(),
     "vault/identityStatus":()=>s.vaultWorkspaceService.identityStatus(),
     "vault/recoveryCode":()=>s.vaultWorkspaceService.recoveryCode(),
+    "vault/copyRecoveryCode":()=>s.vaultWorkspaceService.copyRecoveryCode(),
     "vault/exportRecovery":()=>s.vaultWorkspaceService.exportRecovery(),
     "vault/confirmRecovery":code=>s.vaultWorkspaceService.confirmRecovery(code),
     "vault/getStatus":()=>s.vaultWorkspaceService.status(),
@@ -578,6 +580,7 @@ module.exports = function (s) {
               google_auth_id: signupRequest.googleAuthId,
               google_email: signupRequest.googleEmail,
               google_profile_image_url: signupRequest.googleProfileImageUrl,
+              signup_mode: signupRequest.signupMode === "v2" ? "v2" : "",
             }
           );
         } catch (err) {
@@ -642,6 +645,17 @@ module.exports = function (s) {
     }
   );
 
+  s.register("auth/signupOptions", async (event, reqId) => {
+    try {
+      const result = await Request.get(appServerFinalEndpoint, "/auth/signup-options");
+      s.sender("auth/signupOptions", reqId, true, {
+        v2TestSignupAvailable: result?.v2TestSignupAvailable === true,
+      });
+    } catch {
+      s.sender("auth/signupOptions", reqId, false);
+    }
+  });
+
   s.register("auth/signUp", async (event, reqId, signupRequest) => {
     try {
       let result;
@@ -650,6 +664,7 @@ module.exports = function (s) {
           username: signupRequest.username,
           auth_id: signupRequest.authId,
           encrypted_password: sha256(signupRequest.encryptedPassword),
+          signup_mode: signupRequest.signupMode === "v2" ? "v2" : "",
         });
       } catch (err) {
         s.sender("auth/signUp", reqId, false, err?.response?.status);

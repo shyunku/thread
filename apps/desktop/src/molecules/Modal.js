@@ -15,7 +15,6 @@ const Modal = forwardRef(
     const closeHandler = async () => {
       const modalElem = modalRef.current;
       if (!modalElem) return;
-      console.log(modalElem);
       const modalUuid = modalElem.getAttribute("data-uuid");
       if (!modalUuid) return;
       const modalCloseTopic = `modal_close_signal_${modalUuid}`;

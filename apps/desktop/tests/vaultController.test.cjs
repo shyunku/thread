@@ -47,13 +47,10 @@ test("dispose during password opening closes late DB and removes monitor listene
   assert.equal(closed,1); assert.equal(power.listenerCount("suspend"),0);
   await assert.rejects(c.unlock("os"),/SESSION_CLOSED/);
 });
-test("five minute idle boundary closes an unlocked store", async t=>{
-  t.mock.timers.enable({apis:["setInterval"]});
+test("idle time does not lock an unlocked store", async t=>{
   const {controller:c,power,counts}=fixture(t);
   await c.unlock("os");
-  power.getSystemIdleTime=()=>299; t.mock.timers.tick(1000);
+  power.getSystemIdleTime=()=>300;
   assert.equal(c.use(db=>db.get()),"synthetic");
-  power.getSystemIdleTime=()=>300; t.mock.timers.tick(1000);
-  assert.throws(()=>c.use(()=>{}),/LOCKED/);assert.equal(counts().closes,1);
-  c.dispose();t.mock.timers.reset();
+  assert.equal(counts().closes,0);
 });

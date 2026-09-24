@@ -1,6 +1,6 @@
 # Thread
 
-This repository includes the code for Thread, desktop application for Windows, Mac and Linux.
+This repository includes the code for Thread, currently targeting Windows desktop. macOS validation is planned later.
 Thread is a simple and easy to use application that allows you to create tasks or schedules for your own.
 
 **Track. Handle. Remember. Execute. And Deliver.**
@@ -18,7 +18,7 @@ Unfortunately, download of Thread is only available from github releases.
 - Create, edit, delete tasks
 - Add memo, title, deadline, category to create a task
 - Automatically synchronize through the cloud (self-made server)
-- Compatible with Windows, Mac & iOS/Android Thread application
+- Windows desktop application with a companion iOS/Android app
 - Free and open source (for now)
 - Supports multiple view types (list, calendar, timeline, etc.)
 - Automatically update on startup if there is a new version (testing)
@@ -37,7 +37,7 @@ Unfortunately, download of Thread is only available from github releases.
 
 Use Node.js 22.12 or newer and pnpm 8.15.9 for desktop dependencies.
 Electron is pinned to 43.6.0 on the E2EE development branch. Windows builds
-now require a 64-bit OS (x64); macOS 12 or newer is required. The app ID and
+now require a 64-bit OS (x64); the planned macOS target is 12 or newer. The app ID and
 user data paths are unchanged. An upgrade from an existing ia32 installation
 still needs validation; 32-bit Windows cannot run this build. Native macOS
 signing and upgrade tests are still required before distribution.

@@ -8,6 +8,8 @@ const {
 const { getServerFinalEndpoint } = require("../modules/util");
 const AlertPopupConstants = require("../constants/AlertPopup.constants");
 const lodash = require("lodash");
+const path = require("node:path");
+const appIcon = path.join(__dirname, "..", "..", "favicon512.ico");
 
 const urlPrefix = appEntryURL(process.env.ELECTRON_START_URL);
 
@@ -48,6 +50,7 @@ class WindowService {
     // Security preferences cannot be overridden by modal options or callers.
     let window = new BrowserWindow({
       ...windowProperty,
+      icon: appIcon,
       webPreferences: {
         ...windowProperty.webPreferences, ...securePreferences(),
         additionalArguments: [],

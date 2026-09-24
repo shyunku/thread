@@ -1,7 +1,7 @@
 import {useEffect,useRef,useState} from "react";
 import IpcSender from "../utils/IpcSender";
-export default function VaultRegistration({onRegistered}){
- const [endpoint,setEndpoint]=useState(""),[confirmed,setConfirmed]=useState(false),[busy,setBusy]=useState(false),[result,setResult]=useState(""),[error,setError]=useState(false);
+export default function VaultRegistration({onRegistered,newAccount=false}){
+ const [endpoint,setEndpoint]=useState(""),[busy,setBusy]=useState(false),[result,setResult]=useState(""),[error,setError]=useState(false);
  const live=useRef(true),pending=useRef(false);
  useEffect(()=>{
   live.current=true;let active=true;
@@ -11,21 +11,19 @@ export default function VaultRegistration({onRegistered}){
   return ()=>{active=false;live.current=false;};
  },[]);
  const register=()=>{
-  if(pending.current||!confirmed||!endpoint)return;
+  if(pending.current||!endpoint)return;
   pending.current=true;setBusy(true);setError(false);
   IpcSender.vault.registerIdentity(response=>{
    pending.current=false;if(!live.current)return;setBusy(false);
     if(response.success){setResult(response.data.phase);if(response.data.phase==="REGISTERED")onRegistered?.();}else setError(true);
   });
  };
- return <section aria-label="서버 보관함 연결">
-  <h4>서버 보관함 연결</h4>
-  <p>대상 서버: {endpoint||"확인 중…"}</p>
-  <p>공개 기기 키와 서명된 보관함 정보를 등록합니다. 비밀키·복구 코드는 전송하지 않으며 기존 할 일 이관은 실행하지 않습니다.</p>
-  <label><input type="checkbox" checked={confirmed} disabled={busy} onChange={event=>setConfirmed(event.target.checked)}/>대상 서버와 등록 범위를 확인했습니다.</label>
-  <button disabled={!endpoint||!confirmed||busy} onClick={register}>{busy?"확인 중…":"서버 등록·연결 확인"}</button>
-  {result==="REGISTERED"&&<p role="status">등록된 기기와 서버 서명 이력을 확인했습니다. 데이터 이관은 아직 하지 않았습니다.</p>}
-  {result==="PAIRING_REQUIRED"&&<p role="status">기존 보관함이 있습니다. 다른 기기의 승인 또는 복구 키로 연결해야 합니다. 기존 키는 덮어쓰지 않았습니다.</p>}
+ return <section aria-label="서버 데이터 연결">
+  <h4>계정 등록 최종 확인</h4>
+  <p>이 기기의 공개 연결 정보만 등록합니다. 복구 코드와 데이터는 전송하지 않아요.</p>
+  <button disabled={!endpoint||busy} onClick={register}>{busy?"확인 중…":"등록 확인"}</button>
+  {result==="REGISTERED"&&<p role="status">{newAccount?"서버 연결을 확인했어요. 다음 단계에서 빈 암호화 저장소를 시작합니다.":"서버 연결을 확인했어요. 기존 데이터 이동은 아직 시작하지 않았습니다."}</p>}
+  {result==="PAIRING_REQUIRED"&&<p role="status">이미 연결된 데이터가 있어요. 기존 기기에서 승인하거나 복구 코드와 파일로 연결해주세요. 기존 연결 정보는 덮어쓰지 않았습니다.</p>}
   {error&&<p role="alert">서버 연결을 확인하지 못했습니다. 서버의 E2EE API 설정과 로그인 상태를 확인해주세요. 초기화하지 말고 다시 시도하세요.</p>}
  </section>;
 }

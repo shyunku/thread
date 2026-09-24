@@ -1,5 +1,5 @@
 const p=require("./protocol");
-function createTransport({endpoint,token,fetch:send=globalThis.fetch,timeout=15000}){
+function createTransport({endpoint,token,renewToken,fetch:send=globalThis.fetch,timeout=15000}){
  const base=new URL(endpoint);
  if(base.username||base.password||base.search||base.hash||
   (base.protocol!=="https:"&&!(base.protocol==="http:"&&["localhost","127.0.0.1","[::1]"].includes(base.hostname))))
@@ -10,9 +10,17 @@ function createTransport({endpoint,token,fetch:send=globalThis.fetch,timeout=150
   signal?.addEventListener("abort",abort,{once:true});
   const timer=setTimeout(abort,timeout);
   try{
-   const credentials=await token();
+   let credentials=await token();
    if(typeof credentials!=="string"||!credentials)throw Error("AUTH_REQUIRED");
-   const response=await send(new URL(path,base).href,{method:record?"POST":"GET",headers:{Authorization:"Bearer "+credentials,...(record?{"Content-Type":"application/cbor"}:{})},body:record?p.encode(record):undefined,signal:controller.signal,redirect:"error"});
+   let response;
+   for(let attempt=0;attempt<2;attempt++){
+    response=await send(new URL(path,base).href,{method:record?"POST":"GET",headers:{Authorization:"Bearer "+credentials,...(record?{"Content-Type":"application/cbor"}:{})},body:record?p.encode(record):undefined,signal:controller.signal,redirect:"error"});
+    if(response.status!==401)break;
+    await response.body?.cancel?.();
+    if(attempt||typeof renewToken!=="function")throw Error("UNAUTHORIZED");
+    credentials=await renewToken(credentials);
+    if(typeof credentials!=="string"||!credentials)throw Error("UNAUTHORIZED");
+   }
    const reader=response.body?.getReader();if(!reader)throw Error("INVALID_SYNC_RESPONSE");
    const chunks=[];let length=0;
    for(;;){const {done,value}=await reader.read();if(done)break;length+=value.length;if(length>maxResponse){await reader.cancel();throw Error("SYNC_RESPONSE_TOO_LARGE");}chunks.push(Buffer.from(value));}
@@ -47,6 +55,7 @@ function createTransport({endpoint,token,fetch:send=globalThis.fetch,timeout=150
   transition:(record,signal)=>request("/v3/vault/transition",record,signal),
   recoverPending:(record,signal)=>request("/v3/vault/recovery",record,signal),
   createVault:(record,signal)=>request("/v3/vault",record,signal),
+  activateEmpty:(record,signal)=>request("/v3/vault/activate-empty",record,signal),
   approve:(record,signal)=>request("/v3/vault/membership",record,signal),
   pull:(record,signal)=>request("/v3/sync/pull",record,signal),
   snapshot:(record,signal)=>request("/v3/sync/snapshot",record,signal),

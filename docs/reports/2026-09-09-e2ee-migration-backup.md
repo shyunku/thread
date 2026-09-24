@@ -37,7 +37,7 @@ late-device pending conversion, full recovery/rotation UI, old-generation
 retention and ordinary app integration remain implementation work.
 The full E2EE application has not been enabled or released.
 
-Contracts: [migration prepare](../protocol/e2ee-migration-prepare.md),
-[encrypted archive](../protocol/encrypted-data-backup.md).
+Contracts: [migration prepare](../initiatives/v3-encryption/protocol/v3-migration-prepare.md),
+[encrypted archive](../initiatives/v3-encryption/protocol/v3-encrypted-data-backup.md).
 Other remaining tasks and user/release gates remain as recorded in the
 [prior checkpoint](2026-09-09-e2ee-implementation-progress.md).

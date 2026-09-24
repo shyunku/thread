@@ -23,7 +23,9 @@ const Login = () => {
   const navigate = useNavigate();
 
   const [childWindow, setChildWindow] = useState(null);
+  const signupOptionsRequest = useRef(0);
   const [signupMode, setSignupMode] = useState(false);
+  const [v2TestSignupAvailable, setV2TestSignupAvailable] = useState(false);
   const [googleBinding, setGoogleBinding] = useState(false);
 
   const [currentUserInfo, setCurrentUserInfo] = useState(null);
@@ -86,11 +88,17 @@ const Login = () => {
   };
 
   const goToSignUp = () => {
+    const request = ++signupOptionsRequest.current;
+    setV2TestSignupAvailable(false);
     setSignupUserName("");
     setSignupId("");
     setSignupPassword("");
     setSignupPasswordConfirm("");
     setSignupMode(true);
+    IpcSender.req.auth.signupOptions(({ success, data }) => {
+      if (request === signupOptionsRequest.current)
+        setV2TestSignupAvailable(success && data?.v2TestSignupAvailable === true);
+    });
   };
 
   const handleGoogleSignupConflict = () => {
@@ -104,6 +112,8 @@ const Login = () => {
   };
 
   const goBackToLogin = (force = false) => {
+    signupOptionsRequest.current++;
+    setV2TestSignupAvailable(false);
     // if user is on signup mode & has google auth info/user info, then show prompt
     if (force === false && signupMode && googleBinding) {
       Prompt.float(
@@ -201,7 +211,8 @@ const Login = () => {
     setChildWindow(child);
   };
 
-  const trySignUp = () => {
+  const trySignUp = (requestedMode) => {
+    const signupMode = requestedMode === "v2" ? "v2" : "";
     // validate inputs
     if (signupUserName.length === 0) {
       Toast.error("이름을 입력해주세요.");
@@ -240,6 +251,7 @@ const Login = () => {
           googleEmail: currentUserInfo.googleEmail,
           googleProfileImageUrl: currentUserInfo.googleProfileImageUrl,
           hashedPassword,
+          signupMode,
         },
         ({ success, data }) => {
           if (success) {
@@ -291,6 +303,7 @@ const Login = () => {
           authId: signupId,
           encryptedPassword: singleEncryptedPassword,
           hashedPassword,
+          signupMode,
         },
         ({ success, data }) => {
           if (success) {
@@ -304,6 +317,10 @@ const Login = () => {
                 break;
               case 409:
                 Toast.error("이미 사용 중인 아이디입니다.");
+                break;
+              case 403:
+                Toast.error("테스트용 v2 가입이 종료되었습니다.");
+                setV2TestSignupAvailable(false);
                 break;
               case "TRY_TO_BIND_GOOGLE":
                 Toast.error(
@@ -600,6 +617,9 @@ const Login = () => {
           <div className="btn try-signup-btn" onClick={trySignUp}>
             가입하기
           </div>
+          {v2TestSignupAvailable && <button type="button" onClick={() => trySignUp("v2")}>
+            테스트용 v2 계정 만들기
+          </button>}
           <div className="go-back" onClick={goBackToLogin}>
             <IoChevronBack />
             돌아가기

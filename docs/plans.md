@@ -2,12 +2,12 @@
 
 작성: 2026-09-05 21:00 KST
 브랜치: `refactor/canonical-sync-v2`
-설계: [Canonical Sync v2](designs/canonical-sync-v2.md)
-원문: [요구사항](patch260830.md)
+설계: [Canonical Sync v2](initiatives/v2-sync/v2-sync-canonical-design.md)
+원문: [요구사항](initiatives/v2-sync/v2-sync-overview.md)
 
 ## 진행 원칙
 
-현재 확정 정책(#31, #32): opt-in 없이 v2를 일괄 배포한다. 운영 DB 백업·이관·배포는 사용자가 직접 수행하며 Codex는 synthetic 데이터와 명시적으로 제공된 백업 사본으로 격리 검증한다. 구버전 sync는 일괄 차단한다. 아래 단계표의 계정별 전환 표현보다 [최신 운영 절차](v2-rollout.md)를 우선한다.
+현재 확정 정책(#31, #32): opt-in 없이 v2를 일괄 배포한다. 운영 DB 백업·이관·배포는 사용자가 직접 수행하며 Codex는 synthetic 데이터와 명시적으로 제공된 백업 사본으로 격리 검증한다. 구버전 sync는 일괄 차단한다. 아래 단계표의 계정별 전환 표현보다 [최신 운영 절차](initiatives/v2-sync/v2-sync-rollout.md)를 우선한다.
 
 현재 런타임은 v1이다. 이 계획 작성은 운영 DB 이관이나 파괴적 정리를 실행했다는 뜻이 아니다.
 Electron 유지, Desktop offline-first 쓰기·다중 기기 sync 보존, Mobile은 조회 프로토콜만 v2로 변경한다.
@@ -37,9 +37,9 @@ Electron 유지, Desktop offline-first 쓰기·다중 기기 sync 보존, Mobile
 
 ## 중단 조건
 
-#24의 canonical 엔진에 #25 HTTP/WS·snapshot·retention과 schema 4를 연결했다. #26 desktop outbox/이관 adapter와 #27 모바일 조회 adapter의 [구현·검증 게이트](sync-v2-implementation.md)를 기록했다. 운영 계정 전환은 수행하지 않았으며 클라이언트 실제 기기 검증은 대기 중이다.
+#24의 canonical 엔진에 #25 HTTP/WS·snapshot·retention과 schema 4를 연결했다. #26 desktop outbox/이관 adapter와 #27 모바일 조회 adapter의 [구현·검증 게이트](initiatives/v2-sync/v2-sync-implementation.md)를 기록했다. 운영 계정 전환은 수행하지 않았으며 클라이언트 실제 기기 검증은 대기 중이다.
 
-#23의 읽기 전용 이관 기반과 실행·검증 범위는 [Legacy sync preflight](sync-preflight.md)에 기록한다. 이 도구의 성공은 실제 계정 이관 완료를 의미하지 않는다.
+#23의 읽기 전용 이관 기반과 실행·검증 범위는 [Legacy sync preflight](initiatives/v2-sync/v2-sync-preflight.md)에 기록한다. 이 도구의 성공은 실제 계정 이관 완료를 의미하지 않는다.
 
 모호한 최신 block, 손상된 링크/참조, 서버·로컬 상태 불일치, 대응 불가능한 legacy 반복 작업 ID, backup 복구 실패가 있으면 해당 계정을 이관하지 않는다.
 원본을 버리거나 서버 상태로 무조건 덮어쓰지 않는다.

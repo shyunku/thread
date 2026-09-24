@@ -113,16 +113,21 @@ func Signup(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	mode, err := signupMode(body.SignupMode)
+	if err != nil {
+		signupModeError(c, err)
+		return
+	}
 
 	// check if user already registered in database
 	var userEntity database.UserEntity
 	result := database.DB.QueryRowx("SELECT * FROM user_master WHERE auth_id = ?", body.AuthId)
-	err := result.StructScan(&userEntity)
+	err = result.StructScan(&userEntity)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			// create user
 			uid := uuid.New().String()
-			_, err := database.DB.Exec("INSERT INTO user_master (uid, auth_id, auth_encrypted_pw, username) VALUES (?, ?, ?, ?)",
+			err := createSignupUser(c, uid, mode, "INSERT INTO user_master (uid, auth_id, auth_encrypted_pw, username) VALUES (?, ?, ?, ?)",
 				uid, body.AuthId, body.EncryptedPassword, body.Username)
 			if err != nil {
 				log.Error(err)
@@ -300,5 +305,6 @@ func UseAuthRouter(g *gin.RouterGroup) {
 	sg.POST("login", Login)
 	sg.POST("admin-login", AdminLogin)
 	sg.POST("signup", Signup)
+	sg.GET("signup-options", SignupOptions)
 	sg.POST("refreshToken", RefreshToken)
 }

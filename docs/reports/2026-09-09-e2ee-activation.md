@@ -42,4 +42,4 @@ the proposed cleanup scope.
 ordinary app integration/local cutover and real-user validation remain.
 #48/#50/#52/#53/#55/#56 also retain their recorded integration/UX/recovery work;
 not all remaining work is merely user verification. See the
-[activation contract](../protocol/e2ee-migration-activation.md).
+[activation contract](../initiatives/v3-encryption/protocol/v3-migration-activation.md).

@@ -2,8 +2,8 @@ import React, {useEffect, useState} from 'react';
 import {AppRegistry, ScrollView, Text} from 'react-native';
 import {Buffer} from 'buffer';
 import {protocol as p} from '../src/sync/e2ee/protocol';
-import vector from '../../../docs/protocol/e2ee-v1-vector.json';
-import genesisVector from '../../../docs/protocol/e2ee-genesis-vector.json';
+import vector from '../../../docs/initiatives/v3-encryption/protocol/e2ee-v1-vector.json';
+import genesisVector from '../../../docs/initiatives/v3-encryption/protocol/e2ee-genesis-vector.json';
 import {name as appName} from '../app.json';
 
 // Automatic synthetic interoperability check; never opens a user key or account.

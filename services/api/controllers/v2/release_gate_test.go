@@ -10,7 +10,7 @@ import (
 
 func TestReleaseGatePreservesPreReleaseAndRetiresOnlyV2(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	for _, version := range []string{"", "2.0.0"} {
+	for _, version := range []string{"", "0", "1"} {
 		t.Run("release="+version, func(t *testing.T) {
 			t.Setenv("E2EE_RELEASE_VERSION", version)
 			t.Setenv("E2EE_API_ENABLED", "true")
@@ -26,17 +26,17 @@ func TestReleaseGatePreservesPreReleaseAndRetiresOnlyV2(t *testing.T) {
 			for _, path := range []string{"/capabilities", "/push", "/snapshots", "/connect"} {
 				w := httptest.NewRecorder()
 				r.ServeHTTP(w, httptest.NewRequest("POST", "/v2/sync"+path, nil))
-				if version == "" {
+				if version != "1" {
 					if w.Code != 204 {
 						t.Fatal(w.Code)
 					}
 				} else {
-					if w.Code != http.StatusUpgradeRequired || !strings.Contains(w.Body.String(), `"version":"2.0.0"`) || w.Header().Get("Cache-Control") != "no-store" {
+					if w.Code != http.StatusUpgradeRequired || !strings.Contains(w.Body.String(), `"version":"1.1.3"`) || w.Header().Get("Cache-Control") != "no-store" {
 						t.Fatal(w.Code, w.Body.String())
 					}
 				}
 			}
-			if version != "" && calls != 0 {
+			if version == "1" && calls != 0 {
 				t.Fatal("legacy handler reached")
 			}
 			for _, route := range []struct{ method, path string }{{"GET", "/v3/vault/status"}, {"POST", "/v1/auth/login"}} {
@@ -50,7 +50,7 @@ func TestReleaseGatePreservesPreReleaseAndRetiresOnlyV2(t *testing.T) {
 	}
 }
 func TestReleaseGateRejectsBrokenDeploymentConfiguration(t *testing.T) {
-	for _, version := range []string{"bad", "2.0.0\n", "../../installer", "02.0.0"} {
+	for _, version := range []string{"bad", "1.1.3", "2", "1\n", "../../installer"} {
 		t.Run(version, func(t *testing.T) {
 			t.Setenv("E2EE_RELEASE_VERSION", version)
 			t.Setenv("E2EE_API_ENABLED", "true")
@@ -62,7 +62,7 @@ func TestReleaseGateRejectsBrokenDeploymentConfiguration(t *testing.T) {
 			releaseGate()
 		})
 	}
-	t.Setenv("E2EE_RELEASE_VERSION", "2.0.0")
+	t.Setenv("E2EE_RELEASE_VERSION", "1")
 	t.Setenv("E2EE_API_ENABLED", "false")
 	defer func() {
 		if recover() == nil {

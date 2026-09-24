@@ -62,6 +62,11 @@ func SignupWithGoogleAuth(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	mode, modeErr := signupMode(body.SignupMode)
+	if modeErr != nil {
+		signupModeError(c, modeErr)
+		return
+	}
 
 	// check if user already registered in database with Google auth
 	var userEntity database2.UserEntity
@@ -72,7 +77,7 @@ func SignupWithGoogleAuth(c *gin.Context) {
 			// create user
 			// case: user that Google login as first
 			uid := uuid.New().String()
-			_, err = database2.DB.Exec(
+			err = createSignupUser(c, uid, mode,
 				"INSERT INTO user_master (uid, username, auth_id, auth_encrypted_pw, google_auth_id, google_email, google_profile_image_url) VALUES (?, ?, ?, ?, ?, ?, ?)",
 				uid, body.Username, body.AuthId, body.EncryptedPassword, body.GoogleAuthId, body.GoogleEmail, body.GoogleProfileImageUrl,
 			)
@@ -198,7 +203,12 @@ func SignupWithMobileGoogleAuth(c *gin.Context) {
 			// create user
 			// case: user that Google login as first
 			uid := uuid.New().String()
-			_, err = database2.DB.Exec(
+			mode, modeErr := signupMode("")
+			if modeErr != nil {
+				signupModeError(c, modeErr)
+				return
+			}
+			err = createSignupUser(c, uid, mode,
 				"INSERT INTO user_master (uid, username, google_auth_id, google_email, google_profile_image_url) VALUES (?, ?, ?, ?, ?)",
 				uid, username, googleAuthId, googleEmail, googleProfileImageUrl,
 			)

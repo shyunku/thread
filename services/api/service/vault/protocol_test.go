@@ -26,7 +26,7 @@ func testDevice(id string, seed byte, role string, auth bool) (map[string]interf
 	return map[string]interface{}{"id": id, "role": role, "canAuthorizeDevices": auth, "signingKey": []byte(key.Public().(ed25519.PublicKey)), "encryptionKey": bytes.Repeat([]byte{seed + 1}, 32)}, key
 }
 func TestDesktopGenesisVector(t *testing.T) {
-	raw, e := os.ReadFile("../../../../docs/protocol/e2ee-genesis-vector.json")
+	raw, e := os.ReadFile("../../../../docs/initiatives/v3-encryption/protocol/e2ee-genesis-vector.json")
 	if e != nil {
 		t.Fatal(e)
 	}

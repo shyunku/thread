@@ -41,11 +41,24 @@ async function bootstrap(service,uid){
  const local=entry.vault.inspect();
  if(local.phase==="RECOVERY_REQUIRED")return {mode:"RECOVERY_REQUIRED"};
  const locked=local.phase!=="ABSENT"&&!entry.unlocked;
+ const lockedResult=async()=>{
+  if(entry.abort.signal.aborted)entry.abort=new AbortController();
+  const sessionSignal=entry.abort.signal,controller=new AbortController(),abort=()=>controller.abort();
+  sessionSignal.addEventListener("abort",abort,{once:true});
+  const timer=setTimeout(abort,2500);
+  try{
+   const remote=await service.transportFor(entry).accountStatus(controller.signal);check();
+   return remote.accountMode==="v2"||remote.accountMode==="e2ee_frozen"?{mode:"LOCKED",migrationPending:true}:{mode:"LOCKED"};
+  }catch{check();return {mode:"LOCKED"};}
+  finally{clearTimeout(timer);sessionSignal.removeEventListener("abort",abort);}
+ };
  if(locked){
   // A prepared vault is not an activated E2EE account. Inspect only encrypted
   // routing metadata in a short-lived read-only connection; never unlock the session.
-  try{if(entry.applicationActive||entry.e2eeRequired||!entry.vault.isPreparationOnly())return {mode:"LOCKED"};}
-  catch{return {mode:"LOCKED"};} // Unreadable/unknown metadata cannot authorize v2.
+  try{
+   if(entry.applicationActive||entry.e2eeRequired||entry.vault.hasApplicationMarker())return {mode:"LOCKED"};
+   if(!entry.vault.isPreparationOnly())return lockedResult();
+  }catch{return {mode:"LOCKED"};} // Unreadable/unknown metadata cannot authorize v2.
   if(entry.abort.signal.aborted)entry.abort=new AbortController();
  }
  const legacy=()=>{
@@ -81,6 +94,10 @@ async function bootstrap(service,uid){
   const oldFile=service.group?.syncV2Service?.file(uid);
   if(!entry.applicationActive&&!entry.e2eeRequired&&!hasReplica&&oldFile&&fs.existsSync(oldFile))return legacy();
   throw Error("APPLICATION_MODE_UNAVAILABLE");
+ }
+ if(remote.accountMode==="e2ee_pending"){
+  entry.e2eeRequired=true;
+  return {mode:entry.unlocked?"NEW_ACCOUNT_SETUP":locked?"LOCKED":"NEW_ACCOUNT_SETUP"};
  }
  if(remote.accountMode==="e2ee"||remote.accountMode==="e2ee_frozen"){
   entry.e2eeRequired=true;

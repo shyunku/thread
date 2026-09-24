@@ -7,7 +7,12 @@ const PackageJson = require("../../../package.json");
  * @returns {string}
  */
 function getServerFinalEndpoint() {
-  const appServerEndpoint = process.env.REACT_APP_APP_SERVER_ENDPOINT;
+  // Compose publishes the local API on IPv4 only. Electron's Node-side
+  // requests may resolve localhost to ::1 and miss an otherwise healthy API.
+  const appServerEndpoint = process.env.REACT_APP_APP_SERVER_ENDPOINT?.replace(
+    /^(http:\/\/)localhost(?=[:/]|$)/i,
+    (_, scheme) => `${scheme}127.0.0.1`
+  );
   if (!appServerEndpoint)
     throw new Error("REACT_APP_APP_SERVER_ENDPOINT is not defined");
   const appServerApiVersion = PackageJson?.config?.app_server_api_version;

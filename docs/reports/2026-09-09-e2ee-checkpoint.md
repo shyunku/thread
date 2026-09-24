@@ -2,7 +2,7 @@
 
 기록: 2026-09-09 11:07 (KST). 브랜치: feat/e2ee-vault.
 
-최신 검증: 2026-09-09 11:50 (KST). Android 독립 키 저장소 APK 빌드 성공. 실제 기기 인증 검증은 사용자 대기이며 전체 #47~56은 여전히 WIP다. [설치·검증 절차](../protocol/android-keychain-probe.md).
+최신 검증: 2026-09-09 11:50 (KST). Android 독립 키 저장소 APK 빌드 성공. 실제 기기 인증 검증은 사용자 대기이며 전체 #47~56은 여전히 WIP다. [설치·검증 절차](../initiatives/v3-encryption/protocol/v3-android-keychain-probe.md).
 
 후속 검증: 2026-09-09 12:50 (KST). 실기기에서 발견한 DataStore variant 시작 오류를 수정한 뒤, 사용자가 Android 키 생성·인증 후 읽기·인증 취소·앱 재실행 후 읽기의 정상 동작을 확인했다. 키 저장소 게이트만 통과했으며 #53의 암호문 조회 통합과 #47~56의 나머지 작업은 WIP다. [후속 장애·검증 기록](2026-09-09-android-probe-datastore.md).
 
@@ -29,7 +29,7 @@ API의 RegisterPending은 테스트 가능한 handler 묶음일 뿐 기존 produ
 
 ## 프로토콜 경계
 
-- 서명은 canonical CBOR [thread-e2ee-v1, purpose, body]의 Ed25519다. Go/JS 동일 genesis vector를 docs/protocol/e2ee-genesis-vector.json에 저장했다. private signing seed는 서버 구현에 포함하지 않는다.
+- 서명은 canonical CBOR [thread-e2ee-v1, purpose, body]의 Ed25519다. Go/JS 동일 genesis vector를 docs/initiatives/v3-encryption/protocol/e2ee-genesis-vector.json에 저장했다. private signing seed는 서버 구현에 포함하지 않는다.
 - 기존 Desktop prototype과 맞추어 signed membership revision/generation은 0..2^53-1 범위 정수다. counter/seq/object version은 uint64 decimal string으로 전달한다. 과거 서버 기반 문서의 모든 숫자를 uint64 string으로 전달한다는 예고는 이 규칙으로 구체화했다.
 - Batch body: schema=1, vaultId, deviceId, epoch, membershipRevision, keyGeneration, counter, mutationId, operations. 1..100개 operation, 각 objectId/baseVersion/deleted/fields. fields는 1..256개의 slot/24-byte nonce/ciphertext이며 tombstone은 fields=[].
 - 전체 object 대체 + baseVersion CAS이므로 서버에서 필드 의미를 해석하지 않는다. 충돌은 client recovery/merge 대상으로 남긴다. tombstone의 같은 ID 재생성은 허용하지 않는다.

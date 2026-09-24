@@ -98,6 +98,13 @@ class LocalVault {
       return require("./applicationBootstrap").preparationOnly(store);
     } finally { store?.close(); }
   }
+  hasApplicationMarker() {
+    let store;
+    try {
+      store = this.#open(true);
+      return !!store.get("recovery", "$application-mode");
+    } finally { store?.close(); }
+  }
   open() { return this.#open(false); }
   #open(readonly) {
     let key;

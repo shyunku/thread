@@ -24,6 +24,14 @@ func (s *Store) Status(ctx context.Context, uid string) (AccountStatus, error) {
 	var head []byte
 	err := s.DB.QueryRowContext(ctx, `SELECT v.vault_id,COALESCE(a.mode,'v2'),v.mode,v.epoch,v.current_key_generation,v.membership_revision,v.membership_head FROM vaults v LEFT JOIN sync_users a ON a.uid=v.account_id WHERE v.account_id=?`, uid).Scan(&result.VaultID, &result.AccountMode, &result.VaultMode, &result.Epoch, &result.KeyGeneration, &result.Revision, &head)
 	if err == sql.ErrNoRows {
+		err = s.DB.QueryRowContext(ctx, "SELECT mode FROM sync_users WHERE uid=?", uid).Scan(&result.AccountMode)
+		if err == nil && result.AccountMode == "e2ee_pending" {
+			result.VaultMode = "uninitialized"
+			return result, nil
+		}
+		if err != nil && err != sql.ErrNoRows {
+			return result, err
+		}
 		return result, ErrNotFound
 	}
 	result.Head = HeadString(head)

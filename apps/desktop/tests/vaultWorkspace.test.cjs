@@ -42,6 +42,57 @@ test("actual workspace creation, password reopen, lock and account isolation pre
  f.window.webContents.emit("render-process-gone");
  assert.throws(()=>s.intakes(),/LOCKED/);
 });
+test("OS-only creation requires authentication and never creates a password envelope",async t=>{
+ const f=fixture(t),s=f.service;let allowed=false;
+ f.deps.osAuth.verify=async()=>allowed;
+ await assert.rejects(s.create({method:"os"}),/OS_AUTH_FAILED/);
+ assert.equal((await s.status()).phase,"ABSENT");assert.deepEqual(fs.readdirSync(f.dir),[]);
+ allowed=true;
+ assert.equal((await s.create({method:"os"})).passwordAvailable,false);
+ assert.equal((await s.unlock("os")).phase,"UNLOCKED");
+ s.lock();await assert.rejects(s.unlock("password","synthetic password"));
+ assert.equal((await s.unlock("os")).phase,"UNLOCKED");
+});
+test("new v3 account cannot enter legacy home before local setup",async t=>{
+ const f=fixture(t),s=f.service;
+ f.deps.transport={accountStatus:async()=>({accountMode:"e2ee_pending",vaultMode:"uninitialized"}),legacyCapabilities:async()=>{throw Error("V2_PROBE_FORBIDDEN");}};
+ assert.deepEqual(await s.bootstrap("fixture"),{mode:"NEW_ACCOUNT_SETUP"});
+ await s.create("synthetic test password");
+ await s.unlock("password","synthetic test password");
+ assert.deepEqual(await s.bootstrap("fixture"),{mode:"NEW_ACCOUNT_SETUP"});
+ assert.equal(s.active.applicationActive,undefined);
+});
+test("new v3 account registers a signed owner then activates an empty vault without migration",async t=>{
+ const f=fixture(t),s=f.service,p=require("../public/electron/e2ee/protocol");
+ const owner=require("../public/electron/e2ee/ownerIdentity");
+ const {registerOwner}=require("../public/electron/e2ee/ownerRegistration");
+ const {activateEmpty}=require("../public/electron/e2ee/newAccountActivation");
+ await s.create("synthetic test password");await s.unlock("password","synthetic test password");
+ const store=s.context().controller.use(value=>value);
+ await owner.prepareOwner(store);
+ const kit=owner.recoveryMaterial(store);
+ await owner.confirmOwnerRecovery(store,kit.code,kit.bytes);
+ const identity=store.get("recovery","$owner-identity"),vaultId=store.scope().vaultId;
+ let registered=false,active=false,activationCalls=0;
+ const transport={
+  membership:async()=>{if(!registered)throw Error("VAULT_NOT_FOUND");
+   return {genesis:p.encode(identity.genesis).toString("base64"),head:{vaultId,revision:0,digest:identity.fingerprint},records:[],next:0,more:false};},
+  createVault:async record=>{assert.deepEqual(record,identity.genesis);registered=true;},
+  accountStatus:async()=>({vaultId,accountMode:active?"e2ee":"e2ee_pending",vaultMode:active?"active":"pending",epoch:"1",revision:0,keyGeneration:1,head:identity.fingerprint}),
+  activateEmpty:async record=>{
+   activationCalls++;
+   assert.equal(record.body.operation,"activate-empty");
+   assert.deepEqual(record.body.parameters,{});
+   await p.verify(identity.device.signing.publicKey,"migration",record.body,record.signature);
+   active=true;
+   return transport.accountStatus();
+  },
+ };
+ assert.deepEqual((await registerOwner({store,transport})).phase,"REGISTERED");
+ assert.deepEqual(await activateEmpty({store,transport}),{phase:"ACTIVE"});
+ assert.equal(activationCalls,1);
+ assert.equal(store.get("confirmed","$sync-state"),null);
+});
 test("late OS authentication cannot reopen a switched account; explicit disabled gate creates no files",async t=>{
  const f=fixture(t);await f.service.create("synthetic test password");
  let finish;f.deps.osAuth.verify=()=>new Promise(resolve=>{finish=resolve;});
@@ -113,6 +164,15 @@ test("migration journal or encrypted replica blocks locked v2 fallback after res
   new (require("../public/electron/e2ee/replica").EncryptedReplica)(store,{vaultId:store.scope().vaultId,deviceId:"fixture",epoch:"1"});
  });
  s.reset();assert.deepEqual(await s.bootstrap("fixture"),{mode:"LOCKED"});
+});
+test("locked pre-migration v2 account receives only a read-only introduction hint",async t=>{
+ const f=fixture(t),s=f.service;
+ await s.create("synthetic test password");await s.unlock("os");
+ s.context().controller.use(store=>require("../public/electron/e2ee/applicationMigration").stateFor(store).begin("fixture-migration"));
+ s.reset();
+ f.deps.transport={accountStatus:async()=>({accountMode:"v2",vaultMode:"pending"})};
+ assert.deepEqual(await s.bootstrap("fixture"),{mode:"LOCKED",migrationPending:true});
+ assert.equal(s.active.unlocked,false);
 });
 
 test("cancelled preparation can use a preserved offline v2 DB but unknown storage cannot",async t=>{
@@ -192,8 +252,22 @@ test("recovery export never replaces a file and confirmation reopens the selecte
  f.deps.dialog={showSaveDialog:async()=>({canceled:false,filePath:filename}),showOpenDialog:async()=>({canceled:false,filePaths:[filename]})};
  assert.equal(await s.exportRecovery(),true);const before=fs.readFileSync(filename);
  await assert.rejects(s.exportRecovery(),/EEXIST/);assert.deepEqual(fs.readFileSync(filename),before);
+ const {vaultIpcReply}=require("../public/electron/e2ee/vaultIpcReply");
+ const group={userService:{getCurrent:()=>f.deps.getAccount()}};
+ assert.deepEqual(await vaultIpcReply(group,"vault/exportRecovery",()=>s.exportRecovery(),[]),{success:false,data:{code:"RECOVERY_FILE_EXISTS"}});
  await assert.rejects(s.confirmRecovery("wrong"));
  assert.equal(s.identityStatus().phase,"RECOVERY_UNCONFIRMED");
  assert.equal((await s.confirmRecovery(code)).phase,"RECOVERY_CONFIRMED");
  s.lock();assert.throws(()=>s.recoveryCode(),/LOCKED/);
+});
+test("recovery code copies through main process and clears unchanged clipboard",async t=>{
+ t.mock.timers.enable({apis:["setTimeout"]});
+ const f=fixture(t),s=f.service;let copied="",cleared=0;
+ f.deps.clipboard={writeText:value=>{copied=value;},readText:()=>copied,clear:()=>{copied="";cleared++;}};
+ await s.create("synthetic test password");await s.unlock("os");await s.prepareIdentity();
+ assert.equal(s.copyRecoveryCode(),true);assert.equal(copied,s.recoveryCode());
+ t.mock.timers.tick(30000);assert.equal(copied,"");assert.equal(cleared,1);
+ s.copyRecoveryCode();copied="other clipboard content";
+ t.mock.timers.tick(30000);assert.equal(copied,"other clipboard content");assert.equal(cleared,1);
+ t.mock.timers.reset();
 });

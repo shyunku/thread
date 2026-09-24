@@ -20,7 +20,7 @@ import { colorize } from "../utils/Common";
 import { applyTransitions } from "../hooks/UseTransition";
 import { fromSyncV2View } from "../utils/syncV2View";
 
-const RootLayout = () => {
+const RootLayout = ({ applicationMode }) => {
   const context = useOutletContext();
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -131,8 +131,8 @@ const RootLayout = () => {
     const connectSocketPromise = new Promise((resolve, reject) => {
       try {
         let timeout = setTimeout(() => {
-          reject("서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.");
-        }, 3000);
+          reject(new Error("CONNECTION_TIMEOUT"));
+        }, applicationMode === "E2EE" ? 30000 : 3000);
 
         IpcSender.req.socket.tryConnect(
           userId,
@@ -145,7 +145,7 @@ const RootLayout = () => {
             } else {
               reject(data);
             }
-            clearInterval(timeout);
+            clearTimeout(timeout);
           }
         );
       } catch (err) {
@@ -159,14 +159,17 @@ const RootLayout = () => {
         connectSocketPromise
       );
     } catch (err) {
-      switch (err?.message) {
+      switch (err?.code ?? err?.message) {
         case "401":
+        case "UNAUTHORIZED":
           Toast.warn("인증 정보가 만료되었습니다. 다시 로그인해주세요.");
           goBackToLoginPage();
           break;
         default:
           console.log(err);
-          Toast.warn("서버가 연결되지 않았습니다. 편집이 불가능합니다.");
+          Toast.warn(applicationMode === "E2EE"
+            ? "동기화가 지연되고 있습니다. 이 기기의 데이터는 유지되며 자동으로 다시 시도합니다."
+            : "서버가 연결되지 않았습니다. 편집이 불가능합니다.");
           break;
       }
     }
@@ -557,5 +560,5 @@ const RootLayout = () => {
 
 export default function GuardedRootLayout(){
  const account=useSelector(accountInfoSlice);
- return <ApplicationGate key={account.uid} uid={account.uid}><RootLayout/></ApplicationGate>;
+ return <ApplicationGate key={account.uid} uid={account.uid}>{mode=><RootLayout applicationMode={mode}/>}</ApplicationGate>;
 }

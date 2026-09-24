@@ -9,7 +9,7 @@ async function vaultIpcReply(service,topic,action,args){
   if(uid!==service.userService.getCurrent())throw Error("VAULT_SESSION_CHANGED");
   return {success:true,data};
  }catch(error){
-  return {success:false,data:{code:topic==="vault/bootstrap"&&codes.has(error?.message)?error.message:"VAULT_ACTION_FAILED"}};
+  return {success:false,data:{code:topic==="vault/exportRecovery"&&error?.code==="EEXIST"?"RECOVERY_FILE_EXISTS":topic==="vault/bootstrap"&&codes.has(error?.message)?error.message:"VAULT_ACTION_FAILED"}};
  }
 }
 module.exports={vaultIpcReply};

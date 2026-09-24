@@ -6,8 +6,9 @@ type LoginRequestDto struct {
 }
 
 type SignupRequestDto struct {
-	Username string `json:"username"`
-	AuthId   string `json:"auth_id" binding:"required"`
+	Username   string `json:"username"`
+	AuthId     string `json:"auth_id" binding:"required"`
+	SignupMode string `json:"signup_mode"`
 	// should be double-encrypted from raw password
 	EncryptedPassword string `json:"encrypted_password" binding:"required"`
 }

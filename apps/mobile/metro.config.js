@@ -14,7 +14,7 @@ module.exports = (async () => {
   } = await getDefaultConfig();
   return {
     watchFolders: [
-      require('path').resolve(__dirname, '../../docs/protocol'),
+      require('path').resolve(__dirname, '../../docs/initiatives/v3-encryption/protocol'),
       require('path').resolve(__dirname, '../desktop/public/electron/e2ee'),
     ],
     transformer: {

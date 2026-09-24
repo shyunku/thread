@@ -23,6 +23,9 @@ func (s *testVault) Status(_ context.Context, uid string) (vault.AccountStatus, 
 	s.uid = uid
 	return vault.AccountStatus{VaultID: "fixture"}, s.err
 }
+func (s *testVault) ActivateEmpty(_ context.Context, uid string, _ []byte) (vault.AccountStatus, error) {
+	return s.Status(context.Background(), uid)
+}
 
 func (s *testVault) Create(_ context.Context, uid string, _ []byte) (vault.Head, error) {
 	s.calls++
@@ -56,6 +59,7 @@ func TestPendingHTTPBoundary(t *testing.T) {
 		want, calls                 int
 	}{
 		{"POST", "/v3/vault", "application/cbor", "x", nil, 200, 1},
+		{"POST", "/v3/vault/activate-empty", "application/cbor", "x", nil, 200, 1},
 		{"POST", "/v3/vault/membership", "application/cbor", "x", vault.ErrConflict, 409, 1},
 		{"POST", "/v3/vault/recovery", "application/cbor", "x", vault.ErrForbidden, 403, 1},
 		{"POST", "/v3/vault/transition", "application/cbor", "x", vault.ErrConflict, 409, 1},

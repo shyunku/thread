@@ -7,7 +7,7 @@ const {EncryptedStore,VaultSession}=require("../public/electron/e2ee/localStore"
 const {validateTarget,TrustedUpdates}=require("../public/electron/e2ee/trustedUpdates");
 const ctx={vaultId:"v1",vaultEpoch:"1",objectId:"task1",fieldSlot:1,keyGeneration:1,mutationId:"m1",deviceId:"d1"};
 test("published AEAD vector matches the implementation",async()=>{
- const v=require("../../../docs/protocol/e2ee-v1-vector.json");
+ const v=require("../../../docs/initiatives/v3-encryption/protocol/e2ee-v1-vector.json");
  assert.equal(p.derive(Buffer.from(v.secretHex,"hex"),"field",v.context).toString("hex"),v.derivedKeyHex);
  assert.equal(p.encode([p.SUITE,v.context]).toString("hex"),v.aadHex);
  const value=await p.decrypt(Buffer.from(v.secretHex,"hex"),v.context,{nonce:Buffer.from(v.nonceHex,"hex"),ciphertext:Buffer.from(v.ciphertextHex,"hex")});

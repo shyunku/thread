@@ -93,9 +93,11 @@ const IpcSender = {
     pairing:(action,input,callback)=>sender("vault/pairing",callback,action,input),
     registrationEndpoint:callback=>sender("vault/registrationEndpoint",callback),
     registerIdentity:callback=>sender("vault/registerIdentity",callback),
+    activateEmpty:callback=>sender("vault/activateEmpty",callback),
     prepareIdentity:callback=>sender("vault/prepareIdentity",callback),
     identityStatus:callback=>sender("vault/identityStatus",callback),
     recoveryCode:callback=>sender("vault/recoveryCode",callback),
+    copyRecoveryCode:callback=>sender("vault/copyRecoveryCode",callback),
     exportRecovery:callback=>sender("vault/exportRecovery",callback),
     confirmRecovery:(code,callback)=>sender("vault/confirmRecovery",callback,code),
     status:callback=>sender("vault/getStatus",callback),
@@ -277,6 +279,9 @@ const IpcSender = {
       },
       signUp: (signupRequest, callback) => {
         sender("auth/signUp", callback, signupRequest);
+      },
+      signupOptions: (callback) => {
+        sender("auth/signupOptions", callback);
       },
       login: (loginRequest, callback) => {
         sender("auth/login", callback, loginRequest);

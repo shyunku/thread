@@ -13,6 +13,7 @@ import (
 
 type VaultStore interface {
 	Status(context.Context, string) (vault.AccountStatus, error)
+	ActivateEmpty(context.Context, string, []byte) (vault.AccountStatus, error)
 	Create(context.Context, string, []byte) (vault.Head, error)
 	ApplyPending(context.Context, string, []byte) (vault.Head, error)
 	Read(context.Context, string, uint64) (vault.Page, error)
@@ -66,6 +67,14 @@ func RegisterPending(r *gin.Engine, s VaultStore, secret []byte) {
 			return
 		}
 		v, e := s.Create(c.Request.Context(), c.GetString("uid"), b)
+		respond(c, v, e)
+	})
+	g.POST("/activate-empty", func(c *gin.Context) {
+		b, ok := readBody(c)
+		if !ok {
+			return
+		}
+		v, e := s.ActivateEmpty(c.Request.Context(), c.GetString("uid"), b)
 		respond(c, v, e)
 	})
 	g.POST("/membership", func(c *gin.Context) {

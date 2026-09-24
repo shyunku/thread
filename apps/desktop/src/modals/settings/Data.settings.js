@@ -5,7 +5,7 @@ import { accountInfoSlice } from "../../store/accountSlice";
 import IpcSender from "../../utils/IpcSender";
 import VaultWorkspace from "../../components/VaultWorkspace";
 
-const SettingData = () => {
+const SettingData = ({modalRef}) => {
   const { uid } = useSelector(accountInfoSlice);
   const [status, setStatus] = useState(null);
   const [requestError, setRequestError] = useState(false);
@@ -77,7 +77,7 @@ const SettingData = () => {
         <div className="head"><div className="label">보관함 관리</div></div>
         <div className="body">
           <button onClick={()=>setShowVault(value=>!value)}>{showVault?"보관함 닫기":"보관함 열기"}</button>
-          {showVault&&<div className="data-settings__vault"><VaultWorkspace key={uid} uid={uid}/></div>}
+          {showVault&&<div className="data-settings__vault"><VaultWorkspace key={uid} uid={uid} onLocked={()=>modalRef?.current?.close()}/></div>}
         </div>
       </div>
     </div>

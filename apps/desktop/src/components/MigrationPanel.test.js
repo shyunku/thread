@@ -9,10 +9,10 @@ beforeEach(()=>{
 test("never migrates on mount and requires new explicit consent for each stage",async()=>{
  IpcSender.vault.migration.mockImplementation((action,input,cb)=>cb({success:true,data:{phase:action==="prepare"?"FROZEN":"ACTIVE"}}));
  const next=jest.fn();render(<MigrationPanel osAvailable onContinue={next}/>);
- const prepare=await screen.findByText("원본 준비·재확인");
+ const prepare=await screen.findByText("기존 데이터 확인");
  expect(prepare).toBeDisabled();expect(IpcSender.vault.migration).not.toHaveBeenCalled();
  fireEvent.click(screen.getByRole("checkbox"));fireEvent.click(prepare);
- const transfer=await screen.findByText("암호화 전환·재개");
+ const transfer=await screen.findByText("데이터 이동·이어하기");
  expect(transfer).toBeDisabled();
  fireEvent.click(screen.getByRole("checkbox"));fireEvent.click(transfer);
  fireEvent.click(await screen.findByText("저장소 다시 확인"));expect(next).toHaveBeenCalledTimes(1);
@@ -22,15 +22,15 @@ test("cancelled attempt requires consent to restart and separate consent to free
  IpcSender.vault.migrationStatus.mockImplementation(cb=>cb({success:true,data:{phase:"CANCELLED",busy:false}}));
  IpcSender.vault.migration.mockImplementation((action,input,cb)=>cb({success:true,data:{phase:"PREPARING"}}));
  render(<MigrationPanel osAvailable/>);
- const restart=await screen.findByText("새 이관 시도 만들기");expect(restart).toBeDisabled();
+ const restart=await screen.findByText("다시 시작");expect(restart).toBeDisabled();
  fireEvent.click(screen.getByRole("checkbox"));fireEvent.click(restart);
- expect(await screen.findByText("원본 준비·재확인")).toBeDisabled();
+ expect(await screen.findByText("기존 데이터 확인")).toBeDisabled();
  expect(IpcSender.vault.migration).toHaveBeenCalledTimes(1);
  expect(IpcSender.vault.migration).toHaveBeenCalledWith("restart",expect.objectContaining({confirmed:true,method:"os"}),expect.any(Function));
 });
 test("late response after unmount does not continue or expose a result",async()=>{
  let done;IpcSender.vault.migration.mockImplementation((action,input,cb)=>{done=cb;});
  const next=jest.fn(),view=render(<MigrationPanel osAvailable onContinue={next}/>);
- await screen.findByText("원본 준비·재확인");fireEvent.click(screen.getByRole("checkbox"));fireEvent.click(screen.getByText("원본 준비·재확인"));
+ await screen.findByText("기존 데이터 확인");fireEvent.click(screen.getByRole("checkbox"));fireEvent.click(screen.getByText("기존 데이터 확인"));
  view.unmount();await act(async()=>done({success:true,data:{phase:"ACTIVE"}}));expect(next).not.toHaveBeenCalled();
 });

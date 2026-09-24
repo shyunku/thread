@@ -387,4 +387,58 @@ func TestMySQLSignedMembership(t *testing.T) {
 	testMigrationFreeze(t, db)
 	testMigrationCancellation(t, db)
 	testLostMigrationCoordinator(t, db)
+	testNewAccountActivation(t, db)
+}
+
+func testNewAccountActivation(t *testing.T, db *sql.DB) {
+	ctx := context.Background()
+	for _, query := range []string{
+		"INSERT INTO user_master(uid) VALUES('new-v3-user'),('test-v2-user')",
+		"INSERT INTO sync_users(uid,mode) VALUES('new-v3-user','e2ee_pending')",
+		"INSERT INTO sync_users(uid,mode,epoch) VALUES('test-v2-user','v2','00000000-0000-4000-8000-000000000000')",
+	} {
+		if _, err := db.ExecContext(ctx, query); err != nil {
+			t.Fatal(err)
+		}
+	}
+	store := Store{db}
+	if status, err := store.Status(ctx, "new-v3-user"); err != nil || status.AccountMode != "e2ee_pending" || status.VaultMode != "uninitialized" {
+		t.Fatal("new account status", status, err)
+	}
+	device, key := testDevice("new-owner", 31, "write", true)
+	_, recovery := testDevice("new-recovery", 32, "write", true)
+	genesis := signed(t, key, "genesis", map[string]interface{}{"schema": uint64(1), "vaultId": "new-v3-vault", "recoveryKey": []byte(recovery.Public().(ed25519.PublicKey)), "owner": device})
+	head, err := store.Create(ctx, "new-v3-user", genesis)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := map[string]interface{}{
+		"schema": uint64(1), "vaultId": "new-v3-vault", "deviceId": "new-owner", "epoch": "1",
+		"membershipRevision": uint64(0), "keyGeneration": uint64(1), "operation": "activate-empty",
+		"parameters": map[string]interface{}{}, "requestId": "activate-new-v3",
+		"expiresAt": uint64(time.Now().Add(time.Minute).UnixMilli()),
+	}
+	raw := signed(t, key, "migration", request)
+	if _, err := store.ActivateEmpty(ctx, "test-v2-user", raw); !errors.Is(err, ErrNotFound) {
+		t.Fatal("cross-account activation", err)
+	}
+	if _, err := db.ExecContext(ctx, "INSERT INTO blocks(uid,block_number,state) VALUES('new-v3-user',1,'synthetic-private-data')"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.ActivateEmpty(ctx, "new-v3-user", raw); !errors.Is(err, ErrConflict) {
+		t.Fatal("plaintext account activated", err)
+	}
+	if _, err := db.ExecContext(ctx, "DELETE FROM blocks WHERE uid='new-v3-user'"); err != nil {
+		t.Fatal(err)
+	}
+	status, err := store.ActivateEmpty(ctx, "new-v3-user", raw)
+	if err != nil || status.AccountMode != "e2ee" || status.VaultMode != "active" || status.Head != head.Digest {
+		t.Fatal("empty account activation", status, err)
+	}
+	if retry, err := store.ActivateEmpty(ctx, "new-v3-user", raw); err != nil || retry != status {
+		t.Fatal("activation retry", retry, err)
+	}
+	if snapshot, err := store.Snapshot(ctx, "new-v3-user"); err != nil || snapshot.Count != 0 {
+		t.Fatal("empty encrypted snapshot", snapshot, err)
+	}
 }

@@ -8,6 +8,8 @@ Thread는 데스크톱과 모바일에서 사용할 수 있는 개인 할 일 �
 - 서비스 도메인: `threadapp.kr`
 - 신규 앱 식별자: 데스크톱 `kr.threadapp.desktop`, 모바일 `kr.threadapp.mobile`
 
+현재 데스크톱 배포·검증 대상은 Windows x64이다. macOS 실기기·서명 검증은 후순위 #63으로 분리하며, Linux 데스크톱은 현재 지원 대상에 포함하지 않는다. 기존 비지원 환경의 안전한 실패 처리는 유지한다.
+
 ## 구성 요소
 
 Desktop의 시각 기준은 사용자 참고 이미지 기반 charcoal/blue 테마다. 검색·작업 목록/캘린더 분할·공통 토큰과 접근성 기준은 [디자인 명세](designs/desktop-visual-refresh.md)에 정의하며, 기존 데이터 모델과 동기화 동작을 유지한다.
@@ -37,17 +39,21 @@ Desktop 개발 실행은 Thread Dev 및 kr.threadapp.desktop.dev로 구분하고
 
 현재 배포 구현은 위의 block/state v1이다. 목표 구조는 canonical entity tables와 append-only delta change log, 사용자별 sequence cursor 기반 동기화다. Desktop의 오프라인 쓰기·미전송 변경과 기존 데이터는 보존한다. Mobile은 조회 전용으로 snapshot·증분 조회·재접속 프로토콜만 맞추며 편집용 outbox는 이번 범위 밖이다. Electron은 유지한다.
 
-상세 schema·protocol·충돌·retention은 [Canonical Sync v2 설계안](designs/canonical-sync-v2.md), 단계별 실행은 [계획](plans.md)에서 관리한다. 현재 확정 정책은 v2 일괄 배포와 구버전 sync 차단이다. 계정별 opt-in은 폐기했다. 운영자가 비공개 환경에서 전체 서버 데이터 이관을 직접 실행하고, desktop 업데이트 시 local pending을 보존·이관한다. [운영자 실행 절차](v2-rollout.md)를 따른다.
+상세 schema·protocol·충돌·retention은 [Canonical Sync v2 설계안](initiatives/v2-sync/v2-sync-canonical-design.md), 단계별 실행은 [계획](plans.md)에서 관리한다. 현재 확정 정책은 v2 일괄 배포와 구버전 sync 차단이다. 계정별 opt-in은 폐기했다. 운영자가 비공개 환경에서 전체 서버 데이터 이관을 직접 실행하고, desktop 업데이트 시 local pending을 보존·이관한다. [운영자 실행 절차](initiatives/v2-sync/v2-sync-rollout.md)를 따른다.
 
-새 서버는 v2 sync만 제공한다. SYNC_V2_ENABLED=false도 v1을 재개하지 않는다. 운영 DB·백업·로그·실제 env는 사용자가 관리하며 운영 이관/배포는 직접 수행한다. 사용자가 명시적으로 제공한 백업 사본의 격리 리허설은 Codex가 원문 출력 없이 수행할 수 있다. [클라이언트 검증 게이트](sync-v2-implementation.md)는 별도로 유지한다.
+새 서버는 v2 sync만 제공한다. SYNC_V2_ENABLED=false도 v1을 재개하지 않는다. 운영 DB·백업·로그·실제 env는 사용자가 관리하며 운영 이관/배포는 직접 수행한다. 사용자가 명시적으로 제공한 백업 사본의 격리 리허설은 Codex가 원문 출력 없이 수행할 수 있다. [클라이언트 검증 게이트](initiatives/v2-sync/v2-sync-implementation.md)는 별도로 유지한다.
 
 ## v3 개발 (암호화 보관함)
 
-2026-09-23 16:28 (KST): 운영 전 계정별 v1/v2 평문 잔존량을 내용 없이 확인하는 읽기 전용 도구를 추가했다. 합성 MySQL의 평문·암호문 백업을 별도 DB에 복원하고 전체 행 해시를 대조했다. 서버 평문 정리 범위와 승인 조건은 [정리 계획](protocol/v3-plaintext-purge-plan.md)에 기록했다. 운영 purge 실행 코드는 미구현이며 [출시 검증 기록](reports/2026-09-23-v3-release-rehearsal.md)과 #57에서 계속 추적한다.
+현재 v3 출시·검증 우선순위는 Windows 데스크톱이다. 모바일 v2 실기기 회귀와 v3 암호문 조회·PC↔Mobile 연결은 #53에서 macOS #63과 함께 후순위로 관리하며, 데스크톱 출시 게이트의 선행 조건으로 두지 않는다. 공통 암호·서명 프로토콜과 기존 모바일 코드의 호환성은 유지한다.
 
-2026-09-23 16:28 (KST): 운영 전 계정별 v1/v2 평문 잔존량을 내용 없이 확인하는 읽기 전용 도구를 추가했다. 합성 MySQL의 평문·암호문 백업을 별도 DB에 복원하고 전체 행 해시를 대조했다. 서버 평문 정리 범위와 승인 조건은 [정리 계획](protocol/v3-plaintext-purge-plan.md)에 기록했다. 운영 purge 실행 코드는 미구현이며 [출시 검증 기록](reports/2026-09-23-v3-release-rehearsal.md)과 #57에서 계속 추적한다.
+신규 계정은 `E2EE_RELEASE_VERSION`과 무관하게 v3 설정 대기 상태로 생성한다. 첫 로그인에는 기존 데이터 이관 대신 이 기기의 데이터 잠금·복구 자료·서명된 기기 등록·빈 암호화 저장소 활성화를 거친다. `E2EE_RELEASE_VERSION=0`(기존 빈 값 포함)에서는 v2·v3를 함께 지원하고 데스크톱의 별도 v2 테스트 가입도 허용한다. `1`에서는 v2 sync와 테스트 가입을 차단한다. 기존 계정 모드는 가입 변경으로 소급하지 않는다. 실제 계정 첫 로그인 검증은 #62에서 추적한다.
 
-2026-09-22 20:56 (KST): 데스크톱 최초 설정·이관은 620×820 전용 창에서 잠금 설정→복구 자료 확인·서버 등록→명시적 이관 순서로 진행한다. 작은 화면에서는 작업 영역 안에 맞추고 세로 스크롤을 제공하며, 앱 진입 시 기존 창 크기를 복원한다. 설정 > 데이터는 상태와 작업별 보관함 메뉴를 분리한다. 복구/기기 연결/키 관리 기능은 이후에도 접근할 수 있다.
+2026-09-23 16:28 (KST): 운영 전 계정별 v1/v2 평문 잔존량을 내용 없이 확인하는 읽기 전용 도구를 추가했다. 합성 MySQL의 평문·암호문 백업을 별도 DB에 복원하고 전체 행 해시를 대조했다. 서버 평문 정리 범위와 승인 조건은 [정리 계획](initiatives/v3-encryption/protocol/v3-plaintext-purge-plan.md)에 기록했다. 운영 purge 실행 코드는 미구현이며 [출시 검증 기록](reports/2026-09-23-v3-release-rehearsal.md)과 #57에서 계속 추적한다.
+
+2026-09-23 16:28 (KST): 운영 전 계정별 v1/v2 평문 잔존량을 내용 없이 확인하는 읽기 전용 도구를 추가했다. 합성 MySQL의 평문·암호문 백업을 별도 DB에 복원하고 전체 행 해시를 대조했다. 서버 평문 정리 범위와 승인 조건은 [정리 계획](initiatives/v3-encryption/protocol/v3-plaintext-purge-plan.md)에 기록했다. 운영 purge 실행 코드는 미구현이며 [출시 검증 기록](reports/2026-09-23-v3-release-rehearsal.md)과 #57에서 계속 추적한다.
+
+2026-09-22 20:56 (KST): 데스크톱 최초 설정·이관은 620×820 전용 창에서 잠금 설정→복구 자료 확인·서버 등록→명시적 이관 순서로 진행한다. 작은 화면에서는 작업 영역 안에 맞추고 세로 스크롤을 제공하며, 앱 진입 시 기존 창 크기를 복원한다. 잠금 설정에서 OS 인증만 쓰거나 비밀번호도 추가할 수 있다. 두 방식 모두 계정 복원을 위한 암호화 복구 파일과 별도 코드 확인이 필요하다. 설정 > 데이터는 상태와 작업별 보관함 메뉴를 분리한다. 복구/기기 연결/키 관리 기능은 이후에도 접근할 수 있다.
 
 API schema11은 signed batch를 `encrypted_records`에 vault별 SHA-256 digest로 공유 저장한다. schema12는 공유 SHA-256·참조·기존 digest·byte 일치를 모두 확인한 뒤 object/change/snapshot의 중복 BLOB 컬럼만 제거한다. 클라이언트가 받는 서명 원문은 그대로다. 구 API와 혼용하지 않으며 운영 적용·v2 평문 삭제·서명 배포는 수행하지 않았다. [측정과 배포 경계](reports/2026-09-22-v3-record-storage.md).
 
@@ -59,7 +65,7 @@ API schema11은 signed batch를 `encrypted_records`에 vault별 SHA-256 digest�
 
 Desktop의 최소 macOS 버전은 사용자 승인으로 12 이상이다. 2026-09-08 사용자 승인으로 E2EE 개발 브랜치의 Windows 배포는 x64 전용으로 전환한다. 기존 appId·사용자 데이터 경로는 보존하고 ia32→x64 설치 덮어쓰기는 별도 검증한다. #46~48의 TUF·암호 포맷·암호화 저장소 실험 구현은 [체크포인트](reports/2026-09-08-e2ee-checkpoint.md)를 참조한다. 기존 앱 통합은 미완료이며 E2EE 활성화로 표시하지 않는다.
 
-2026-09-08부터 [E2EE 패치](patches/patch-20260907-e2ee.md)를 기준으로 별도 브랜치 `feat/e2ee-vault`에서 개발한다. 계정별 보관함, 기기 승인·QR/키 파일 연결, 복구 키와 암호문 동기화를 목표로 하며 [#43~#57](tasks/0043.md)로 추적한다. 현재 데이터는 여전히 Sync v2 평문 구조이며 실제 운영 전환과 과거 평문 삭제는 사용자 검증 후 별도로 수행한다.
+2026-09-08부터 [E2EE 패치](initiatives/v3-encryption/v3-design.md)를 기준으로 별도 브랜치 `feat/e2ee-vault`에서 개발한다. 계정별 보관함, 기기 승인·QR/키 파일 연결, 복구 키와 암호문 동기화를 목표로 하며 [#43~#57](tasks/done/0043.md)로 추적한다. 현재 데이터는 여전히 Sync v2 평문 구조이며 실제 운영 전환과 과거 평문 삭제는 사용자 검증 후 별도로 수행한다.
 
 ## Google 로그인
 
@@ -73,7 +79,7 @@ Google 인증 결과는 사용자 식별에만 사용하고, 연동된 서버 �
 
 ## 저장소 정책
 
-E2EE 보관함 잠금 해제는 Windows Hello/Touch ID 우선 및 별도 보관함 비밀번호 대체를 제공한다. 로그인 비밀번호/복구 키와 구분하며 Thread 자체 PIN은 제공하지 않는다. 인증 취소 후 다른 방법을 자동 시도하지 않는다. 구현 중인 정책으로, 현재 Sync v2 데이터가 이미 E2EE로 보호된다는 의미는 아니다.
+v3 데이터 잠금 해제는 Windows Hello/Touch ID를 지원하고, 최초 설정 시 비밀번호 추가 여부를 선택할 수 있다. OS 인증만 선택하면 로컬 비밀번호 파일을 만들지 않는다. 비밀번호를 추가해도 OS 인증은 사용할 수 있다. 로그인 비밀번호/복구 코드와 구분하며 Thread 자체 PIN은 제공하지 않는다. 인증 취소 후 다른 방법을 자동 시도하지 않는다. 현재 Sync v2 데이터가 이미 암호화됐다는 의미는 아니다.
 
 관련 구성 요소는 단일 Git 저장소에서 관리한다. 사용자 애플리케이션은 `apps/`, 백엔드 서비스는 `services/` 아래에 배치한다. 과거 독립 저장소의 커밋 이력은 모노레포 이력에 포함하며, 데스크톱과 모바일 앱은 Compose 대상에서 제외한다. Node.js 구성 요소는 프로젝트별 `pnpm-lock.yaml`을 사용해 설치와 lifecycle을 서로 격리한다.
 
@@ -81,11 +87,11 @@ E2EE 보관함 잠금 해제는 Windows Hello/Touch ID 우선 및 별도 보관�
 
 ## 배포 구조
 
-업데이트 신뢰 초기 정책(2026-09-10 17:29 KST): 최상위 root 키는 1개(threshold 1), 배포 키와 분리한다. 앱은 내장 공개 신뢰 정보로 검증하며 개인키를 포함하지 않는다. 운영 키 생성 및 배포는 별도 승인 대상이다. 이후 서명된 root 교체로 키 구성/threshold를 변경할 수 있다. [운영 경계](protocol/update-signing-policy.md).
+업데이트 신뢰 초기 정책(2026-09-10 17:29 KST): 최상위 root 키는 1개(threshold 1), 배포 키와 분리한다. 앱은 내장 공개 신뢰 정보로 검증하며 개인키를 포함하지 않는다. 운영 키 생성 및 배포는 별도 승인 대상이다. 이후 서명된 root 교체로 키 구성/threshold를 변경할 수 있다. [운영 경계](initiatives/v3-encryption/protocol/v3-update-signing-policy.md).
 
-E2EE v3 서버 API는 E2EE_API_ENABLED 기본 false로 분리한다. 활성화하더라도 기존 계정을 자동 이관하지 않으며, 계정 JWT와 기기 서명을 별도로 검사한다. 승인 만료·키 세대 회전·수신자 전용 키 전달 및 암호문 동기화의 구현 계약은 [E2EE v3 API](protocol/e2ee-v3-api.md)에 기록한다. 사용자 앱 통합과 운영 전환·보안 검토는 별도 완료 조건이다.
+E2EE v3 서버 API는 E2EE_API_ENABLED 기본 false로 분리한다. 활성화하더라도 기존 계정을 자동 이관하지 않으며, 계정 JWT와 기기 서명을 별도로 검사한다. 승인 만료·키 세대 회전·수신자 전용 키 전달 및 암호문 동기화의 구현 계약은 [E2EE v3 API](initiatives/v3-encryption/protocol/v3-api.md)에 기록한다. 사용자 앱 통합과 운영 전환·보안 검토는 별도 완료 조건이다.
 
-이관 API는 E2EE_MIGRATION_ENABLED 기본 false로 추가 분리하며 현재 개발/rehearsal 전용이다. [prepare 계약](protocol/e2ee-migration-prepare.md)에 이어 [upload/readback/CAS 활성화 계약](protocol/e2ee-migration-activation.md)을 구현했다. 사용자 승인 후 업로드/검증 단계 취소의 임시 암호문 정리를 구현했으며 원본·활성 데이터는 보존한다. 일반 앱 UI·local cutover·늦은 기기 pending은 미완료다. [암호화 백업](protocol/encrypted-data-backup.md) 가져오기는 원본 DB를 덮어쓰지 않는 복구 사본만 만들고 활성 계정이나 이전 기기 identity로 자동 전환하지 않는다.
+이관 API는 E2EE_MIGRATION_ENABLED 기본 false로 추가 분리하며 현재 개발/rehearsal 전용이다. [prepare 계약](initiatives/v3-encryption/protocol/v3-migration-prepare.md)에 이어 [upload/readback/CAS 활성화 계약](initiatives/v3-encryption/protocol/v3-migration-activation.md)을 구현했다. 사용자 승인 후 업로드/검증 단계 취소의 임시 암호문 정리를 구현했으며 원본·활성 데이터는 보존한다. 일반 앱 UI·local cutover·늦은 기기 pending은 미완료다. [암호화 백업](initiatives/v3-encryption/protocol/v3-encrypted-data-backup.md) 가져오기는 원본 DB를 덮어쓰지 않는 복구 사본만 만들고 활성 계정이나 이전 기기 identity로 자동 전환하지 않는다.
 
 공개 사이트와 관리자 사이트는 API 및 RMS와 함께 Docker Compose에 유지한다. 관리자 React 빌드의 공개 endpoint는 루트 env의 `ADMIN_APP_SERVER_ENTRY`와 `ADMIN_RMS_ENTRY`를 Compose build args로 전달해 local 및 production 값을 분리한다. 이 값은 정적 브라우저 번들에 포함되는 공개 설정이며 비밀값을 저장하지 않는다.
 

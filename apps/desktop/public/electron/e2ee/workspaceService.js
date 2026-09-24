@@ -52,7 +52,14 @@ class VaultWorkspaceService{
   if(this.busy)throw Error("VAULT_BUSY");
   const entry=this.context();if(entry.vault.inspect().phase!=="ABSENT")throw Error("VAULT_ALREADY_EXISTS");
   this.busy=true;
-  try{await entry.vault.createWithPassword(password);if(this.active!==entry||entry.uid!==this.runtime().getAccount())throw Error("VAULT_SESSION_CHANGED");return await this.status();}
+  try{
+   if(password?.method==="os"){
+    if(!await this.runtime().osAuth.availability()||!await this.runtime().osAuth.verify(this.runtime().getWindow()))throw Error("OS_AUTH_FAILED");
+    if(this.active!==entry||entry.uid!==this.runtime().getAccount())throw Error("VAULT_SESSION_CHANGED");
+    entry.vault.create();
+   }else await entry.vault.createWithPassword(password);
+   if(this.active!==entry||entry.uid!==this.runtime().getAccount())throw Error("VAULT_SESSION_CHANGED");return await this.status();
+  }
   finally{password=undefined;this.busy=false;}
  }
  async unlock(method,password){
@@ -184,16 +191,29 @@ class VaultWorkspaceService{
    return await entry.controller.use(store=>require("./ownerRegistration").registerOwner({store,transport,signal:entry.abort.signal}));
   }finally{this.busy=false;}
  }
+ async activateEmpty(){
+  if(this.busy)throw Error("VAULT_BUSY");
+  const entry=this.context();entry.controller.use(()=>{});this.busy=true;
+  try{
+   const transport=this.transportFor(entry);
+   return await entry.controller.use(store=>require("./newAccountActivation").activateEmpty({store,transport,signal:entry.abort.signal}));
+  }finally{this.busy=false;}
+ }
  transportFor(entry){
    const signal=entry.abort.signal;
-   return this.runtime().transport||require("./transport").createTransport({endpoint:this.registrationEndpoint(),token:async()=>{
-    if(entry!==this.active||entry.uid!==this.runtime().getAccount()||signal.aborted)throw Error("AUTH_REQUIRED");
-    const db=await this.group.databaseService.getRootDatabaseContext();
-    // Do not use the legacy SQL logger for authentication metadata.
-    const row=await new Promise((resolve,reject)=>db.db.get("SELECT access_token FROM users WHERE uid = ?",[entry.uid],(error,value)=>error?reject(error):resolve(value)));
-    if(entry!==this.active||entry.uid!==this.runtime().getAccount()||signal.aborted)throw Error("AUTH_REQUIRED");
-    return row?.access_token;
-   }});
+   if(this.runtime().transport)return this.runtime().transport;
+   const endpoint=this.registrationEndpoint();
+   if(!entry.tokenSession||entry.tokenSignal!==signal){
+    const active=()=>{if(entry!==this.active||entry.uid!==this.runtime().getAccount()||signal.aborted)throw Error("AUTH_REQUIRED");};
+    entry.tokenSignal=signal;
+    entry.tokenSession=require("./tokenSession").createTokenSession({
+     database:()=>this.group.databaseService.getRootDatabaseContext(),uid:entry.uid,endpoint,
+     send:this.runtime().fetch||globalThis.fetch,signal,active,
+     notify:tokens=>this.group.ipcService.sender("auth/tokenUpdated",null,true,tokens)
+    });
+   }
+   return require("./transport").createTransport({endpoint,token:entry.tokenSession.current,
+    renewToken:entry.tokenSession.renew,fetch:this.runtime().fetch||globalThis.fetch});
  }
  async pairing(action,input={}){
   if(this.busy)throw Error("VAULT_BUSY");
@@ -258,6 +278,14 @@ class VaultWorkspaceService{
  }
  identityStatus(){return this.context().controller.use(store=>require("./ownerIdentity").ownerStatus(store));}
  recoveryCode(){return this.context().controller.use(store=>require("./ownerIdentity").recoveryMaterial(store).code);}
+ copyRecoveryCode(){
+  const code=this.recoveryCode(),clipboard=this.runtime().clipboard||require("electron").clipboard;
+  clipboard.writeText(code);
+  clearTimeout(this.recoveryClipboardTimer);
+  this.recoveryClipboardTimer=setTimeout(()=>{if(clipboard.readText()===code)clipboard.clear();this.recoveryClipboardTimer=null;},30000);
+  this.recoveryClipboardTimer.unref?.();
+  return true;
+ }
  async exportRecovery(){
   const entry=this.context(),generation=this.generation;
   const material=entry.controller.use(store=>require("./ownerIdentity").recoveryMaterial(store));
