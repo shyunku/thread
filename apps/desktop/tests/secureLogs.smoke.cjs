@@ -11,7 +11,7 @@ app.whenReady().then(async()=>{
  const {setVaultWindow}=require("../public/electron/modules/vaultWindow");
  const before=w.getBounds();
  setVaultWindow(w,"setup",{x:0,y:0,width:1200,height:900});
- assert.deepEqual([w.getBounds().width,w.getBounds().height],[620,820]);
+ assert.deepEqual([w.getBounds().width,w.getBounds().height],[528,820]);
  assert.equal(w.isResizable(),false);
  setVaultWindow(w,"app");assert.deepEqual(w.getBounds(),before);
  assert.equal(await w.webContents.executeJavaScript("window.thread.secureLogs"),true);

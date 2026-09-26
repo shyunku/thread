@@ -88,6 +88,7 @@ module.exports = function (s) {
     "vault/prepareIdentity":()=>s.vaultWorkspaceService.prepareIdentity(),
     "vault/identityStatus":()=>s.vaultWorkspaceService.identityStatus(),
     "vault/recoveryCode":()=>s.vaultWorkspaceService.recoveryCode(),
+    "vault/recoveryCodePreview":()=>s.vaultWorkspaceService.recoveryCodePreview(),
     "vault/copyRecoveryCode":()=>s.vaultWorkspaceService.copyRecoveryCode(),
     "vault/exportRecovery":()=>s.vaultWorkspaceService.exportRecovery(),
     "vault/confirmRecovery":code=>s.vaultWorkspaceService.confirmRecovery(code),

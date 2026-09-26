@@ -97,6 +97,7 @@ const IpcSender = {
     prepareIdentity:callback=>sender("vault/prepareIdentity",callback),
     identityStatus:callback=>sender("vault/identityStatus",callback),
     recoveryCode:callback=>sender("vault/recoveryCode",callback),
+    recoveryCodePreview:callback=>sender("vault/recoveryCodePreview",callback),
     copyRecoveryCode:callback=>sender("vault/copyRecoveryCode",callback),
     exportRecovery:callback=>sender("vault/exportRecovery",callback),
     confirmRecovery:(code,callback)=>sender("vault/confirmRecovery",callback,code),

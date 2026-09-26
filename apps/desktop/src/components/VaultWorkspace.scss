@@ -16,6 +16,7 @@
  button:disabled { opacity: .45; cursor: default; }
  button:hover:not(:disabled) { border-color: #6294ff; background: #202b40; }
  :focus-visible { outline: 2px solid #83aaff; outline-offset: 3px; }
+ input:focus-visible { outline: none; border-color: #6294ff; }
  pre,code { white-space: pre-wrap; overflow-wrap: anywhere; }
  pre { padding: 16px; border-radius: 8px; background: #101216; }
  details { margin: 12px 0; padding: 12px; border: 1px solid var(--vault-border); border-radius: 8px; }

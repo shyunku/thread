@@ -278,6 +278,10 @@ class VaultWorkspaceService{
  }
  identityStatus(){return this.context().controller.use(store=>require("./ownerIdentity").ownerStatus(store));}
  recoveryCode(){return this.context().controller.use(store=>require("./ownerIdentity").recoveryMaterial(store).code);}
+ recoveryCodePreview(){
+  const code=this.recoveryCode();
+  return code.slice(8,12)+"-"+code.slice(12,13)+"••••••";
+ }
  copyRecoveryCode(){
   const code=this.recoveryCode(),clipboard=this.runtime().clipboard||require("electron").clipboard;
   clipboard.writeText(code);

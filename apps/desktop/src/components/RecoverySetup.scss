@@ -1,0 +1,13 @@
+.recovery-setup {
+  .recovery-setup__code { display: grid; gap: 8px; margin: 20px 0 16px; }
+  .recovery-setup__code-label { font-size: 12px; font-weight: 700; color: #edf1f7; }
+  .recovery-setup__code button { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; margin: 0; text-align: left; font-weight: 600; }
+  .recovery-setup__code button svg { flex: 0 0 auto; width: 17px; height: 17px; }
+  .recovery-setup__code small { color: #83aaff; font-size: 12px; line-height: 1.5; }
+  .recovery-setup__confirm { gap: 8px; }
+  .recovery-setup__confirm label { margin: 0; }
+  .recovery-setup__confirm-row { display: flex; align-items: stretch; gap: 8px; min-width: 0; }
+  .recovery-setup__confirm-row .password-field { flex: 1 1 auto; min-width: 0; }
+  .recovery-setup__confirm-row button[type="submit"] { flex: 0 0 auto; margin: 0; white-space: nowrap; }
+  .recovery-setup__back { margin-top: 4px; }
+}

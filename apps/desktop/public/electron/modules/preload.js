@@ -18,7 +18,7 @@ const REQUEST_TOPICS = Object.freeze([
   "vault/reconcileConflict",
   "vault/pairing",
   "vault/registrationEndpoint", "vault/registerIdentity", "vault/activateEmpty",
-  "vault/prepareIdentity", "vault/identityStatus", "vault/recoveryCode", "vault/copyRecoveryCode", "vault/exportRecovery", "vault/confirmRecovery",
+  "vault/prepareIdentity", "vault/identityStatus", "vault/recoveryCode", "vault/recoveryCodePreview", "vault/copyRecoveryCode", "vault/exportRecovery", "vault/confirmRecovery",
   "vault/getStatus", "vault/create", "vault/unlock", "vault/lock", "vault/intakes", "vault/reviews",
   "system/subscribe",
   "system/terminate_signal",

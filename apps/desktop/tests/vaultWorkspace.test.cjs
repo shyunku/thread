@@ -249,6 +249,8 @@ test("recovery export never replaces a file and confirmation reopens the selecte
  await s.create("synthetic test password");await s.unlock("os");
  assert.equal((await s.prepareIdentity()).phase,"RECOVERY_UNCONFIRMED");
  const code=s.recoveryCode();
+ assert.match(s.recoveryCodePreview(),/^[0-9A-F]{4}-[0-9A-F]••••••$/);
+ assert.notEqual(s.recoveryCodePreview(),code);
  f.deps.dialog={showSaveDialog:async()=>({canceled:false,filePath:filename}),showOpenDialog:async()=>({canceled:false,filePaths:[filename]})};
  assert.equal(await s.exportRecovery(),true);const before=fs.readFileSync(filename);
  await assert.rejects(s.exportRecovery(),/EEXIST/);assert.deepEqual(fs.readFileSync(filename),before);

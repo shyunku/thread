@@ -6,5 +6,8 @@ test("setup fits a small display and restores original app bounds on exit",()=>{
  assert.equal(bounds.width,500);assert.equal(bounds.height,700);assert.equal(resize,false);
  setVaultWindow(w,"setup",{x:0,y:0,width:500,height:700});setVaultWindow(w,"app",{});
  assert.deepEqual(bounds,{x:10,y:20,width:1200,height:900});assert.deepEqual(min,[800,600]);assert.equal(max,true);assert.equal(resize,true);
+ setVaultWindow(w,"setup",{x:0,y:0,width:1200,height:900});
+ assert.equal(bounds.width,528);
+ setVaultWindow(w,"app",{});
  assert.throws(()=>setVaultWindow(w,"arbitrary",{}));
 });
