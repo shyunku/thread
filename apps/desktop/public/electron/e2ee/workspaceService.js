@@ -281,7 +281,7 @@ class VaultWorkspaceService{
  recoveryCode(){return this.context().controller.use(store=>require("./ownerIdentity").recoveryMaterial(store).code);}
  recoveryCodePreview(){
   const code=this.recoveryCode();
-  return code.slice(0,9)+code.slice(9).replace(/[0-9A-F]/g,"*");
+  return code.slice(0,13)+code.slice(13).replace(/[0-9A-F]/g,"*");
  }
  copyRecoveryCode(){
   const code=this.recoveryCode(),clipboard=this.runtime().clipboard||require("electron").clipboard;

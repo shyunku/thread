@@ -246,7 +246,8 @@ test("recovery export uses .trec, never replaces a file and confirms the selecte
  await s.create("synthetic test password");await s.unlock("os");
  assert.equal((await s.prepareIdentity()).phase,"RECOVERY_UNCONFIRMED");
  const code=s.recoveryCode();
- assert.match(s.recoveryCodePreview(),/^THREAD1-[0-9A-F]\*{7}(?:-\*{8}){8}$/);
+ assert.match(s.recoveryCodePreview(),/^THREAD1-[0-9A-F]{5}\*{3}(?:-\*{8}){8}$/);
+ assert.equal(s.recoveryCodePreview().slice(0,13),code.slice(0,13));
  assert.equal(s.recoveryCodePreview().length,code.length);
  assert.notEqual(s.recoveryCodePreview(),code);
  f.deps.dialog={showSaveDialog:async(_window,options)=>{saveOptions=options;return {canceled:false,filePath:filename};},showOpenDialog:async(_window,options)=>{openOptions=options;return {canceled:false,filePaths:[selected]};}};

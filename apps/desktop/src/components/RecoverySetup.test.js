@@ -2,7 +2,7 @@ import {fireEvent,render,screen,waitFor} from "@testing-library/react";
 import RecoverySetup from "./RecoverySetup";
 import IpcSender from "../utils/IpcSender";
 import Toast from "../molecules/Toast";
-const PREVIEW="THREAD1-F*******-"+Array(8).fill("********").join("-");
+const PREVIEW="THREAD1-F52B8***-"+Array(8).fill("********").join("-");
 jest.mock("../utils/IpcSender",()=>({vault:{identityStatus:jest.fn(),prepareIdentity:jest.fn(),recoveryCodePreview:jest.fn(),copyRecoveryCode:jest.fn(),exportRecovery:jest.fn(),confirmRecovery:jest.fn()}}));
 jest.mock("../molecules/Toast",()=>({__esModule:true,default:{success:jest.fn()}}));
 beforeEach(()=>{jest.clearAllMocks();IpcSender.vault.identityStatus.mockImplementation(cb=>cb({success:true,data:{phase:"RECOVERY_UNCONFIRMED"}}));IpcSender.vault.exportRecovery.mockImplementation(cb=>cb({success:true,data:true}));IpcSender.vault.recoveryCodePreview.mockImplementation(cb=>cb({success:true,data:PREVIEW}));IpcSender.vault.copyRecoveryCode.mockImplementation(cb=>cb({success:true,data:true}));});

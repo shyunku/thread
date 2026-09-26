@@ -26,12 +26,12 @@ for(const [name,available] of [["methods",true],["password",false]])fs.writeFile
 async function recoveryPage(){
  const {JSDOM}=require("jsdom"),dom=new JSDOM("<!doctype html><html><body></body></html>",{url:"http://fixture.invalid"});
  global.window=dom.window;global.document=dom.window.document;global.navigator=dom.window.navigator;global.HTMLElement=dom.window.HTMLElement;global.MutationObserver=dom.window.MutationObserver;
- const ipc={vault:{identityStatus:cb=>cb({success:true,data:{phase:"RECOVERY_UNCONFIRMED"}}),exportRecovery:cb=>cb({success:true,data:true}),recoveryCodePreview:cb=>cb({success:true,data:"AFE2-4••••••"}),copyRecoveryCode:cb=>cb({success:true,data:true})}};
+ const ipc={vault:{identityStatus:cb=>cb({success:true,data:{phase:"RECOVERY_UNCONFIRMED"}}),exportRecovery:cb=>cb({success:true,data:true}),recoveryCodePreview:cb=>cb({success:true,data:"THREAD1-F52B8***-"+Array(8).fill("********").join("-")}),copyRecoveryCode:cb=>cb({success:true,data:true})}};
  const oldLoad=Module._load;Module._load=function(request,parent,isMain){if(request==="../utils/IpcSender"&&parent?.filename.startsWith(components))return {__esModule:true,default:ipc};if(request==="../molecules/Toast"&&parent?.filename.startsWith(components))return {__esModule:true,default:{success:()=>{}}};return oldLoad.call(this,request,parent,isMain);};
  const RecoverySetup=require("../src/components/RecoverySetup").default,{render,screen,fireEvent}=require("@testing-library/react");
  const view=render(React.createElement(RecoverySetup));
  fireEvent.click(await screen.findByText("복구 파일 저장"));
- await screen.findByText("AFE2-4••••••");
+ await screen.findByText(/^THREAD1-F52B8\*/);
  const controls=renderToStaticMarkup(React.createElement("div",{className:"application-gate__window-actions"},React.createElement("button",{"aria-label":"최소화"},React.createElement(VscChromeMinimize)),React.createElement("button",{"aria-label":"닫기"},React.createElement(VscChromeClose))));
  const markup=`<main class="application-gate"><div class="application-gate__titlebar"><span>Thread</span>${controls}</div><div class="application-gate__card"><header class="application-gate__header"><div class="application-gate__heading"><h1>데이터 보호 업데이트</h1></div></header><section class="vault-workspace">${view.container.innerHTML}</section></div></main>`;
  fs.writeFileSync(path.join(output,"recovery.html"),`<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}</style><style>html,body,#root{margin:0;width:100%;height:100%}</style></head><body><div id="root">${markup}</div></body></html>`,{flag:"wx"});

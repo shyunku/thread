@@ -30,8 +30,12 @@ app.whenReady().then(async()=>{
   assert.ok(content.text.length>20,stage+" missing UI: "+JSON.stringify(content.errors));
   if(stage==="setup")assert.match(content.text,/OS 인증으로 설정/);
   if(stage==="password")assert.match(content.text,/비밀번호 확인/);
-  if(stage==="recovery"){assert.match(content.text,/THREAD1-F\*/);assert.doesNotMatch(content.text,/기록한 복구 코드/);}
-  if(stage==="confirm"){assert.match(content.text,/복구 코드 확인/);assert.doesNotMatch(content.text,/THREAD1-F\*/);}
+  if(stage==="recovery"){
+   assert.match(content.text,/THREAD1-F52B8\*/);assert.doesNotMatch(content.text,/기록한 복구 코드/);
+   const preview=await w.webContents.executeJavaScript("(()=>{const text=document.querySelector('.recovery-setup__code button span'),style=getComputedStyle(text);return {weight:style.fontWeight,overflow:style.textOverflow,whiteSpace:style.whiteSpace,scroll:text.scrollWidth,width:text.clientWidth};})()");
+   assert.equal(preview.weight,"400");assert.equal(preview.overflow,"ellipsis");assert.equal(preview.whiteSpace,"nowrap");assert.ok(preview.scroll>preview.width,JSON.stringify(preview));
+  }
+  if(stage==="confirm"){assert.match(content.text,/복구 코드 확인/);assert.doesNotMatch(content.text,/THREAD1-F52B8\*/);}
   if(stage==="migration"){assert.match(content.text,/기존 데이터 확인/);assert.doesNotMatch(content.text,/기존 방식으로 계속/);}
   if(stage==="migration-complete"){assert.match(content.text,/Thread 시작하기/);assert.doesNotMatch(content.text,/저장소 다시 확인|데이터 이동 완료|본인 확인 완료/);}
   if(stage==="password"||stage==="confirm"){
