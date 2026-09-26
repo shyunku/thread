@@ -4,6 +4,7 @@
 
 | Index | Tag | Updated | Status | Completed | Deps | 항목 | 완료 조건 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
+| 54 | migration | 2026-09-26 15:39 | 🟢 DONE | 2026-09-26 15:39 | #50, #52 | v2→v3 이관·중단 복구 ([기록](tasks/done/0054.md)) | 사용자 이관·재실행 유지와 계정/vault ACTIVE·암호문 레코드 검증 완료. 운영 이관은 #64, 모바일은 #53. |
 | 61 | api/storage | 2026-09-22 21:09 | 🟢 DONE | 2026-09-22 21:09 | #51, #54 | v3 signed batch 중복 저장 제거 ([기록](tasks/done/0061.md)) | 공유 저장·검증형 schema12 정리·10만 fixture 및 전체 회귀 통과. |
 | 58 | rms/infra | 2026-09-10 20:16 | 🟢 DONE | 2026-09-08 13:08 |  | RMS Bullseye 저장소 만료 빌드 복구 ([기록](tasks/done/0058.md)) | 지원 베이스 이미지에서 빌드·네이티브 모듈·RMS 회귀 검증. |
 | 51 | api/sync | 2026-09-24 03:51 | 🟢 DONE | 2026-09-09 13:38 | #49 | 암호문 push/pull·snapshot ([기록](tasks/done/0051.md)) | 원본 서명 provenance·CAS·멱등성·snapshot 무결성 검증. |
