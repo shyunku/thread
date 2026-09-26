@@ -12,3 +12,9 @@ test("recovery code checksum and scoped encrypted file roundtrip",async()=>{
  const corrupted=Buffer.from(bytes);corrupted[corrupted.length-1]^=1;await assert.rejects(file.unlockBundle(code,corrupted,scope));
  secret.fill(0);
 });
+test("only .trec is accepted as a recovery file name",()=>{
+ assert.doesNotThrow(()=>file.requireTrec("thread_recovery.trec"));
+ assert.doesNotThrow(()=>file.requireTrec("thread_recovery.TREC"));
+ assert.throws(()=>file.requireTrec("Thread.thread-recovery"),/INVALID_RECOVERY_FILE_EXTENSION/);
+ assert.throws(()=>file.requireTrec("thread_recovery.trec.txt"),/INVALID_RECOVERY_FILE_EXTENSION/);
+});

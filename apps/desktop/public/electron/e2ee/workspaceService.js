@@ -295,7 +295,7 @@ class VaultWorkspaceService{
   const entry=this.context(),generation=this.generation;
   const material=entry.controller.use(store=>require("./ownerIdentity").recoveryMaterial(store));
   const dialog=this.runtime().dialog||require("electron").dialog,fs=require("node:fs");
-  const result=await dialog.showSaveDialog(this.runtime().getWindow(),{title:"암호화 복구 파일 저장",defaultPath:"Thread.thread-recovery",filters:[{name:"Thread recovery",extensions:["thread-recovery"]}]});
+  const result=await dialog.showSaveDialog(this.runtime().getWindow(),{title:"암호화 복구 파일 저장",defaultPath:"thread_recovery.trec",filters:[{name:"Thread recovery",extensions:["trec"]}]});
   if(result.canceled)return false;
   entry.controller.use(()=>{});
   if(this.active!==entry||generation!==this.generation)throw Error("VAULT_SESSION_CHANGED");
@@ -306,9 +306,10 @@ class VaultWorkspaceService{
  async confirmRecovery(code){
   const entry=this.context(),generation=this.generation;entry.controller.use(()=>{});
   const dialog=this.runtime().dialog||require("electron").dialog,fs=require("node:fs");
-  const result=await dialog.showOpenDialog(this.runtime().getWindow(),{title:"저장한 복구 파일 다시 열기",properties:["openFile"],filters:[{name:"Thread recovery",extensions:["thread-recovery"]}]});
+  const result=await dialog.showOpenDialog(this.runtime().getWindow(),{title:"저장한 복구 파일 다시 열기",properties:["openFile"],filters:[{name:"Thread recovery",extensions:["trec"]}]});
   if(result.canceled)return false;
   if(this.active!==entry||generation!==this.generation)throw Error("VAULT_SESSION_CHANGED");
+  require("./recoveryFile").requireTrec(result.filePaths[0]);
   const fd=fs.openSync(result.filePaths[0],"r");let bytes;
   try{
    const stat=fs.fstatSync(fd);if(!stat.isFile()||stat.size>1024*1024)throw Error("INVALID_RECOVERY_FILE");

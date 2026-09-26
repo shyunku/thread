@@ -12,6 +12,7 @@ function parseCode(code){
  try{if(bytes.length!==36||!timingSafeEqual(checksum(bytes.subarray(0,32)),bytes.subarray(32)))throw Error("RECOVERY_CODE_CHECKSUM");return Buffer.from(bytes.subarray(0,32));}
  finally{bytes.fill(0);}
 }
+function requireTrec(filename){if(typeof filename!=="string"||!/\.trec$/i.test(filename))throw Error("INVALID_RECOVERY_FILE_EXTENSION");}
 function validateBundle(b){
  if(!b||Object.keys(b).length!==5||b.schema!==1||typeof b.vaultId!=="string"||!/^[A-Za-z0-9_-]{1,128}$/.test(b.vaultId)||typeof b.genesisFingerprint!=="string"||!/^[a-f0-9]{64}$/.test(b.genesisFingerprint)||!Buffer.isBuffer(b.nonce)||b.nonce.length!==24||!Buffer.isBuffer(b.ciphertext)||b.ciphertext.length<16)throw Error("INVALID_RECOVERY_FILE");return b;
 }
@@ -21,4 +22,4 @@ function importBundle(bytes,scope){
  const b=validateBundle(f.bundle);if(b.vaultId!==scope.vaultId||b.genesisFingerprint!==scope.genesisFingerprint)throw Error("RECOVERY_SCOPE_MISMATCH");return b;
 }
 async function unlockBundle(code,bytes,scope){const secret=parseCode(code);try{return await recovery.recover(secret,importBundle(bytes,scope),scope);}finally{secret.fill(0);}}
-module.exports={formatCode,parseCode,exportBundle,importBundle,unlockBundle};
+module.exports={formatCode,parseCode,requireTrec,exportBundle,importBundle,unlockBundle};

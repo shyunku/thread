@@ -241,21 +241,27 @@ test("real service bootstraps signed E2EE, handles normal CRUD, restarts offline
  events.length=0;assert.equal(await s.interceptApplication("task/getAllTaskList","locked",[]),true);
  assert.equal(events[0][2],false);assert.equal(events[0][3].code,"VAULT_LOCKED");
 });
-test("recovery export never replaces a file and confirmation reopens the selected bytes",async t=>{
- const f=fixture(t),s=f.service,filename=path.join(f.dir,"test.thread-recovery");
+test("recovery export uses .trec, never replaces a file and confirms the selected bytes",async t=>{
+ const f=fixture(t),s=f.service,filename=path.join(f.dir,"test.trec");let saveOptions,openOptions,selected=filename;
  await s.create("synthetic test password");await s.unlock("os");
  assert.equal((await s.prepareIdentity()).phase,"RECOVERY_UNCONFIRMED");
  const code=s.recoveryCode();
  assert.match(s.recoveryCodePreview(),/^THREAD1-[0-9A-F]\*{7}(?:-\*{8}){8}$/);
  assert.equal(s.recoveryCodePreview().length,code.length);
  assert.notEqual(s.recoveryCodePreview(),code);
- f.deps.dialog={showSaveDialog:async()=>({canceled:false,filePath:filename}),showOpenDialog:async()=>({canceled:false,filePaths:[filename]})};
+ f.deps.dialog={showSaveDialog:async(_window,options)=>{saveOptions=options;return {canceled:false,filePath:filename};},showOpenDialog:async(_window,options)=>{openOptions=options;return {canceled:false,filePaths:[selected]};}};
  assert.equal(await s.exportRecovery(),true);const before=fs.readFileSync(filename);
+ assert.equal(saveOptions.defaultPath,"thread_recovery.trec");
+ assert.deepEqual(saveOptions.filters[0].extensions,["trec"]);
  await assert.rejects(s.exportRecovery(),/EEXIST/);assert.deepEqual(fs.readFileSync(filename),before);
  const {vaultIpcReply}=require("../public/electron/e2ee/vaultIpcReply");
  const group={userService:{getCurrent:()=>f.deps.getAccount()}};
  assert.deepEqual(await vaultIpcReply(group,"vault/exportRecovery",()=>s.exportRecovery(),[]),{success:false,data:{code:"RECOVERY_FILE_EXISTS"}});
+ selected=path.join(f.dir,"old.thread-recovery");fs.writeFileSync(selected,before);
+ await assert.rejects(s.confirmRecovery(code),/INVALID_RECOVERY_FILE_EXTENSION/);
+ selected=filename;
  await assert.rejects(s.confirmRecovery("wrong"));
+ assert.deepEqual(openOptions.filters[0].extensions,["trec"]);
  assert.equal(s.identityStatus().phase,"RECOVERY_UNCONFIRMED");
  assert.equal((await s.confirmRecovery(code)).phase,"RECOVERY_CONFIRMED");
  s.lock();assert.throws(()=>s.recoveryCode(),/LOCKED/);

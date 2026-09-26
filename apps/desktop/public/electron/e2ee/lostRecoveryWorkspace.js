@@ -29,13 +29,14 @@ async function execute(service,action,input={}){
   if(action==="commit")return await recovery.commit({store,transport,ready});
   const dialog=service.runtime().dialog||require("electron").dialog;
   if(action==="export"){
-   const result=await dialog.showSaveDialog(service.runtime().getWindow(),{defaultPath:"Thread-restored.thread-recovery",filters:[{name:"Thread recovery",extensions:["thread-recovery"]}]});ready();
+   const result=await dialog.showSaveDialog(service.runtime().getWindow(),{defaultPath:"Thread-restored.trec",filters:[{name:"Thread recovery",extensions:["trec"]}]});ready();
    if(result.canceled)return null;
    const material=recovery.material(store),fd=fs.openSync(result.filePath,"wx",0o600);
    try{fs.writeFileSync(fd,material.bytes);fs.fsyncSync(fd);}finally{fs.closeSync(fd);}return true;
   }
-  const result=await dialog.showOpenDialog(service.runtime().getWindow(),{properties:["openFile"],filters:[{name:"Thread recovery",extensions:["thread-recovery"]}]});ready();
+  const result=await dialog.showOpenDialog(service.runtime().getWindow(),{properties:["openFile"],filters:[{name:"Thread recovery",extensions:["trec"]}]});ready();
   if(result.canceled)return null;
+  require("./recoveryFile").requireTrec(result.filePaths[0]);
   const bytes=readRecovery(result.filePaths[0]);
   return await recovery[action]({store,transport,code:input.code,bytes,ready});
  }finally{input.password=undefined;input.code=undefined;service.busy=false;}

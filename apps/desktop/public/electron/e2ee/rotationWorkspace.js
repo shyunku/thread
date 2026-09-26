@@ -32,13 +32,14 @@ async function execute(service,action,input={}){
   const dialog=service.runtime().dialog||require("electron").dialog;
   if(action==="export"){
    const material=rotation.material(store);
-   const result=await dialog.showSaveDialog(service.runtime().getWindow(),{defaultPath:"Thread-rotated.thread-recovery",filters:[{name:"Thread recovery",extensions:["thread-recovery"]}]});ready();
+   const result=await dialog.showSaveDialog(service.runtime().getWindow(),{defaultPath:"Thread-rotated.trec",filters:[{name:"Thread recovery",extensions:["trec"]}]});ready();
    if(result.canceled)return false;
    const fd=fs.openSync(result.filePath,"wx",0o600);
    try{fs.writeFileSync(fd,material.bytes);fs.fsyncSync(fd);}finally{fs.closeSync(fd);}return true;
   }
-  const result=await dialog.showOpenDialog(service.runtime().getWindow(),{properties:["openFile"],filters:[{name:"Thread recovery",extensions:["thread-recovery"]}]});ready();
+  const result=await dialog.showOpenDialog(service.runtime().getWindow(),{properties:["openFile"],filters:[{name:"Thread recovery",extensions:["trec"]}]});ready();
   if(result.canceled)return null;
+  require("./recoveryFile").requireTrec(result.filePaths[0]);
   const fd=fs.openSync(result.filePaths[0],"r");let bytes;
   try{
    const stat=fs.fstatSync(fd);if(!stat.isFile()||stat.size>1024*1024)throw Error("INVALID_RECOVERY_FILE");
