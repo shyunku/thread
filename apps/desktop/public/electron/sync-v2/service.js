@@ -93,6 +93,7 @@ class SyncV2Service {
     await s.replica.preserveLegacy(source, backup);
   }
   async activate(uid, token, caps, renewToken) {
+    if (this.group.vaultWorkspaceService?.active?.uid === uid && this.group.vaultWorkspaceService.active.migrationIntent) return;
     const s = await this.restore(uid, true);
     this.stop(s);
     const generation = s.generation;
@@ -336,6 +337,7 @@ class SyncV2Service {
       return true;
     }
     if (mutationTopics.has(topic)) {
+      s.mutating = (s.mutating || 0) + 1;
       try {
         const id = await s.replica.enqueue(
           command(topic, args, await s.replica.view())
@@ -347,6 +349,7 @@ class SyncV2Service {
         ipc.sender(topic, reqId, false, { syncV2Ack: true, code: e.message });
         ipc.sender("sync-v2/error", null, true, { uid, code: e.message });
       }
+      finally { s.mutating--; }
       return true;
     }
     if (

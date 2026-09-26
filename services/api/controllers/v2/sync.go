@@ -44,7 +44,8 @@ func Register(r *gin.Engine, p *canonical.Protocol, secret []byte) {
 			return
 		}
 		c.JSON(200, gin.H{"protocolVersion": 2, "mode": a.Mode, "epoch": a.Epoch, "enabled": p.Enabled, "highWatermark": a.Last,
-			"operations": []string{"create", "patch", "delete", "move", "completeRecurringTask", "add", "remove"}})
+			"migrationAvailable": os.Getenv("E2EE_API_ENABLED") == "true" && os.Getenv("E2EE_MIGRATION_ENABLED") == "true",
+			"operations":         []string{"create", "patch", "delete", "move", "completeRecurringTask", "add", "remove"}})
 	})
 	g.Use(func(c *gin.Context) {
 		if !p.Enabled {

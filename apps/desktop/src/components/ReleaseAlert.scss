@@ -6,17 +6,34 @@
   place-items: center;
   background: #080a10b3;
   .release-alert {
-    max-width: 440px;
-    width: calc(100% - 80px);
+    box-sizing: border-box;
+    max-width: 420px;
+    width: calc(100% - 32px);
     padding: 24px;
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: 14px;
     background: var(--panel);
     color: var(--text);
+    box-shadow: 0 22px 65px #0008;
+    overflow-wrap: anywhere;
+    &__heading { display: flex; align-items: center; gap: 14px; }
+    &__symbol { display: grid; place-items: center; flex: 0 0 40px; width: 40px; height: 40px; border: 1px solid #6595ff55; border-radius: 11px; background: #29457055; color: #7da8ff; font-size: 19px; }
+    &__eyebrow { color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: 1.4px; }
     h2 {
       font-size: 20px;
-      margin-bottom: 16px;
+      line-height: 1.35;
+      margin: 3px 0 0;
     }
+    &__version { margin-top: 22px; padding-bottom: 14px; border-bottom: 1px solid var(--border); color: var(--secondary); font-size: 13px; }
+    &__version strong { color: var(--text); font-size: 14px; }
+    &__notice { padding: 12px 14px; border-radius: 8px; background: #29457045; color: var(--text) !important; word-break: keep-all; }
+    &__status { display: flex; gap: 10px; align-items: flex-start; margin-top: 18px; }
+    &__status strong { display: block; font-size: 13px; }
+    &__status p { margin: 4px 0 0 !important; color: var(--secondary); }
+    &__status-dot { flex: 0 0 7px; height: 7px; margin-top: 8px; border-radius: 50%; background: #78a4ff; }
+    &__status-dot--ready { background: #44c98b; }
+    &__status-dot--failed { background: #f18585; }
+    &__error { color: #f3afb5; }
     p {
       font-size: 14px;
       line-height: 1.7;
@@ -25,18 +42,25 @@
     .actions {
       display: flex;
       justify-content: flex-end;
+      flex-wrap: wrap;
       gap: 10px;
       margin-top: 20px;
     }
     button {
-      background: var(--selected);
+      background: #294570;
       color: var(--text);
       padding: 10px 14px;
       border: 1px solid var(--border);
       border-radius: 7px;
+      cursor: pointer;
+      font-weight: 600;
+      &:hover:not(:disabled) { background: #355c9e; }
+      &:focus-visible { outline: 2px solid #83aaff; outline-offset: 2px; }
     }
+    .release-alert__secondary { background: transparent; }
     button:disabled {
       opacity: 0.5;
     }
   }
+  @media (max-width: 420px) { .release-alert { padding: 18px; } }
 }

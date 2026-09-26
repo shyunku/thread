@@ -76,6 +76,8 @@ module.exports = function (s) {
     "vault/migrationStatus":()=>s.vaultWorkspaceService.migrationStatus(),
     "vault/migration":(action,input)=>s.vaultWorkspaceService.migration(action,input),
     "vault/bootstrap":uid=>s.vaultWorkspaceService.bootstrap(uid),
+    "vault/chooseMigration":uid=>s.vaultWorkspaceService.chooseMigration(uid),
+    "vault/leaveMigration":uid=>s.vaultWorkspaceService.leaveMigration(uid),
     "vault/sync":()=>s.vaultWorkspaceService.syncEncrypted(),
     "vault/outboxReviews":request=>s.vaultWorkspaceService.outboxReviews(request),
     "vault/outboxDetail":request=>s.vaultWorkspaceService.outboxDetail(request),
@@ -103,7 +105,7 @@ module.exports = function (s) {
     const reply=await require("../e2ee/vaultIpcReply").vaultIpcReply(s,topic,action,args);
     event.sender.send(topic,reqId,reply);
   });
-  for (const action of ["get", "download", "showFile"]) {
+  for (const action of ["get", "download", "install"]) {
     const topic = "release-alert/" + action;
     s.register(topic, async (event, reqId) => {
       if (event.sender !== s.windowService.mainWindow?.webContents) {
@@ -113,9 +115,7 @@ module.exports = function (s) {
       try {
         if (action === "get") await s.releaseAlertService.check();
         if (action === "download") await s.releaseAlertService.download();
-        if (action === "showFile" && s.releaseAlertService.installerPath) {
-          require("electron").shell.showItemInFolder(s.releaseAlertService.installerPath);
-        }
+        if (action === "install") await s.releaseAlertService.install();
         s.sender(topic, reqId, true, s.releaseAlertService.current);
       } catch { s.sender(topic, reqId, false, null); }
     });

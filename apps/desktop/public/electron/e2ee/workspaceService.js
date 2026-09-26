@@ -91,6 +91,8 @@ class VaultWorkspaceService{
   });
  }
  bootstrap(uid){return require("./applicationBootstrap").bootstrap(this,uid);}
+ chooseMigration(uid){return require("./applicationBootstrap").chooseMigration(this,uid);}
+ leaveMigration(uid){return require("./applicationBootstrap").leaveMigration(this,uid);}
  migrationStatus(){return require("./applicationMigration").status(this);}
  migration(action,input){return require("./applicationMigration").execute(this,action,input);}
  rotation(action,input){return require("./rotationWorkspace").execute(this,action,input);}

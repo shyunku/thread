@@ -1,7 +1,7 @@
 import {act,fireEvent,render,screen} from "@testing-library/react";
 import ApplicationGate from "./ApplicationGate";
 import IpcSender from "../utils/IpcSender";
-jest.mock("../utils/IpcSender",()=>({onAll:jest.fn(),off:jest.fn(),vault:{bootstrap:jest.fn(),status:jest.fn(),unlock:jest.fn()}}));
+jest.mock("../utils/IpcSender",()=>({onAll:jest.fn(),off:jest.fn(),vault:{bootstrap:jest.fn(),status:jest.fn(),unlock:jest.fn(),chooseMigration:jest.fn(),leaveMigration:jest.fn()}}));
 jest.mock("./VaultWorkspace",()=>()=> <p>Setup panel</p>);
 let notify;
 beforeEach(()=>{
@@ -81,4 +81,22 @@ test("a v2 account sees the update explanation before unlocking and no data move
  expect(screen.getByRole("button",{name:"Windows Hello / Touch ID로 열기"})).toBeInTheDocument();
  expect(screen.getByRole("list",{name:"데이터 보호 업데이트 진행 단계"})).toHaveTextContent("1. 본인 확인");
  expect(IpcSender.vault.unlock).not.toHaveBeenCalled();
+});
+test("v2 account may enter migration or keep using v2 before the app mounts",async()=>{
+ IpcSender.vault.bootstrap.mockImplementationOnce((uid,cb)=>cb({success:true,data:{mode:"LEGACY",migrationAvailable:true}}))
+  .mockImplementationOnce((uid,cb)=>cb({success:true,data:{mode:"MIGRATION_REQUIRED",migrationPending:true}}));
+ IpcSender.vault.chooseMigration.mockImplementation((uid,cb)=>cb({success:true,data:{mode:"MIGRATION_REQUIRED",migrationPending:true}}));
+ render(<ApplicationGate uid="u"><p>Legacy application</p></ApplicationGate>);
+ expect(await screen.findByRole("button",{name:"데이터 보호 방식으로 전환"})).toBeInTheDocument();
+ expect(screen.queryByText("Legacy application")).not.toBeInTheDocument();
+ fireEvent.click(screen.getByRole("button",{name:"데이터 보호 방식으로 전환"}));
+ expect(await screen.findByText("Setup panel")).toBeInTheDocument();
+ expect(IpcSender.vault.chooseMigration).toHaveBeenCalledWith("u",expect.any(Function));
+});
+test("declining v2 migration keeps normal home available",async()=>{
+ IpcSender.vault.bootstrap.mockImplementation((uid,cb)=>cb({success:true,data:{mode:"LEGACY",migrationAvailable:true}}));
+ render(<ApplicationGate uid="u"><p>Legacy application</p></ApplicationGate>);
+ fireEvent.click(await screen.findByRole("button",{name:"기존 방식으로 계속"}));
+ expect(screen.getByText("Legacy application")).toBeInTheDocument();
+ expect(IpcSender.vault.chooseMigration).not.toHaveBeenCalled();
 });

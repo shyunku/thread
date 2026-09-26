@@ -67,6 +67,10 @@ async function bootstrap(service,uid){
   if(local.phase!=="ABSENT"&&!(entry.unlocked?entry.controller.use(preparationOnly):entry.vault.isPreparationOnly()))throw Error("APPLICATION_MODE_CHANGED");
   return {mode:"LEGACY"};
  };
+ if(entry.migrationIntent){
+  if(locked)return {mode:"LOCKED",migrationPending:true};
+  return {mode:"MIGRATION_REQUIRED"};
+ }
  if(entry.unlocked){
   const migration=entry.controller.use(store=>require("./applicationMigration").stateFor(store).get());
   if(migration&&!["ACTIVE","CANCELLED"].includes(migration.phase)){
@@ -89,7 +93,7 @@ async function bootstrap(service,uid){
   // The existing v2 server must positively confirm the old account mode.
   try{
    const caps=await transport.legacyCapabilities(entry.abort.signal);check();
-   if(caps.protocolVersion===2&&caps.mode==="v2"&&caps.enabled===true&&!entry.applicationActive&&!entry.e2eeRequired)return legacy();
+   if(caps.protocolVersion===2&&caps.mode==="v2"&&caps.enabled===true&&!entry.applicationActive&&!entry.e2eeRequired)return caps.migrationAvailable===true?{...legacy(),migrationAvailable:true}:legacy();
   }catch(error){check();if(error.message==="UPDATE_REQUIRED")return {mode:"MIGRATION_REQUIRED"};}
   const oldFile=service.group?.syncV2Service?.file(uid);
   if(!entry.applicationActive&&!entry.e2eeRequired&&!hasReplica&&oldFile&&fs.existsSync(oldFile))return legacy();
@@ -115,6 +119,37 @@ async function bootstrap(service,uid){
  try{caps=await transport.legacyCapabilities(entry.abort.signal);check();}
  catch(error){check();if(error.message==="UPDATE_REQUIRED")return {mode:"MIGRATION_REQUIRED"};throw error;}
  if(caps.protocolVersion!==2||caps.mode!=="v2"||caps.enabled!==true)throw Error("APPLICATION_MODE_UNAVAILABLE");
- return legacy();
+ return caps.migrationAvailable===true?{...legacy(),migrationAvailable:true}:legacy();
 }
-module.exports={bootstrap,pinApplication,pinnedApplication,selectApplication,preparationOnly};
+async function chooseMigration(service,uid){
+ if(service.busy)throw Error("VAULT_BUSY");
+ if(uid!==service.runtime().getAccount())throw Error("ACCOUNT_MISMATCH");
+ const entry=service.context();
+ if(entry.applicationActive||entry.e2eeRequired||entry.migrationActive)throw Error("APPLICATION_MODE_CHANGED");
+ const transport=service.transportFor(entry);
+ const caps=await transport.legacyCapabilities(entry.abort.signal);
+ if(entry!==service.active||uid!==service.runtime().getAccount())throw Error("VAULT_SESSION_CHANGED");
+ if(caps.protocolVersion!==2||caps.mode!=="v2"||caps.enabled!==true||caps.migrationAvailable!==true)throw Error("MIGRATION_UNAVAILABLE");
+ const legacy=service.group?.syncV2Service;
+ const session=legacy?.sessions.get(uid);
+ if(legacy?.opening.has(uid)||session?.running||session?.mutating)throw Error("VAULT_BUSY");
+ entry.migrationActive=true;entry.migrationIntent=true;
+ try{
+  if(session){legacy.stop(session);await session.replica.close();legacy.sessions.delete(uid);}
+  return {mode:entry.unlocked?"MIGRATION_REQUIRED":entry.vault.inspect().phase==="ABSENT"?"MIGRATION_REQUIRED":"LOCKED",migrationPending:true};
+ }catch(error){entry.migrationActive=false;entry.migrationIntent=false;throw error;}
+}
+function leaveMigration(service,uid){
+ if(uid!==service.runtime().getAccount())throw Error("ACCOUNT_MISMATCH");
+ const entry=service.context();
+ if(!entry.migrationIntent||service.busy)throw Error("APPLICATION_MODE_CHANGED");
+ if(entry.unlocked){
+  const phase=entry.controller.use(store=>require("./applicationMigration").stateFor(store).get()?.phase);
+  if(phase&&phase!=="CANCELLED")throw Error("MIGRATION_IN_PROGRESS");
+ }
+ const local=entry.vault.inspect();
+ if(local.phase!=="ABSENT"&&!(entry.unlocked?entry.controller.use(preparationOnly):entry.vault.isPreparationOnly()))throw Error("APPLICATION_MODE_CHANGED");
+ entry.migrationIntent=false;entry.migrationActive=false;
+ return {mode:"LEGACY"};
+}
+module.exports={bootstrap,chooseMigration,leaveMigration,pinApplication,pinnedApplication,selectApplication,preparationOnly};

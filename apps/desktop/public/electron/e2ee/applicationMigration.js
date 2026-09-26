@@ -53,6 +53,7 @@ async function execute(service,action,input={}){
    }}).run();
    check();const phase=journal.get().phase;
    entry.migrationActive=phase!=="CANCELLED";
+   if(phase==="CANCELLED")entry.migrationIntent=false;
    return {phase};
   }finally{entry.abort.signal.removeEventListener("abort",abort);}
  }finally{

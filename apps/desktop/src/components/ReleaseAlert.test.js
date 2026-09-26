@@ -11,14 +11,16 @@ jest.mock("../utils/IpcSender", () => ({
   releaseAlerts: {
     get: jest.fn((cb) => cb({ success: true, data: null })),
     download: jest.fn(),
-    showFile: jest.fn(),
+    install: jest.fn(),
   },
 }));
-test("works without login context and suppresses a dismissed optional version", () => {
+test("optional notice opens on indicator click and required notice cannot be dismissed", () => {
   const { unmount } = render(<ReleaseAlert />);
   mockReceive = IpcSender.onAll.mock.calls[0][1];
   const data = { version: "2.0.0", mandatory: false, status: "available" };
   act(() => mockReceive({ success: true, data }));
+  expect(screen.queryByRole("alertdialog")).toBeNull();
+  act(() => window.dispatchEvent(new Event("thread:open-update")));
   fireEvent.click(screen.getByText("나중에"));
   act(() => mockReceive({ success: true, data }));
   expect(screen.queryByRole("alertdialog")).toBeNull();
@@ -30,8 +32,8 @@ test("works without login context and suppresses a dismissed optional version", 
   );
   expect(screen.getByRole("alertdialog")).toHaveTextContent("필수 업데이트");
   expect(screen.queryByText("나중에")).toBeNull();
-  fireEvent.click(screen.getByText("설치 파일 위치 열기"));
-  expect(IpcSender.releaseAlerts.showFile).toHaveBeenCalled();
+  fireEvent.click(screen.getByText("설치 후 재시작"));
+  expect(IpcSender.releaseAlerts.install).toHaveBeenCalled();
   unmount();
   expect(IpcSender.off).toHaveBeenCalled();
 });

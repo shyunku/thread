@@ -11,6 +11,7 @@ const REQUEST_TOPICS = Object.freeze([
   "vault/legacyManual",
   "vault/migrationStatus", "vault/migration",
   "vault/bootstrap",
+  "vault/chooseMigration", "vault/leaveMigration",
   "vault/windowMode",
   "vault/outboxReviews",
   "vault/outboxDetail",
@@ -89,7 +90,7 @@ const REQUEST_TOPICS = Object.freeze([
   "sync-v2/retry",
   "release-alert/get",
   "release-alert/download",
-  "release-alert/showFile",
+  "release-alert/install",
   "update_check@continue"
 ]);
 const EVENT_TOPICS = Object.freeze([

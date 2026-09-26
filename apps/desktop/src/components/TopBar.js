@@ -5,6 +5,7 @@ import {
   VscChromeMinimize,
   VscChromeRestore,
   VscSearch,
+  VscArrowDown,
 } from "react-icons/vsc";
 import IpcSender from "utils/IpcSender";
 import PackageJson from "../../package.json";
@@ -12,6 +13,7 @@ import "./TopBar.scss";
 
 const TopBar = ({ searchQuery = "", setSearchQuery }) => {
   const [maximized, setMaximized] = useState(false);
+  const [update, setUpdate] = useState(null);
   const searchRef = useRef(null);
   useEffect(() => {
     IpcSender.system.isMaximizable(({ success, data }) => {
@@ -31,8 +33,11 @@ const TopBar = ({ searchQuery = "", setSearchQuery }) => {
       }
     };
     window.addEventListener("keydown", onKeyDown);
+    const updateListener = IpcSender.onAll("release-alert/available", ({success,data}) => { if(success)setUpdate(data); });
+    IpcSender.releaseAlerts.get(({success,data}) => { if(success)setUpdate(data); });
     return () => {
       IpcSender.off("win_state_changed", listener);
+      IpcSender.off("release-alert/available", updateListener);
       window.removeEventListener("keydown", onKeyDown);
     };
   }, []);
@@ -70,6 +75,7 @@ const TopBar = ({ searchQuery = "", setSearchQuery }) => {
           <kbd>Ctrl K</kbd>
         )}
       </div>
+      {update && <button type="button" className={`update-indicator update-indicator--${update.status}`} aria-label={`Thread ${update.version} 업데이트 ${update.status === "ready" ? "설치 준비 완료" : update.status === "downloading" ? "다운로드 중" : update.status === "failed" ? "다운로드 실패" : "다운로드 가능"}`} title={`Thread ${update.version} 업데이트`} onClick={() => window.dispatchEvent(new Event("thread:open-update"))}><VscArrowDown aria-hidden="true" /></button>}
       <div className="build-label">
         {process.env.NODE_ENV === "development"
           ? "DEV"

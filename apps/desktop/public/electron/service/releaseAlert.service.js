@@ -64,11 +64,6 @@ class ReleaseAlertService {
           this.installerPath = null;
         }
         this.publish();
-        if (
-          this.current?.mandatory &&
-          ["available", "failed"].includes(this.current.status)
-        )
-          void this.download();
       } catch {
         /* Keep an already received required notice during network outages. */
       }
@@ -105,6 +100,17 @@ class ReleaseAlertService {
       this.downloading = null;
     });
     return this.downloading;
+  }
+  async install() {
+    if (this.downloading || this.current?.status !== "ready" || !this.installerPath)
+      throw Error("INSTALLER_NOT_READY");
+    const installerPath = this.installerPath;
+    const relaunch = await this.group.updaterService.installNewVersion(
+      Util.getSystemArchCategory(), FileSystem.getUserDataPath(), installerPath
+    );
+    const { app } = require("electron");
+    if (relaunch) app.relaunch();
+    app.exit();
   }
 }
 module.exports = { ReleaseAlertService, selectRelease };

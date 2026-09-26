@@ -1,4 +1,4 @@
-const { app, ipcMain } = require("electron");
+const { ipcMain } = require("electron");
 const Util = require("../modules/util");
 const FileSystem = require("../modules/filesystem");
 const ArchCategory = require("../constants/ArchCategory.constants");
@@ -39,7 +39,6 @@ class UpdaterService {
     if (!isProdMode) return;
 
     const osCategory = Util.getSystemArchCategory();
-    const userDataPath = FileSystem.getUserDataPath();
 
     const window = await this.windowService.createUpdaterWindow({
       webPreferences: {
@@ -54,31 +53,13 @@ class UpdaterService {
         // do nothing
         break;
       case UPDATER_RESULT_FLAG.NEW_VERSION_FOUND:
-        try {
-        const { version, isBeta } = data;
-        const destInstallerPath = await this.updateToNewVersion(
-          osCategory,
-          userDataPath,
-          version
-        );
-        const shouldRelaunch = await this.installNewVersion(
-          osCategory,
-          userDataPath,
-          destInstallerPath
-        );
-        if (shouldRelaunch) {
-          console.system(`Relaunching app...`);
-          app.relaunch();
-        }
-        app.exit();
-        return;
-        } catch {
-          await this.showUpdateCheckFailure(window);
-          break;
-        }
+        // Discovery never authorizes downloading or executing an installer.
+        // The main window offers an explicit action through ReleaseAlert.
+        this.ipcService.silentSender("release_download@skip", true, null);
+        break;
       case UPDATER_RESULT_FLAG.UPDATE_CHECK_FAIL:
         console.error(`Couldn't check update. Continuing program...`, data);
-        await this.showUpdateCheckFailure(window);
+        await this.showUpdateCheckFailure(window, data);
         break;
     }
     await Util.sleep(1000);
@@ -86,7 +67,7 @@ class UpdaterService {
     if (!window.isDestroyed()) window.close();
   }
 
-  async showUpdateCheckFailure(window) {
+  async showUpdateCheckFailure(window, code) {
     const continueTopic = "update_check@continue";
 
     await new Promise((resolve) => {
@@ -110,9 +91,12 @@ class UpdaterService {
       window.webContents.send("update_check@failed", null, {
         success: false,
         data: {
-          title: "업데이트를 확인할 수 없습니다",
-          message:
-            "업데이트 서버에 등록된 최신 버전이 없거나 일시적으로 연결할 수 없습니다. 현재 버전으로 계속 실행할 수 있습니다.",
+          title: code === "UPDATE_TRUST_NOT_CONFIGURED" ? "업데이트 설정이 필요합니다" : "업데이트를 확인할 수 없습니다",
+          message: code === "UPDATE_TRUST_NOT_CONFIGURED"
+            ? "이 설치본에는 서명된 업데이트 확인 정보가 없습니다. 현재 버전으로 계속할 수 있지만 자동 업데이트는 사용할 수 없습니다."
+            : code === "INVALID_UPDATE_REPOSITORY"
+            ? "업데이트 서버의 보안 연결 설정을 확인할 수 없습니다. 현재 버전으로 계속할 수 있습니다."
+            : "업데이트 서버에 연결하거나 서명 정보를 확인하지 못했습니다. 현재 버전으로 계속할 수 있습니다.",
         },
       });
     });
@@ -155,8 +139,9 @@ class UpdaterService {
       if(release)return {result:UPDATER_RESULT_FLAG.NEW_VERSION_FOUND,data:release};
       this.ipcService.silentSender("release_download@skip",true,null);
       return {result:UPDATER_RESULT_FLAG.ALREADY_LATEST,data:null};
-    }catch{
-      return {result:UPDATER_RESULT_FLAG.UPDATE_CHECK_FAIL,data:"SIGNED_UPDATE_UNAVAILABLE"};
+    }catch(error){
+      const code=["UPDATE_TRUST_NOT_CONFIGURED","INVALID_UPDATE_REPOSITORY"].includes(error.message)?error.message:"SIGNED_UPDATE_UNAVAILABLE";
+      return {result:UPDATER_RESULT_FLAG.UPDATE_CHECK_FAIL,data:code};
     }
   }
 
@@ -174,7 +159,11 @@ class UpdaterService {
     if (fs.existsSync(installerPath)) {
       switch (osCategory) {
         case ArchCategoryConstants.Windows:
-          ChildProcess.spawn(installerPath, { detached: true });
+          await new Promise((resolve,reject)=>{
+            const child=ChildProcess.spawn(installerPath,{detached:true,stdio:"ignore"});
+            child.once("spawn",()=>{child.unref();resolve();});
+            child.once("error",reject);
+          });
           return false;
         case ArchCategoryConstants.MacOS:
           console.debug(`Mounting dmg file...`);

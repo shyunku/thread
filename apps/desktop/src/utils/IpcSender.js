@@ -86,6 +86,8 @@ const IpcSender = {
     migration:(action,input,callback)=>sender("vault/migration",callback,action,input),
     sync:callback=>sender("vault/sync",callback),
     bootstrap:(uid,callback)=>sender("vault/bootstrap",callback,uid),
+    chooseMigration:(uid,callback)=>sender("vault/chooseMigration",callback,uid),
+    leaveMigration:(uid,callback)=>sender("vault/leaveMigration",callback,uid),
     outboxReviews:(request,callback)=>sender("vault/outboxReviews",callback,request),
     outboxDetail:(request,callback)=>sender("vault/outboxDetail",callback,request),
     resolveConflict:(request,callback)=>sender("vault/resolveConflict",callback,request),
@@ -111,7 +113,7 @@ const IpcSender = {
   releaseAlerts: {
     get: callback => sender("release-alert/get", callback),
     download: callback => sender("release-alert/download", callback),
-    showFile: callback => sender("release-alert/showFile", callback),
+    install: callback => sender("release-alert/install", callback),
   },
   syncV2: {
     getStatus: (callback) => sender("sync-v2/getStatus", callback),
