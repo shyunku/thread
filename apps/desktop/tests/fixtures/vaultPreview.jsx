@@ -1,6 +1,7 @@
 import React from "react";
 import {createRoot} from "react-dom/client";
 import ApplicationGate from "../../src/components/ApplicationGate";
+import MigrationPanel from "../../src/components/MigrationPanel";
 import SettingData from "../../src/modals/settings/Data.settings";
 import {Provider} from "react-redux";
 import {configureStore} from "@reduxjs/toolkit";
@@ -11,4 +12,4 @@ import "../../src/styles/surfaces.scss";
 window.React=React;
 const store=configureStore({reducer:{account:()=>({account:{uid:"fixture"}})}});
 const stage=new URLSearchParams(window.location.search).get("stage");
-createRoot(document.getElementById("root")).render(stage==="settings"?<Provider store={store}><div className="modal-content settings" style={{margin:20,padding:24,background:"#15181e",width:"calc(100% - 40px)",height:"calc(100vh - 40px)",overflow:"auto"}}><h2 className="title">환경설정</h2><div className="content"><aside className="menu"><div className="menu-item selected">데이터</div></aside><div className="menu-content"><SettingData/></div></div></div></Provider>:<ApplicationGate uid="fixture"><p>작업 공간</p></ApplicationGate>);
+createRoot(document.getElementById("root")).render(stage==="settings"?<Provider store={store}><div className="modal-content settings" style={{margin:20,padding:24,background:"#15181e",width:"calc(100% - 40px)",height:"calc(100vh - 40px)",overflow:"auto"}}><h2 className="title">환경설정</h2><div className="content"><aside className="menu"><div className="menu-item selected">데이터</div></aside><div className="menu-content"><SettingData/></div></div></div></Provider>:stage.startsWith("migration")?<main className="application-gate"><div className="application-gate__titlebar"><span>Thread</span></div><div className="application-gate__card"><header className="application-gate__header"><h1>데이터 보호 업데이트</h1></header><section className="vault-workspace"><ol className="vault-progress"><li className="vault-progress__reached">1. 본인 확인</li><li className="vault-progress__reached">2. 백업 수단 저장</li><li className="vault-progress__reached" aria-current="step">3. 데이터 이동</li></ol><MigrationPanel osAvailable onContinue={()=>{}}/></section></div></main>:<ApplicationGate uid="fixture"><p>작업 공간</p></ApplicationGate>);

@@ -52,7 +52,7 @@ export default function RecoverySetup({onRegistered,newAccount=false}){
        })}><span>{preview||"복구 코드 복사"}</span><VscCopy aria-hidden="true"/></button>
        <small>안전한 곳에 따로 저장하세요. 클립보드는 30초 뒤 비워집니다.</small>
       </div>
-      <button type="button" disabled={busy||!copied} onClick={()=>{setError("");setStep("confirm");}}>저장했어요, 다음</button>
+      <button type="button" disabled={busy||!copied} onClick={()=>{setError("");setStep("confirm");}}>저장했어요</button>
      </>}
     </>}
    </>:<>

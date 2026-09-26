@@ -1,6 +1,7 @@
 import {useEffect,useRef,useState} from "react";
 import IpcSender from "../utils/IpcSender";
 import PasswordField from "./PasswordField";
+import {VscChevronRight} from "react-icons/vsc";
 const call=(name,...args)=>new Promise((resolve,reject)=>{
  if(!IpcSender.vault?.[name])return reject(Error("UNAVAILABLE"));
  IpcSender.vault[name](...args,result=>result?.success?resolve(result.data):reject(Error("MIGRATION_FAILED")));
@@ -26,26 +27,30 @@ export default function MigrationPanel({osAvailable,onContinue}){
   finally{input.password=undefined;pending.current=false;if(live.current)setBusy(false);}
  };
  const phase=state?.phase,waiting=busy||state?.busy;
- return <section aria-label="암호화 이관">
+ return <section className="migration-panel" aria-label="암호화 이관">
   <h3>기존 데이터 옮기기</h3>
-  <p>기존 데이터를 새 보호 방식으로 옮깁니다. 시작 전에 다른 기기의 Thread를 닫아주세요.</p>
-  <details><summary>기존 데이터는 어떻게 되나요?</summary><p>기존 데이터와 아직 보내지 못한 변경은 보존됩니다. 과거 서버 기록과 백업은 나중에 별도로 정리해야 합니다.</p></details>
-  <p role="status">{state?labels[phase]||"상태 확인 필요":"상태 확인 중"}</p>
+  {phase!=="ACTIVE"&&<p>기존 데이터를 암호화해 옮겨요. 시작 전에 다른 기기에서 실행 중인 Thread를 닫아주세요.</p>}
+  {!(["NOT_STARTED","ACTIVE"].includes(phase))&&<p className="migration-panel__status" role="status">{state?labels[phase]||"상태 확인 필요":"상태 확인 중"}</p>}
   {error&&<p role="alert">데이터 이동을 완료하지 못했어요. 연결을 확인한 뒤 같은 단계에서 다시 시도해주세요. 기존 데이터는 초기화하지 마세요.</p>}
-  {phase!=="ACTIVE"&&<>
-   <label><input type="checkbox" checked={consent} disabled={waiting} onChange={event=>setConsent(event.target.checked)}/>복구 코드와 파일을 보관했고, 데이터 이동 중 다른 기기에서 편집하지 않는 데 동의합니다.</label>
-   <label>재인증 방법<select value={method} disabled={waiting} onChange={event=>setMethod(event.target.value)}>
-    {osAvailable&&<option value="os">OS 인증</option>}<option value="password">보관함 비밀번호</option>
-   </select></label>
-   {method==="password"&&<><label htmlFor="migration-password">보관함 비밀번호</label><PasswordField ref={password} id="migration-password" label="보관함 비밀번호" autoComplete="off" maxLength={1024} disabled={waiting}/></>}
-   {["NOT_STARTED","PREPARING","FROZEN"].includes(phase)&&<button disabled={!consent||waiting} onClick={()=>run("prepare")}>기존 데이터 확인</button>}
-   {phase==="CANCELLED"&&<button disabled={!consent||waiting} onClick={()=>run("restart")}>다시 시작</button>}
-   {phase==="PREPARING"&&<button disabled={!consent||waiting} onClick={()=>run("refresh")}>기존 데이터 다시 확인</button>}
-   {["FROZEN","UPLOADING","VERIFIED","COMMITTING"].includes(phase)&&<button disabled={!consent||waiting} onClick={()=>run("transfer")}>데이터 이동·이어하기</button>}
-   {["PREPARING","FROZEN","UPLOADING","VERIFIED","COMMITTING"].includes(phase)&&<button disabled={!consent||waiting} onClick={()=>run("cancel")}>이동 취소</button>}
-  </>}
-  {phase==="ACTIVE"&&<p>서버 전환을 확인했습니다. 다음 단계에서 서명된 snapshot으로 이 기기를 연결합니다. 보존된 이전 변경은 별도로 검토하세요.</p>}
-  {phase==="CANCELLED"&&<p>기존 원본과 이전 이관 기록은 유지됩니다. 재인증 후 서버의 취소 상태를 다시 확인하고 새 시도를 만들 수 있습니다. 원본 준비는 별도 동의 후 시작합니다.</p>}
-  {onContinue&&["ACTIVE","CANCELLED"].includes(phase)&&<button onClick={onContinue}>저장소 다시 확인</button>}
+  {phase==="ACTIVE"?<><p>데이터 이동을 마쳤어요. 이제 새 방식으로 Thread를 시작할 수 있습니다.</p>{onContinue&&<button type="button" className="migration-panel__primary" onClick={onContinue}>Thread 시작하기</button>}</>:
+   <>
+    {phase==="CANCELLED"&&<p>이동을 취소했어요. 기존 데이터는 그대로 보존됩니다. 다시 시작할 수 있습니다.</p>}
+    <div className="migration-panel__form">
+     <label className="migration-panel__consent"><input type="checkbox" checked={consent} disabled={waiting} onChange={event=>setConsent(event.target.checked)}/><span>복구 코드와 파일을 보관했고, 이동 중 다른 기기에서 편집하지 않겠습니다.</span></label>
+     <fieldset className="migration-panel__methods"><legend>본인 확인 방법</legend><div>
+      {osAvailable&&<label><input type="radio" name="migration-method" value="os" checked={method==="os"} disabled={waiting} onChange={()=>setMethod("os")}/>OS 인증</label>}
+      <label><input type="radio" name="migration-method" value="password" checked={method==="password"} disabled={waiting} onChange={()=>setMethod("password")}/>데이터 잠금 비밀번호</label>
+     </div></fieldset>
+     {method==="password"&&<><label htmlFor="migration-password">데이터 잠금 비밀번호</label><PasswordField ref={password} id="migration-password" label="데이터 잠금 비밀번호" autoComplete="off" maxLength={1024} disabled={waiting}/></>}
+     <div className="migration-panel__actions">
+      {["NOT_STARTED","PREPARING","FROZEN"].includes(phase)&&<button type="button" className="migration-panel__primary" disabled={!consent||waiting} onClick={()=>run("prepare")}>기존 데이터 확인</button>}
+      {phase==="CANCELLED"&&<button type="button" className="migration-panel__primary" disabled={!consent||waiting} onClick={()=>run("restart")}>다시 시작</button>}
+      {phase==="PREPARING"&&<button type="button" disabled={!consent||waiting} onClick={()=>run("refresh")}>기존 데이터 다시 확인</button>}
+      {["FROZEN","UPLOADING","VERIFIED","COMMITTING"].includes(phase)&&<button type="button" className="migration-panel__primary" disabled={!consent||waiting} onClick={()=>run("transfer")}>데이터 이동·이어하기</button>}
+      {["PREPARING","FROZEN","UPLOADING","VERIFIED","COMMITTING"].includes(phase)&&<button type="button" disabled={!consent||waiting} onClick={()=>run("cancel")}>이동 취소</button>}
+     </div>
+    </div>
+    <details><summary><span>기존 데이터는 어떻게 되나요?</span><VscChevronRight aria-hidden="true"/></summary><p>기존 데이터와 아직 보내지 못한 변경은 보존됩니다. 과거 서버 기록과 백업은 나중에 별도로 정리해야 합니다.</p></details>
+   </>}
  </section>;
 }

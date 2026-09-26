@@ -55,7 +55,7 @@ test("application migration requires consent and authentication, preserves journ
  f.store.put("recovery","$owner-identity",{phase:"RECOVERY_CONFIRMED",device:f.device,deviceId:"owner",fingerprint:f.history.current.head,keyring:{keys:[{generation:1,key:f.key}]}});
  f.transport.accountStatus=async()=>({vaultId:"vault",epoch:target,revision:0,head:f.history.current.head,keyGeneration:1});
  f.transport.membership=async()=>({genesis:p.encode(f.history.genesis).toString("base64"),head:{vaultId:"vault",revision:0,digest:f.history.current.head},records:[],more:false,next:0});
- const entry={uid:"fixture",abort:new AbortController(),controller:{use:fn=>fn(f.store)}};
+ const entry={uid:"fixture",migrationIntent:true,abort:new AbortController(),controller:{use:fn=>fn(f.store)}};
  let authenticated=false;
  const service={active:entry,generation:0,busy:false,context:()=>entry,transportFor:()=>f.transport,
   runtime:()=>({osAuth:{verify:async()=>authenticated},getWindow:()=>null}),
@@ -70,9 +70,17 @@ test("application migration requires consent and authentication, preserves journ
  f.transport.migrationPush=async record=>{const result=await push(record);if(first){first=false;throw Error("SYNC_UNAVAILABLE");}return result;};
  await assert.rejects(execute(service,"transfer",{confirmed:true,method:"os"}),/SYNC_UNAVAILABLE/);
  assert.equal(service.busy,false);assert.equal(entry.migrationActive,true);
+ assert.equal(entry.migrationIntent,true);
  assert.equal(status(service).phase,"UPLOADING");
  assert.equal((await execute(service,"transfer",{confirmed:true,method:"os"})).phase,"ACTIVE");
+ assert.equal(entry.migrationIntent,false);
  assert.equal(f.accepted.length,2);assert.ok(f.store.get("recovery","$owner-identity").device.signing.privateKey.some(v=>v!==0));
+ entry.unlocked=true;entry.vault={inspect:()=>({phase:"UNLOCKED"})};
+ service.group.userService={setCurrent:()=>{}};
+ service.runtime=()=>({getAccount:()=>"fixture"});
+ f.transport.accountStatus=async()=>({accountMode:"e2ee",vaultMode:"active"});
+ service.syncEncrypted=async()=>({phase:"ACTIVE"});
+ assert.deepEqual(await require("../public/electron/e2ee/applicationBootstrap").bootstrap(service,"fixture"),{mode:"E2EE"});
 });
 test("application cutover pins migrated objects and preserves the device counter",async t=>{
  const f=await fixture(t);await f.transfer.run();

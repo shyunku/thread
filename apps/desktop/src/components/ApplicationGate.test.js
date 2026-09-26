@@ -1,7 +1,7 @@
 import {act,fireEvent,render,screen} from "@testing-library/react";
 import ApplicationGate from "./ApplicationGate";
 import IpcSender from "../utils/IpcSender";
-jest.mock("../utils/IpcSender",()=>({onAll:jest.fn(),off:jest.fn(),vault:{bootstrap:jest.fn(),status:jest.fn(),unlock:jest.fn(),chooseMigration:jest.fn(),leaveMigration:jest.fn()}}));
+jest.mock("../utils/IpcSender",()=>({onAll:jest.fn(),off:jest.fn(),vault:{bootstrap:jest.fn(),status:jest.fn(),unlock:jest.fn()}}));
 jest.mock("./VaultWorkspace",()=>()=> <p>Setup panel</p>);
 let notify;
 beforeEach(()=>{
@@ -36,12 +36,12 @@ test("new v3 account requires setup and does not mount home",async()=>{
  expect(screen.getByText("Setup panel")).toBeInTheDocument();
  expect(screen.queryByText("Private application")).not.toBeInTheDocument();
 });
-test("mode failure does not mount legacy app and retry can recover",async()=>{
+test("mode failure does not mount app and retry can recover",async()=>{
  IpcSender.vault.bootstrap.mockImplementationOnce((uid,cb)=>cb({success:false}))
-  .mockImplementationOnce((uid,cb)=>cb({success:true,data:{mode:"LEGACY"}}));
- render(<ApplicationGate uid="u"><p>Legacy application</p></ApplicationGate>);
- expect(await screen.findByRole("alert")).toBeInTheDocument();expect(screen.queryByText("Legacy application")).not.toBeInTheDocument();
- fireEvent.click(screen.getByRole("button",{name:"상태 다시 확인"}));expect(await screen.findByText("Legacy application")).toBeInTheDocument();
+  .mockImplementationOnce((uid,cb)=>cb({success:true,data:{mode:"MIGRATION_REQUIRED",migrationPending:true}}));
+ render(<ApplicationGate uid="u"><p>Private application</p></ApplicationGate>);
+ expect(await screen.findByRole("alert")).toBeInTheDocument();expect(screen.queryByText("Private application")).not.toBeInTheDocument();
+ fireEvent.click(screen.getByRole("button",{name:"상태 다시 확인"}));expect(await screen.findByText(/기존 데이터를 계속 사용하려면/)).toBeInTheDocument();
 });
 test("only allowlisted diagnostics are shown instead of raw error data",async()=>{
  IpcSender.vault.bootstrap.mockImplementationOnce((uid,cb)=>cb({success:false,data:{code:"AUTH_REQUIRED"}}))
@@ -82,21 +82,10 @@ test("a v2 account sees the update explanation before unlocking and no data move
  expect(screen.getByRole("list",{name:"데이터 보호 업데이트 진행 단계"})).toHaveTextContent("1. 본인 확인");
  expect(IpcSender.vault.unlock).not.toHaveBeenCalled();
 });
-test("v2 account may enter migration or keep using v2 before the app mounts",async()=>{
- IpcSender.vault.bootstrap.mockImplementationOnce((uid,cb)=>cb({success:true,data:{mode:"LEGACY",migrationAvailable:true}}))
-  .mockImplementationOnce((uid,cb)=>cb({success:true,data:{mode:"MIGRATION_REQUIRED",migrationPending:true}}));
- IpcSender.vault.chooseMigration.mockImplementation((uid,cb)=>cb({success:true,data:{mode:"MIGRATION_REQUIRED",migrationPending:true}}));
- render(<ApplicationGate uid="u"><p>Legacy application</p></ApplicationGate>);
- expect(await screen.findByRole("button",{name:"데이터 보호 방식으로 전환"})).toBeInTheDocument();
- expect(screen.queryByText("Legacy application")).not.toBeInTheDocument();
- fireEvent.click(screen.getByRole("button",{name:"데이터 보호 방식으로 전환"}));
- expect(await screen.findByText("Setup panel")).toBeInTheDocument();
- expect(IpcSender.vault.chooseMigration).toHaveBeenCalledWith("u",expect.any(Function));
-});
-test("declining v2 migration keeps normal home available",async()=>{
- IpcSender.vault.bootstrap.mockImplementation((uid,cb)=>cb({success:true,data:{mode:"LEGACY",migrationAvailable:true}}));
- render(<ApplicationGate uid="u"><p>Legacy application</p></ApplicationGate>);
- fireEvent.click(await screen.findByRole("button",{name:"기존 방식으로 계속"}));
- expect(screen.getByText("Legacy application")).toBeInTheDocument();
- expect(IpcSender.vault.chooseMigration).not.toHaveBeenCalled();
+test("unexpected legacy bootstrap response fails closed",async()=>{
+ IpcSender.vault.bootstrap.mockImplementation((uid,cb)=>cb({success:true,data:{mode:"LEGACY"}}));
+ render(<ApplicationGate uid="u"><p>Private application</p></ApplicationGate>);
+ expect(await screen.findByText(/기존 보호 방식으로 돌아가지는 않습니다/)).toBeInTheDocument();
+ expect(screen.queryByText("Private application")).not.toBeInTheDocument();
+ expect(screen.queryByRole("button",{name:/기존 방식/})).not.toBeInTheDocument();
 });

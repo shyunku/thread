@@ -9,7 +9,7 @@ async function execute(service,action,input={}){
  if(!["prepare","transfer","cancel","restart","refresh"].includes(action)||input.confirmed!==true)throw Error("MIGRATION_CONSENT_REQUIRED");
  if(service.busy)throw Error("VAULT_BUSY");
  const entry=service.context(),generation=service.generation,store=entry.controller.use(value=>value);
- // The release-gated entry screen has not opened v2. Do not race a live old
+ // The forced v3 entry screen has not opened v2. Do not race a live old
  // replica or its pending IPC writes; require a fresh entry before migrating.
  const legacy=service.group?.syncV2Service;
  if(legacy?.sessions.has(entry.uid)||legacy?.opening?.has(entry.uid))throw Error("MIGRATION_RESTART_REQUIRED");
@@ -53,7 +53,7 @@ async function execute(service,action,input={}){
    }}).run();
    check();const phase=journal.get().phase;
    entry.migrationActive=phase!=="CANCELLED";
-   if(phase==="CANCELLED")entry.migrationIntent=false;
+   if(phase==="ACTIVE")entry.migrationIntent=false;
    return {phase};
   }finally{entry.abort.signal.removeEventListener("abort",abort);}
  }finally{

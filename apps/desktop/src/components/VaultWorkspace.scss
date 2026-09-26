@@ -21,6 +21,11 @@
  pre { padding: 16px; border-radius: 8px; background: #101216; }
  details { margin: 12px 0; padding: 12px; border: 1px solid var(--vault-border); border-radius: 8px; }
  summary { cursor: pointer; color: #aab5c6; }
+ details > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; list-style: none; }
+ details > summary::-webkit-details-marker { display: none; }
+ details > summary svg { flex: 0 0 auto; width: 16px; height: 16px; transition: transform .15s ease; }
+ details[open] > summary svg { transform: rotate(90deg); }
+ details > summary:focus-visible { border-radius: 4px; }
  [role=alert] { color: #f3afb5; padding: 12px; background: #352129; border-radius: 8px; }
  .vault-status { color: #86c8ad; font-size: 12px; }
  .vault-menu { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(210px,100%),1fr)); gap: 10px; }
@@ -33,4 +38,21 @@
  .vault-progress [aria-current=step] { color: #edf1f7; font-weight: 700; }
  .vault-unlock { border: 0; padding: 0; background: transparent; }
  .vault-unlock button { margin-right: 0; }
+ .migration-panel { display: grid; gap: 16px; }
+ .migration-panel > h3,.migration-panel > p,.migration-panel > details { margin: 0; }
+ .migration-panel__status { width: fit-content; padding: 4px 10px; border-radius: 999px; background: #20372f; color: #8cddbb; font-size: 12px; font-weight: 700; }
+ .migration-panel__form { display: grid; gap: 16px; padding: 18px; border: 1px solid var(--vault-border); border-radius: 10px; background: #1a1f29; }
+ .migration-panel__consent { display: flex; align-items: flex-start; gap: 10px; margin: 0; line-height: 1.5; }
+ .migration-panel__consent input { flex: 0 0 auto; margin: 3px 0 0; }
+ .migration-panel__methods { min-width: 0; margin: 0; padding: 0; border: 0; }
+ .migration-panel__methods legend { margin-bottom: 8px; font-weight: 700; }
+ .migration-panel__methods > div { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+ .migration-panel__methods label { display: flex; align-items: center; gap: 8px; margin: 0; padding: 10px; border: 1px solid var(--vault-border); border-radius: 8px; cursor: pointer; }
+ .migration-panel__methods label:has(input:checked) { border-color: #6294ff; background: #223654; }
+ .migration-panel__methods input { flex: 0 0 auto; margin: 0; }
+ .migration-panel__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+ .migration-panel__actions button,.migration-panel__primary { margin: 0; }
+ .migration-panel__actions .migration-panel__primary { flex: 1 1 180px; }
+ .migration-panel__primary { border-color: #6294ff; background: #294570; font-weight: 700; }
+ @media (max-width: 420px) { .migration-panel__methods > div { grid-template-columns: 1fr; } }
 }

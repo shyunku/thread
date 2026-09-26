@@ -64,7 +64,7 @@ export default function VaultWorkspace({uid,onContinue,onStarted,onLocked,connec
   {error&&<p role="alert">보관함 상태를 확인하지 못했습니다. 기존 데이터는 삭제되지 않았습니다.</p>}
   {!current?<p>상태 확인 중…</p>:current.phase==="RECOVERY_REQUIRED"?<p role="alert">보관함 파일이 불완전합니다. 새로 만들거나 초기화하지 말고 복구가 필요합니다.</p>:
    current.phase==="UNLOCKED"?<>
-    <p className="vault-status" role="status">{onContinue?"본인 확인 완료":"로컬 보관함 잠금 해제됨"}</p>
+    {!onContinue&&<p className="vault-status" role="status">로컬 보관함 잠금 해제됨</p>}
     {onContinue?<VaultOnboarding key={uid+":"+current.generation} osAvailable={current.osAvailable} onContinue={onContinue} connectionOnly={connectionOnly} newAccount={newAccount} onStepChange={setOnboardingStep}/>:<>
      {!panel?<nav className="vault-menu" aria-label="보관함 작업">{[["recovery","복구 자료","복구 코드와 파일 보관"],["pair","기기 연결","QR 또는 파일로 새 기기 승인"],["sync","동기화","연결 상태와 미전송 변경 확인"],["backup","암호화 백업","파일 내보내기·복원"],["rotation","기기·키 관리","기기 해지와 키 갱신"],["lost","기기 분실 복구","복구 자료로 접근 복원"],["migration","이전 데이터","v2 데이터 이관 상태"],["reencrypt","암호화 갱신","기존 데이터의 키 세대 갱신"]].map(([id,title,description])=><button key={id} onClick={()=>setPanel(id)}><strong>{title}</strong><span>{description}</span></button>)}</nav>:<button className="vault-back" onClick={()=>setPanel(null)}>← 보관함 메뉴</button>}
      {panel==="recovery"&&<RecoverySetup/>}

@@ -77,7 +77,6 @@ module.exports = function (s) {
     "vault/migration":(action,input)=>s.vaultWorkspaceService.migration(action,input),
     "vault/bootstrap":uid=>s.vaultWorkspaceService.bootstrap(uid),
     "vault/chooseMigration":uid=>s.vaultWorkspaceService.chooseMigration(uid),
-    "vault/leaveMigration":uid=>s.vaultWorkspaceService.leaveMigration(uid),
     "vault/sync":()=>s.vaultWorkspaceService.syncEncrypted(),
     "vault/outboxReviews":request=>s.vaultWorkspaceService.outboxReviews(request),
     "vault/outboxDetail":request=>s.vaultWorkspaceService.outboxDetail(request),
