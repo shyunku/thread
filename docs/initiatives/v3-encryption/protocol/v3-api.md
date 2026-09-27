@@ -4,7 +4,7 @@ Updated: 2026-09-09 13:38 (KST). Server implementation/automated tests complete 
 
 ## Deployment boundary
 
-`E2EE_API_ENABLED=true` mounts these routes; the default/template/Compose fallback is false. The switch never activates an account, migrates plaintext or deletes anything. Actual env files were not edited. Production enablement remains #57; coordinator/UI integration is tracked separately in #50/#52–56.
+The v3 routes are registered by default when the database is available. Registration never activates an account, migrates plaintext or deletes anything. v2 sync is retired; production signing and installed-client checks remain in #64. The earlier flag-gated rollout is historical.
 
 Every route requires a non-admin, authorized, unexpired HS256 account JWT. The UID is taken only from that principal. Device approval, recovery, mutation and ciphertext reads require an additional appropriate signature. Shared account JWTs are not device-bound; revocation blocks the device's signed v3 sync/key access, not all account logins.
 

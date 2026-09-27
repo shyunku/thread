@@ -10,8 +10,11 @@ Do not enable this for real accounts.
 
 ## Gates and storage
 
-Both `E2EE_API_ENABLED=true` and `E2EE_MIGRATION_ENABLED=true` are required to
-register these endpoints. Both default to false. Schema migration 9 only adds
+After the production account-state audit found only one `e2ee` account and one
+`ACTIVE` migration, the v3-only server no longer registers migration routes.
+`E2EE_MIGRATION_ENABLED` is removed. This protocol and implementation remain
+for historical recovery; removing the routes does not delete source data.
+Schema migration 9 only adds
 `vault_migrations`, `vault_migration_active` and
 `vault_migration_source_pages`; it never freezes an account.
 

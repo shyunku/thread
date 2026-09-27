@@ -282,9 +282,6 @@ const IpcSender = {
       signUp: (signupRequest, callback) => {
         sender("auth/signUp", callback, signupRequest);
       },
-      signupOptions: (callback) => {
-        sender("auth/signupOptions", callback);
-      },
       login: (loginRequest, callback) => {
         sender("auth/login", callback, loginRequest);
       },

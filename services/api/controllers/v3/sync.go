@@ -22,18 +22,15 @@ type EncryptedSyncStore interface {
 	SignedEnvelope(context.Context, string, []byte) (vault.Envelope, error)
 }
 
-// Explicit deployment gate; registering APIs never activates or migrates an account.
+// Registering APIs never activates or migrates an account.
 func UseRouter(r *gin.Engine) {
-	if os.Getenv("E2EE_API_ENABLED") != "true" || database.DB == nil {
+	if database.DB == nil {
 		return
 	}
 	s := &vault.Store{DB: database.DB.DB}
 	secret := []byte(os.Getenv("JWT_ACCESS_SECRET"))
 	RegisterPending(r, s, secret)
 	RegisterSync(r, s, secret)
-	if os.Getenv("E2EE_MIGRATION_ENABLED") == "true" {
-		RegisterMigration(r, s, secret)
-	}
 }
 
 func RegisterSync(r *gin.Engine, s EncryptedSyncStore, secret []byte) {

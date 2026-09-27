@@ -50,7 +50,6 @@ func TestMySQLSignupModes(t *testing.T) {
 	previous := database.DB
 	database.DB = sqlx.NewDb(raw, "mysql")
 	defer func() { database.DB = previous }()
-	t.Setenv("E2EE_API_ENABLED", "true")
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	router.POST("/signup", Signup)
@@ -73,17 +72,15 @@ func TestMySQLSignupModes(t *testing.T) {
 		router.ServeHTTP(recorder, req)
 		return recorder.Code
 	}
-	t.Setenv("E2EE_RELEASE_VERSION", "0")
 	if code := signup("/signup", "new-default", ""); code != 201 {
 		t.Fatal("default v3 signup", code)
 	}
-	if code := signup("/signup", "new-v2-test", "v2"); code != 201 {
-		t.Fatal("test v2 signup", code)
+	if code := signup("/signup", "new-v2-test", "v2"); code != 403 {
+		t.Fatal("test v2 signup accepted", code)
 	}
 	if code := signup("/google-signup", "new-google", ""); code != 200 {
 		t.Fatal("Google v3 signup", code)
 	}
-	t.Setenv("E2EE_RELEASE_VERSION", "1")
 	if code := signup("/signup", "new-after-release", ""); code != 201 {
 		t.Fatal("released v3 signup", code)
 	}
@@ -95,7 +92,6 @@ func TestMySQLSignupModes(t *testing.T) {
 		epoch        bool
 	}{
 		{"new-default", "e2ee_pending", false},
-		{"new-v2-test", "v2", true},
 		{"new-google", "e2ee_pending", false},
 		{"new-after-release", "e2ee_pending", false},
 	} {
@@ -106,7 +102,7 @@ func TestMySQLSignupModes(t *testing.T) {
 			t.Fatal("signup mode persisted incorrectly", tc.authID, mode, epoch.Valid, err)
 		}
 	}
-	if err := raw.QueryRow("SELECT COUNT(*) FROM user_master WHERE auth_id='v2-after-release'").Scan(&count); err != nil || count != 0 {
+	if err := raw.QueryRow("SELECT COUNT(*) FROM user_master WHERE auth_id IN ('new-v2-test','v2-after-release')").Scan(&count); err != nil || count != 0 {
 		t.Fatal("blocked signup created a user", count, err)
 	}
 }

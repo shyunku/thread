@@ -57,7 +57,6 @@ const REQUEST_TOPICS = Object.freeze([
   "auth/initializeDatabase",
   "auth/signUpWithGoogleAuth",
   "auth/signUp",
-  "auth/signupOptions",
   "auth/login",
   "socket/connect",
   "socket/disconnect",

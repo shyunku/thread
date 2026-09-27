@@ -38,7 +38,7 @@ func TestSyncAuthentication(t *testing.T) {
 		{"missing expiry", token(jwt.SigningMethodHS256, jwt.MapClaims{"uid": "fixture", "authorized": true}), 401},
 		{"expired", token(jwt.SigningMethodHS256, jwt.MapClaims{"uid": "fixture", "exp": 1, "authorized": true}), 401},
 		{"admin", token(jwt.SigningMethodHS256, jwt.MapClaims{"uid": "fixture", "admin": true, "exp": time.Now().Add(time.Hour).Unix(), "authorized": true}), 403},
-		{"disabled", token(jwt.SigningMethodHS256, claims()), 503},
+		{"retired", token(jwt.SigningMethodHS256, claims()), http.StatusUpgradeRequired},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			r := gin.New()

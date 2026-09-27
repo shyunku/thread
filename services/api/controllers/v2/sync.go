@@ -25,7 +25,7 @@ func UseRouter(r *gin.Engine) {
 	}
 	secret := []byte(os.Getenv("JWT_ACCESS_SECRET"))
 	key := sha256.Sum256(append([]byte("thread-sync-cursor-v2:"), secret...))
-	p := &canonical.Protocol{Store: &canonical.Store{DB: database.DB.DB}, Key: key[:], Enabled: os.Getenv("SYNC_V2_ENABLED") == "true", PruneEnabled: os.Getenv("SYNC_LOG_PRUNE_ENABLED") == "true"}
+	p := &canonical.Protocol{Store: &canonical.Store{DB: database.DB.DB}, Key: key[:], Enabled: false, PruneEnabled: os.Getenv("SYNC_LOG_PRUNE_ENABLED") == "true"}
 	Register(r, p, secret)
 }
 func Register(r *gin.Engine, p *canonical.Protocol, secret []byte) {
@@ -44,7 +44,7 @@ func Register(r *gin.Engine, p *canonical.Protocol, secret []byte) {
 			return
 		}
 		c.JSON(200, gin.H{"protocolVersion": 2, "mode": a.Mode, "epoch": a.Epoch, "enabled": p.Enabled, "highWatermark": a.Last,
-			"migrationAvailable": os.Getenv("E2EE_API_ENABLED") == "true" && os.Getenv("E2EE_MIGRATION_ENABLED") == "true",
+			"migrationAvailable": true,
 			"operations":         []string{"create", "patch", "delete", "move", "completeRecurringTask", "add", "remove"}})
 	})
 	g.Use(func(c *gin.Context) {

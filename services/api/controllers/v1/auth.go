@@ -305,6 +305,5 @@ func UseAuthRouter(g *gin.RouterGroup) {
 	sg.POST("login", Login)
 	sg.POST("admin-login", AdminLogin)
 	sg.POST("signup", Signup)
-	sg.GET("signup-options", SignupOptions)
 	sg.POST("refreshToken", RefreshToken)
 }

@@ -43,13 +43,13 @@ Desktop 개발 실행은 Thread Dev 및 kr.threadapp.desktop.dev로 구분하고
 
 상세 schema·protocol·충돌·retention은 [Canonical Sync v2 설계안](initiatives/v2-sync/v2-sync-canonical-design.md), 단계별 실행은 [계획](plans.md)에서 관리한다. 현재 확정 정책은 v2 일괄 배포와 구버전 sync 차단이다. 계정별 opt-in은 폐기했다. 운영자가 비공개 환경에서 전체 서버 데이터 이관을 직접 실행하고, desktop 업데이트 시 local pending을 보존·이관한다. [운영자 실행 절차](initiatives/v2-sync/v2-sync-rollout.md)를 따른다.
 
-새 서버는 v2 sync만 제공한다. SYNC_V2_ENABLED=false도 v1을 재개하지 않는다. 운영 DB·백업·로그·실제 env는 사용자가 관리하며 운영 이관/배포는 직접 수행한다. 사용자가 명시적으로 제공한 백업 사본의 격리 리허설은 Codex가 원문 출력 없이 수행할 수 있다. [클라이언트 검증 게이트](initiatives/v2-sync/v2-sync-implementation.md)는 별도로 유지한다.
+이 절은 과거 v2 일괄 배포의 설계·이력을 설명한다. 현재 서버는 v3를 기본으로 제공하며 v2 sync는 업그레이드 응답으로 종료한다. 운영 DB·백업·로그·실제 env는 사용자가 관리하고 기존 평문은 별도 승인 전까지 보존한다. 사용자가 명시적으로 제공한 백업 사본의 격리 리허설은 Codex가 원문 출력 없이 수행할 수 있다. [클라이언트 검증 게이트](initiatives/v2-sync/v2-sync-implementation.md)는 과거 기록으로 유지한다.
 
 ## v3 개발 (암호화 보관함)
 
 현재 v3 출시·검증 우선순위는 Windows 데스크톱이다. 모바일 v2 실기기 회귀와 v3 암호문 조회·PC↔Mobile 연결은 #53에서 macOS #63과 함께 후순위로 관리하며, 데스크톱 출시 게이트의 선행 조건으로 두지 않는다. 공통 암호·서명 프로토콜과 기존 모바일 코드의 호환성은 유지한다.
 
-신규 계정은 `E2EE_RELEASE_VERSION`과 무관하게 v3 설정 대기 상태로 생성한다. 첫 로그인에는 기존 데이터 이관 대신 이 기기의 데이터 잠금·복구 자료·서명된 기기 등록·빈 암호화 저장소 활성화를 거친다. `E2EE_RELEASE_VERSION=0`(기존 빈 값 포함)에서는 v2·v3를 함께 지원하고 데스크톱의 별도 v2 테스트 가입도 허용한다. `1`에서는 v2 sync와 테스트 가입을 차단한다. 기존 계정 모드는 가입 변경으로 소급하지 않는다. 실제 계정 첫 로그인 검증은 #62에서 추적한다.
+신규 계정은 항상 v3 설정 대기 상태로 생성한다. 첫 로그인에는 기존 데이터 이관 대신 이 기기의 데이터 잠금·복구 자료·서명된 기기 등록·빈 암호화 저장소 활성화를 거친다. 서버는 배포 플래그 없이 v3 API를 등록하고 v2 sync 및 테스트용 v2 가입을 차단한다. 이미 생성된 계정 모드는 가입 변경으로 소급하지 않으며 기존 평문 DB·백업도 삭제하지 않는다. 운영의 모든 계정이 v3로 전환됐는지는 별도 집계가 필요하다. 모바일 v3 조회·기기 연결은 #53, Mac 실기기 검증은 #63, 운영 배포 후 확인은 #64에서 추적한다.
 
 2026-09-23 16:28 (KST): 운영 전 계정별 v1/v2 평문 잔존량을 내용 없이 확인하는 읽기 전용 도구를 추가했다. 합성 MySQL의 평문·암호문 백업을 별도 DB에 복원하고 전체 행 해시를 대조했다. 서버 평문 정리 범위와 승인 조건은 [정리 계획](initiatives/v3-encryption/protocol/v3-plaintext-purge-plan.md)에 기록했다. 운영 purge 실행 코드는 미구현이며 [출시 검증 기록](reports/2026-09-23-v3-release-rehearsal.md)과 #57에서 계속 추적한다.
 
@@ -93,9 +93,9 @@ v3 데이터 잠금 해제는 Windows Hello/Touch ID를 지원하고, 최초 설
 
 업데이트 신뢰 초기 정책(2026-09-10 17:29 KST): 최상위 root 키는 1개(threshold 1), 배포 키와 분리한다. 앱은 내장 공개 신뢰 정보로 검증하며 개인키를 포함하지 않는다. 운영 키 생성 및 배포는 별도 승인 대상이다. 이후 서명된 root 교체로 키 구성/threshold를 변경할 수 있다. [운영 경계](initiatives/v3-encryption/protocol/v3-update-signing-policy.md).
 
-E2EE v3 서버 API는 E2EE_API_ENABLED 기본 false로 분리한다. 활성화하더라도 기존 계정을 자동 이관하지 않으며, 계정 JWT와 기기 서명을 별도로 검사한다. 승인 만료·키 세대 회전·수신자 전용 키 전달 및 암호문 동기화의 구현 계약은 [E2EE v3 API](initiatives/v3-encryption/protocol/v3-api.md)에 기록한다. 사용자 앱 통합과 운영 전환·보안 검토는 별도 완료 조건이다.
+E2EE v3 서버 API는 별도 배포 플래그 없이 기본 등록한다. 이 사실만으로 기존 계정을 자동 이관하지 않으며, 계정 JWT와 기기 서명을 별도로 검사한다. 승인 만료·키 세대 회전·수신자 전용 키 전달 및 암호문 동기화의 구현 계약은 [E2EE v3 API](initiatives/v3-encryption/protocol/v3-api.md)에 기록한다. 운영 서명 업데이트와 배포 후 확인은 #64에 남는다.
 
-이관 API는 E2EE_MIGRATION_ENABLED 기본 false로 추가 분리하며 현재 개발/rehearsal 전용이다. [prepare 계약](initiatives/v3-encryption/protocol/v3-migration-prepare.md)에 이어 [upload/readback/CAS 활성화 계약](initiatives/v3-encryption/protocol/v3-migration-activation.md)을 구현했다. 사용자 승인 후 업로드/검증 단계 취소의 임시 암호문 정리를 구현했으며 원본·활성 데이터는 보존한다. 일반 앱 UI·local cutover·늦은 기기 pending은 미완료다. [암호화 백업](initiatives/v3-encryption/protocol/v3-encrypted-data-backup.md) 가져오기는 원본 DB를 덮어쓰지 않는 복구 사본만 만들고 활성 계정이나 이전 기기 identity로 자동 전환하지 않는다.
+이관 API는 운영 계정 집계에서 `sync_users.mode=e2ee` 1건, `vault_migrations.phase=ACTIVE` 1건, `user_master` 중 `sync_users` 누락 0건을 확인한 뒤 일반 v3 서버에서 등록을 종료했다. `E2EE_MIGRATION_ENABLED`도 제거한다. [prepare 계약](initiatives/v3-encryption/protocol/v3-migration-prepare.md)과 [upload/readback/CAS 활성화 계약](initiatives/v3-encryption/protocol/v3-migration-activation.md)의 구현·원본 보존 규칙은 복구를 위해 기록으로 유지한다. 기존 평문 DB와 백업은 삭제하지 않는다. [암호화 백업](initiatives/v3-encryption/protocol/v3-encrypted-data-backup.md) 가져오기는 원본 DB를 덮어쓰지 않는 복구 사본만 만든다.
 
 공개 사이트와 관리자 사이트는 API 및 RMS와 함께 Docker Compose에 유지한다. 관리자 React 빌드의 공개 endpoint는 루트 env의 `ADMIN_APP_SERVER_ENTRY`와 `ADMIN_RMS_ENTRY`를 Compose build args로 전달해 local 및 production 값을 분리한다. 이 값은 정적 브라우저 번들에 포함되는 공개 설정이며 비밀값을 저장하지 않는다.
 

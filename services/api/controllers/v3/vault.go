@@ -21,7 +21,7 @@ type VaultStore interface {
 	ApplyTransition(context.Context, string, []byte) (vault.Head, error)
 }
 
-// Registered only behind E2EE_API_ENABLED. This never activates a pending vault.
+// Registering this route never activates a pending vault.
 // Active membership changes require the rotation protocol.
 func RegisterPending(r *gin.Engine, s VaultStore, secret []byte) {
 	g := r.Group("/v3/vault")
