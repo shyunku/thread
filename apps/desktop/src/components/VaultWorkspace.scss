@@ -30,6 +30,8 @@
  .vault-status { color: #86c8ad; font-size: 12px; }
  .vault-menu { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(210px,100%),1fr)); gap: 10px; }
  .vault-menu button { text-align: left; margin: 0; padding: 16px; }
+ .vault-menu__title { display: flex !important; align-items: center; gap: 9px; color: #edf1f7 !important; font-size: 14px !important; margin: 0 0 6px !important; }
+ .vault-menu__title svg { flex: 0 0 auto; width: 18px; height: 18px; color: #8eb4ff; }
  .vault-menu strong,.vault-menu span { display: block; }
  .vault-menu span { color: #94a1b6; font-size: 12px; margin-top: 6px; }
  .vault-progress { list-style: none; display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; margin: 0 0 24px; padding: 0; font-size: 12px; color: #8290a6; }

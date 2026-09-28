@@ -6,7 +6,7 @@ import {
   IoLogoBuffer,
   IoPersonSharp,
 } from "react-icons/io5";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import JsxUtil from "../utils/JsxUtil";
 import SettingInfo from "./settings/Info.settings";
 import { MdOutlineDashboardCustomize } from "react-icons/md";
@@ -23,7 +23,7 @@ const SETTING_MENU = {
   },
   DATA: {
     key: "데이터",
-    description: "데이터 보호와 동기화 상태를 확인하고 필요한 작업을 관리합니다.",
+    description: "동기화 상태를 확인하고 복구·기기 연결을 관리합니다.",
     icon: <IoLogoBuffer />,
     page: (props) => <SettingData {...props} />,
   },
@@ -50,17 +50,7 @@ const PREVIEW_MENU = { general: "GENERAL", data: "DATA", custom: "CUSTOM", accou
 
 const SettingsModal = ({ preview = false, previewTab, ...props }) => {
   const [activeMenu, setActiveMenu] = useState(preview ? PREVIEW_MENU[previewTab] || "GENERAL" : "GENERAL");
-  const previewVault = preview && new URLSearchParams(window.location.hash.split("?")[1] || "").get("vault") === "1";
-
   const modalRef = useRef(null);
-
-  useEffect(() => {
-    if (previewVault && activeMenu === "DATA") {
-      requestAnimationFrame(() => {
-        document.querySelector("#modal-SETTINGS_PREVIEW .data-settings__manage")?.scrollIntoView({ block: "start" });
-      });
-    }
-  }, [previewVault, activeMenu]);
 
   const onClose = () => {
     return 1234;
@@ -96,7 +86,7 @@ const SettingsModal = ({ preview = false, previewTab, ...props }) => {
             <h2>{SETTING_MENU[activeMenu]?.key}</h2>
             <p>{SETTING_MENU[activeMenu]?.description}</p>
           </header>
-          {SETTING_MENU[activeMenu]?.page?.({ modalRef, preview, previewVault }) ?? (
+          {SETTING_MENU[activeMenu]?.page?.({ modalRef, preview }) ?? (
             <div>페이지가 없습니다.</div>
           )}
         </main>

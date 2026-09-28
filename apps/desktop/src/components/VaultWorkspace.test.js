@@ -12,9 +12,9 @@ test("real panel connects unlock and clears state on lock notification",async()=
  IpcSender.vault.unlock.mockImplementation((method,password,callback)=>callback({success:true,data:{enabled:true,uid:"user",phase:"UNLOCKED",generation:1}}));
  render(<VaultWorkspace uid="user"/>);
  fireEvent.click(await screen.findByRole("button",{name:"Windows Hello / Touch ID로 열기"}));
- expect(await screen.findByText(/로컬 보관함 잠금 해제됨/)).toBeInTheDocument();
+ expect(await screen.findByText(/데이터 잠금 해제됨/)).toBeInTheDocument();
  act(()=>notify({data:{uid:"user",phase:"LOCKED",generation:2}}));
- expect(screen.queryByText(/로컬 보관함 잠금 해제됨/)).not.toBeInTheDocument();
+ expect(screen.queryByText(/데이터 잠금 해제됨/)).not.toBeInTheDocument();
 });
 test("late unlock response after lock is not rendered",async()=>{
  let finish;IpcSender.vault.unlock.mockImplementation((method,password,callback)=>{finish=callback;});
@@ -22,7 +22,7 @@ test("late unlock response after lock is not rendered",async()=>{
  fireEvent.click(await screen.findByRole("button",{name:"Windows Hello / Touch ID로 열기"}));
  act(()=>notify({data:{uid:"user",phase:"LOCKED",generation:2}}));
  await act(async()=>finish({success:true,data:{uid:"user",phase:"UNLOCKED"}}));
- expect(screen.queryByText(/로컬 보관함 잠금 해제됨/)).not.toBeInTheDocument();
+ expect(screen.queryByText(/데이터 잠금 해제됨/)).not.toBeInTheDocument();
  expect(IpcSender.vault.intakes).not.toHaveBeenCalled();
 });
 test("manual lock notifies its owner so the settings modal can close",async()=>{

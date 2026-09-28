@@ -2,9 +2,7 @@
   color: #edf1f7;
 
   .data-settings__overview {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(330px, 100%), 1fr));
-    gap: 16px;
+    display: block;
     margin-bottom: 18px;
   }
 
@@ -62,44 +60,52 @@
     color: #b9c6d8;
   }
 
-  .data-settings__details {
-    margin-top: auto;
-    padding-top: 17px;
-    border-top: 1px solid #354051;
-    color: #afbdd0;
-    font-size: 13px;
-    line-height: 1.55;
+  .data-settings__head-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
 
-    summary {
-      cursor: pointer;
-      color: #adc8ff;
-    }
+  .data-settings__refresh {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 1px solid #475875;
+    border-radius: 8px;
+    background: #192434;
+    color: #d5e4fa;
+    font-size: 17px;
 
-    p { margin: 12px 0 0; }
+    &:hover:not(:disabled) { border-color: #76a6ff; background: #263d61; }
+    &:disabled { opacity: .4; }
   }
 
   .data-settings__card .body { display: flex; flex-direction: column; }
-  .data-settings__card .body > p { margin-bottom: 18px; }
 
   .sync-summary {
     margin-top: 19px;
   }
 
-  .sync-summary__metrics {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
+  .sync-summary__bar {
+    display: flex;
+    width: 100%;
+    height: 9px;
+    overflow: hidden;
+    border-radius: 99px;
+    background: #354051;
+  }
 
-    > div {
-      min-width: 0;
-      padding: 12px;
-      border-radius: 8px;
-      background: #141b25;
-      color: #d9e4f2;
-      font-size: 13px;
-      line-height: 1.45;
-      overflow-wrap: anywhere;
-    }
+  .sync-summary__synced { flex: 1; background: #68cb9b; }
+  .sync-summary__pending { flex: 0 0 20%; background: #edae66; }
+  .sync-summary__bar--offline { opacity: .35; }
+
+  .sync-summary__pending-label {
+    margin: 9px 0 0;
+    color: #edae66;
+    font-size: 12px;
+    line-height: 1.4;
   }
 
   .sync-summary__message,
@@ -110,52 +116,13 @@
     overflow-wrap: anywhere;
   }
 
-  .data-settings__note {
-    margin: 16px 0 !important;
-    font-size: 12px !important;
-    color: #9aabc0 !important;
-  }
-
-  .data-settings__secondary,
-  .data-settings__primary {
-    min-height: 40px;
-    padding: 9px 15px;
-    border: 1px solid #475875;
-    border-radius: 8px;
-    background: #22334d;
-    color: #e2edff;
-    font-size: 13px;
-    font-weight: 600;
-
-    &:hover:not(:disabled) {
-      border-color: #76a6ff;
-      background: #2c4b7c;
-    }
-  }
-
-  .data-settings__secondary { align-self: flex-start; }
-
-  .data-settings__primary {
-    margin-top: 18px;
-    border-color: #6294ff;
-    background: #294575;
-    color: #fff;
-  }
-
-  .data-settings__manage .body > p { margin-top: 12px; }
-
   .data-settings__vault {
     min-width: 0;
-    margin-top: 24px;
-    padding-top: 22px;
-    border-top: 1px solid #354051;
+    margin-top: 15px;
 
     .vault-workspace { display: block; }
     .vault-workspace > h3,
     .vault-workspace > h3 + p { display: none; }
   }
 
-  @media (max-width: 700px) {
-    .sync-summary__metrics { grid-template-columns: 1fr; }
-  }
 }

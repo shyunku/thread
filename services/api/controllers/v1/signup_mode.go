@@ -9,26 +9,15 @@ import (
 	"thread_api/service/database"
 )
 
-var errV2SignupDisabled = errors.New("v2 test signup disabled")
-
 func signupMode(requested string) (string, error) {
-	switch requested {
-	case "":
-		return "e2ee_pending", nil
-	case "v2":
-		return "", errV2SignupDisabled
-	default:
+	if requested != "" {
 		return "", errors.New("invalid signup mode")
 	}
+	return "e2ee_pending", nil
 }
 
 func signupModeError(c *gin.Context, err error) {
-	switch {
-	case errors.Is(err, errV2SignupDisabled):
-		c.JSON(http.StatusForbidden, gin.H{"code": "V2_SIGNUP_DISABLED"})
-	default:
-		c.JSON(http.StatusBadRequest, gin.H{"code": "INVALID_SIGNUP_MODE"})
-	}
+	c.JSON(http.StatusBadRequest, gin.H{"code": "INVALID_SIGNUP_MODE"})
 }
 
 func createSignupUser(c *gin.Context, uid, mode, query string, args ...interface{}) error {

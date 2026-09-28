@@ -11,13 +11,13 @@ test("settings preview keeps all five sections and their controls", () => {
   const navigation = screen.getByRole("navigation", { name: "설정 메뉴" });
   expect(navigation.querySelectorAll("button")).toHaveLength(5);
   expect(screen.getByRole("heading", { name: "데이터" })).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "다시 동기화" })).toBeDisabled();
-  fireEvent.click(screen.getByRole("button", { name: "관리 메뉴 열기" }));
-  expect(screen.getByRole("navigation", { name: "보관함 작업" }).querySelectorAll("button")).toHaveLength(8);
+  expect(screen.getByRole("button", { name: "동기화" })).toBeDisabled();
+  expect(screen.getByRole("navigation", { name: "데이터 관리 작업" }).querySelectorAll("button")).toHaveLength(6);
   fireEvent.click(screen.getByRole("button", { name: "계정" }));
   expect(screen.getByRole("button", { name: "로그아웃" })).toBeDisabled();
   fireEvent.click(screen.getByRole("button", { name: "정보" }));
   expect(screen.getByText("버전")).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "shyunku.dev@gmail.com" })).toHaveAttribute("href", "mailto:shyunku.dev@gmail.com");
 });
 
 test("normal settings retain the account action", () => {

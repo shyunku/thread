@@ -13,8 +13,8 @@
 
 .modal-content.settings {
   width: min(1080px, calc(100% - 80px));
-  height: min(760px, calc(100% - 200px));
-  max-height: calc(100% - 200px);
+  height: calc(100% - 160px);
+  max-height: calc(100% - 160px);
   min-height: 0;
   padding: 0;
   overflow: hidden;

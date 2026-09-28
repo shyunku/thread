@@ -29,6 +29,23 @@ button {
   color: inherit;
   cursor: pointer;
 }
+button,
+[role="button"],
+a,
+summary,
+input,
+select,
+textarea {
+  transition: background-color .16s ease, border-color .16s ease, color .16s ease, box-shadow .16s ease, opacity .16s ease, transform .16s ease, filter .16s ease;
+}
+@media (hover: hover) {
+  button:hover:not(:disabled),
+  [role="button"]:hover,
+  a:hover,
+  summary:hover {
+    filter: brightness(1.08);
+  }
+}
 button:disabled {
   cursor: not-allowed;
   opacity: 0.45;

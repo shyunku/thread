@@ -14,7 +14,7 @@ const SettingInfo = ({ ...props }) => {
       </div>
       <div className={"info-item"}>
         <div className={"label"}>
-          Git Contribution을 원하시는 분은 whdudgns7321@gmail.com으로
+          Git Contribution을 원하시는 분은 <a href="mailto:shyunku.dev@gmail.com">shyunku.dev@gmail.com</a>으로
           연락바랍니다.
         </div>
       </div>

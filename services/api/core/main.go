@@ -108,7 +108,7 @@ func main() {
 
 	// TODO :: check redis connection
 
-	// v2-only release: never load legacy block chains into memory.
+	// v3-only release: never load legacy block chains into memory.
 
 	// Run web server with gin
 	controllers.RunGin(useHTTPS)

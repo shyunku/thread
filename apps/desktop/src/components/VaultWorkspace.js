@@ -4,14 +4,13 @@ import VaultUnlock from "./VaultUnlock";
 import LegacyRecovery from "./LegacyRecovery";
 import RecoverySetup from "./RecoverySetup";
 import DevicePairing from "./DevicePairing";
-import EncryptedSync from "./EncryptedSync";
-import MigrationPanel from "./MigrationPanel";
 import RotationPanel from "./RotationPanel";
 import LostRecoveryPanel from "./LostRecoveryPanel";
 import BackupPanel from "./BackupPanel";
 import LegacyStructureReview from "./LegacyStructureReview";
 import ReencryptionPanel from "./ReencryptionPanel";
 import VaultOnboarding from "./VaultOnboarding";
+import { IoCloudDownloadOutline, IoKeyOutline, IoLockClosedOutline, IoPhonePortraitOutline, IoRefreshOutline, IoShieldCheckmarkOutline } from "react-icons/io5";
 import "./VaultWorkspace.scss";
 const invoke=(method,...args)=>new Promise((resolve,reject)=>{
  if(!IpcSender.vault?.[method])return reject(Error("UNAVAILABLE"));
@@ -59,27 +58,25 @@ export default function VaultWorkspace({uid,onContinue,onStarted,onLocked,connec
  if(status?.enabled===false)return <p>이 빌드에서는 보관함을 사용할 수 없습니다.</p>;
  const current=status?.uid===uid?status:null;
  const progressStep=current?.phase!=="UNLOCKED"?1:["migration","activate"].includes(onboardingStep)?3:2;
- return <section className="vault-workspace" aria-label="보관함 관리">
+  return <section className="vault-workspace" aria-label="데이터 관리">
   {onContinue&&!connectionOnly&&<ol className="vault-progress" aria-label={newAccount?"새 데이터 설정 진행 단계":"데이터 보호 업데이트 진행 단계"}>{(newAccount?["암호화 준비","백업 수단 저장","시작"]:["본인 확인","백업 수단 저장","데이터 이동"]).map((label,index)=><li key={label} className={index+1<=progressStep?"vault-progress__reached":""} aria-current={index+1===progressStep?"step":undefined}>{index+1}. {label}</li>)}</ol>}
-  {!onContinue&&<><h3>보관함 관리</h3><p>복구 자료와 연결된 기기를 관리하세요.</p></>}
+  {!onContinue&&<><h3>보호된 데이터 관리</h3><p>복구 자료와 연결된 기기를 관리하세요.</p></>}
   {error&&<p role="alert">보관함 상태를 확인하지 못했습니다. 기존 데이터는 삭제되지 않았습니다.</p>}
   {!current?<p>상태 확인 중…</p>:current.phase==="RECOVERY_REQUIRED"?<p role="alert">보관함 파일이 불완전합니다. 새로 만들거나 초기화하지 말고 복구가 필요합니다.</p>:
    current.phase==="UNLOCKED"?<>
-    {!onContinue&&<p className="vault-status" role="status">로컬 보관함 잠금 해제됨</p>}
+    {!onContinue&&<p className="vault-status" role="status">데이터 잠금 해제됨</p>}
     {onContinue?<VaultOnboarding key={uid+":"+current.generation} osAvailable={current.osAvailable} onContinue={onContinue} connectionOnly={connectionOnly} newAccount={newAccount} onStepChange={setOnboardingStep}/>:<>
-     {!panel?<nav className="vault-menu" aria-label="보관함 작업">{[["recovery","복구 자료","복구 코드와 파일 보관"],["pair","기기 연결","QR 또는 파일로 새 기기 승인"],["sync","동기화","연결 상태와 미전송 변경 확인"],["backup","암호화 백업","파일 내보내기·복원"],["rotation","기기·키 관리","기기 해지와 키 갱신"],["lost","기기 분실 복구","복구 자료로 접근 복원"],["migration","이전 데이터","v2 데이터 이관 상태"],["reencrypt","암호화 갱신","기존 데이터의 키 세대 갱신"]].map(([id,title,description])=><button key={id} onClick={()=>setPanel(id)}><strong>{title}</strong><span>{description}</span></button>)}</nav>:<button className="vault-back" onClick={()=>setPanel(null)}>← 보관함 메뉴</button>}
+     {!panel?<nav className="vault-menu" aria-label="데이터 관리 작업">{[["recovery","복구 자료","복구 코드와 파일 보관",<IoKeyOutline/>],["pair","기기 연결","QR 또는 파일로 새 기기 승인",<IoPhonePortraitOutline/>],["backup","암호화 백업","파일 내보내기·복원",<IoCloudDownloadOutline/>],["rotation","기기·키 관리","기기 해지와 키 갱신",<IoShieldCheckmarkOutline/>],["lost","기기 분실 복구","복구 자료로 접근 복원",<IoLockClosedOutline/>],["reencrypt","암호화 갱신","기존 데이터의 키 세대 갱신",<IoRefreshOutline/>]].map(([id,title,description,icon])=><button key={id} onClick={()=>setPanel(id)}><span className="vault-menu__title">{icon}<strong>{title}</strong></span><span>{description}</span></button>)}</nav>:<button className="vault-back" onClick={()=>setPanel(null)}>← 관리 메뉴</button>}
      {preview&&panel&&<p>미리보기에서는 실제 계정 데이터를 열지 않습니다. 메뉴 배치만 확인할 수 있습니다.</p>}
      {!preview&&panel==="recovery"&&<RecoverySetup/>}
      {!preview&&panel==="pair"&&<DevicePairing osAvailable={current.osAvailable}/>}
-     {!preview&&panel==="sync"&&<EncryptedSync/>}
-     {!preview&&panel==="migration"&&<MigrationPanel osAvailable={current.osAvailable}/>}
      {!preview&&panel==="rotation"&&<RotationPanel osAvailable={current.osAvailable}/>}
      {!preview&&panel==="lost"&&<LostRecoveryPanel osAvailable={current.osAvailable}/>}
      {!preview&&panel==="backup"&&<BackupPanel osAvailable={current.osAvailable}/>}
      {!preview&&panel==="reencrypt"&&<ReencryptionPanel/>}
     </>}
     {!onContinue&&<><button disabled={preview} onClick={()=>{generation.current++;setIntakes([]);setSelected("");setStatus({...current,phase:"LOCKED"});invoke("lock").then(()=>onLocked?.()).catch(()=>setError(true));}}>데이터 잠그기</button>
-    {!intakes.length?<p>보존된 이전 기기 변경이 없습니다.</p>:<>
+    {intakes.length>0&&<>
      <label>복구 자료 <select value={selected} onChange={event=>setSelected(event.target.value)}>{intakes.map((item,index)=><option key={item.id} value={item.id}>자료 {index+1} · {item.count}개</option>)}</select></label>
      {selected&&<LegacyRecovery key={selected} sessionKey={uid+":"+current.generation} intakeId={selected} unlocked loadPage={loadPage} onReconcile={reconcileLegacy}/>}
      {selected&&<LegacyStructureReview key={"structure:"+selected} intakeId={selected}/>}

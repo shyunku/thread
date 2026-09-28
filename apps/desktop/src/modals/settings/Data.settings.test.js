@@ -4,19 +4,18 @@ import SettingData from "./Data.settings";
 import IpcSender from "../../utils/IpcSender";
 
 jest.mock("react-redux", () => ({ useSelector: jest.fn() }));
+jest.mock("../../components/VaultWorkspace", () => () => <nav aria-label="데이터 관리 작업" />);
 jest.mock("../../utils/IpcSender", () => ({
   onAll: jest.fn(), off: jest.fn(),
   syncV2: { getStatus: jest.fn(), retry: jest.fn() },
 }));
 
 let listener;
-test("reports encrypted routing and numeric recovery count without claiming historical cleanup", () => {
+test("shows recovery count without a redundant protection card", () => {
   render(<SettingData />);
   emit({protocolVersion:3,connected:true,pending:0,seq:"8",recovery:2,canSync:true});
-  expect(screen.getByText(/현재 할 일은 이 기기에서 암호화되어/)).toBeInTheDocument();
-  expect(screen.getByText(/이전 평문 백업과 로그/)).toBeInTheDocument();
+  expect(screen.queryByRole("heading", {name:"데이터 보호"})).not.toBeInTheDocument();
   expect(screen.getByRole("status")).toHaveTextContent("복구 검토: 2개");
-  expect(screen.queryByText(/현재 동기화 방식은 Sync v2/)).not.toBeInTheDocument();
 });
 beforeEach(() => {
   jest.clearAllMocks();
@@ -28,15 +27,16 @@ beforeEach(() => {
 });
 const emit = (data) => act(() => listener({ success: true, data: { uid: "fixture", ...data } }));
 
-test("loads current v2 state and updates pending changes and applied sequence", () => {
+test("shows pending changes in a status bar", () => {
   const { unmount } = render(<SettingData />);
-  expect(screen.getByRole("status")).toHaveTextContent("마지막 반영 번호: 1");
+  expect(screen.getByRole("status")).toHaveTextContent("동기화 대기: 0개");
   emit({ connected: false, pending: 1, seq: "1", canSync: true });
   expect(screen.getByRole("status")).toHaveTextContent("오프라인");
-  expect(screen.getByRole("status")).toHaveTextContent("미전송 변경: 1개");
+  expect(screen.getByRole("status")).toHaveTextContent("동기화 대기: 1개");
+  expect(screen.getByRole("button", {name:"동기화"})).toBeDisabled();
   emit({ connected: true, pending: 0, seq: "9007199254740993", canSync: true });
-  expect(screen.getByRole("status")).toHaveTextContent("마지막 반영 번호: 9007199254740993");
-  expect(screen.getByRole("status")).toHaveTextContent("미전송 변경: 0개");
+  expect(screen.getByRole("status")).toHaveTextContent("동기화 대기: 0개");
+  expect(screen.queryByText("9007199254740993")).not.toBeInTheDocument();
   unmount();
   expect(IpcSender.off).toHaveBeenCalledWith("sync-v2/status", listener);
 });
@@ -48,13 +48,13 @@ test("ignores other accounts and stale initial response after a live update", ()
   emit({ seq: "5", pending: 0 });
   emit({ uid: "someone-else", seq: "99" });
   act(() => initial({ success: true, data: { uid: "fixture", seq: "1" } }));
-  expect(screen.getByRole("status")).toHaveTextContent("마지막 반영 번호: 5");
+  expect(screen.getByRole("status")).not.toHaveTextContent("99");
 });
 
-test("retries through v2 without a destructive initialization prompt", () => {
+test("retries through the existing sync action without a destructive initialization prompt", () => {
   IpcSender.syncV2.retry.mockImplementation((fn) => fn({ success: true }));
   render(<SettingData />);
-  fireEvent.click(screen.getByRole("button", { name: "다시 동기화" }));
+  fireEvent.click(screen.getByRole("button", { name: "동기화" }));
   expect(IpcSender.syncV2.retry).toHaveBeenCalledTimes(1);
   expect(screen.queryByText("전체 초기화")).not.toBeInTheDocument();
 });
@@ -64,17 +64,15 @@ test("disables retry before a session exists and shows unavailable state", () =>
     success: true, data: { uid: "fixture", pending: null, seq: null, canSync: false },
   }));
   render(<SettingData />);
-  expect(screen.getByRole("status")).toHaveTextContent("마지막 반영 번호: —");
-  expect(screen.getByRole("button", { name: "다시 동기화" })).toBeDisabled();
+  expect(screen.getByRole("status")).toHaveTextContent("동기화 대기: —개");
+  expect(screen.getByRole("button", { name: "동기화" })).toBeDisabled();
 });
 
 test("preview shows synthetic data without requesting account status", () => {
-  render(<SettingData preview previewVault />);
+  render(<SettingData preview />);
   expect(IpcSender.syncV2.getStatus).not.toHaveBeenCalled();
   expect(IpcSender.onAll).not.toHaveBeenCalled();
-  expect(screen.getByText(/현재 할 일은 이 기기에서 암호화되어/)).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "다시 동기화" })).toBeDisabled();
-  expect(screen.getByRole("button", { name: "관리 메뉴 닫기" })).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "관리 메뉴 닫기" }));
-  expect(screen.getByRole("button", { name: "관리 메뉴 열기" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "동기화" })).toBeDisabled();
+  expect(screen.getByRole("navigation", {name:"데이터 관리 작업"})).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "관리 메뉴 열기" })).not.toBeInTheDocument();
 });

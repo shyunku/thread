@@ -1,0 +1,28 @@
+.thread-tooltip {
+  position: relative;
+  display: inline-flex;
+
+  &__content {
+    position: absolute;
+    z-index: 10;
+    top: calc(100% + 8px);
+    left: 50%;
+    transform: translate(-50%, -4px);
+    padding: 6px 9px;
+    border: 1px solid #46536a;
+    border-radius: 6px;
+    background: #101720;
+    color: #edf1f7;
+    font-size: 12px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .16s ease, transform .16s ease;
+  }
+
+  &:hover &__content,
+  &:focus-within &__content {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
