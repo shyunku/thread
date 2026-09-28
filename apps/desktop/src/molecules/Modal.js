@@ -39,7 +39,7 @@ const Modal = forwardRef(
     }));
 
     return (
-      <div className={"modal"} id={`modal-${id}`} ref={modalRef} {...rest}>
+      <div className={"modal" + (active ? " active" : "")} id={`modal-${id}`} ref={modalRef} {...rest}>
         <div className={"modal-back-panel"} onClick={cancelHandler}></div>
         <div className={"modal-content " + className}>
           <>

@@ -12,11 +12,9 @@ import {
 import {useDispatch, useSelector} from "react-redux";
 import {useNavigate} from "react-router-dom";
 
-const SettingData = ({modalRef, ...props}) => {
+const SettingData = ({modalRef, preview = false}) => {
   const accountInfo = useSelector(accountInfoSlice);
   const dispatch = useDispatch();
-
-  console.log(props);
 
   const logout = () => {
     Prompt.float("로그아웃", "정말 로그아웃 하시겠습니까?", {
@@ -48,7 +46,7 @@ const SettingData = ({modalRef, ...props}) => {
         <div className={"body"}>
           <div className={"controller"}>
             <div className={"description"}>현재 계정에서 로그아웃합니다.</div>
-            <button onClick={logout}>로그아웃</button>
+            <button disabled={preview} onClick={logout}>로그아웃</button>
           </div>
         </div>
       </div>

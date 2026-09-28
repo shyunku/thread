@@ -1,17 +1,26 @@
 .setting-info {
   display: flex;
   flex-direction: column;
+  padding: 10px 24px;
+  border: 1px solid #354051;
+  border-radius: 12px;
+  background: #1b2330;
 
   .info-item {
     display: flex;
-    align-items: center;
-    color: #82a4c0;
+    align-items: flex-start;
     justify-content: space-between;
-    padding: 5px 0;
-    font-size: 15px;
+    gap: 20px;
+    padding: 17px 0;
+    color: #aab8ca;
+    font-size: 14px;
+    line-height: 1.55;
 
-    .label {
-      color: #94c6ef;
-    }
+    &:not(:last-child) { border-bottom: 1px solid #354051; }
+
+    .label { color: #aab8ca; }
+    .value { color: #edf1f7; text-align: right; }
   }
+
+  .info-item:last-child .label { color: #aab8ca; font-weight: 400; }
 }

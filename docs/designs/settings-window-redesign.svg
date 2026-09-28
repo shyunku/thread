@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="960" viewBox="0 0 1440 960">
+  <style>
+    text { font-family: Pretendard, 'Malgun Gothic', sans-serif; fill: #edf1f7; }
+    .muted { fill: #a7b4c8; font-size: 14px; }
+    .tiny { fill: #91a1b8; font-size: 12px; }
+    .heading { font-size: 24px; font-weight: 700; }
+    .section { font-size: 17px; font-weight: 700; }
+    .label { font-size: 14px; font-weight: 600; }
+  </style>
+  <rect width="1440" height="960" fill="#0d1118"/>
+  <rect x="180" y="100" width="1080" height="760" rx="16" fill="#151a23" stroke="#364050"/>
+  <path d="M180 178H1260" stroke="#303846"/>
+  <text x="214" y="148" class="heading">환경설정</text>
+  <text x="1211" y="148" font-size="24">×</text>
+  <rect x="181" y="179" width="210" height="680" fill="#111720"/>
+  <path d="M391 179V860" stroke="#303846"/>
+  <text x="207" y="232" class="tiny">앱 설정</text>
+  <text x="220" y="280" class="label" fill="#a7b4c8">⚙  일반</text>
+  <rect x="198" y="299" width="176" height="44" rx="9" fill="#263e68"/>
+  <rect x="198" y="299" width="3" height="44" rx="2" fill="#76a6ff"/>
+  <text x="220" y="327" class="label">▰  데이터</text>
+  <text x="220" y="383" class="label" fill="#a7b4c8">▦  사용자 맞춤</text>
+  <text x="220" y="439" class="label" fill="#a7b4c8">♟  계정</text>
+  <text x="220" y="495" class="label" fill="#a7b4c8">ⓘ  정보</text>
+  <text x="425" y="237" class="heading">데이터</text>
+  <text x="425" y="268" class="muted">데이터 보호와 동기화 상태를 확인하고 필요한 작업을 관리합니다.</text>
+  <rect x="425" y="300" width="383" height="225" rx="12" fill="#1b2330" stroke="#354256"/>
+  <text x="449" y="337" class="section">데이터 보호</text>
+  <rect x="701" y="316" width="83" height="28" rx="14" fill="#214637"/>
+  <text x="714" y="335" font-size="12" fill="#82d6ac">●  보호 중</text>
+  <text x="449" y="383" class="label">이 기기의 할 일은 암호화돼요.</text>
+  <text x="449" y="410" class="muted">v3 방식으로 동기화합니다.</text>
+  <path d="M449 446H784" stroke="#354256"/>
+  <text x="449" y="480" font-size="13" fill="#adc8ff">이전 데이터에 대한 안내</text>
+  <text x="772" y="480" font-size="13" fill="#adc8ff">⌄</text>
+  <rect x="825" y="300" width="401" height="225" rx="12" fill="#1b2330" stroke="#354256"/>
+  <text x="849" y="337" class="section">동기화 상태</text>
+  <rect x="1135" y="316" width="67" height="28" rx="14" fill="#214637"/>
+  <text x="1147" y="335" font-size="12" fill="#82d6ac">●  온라인</text>
+  <text x="849" y="386" class="tiny">미전송 변경</text>
+  <text x="849" y="416" font-size="24" font-weight="700">2개</text>
+  <text x="1028" y="386" class="tiny">마지막 반영 번호</text>
+  <text x="1028" y="416" font-size="24" font-weight="700">128</text>
+  <path d="M849 445H1202" stroke="#354256"/>
+  <text x="849" y="479" class="tiny">재동기화해도 미전송 변경은 삭제되지 않아요.</text>
+  <rect x="425" y="554" width="801" height="180" rx="12" fill="#1b2330" stroke="#354256"/>
+  <text x="449" y="596" class="section">데이터 관리</text>
+  <text x="449" y="628" class="muted">복구 자료, 기기 연결, 암호화 백업 등을 관리합니다.</text>
+  <rect x="449" y="662" width="150" height="42" rx="8" fill="#294575" stroke="#6599ff"/>
+  <text x="475" y="689" class="label">관리 메뉴 열기</text>
+</svg>

@@ -13,7 +13,7 @@ let listener;
 test("reports encrypted routing and numeric recovery count without claiming historical cleanup", () => {
   render(<SettingData />);
   emit({protocolVersion:3,connected:true,pending:0,seq:"8",recovery:2,canSync:true});
-  expect(screen.getByText(/현재 할 일은 암호화 보관함/)).toBeInTheDocument();
+  expect(screen.getByText(/현재 할 일은 이 기기에서 암호화되어/)).toBeInTheDocument();
   expect(screen.getByText(/이전 평문 백업과 로그/)).toBeInTheDocument();
   expect(screen.getByRole("status")).toHaveTextContent("복구 검토: 2개");
   expect(screen.queryByText(/현재 동기화 방식은 Sync v2/)).not.toBeInTheDocument();
@@ -66,4 +66,15 @@ test("disables retry before a session exists and shows unavailable state", () =>
   render(<SettingData />);
   expect(screen.getByRole("status")).toHaveTextContent("마지막 반영 번호: —");
   expect(screen.getByRole("button", { name: "다시 동기화" })).toBeDisabled();
+});
+
+test("preview shows synthetic data without requesting account status", () => {
+  render(<SettingData preview previewVault />);
+  expect(IpcSender.syncV2.getStatus).not.toHaveBeenCalled();
+  expect(IpcSender.onAll).not.toHaveBeenCalled();
+  expect(screen.getByText(/현재 할 일은 이 기기에서 암호화되어/)).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "다시 동기화" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "관리 메뉴 닫기" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "관리 메뉴 닫기" }));
+  expect(screen.getByRole("button", { name: "관리 메뉴 열기" })).toBeInTheDocument();
 });

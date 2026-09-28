@@ -7,7 +7,8 @@ const SettingCommon = ({ ...props }) => {
   const [startOnBoot, setStartOnBoot] = useState(false);
 
   return (
-    <div className={"setting-common"}>
+    <div className="settings-empty">
+      현재 조정할 항목이 없습니다.
       {/*<div className={"setting-item"}>*/}
       {/*  <div className={"head"}>*/}
       {/*    <div className={"label"}>부팅 시 자동 시작</div>*/}

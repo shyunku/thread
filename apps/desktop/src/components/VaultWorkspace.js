@@ -17,13 +17,14 @@ const invoke=(method,...args)=>new Promise((resolve,reject)=>{
  if(!IpcSender.vault?.[method])return reject(Error("UNAVAILABLE"));
  IpcSender.vault[method](...args,response=>response?.success?resolve(response.data):reject(Error("VAULT_ACTION_FAILED")));
 });
-export default function VaultWorkspace({uid,onContinue,onStarted,onLocked,connectionOnly=false,newAccount=false}){
+export default function VaultWorkspace({uid,onContinue,onStarted,onLocked,connectionOnly=false,newAccount=false,preview=false}){
  const [panel,setPanel]=useState(null);
  const [onboardingStep,setOnboardingStep]=useState("recovery");
- const [status,setStatus]=useState(null),[error,setError]=useState(false),[intakes,setIntakes]=useState([]),[selected,setSelected]=useState("");
+ const [status,setStatus]=useState(preview?{uid,phase:"UNLOCKED",generation:1,osAvailable:true}:null),[error,setError]=useState(false),[intakes,setIntakes]=useState([]),[selected,setSelected]=useState("");
  const generation=useRef(0);
  const invalidate=useCallback(()=>{generation.current++;},[]);
  useEffect(()=>{
+  if(preview)return;
   let active=true;const request=++generation.current;
   setStatus(null);setIntakes([]);setSelected("");setError(false);
   invoke("status").then(async data=>{
@@ -39,7 +40,7 @@ export default function VaultWorkspace({uid,onContinue,onStarted,onLocked,connec
    generation.current++;setStatus(previous=>({...previous,...data}));setIntakes([]);setSelected("");
   });
   return ()=>{active=false;invalidate();IpcSender.off("vault/status",listener);};
- },[uid,invalidate]);
+ },[uid,invalidate,preview]);
  const act=async(method,...args)=>{
   const request=generation.current;
   const next=await invoke(method,...args);
@@ -67,16 +68,17 @@ export default function VaultWorkspace({uid,onContinue,onStarted,onLocked,connec
     {!onContinue&&<p className="vault-status" role="status">로컬 보관함 잠금 해제됨</p>}
     {onContinue?<VaultOnboarding key={uid+":"+current.generation} osAvailable={current.osAvailable} onContinue={onContinue} connectionOnly={connectionOnly} newAccount={newAccount} onStepChange={setOnboardingStep}/>:<>
      {!panel?<nav className="vault-menu" aria-label="보관함 작업">{[["recovery","복구 자료","복구 코드와 파일 보관"],["pair","기기 연결","QR 또는 파일로 새 기기 승인"],["sync","동기화","연결 상태와 미전송 변경 확인"],["backup","암호화 백업","파일 내보내기·복원"],["rotation","기기·키 관리","기기 해지와 키 갱신"],["lost","기기 분실 복구","복구 자료로 접근 복원"],["migration","이전 데이터","v2 데이터 이관 상태"],["reencrypt","암호화 갱신","기존 데이터의 키 세대 갱신"]].map(([id,title,description])=><button key={id} onClick={()=>setPanel(id)}><strong>{title}</strong><span>{description}</span></button>)}</nav>:<button className="vault-back" onClick={()=>setPanel(null)}>← 보관함 메뉴</button>}
-     {panel==="recovery"&&<RecoverySetup/>}
-     {panel==="pair"&&<DevicePairing osAvailable={current.osAvailable}/>}
-     {panel==="sync"&&<EncryptedSync/>}
-     {panel==="migration"&&<MigrationPanel osAvailable={current.osAvailable}/>}
-     {panel==="rotation"&&<RotationPanel osAvailable={current.osAvailable}/>}
-     {panel==="lost"&&<LostRecoveryPanel osAvailable={current.osAvailable}/>}
-     {panel==="backup"&&<BackupPanel osAvailable={current.osAvailable}/>}
-     {panel==="reencrypt"&&<ReencryptionPanel/>}
+     {preview&&panel&&<p>미리보기에서는 실제 계정 데이터를 열지 않습니다. 메뉴 배치만 확인할 수 있습니다.</p>}
+     {!preview&&panel==="recovery"&&<RecoverySetup/>}
+     {!preview&&panel==="pair"&&<DevicePairing osAvailable={current.osAvailable}/>}
+     {!preview&&panel==="sync"&&<EncryptedSync/>}
+     {!preview&&panel==="migration"&&<MigrationPanel osAvailable={current.osAvailable}/>}
+     {!preview&&panel==="rotation"&&<RotationPanel osAvailable={current.osAvailable}/>}
+     {!preview&&panel==="lost"&&<LostRecoveryPanel osAvailable={current.osAvailable}/>}
+     {!preview&&panel==="backup"&&<BackupPanel osAvailable={current.osAvailable}/>}
+     {!preview&&panel==="reencrypt"&&<ReencryptionPanel/>}
     </>}
-    {!onContinue&&<><button onClick={()=>{generation.current++;setIntakes([]);setSelected("");setStatus({...current,phase:"LOCKED"});invoke("lock").then(()=>onLocked?.()).catch(()=>setError(true));}}>데이터 잠그기</button>
+    {!onContinue&&<><button disabled={preview} onClick={()=>{generation.current++;setIntakes([]);setSelected("");setStatus({...current,phase:"LOCKED"});invoke("lock").then(()=>onLocked?.()).catch(()=>setError(true));}}>데이터 잠그기</button>
     {!intakes.length?<p>보존된 이전 기기 변경이 없습니다.</p>:<>
      <label>복구 자료 <select value={selected} onChange={event=>setSelected(event.target.value)}>{intakes.map((item,index)=><option key={item.id} value={item.id}>자료 {index+1} · {item.count}개</option>)}</select></label>
      {selected&&<LegacyRecovery key={selected} sessionKey={uid+":"+current.generation} intakeId={selected} unlocked loadPage={loadPage} onReconcile={reconcileLegacy}/>}

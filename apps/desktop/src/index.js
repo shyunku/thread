@@ -21,6 +21,7 @@ import ModalRouter from "./routers/ModalRouter";
 import { isDevMode } from "./utils/Common";
 import "styles/surfaces.scss";
 import ReleaseAlert from "./components/ReleaseAlert";
+import SettingsModal from "./modals/Settings.modal";
 
 if (isDevMode()) {
   window.document.title = "Thread (Dev)";
@@ -32,9 +33,16 @@ const store = configureStore({
     defaultMiddleware({ serializableCheck: false }),
 });
 
-const persistor = persistStore(store);
+const settingsPreview = process.env.NODE_ENV === "development" &&
+  window.location.hash.startsWith("#/__settings-preview");
+const previewTab = new URLSearchParams(window.location.hash.split("?")[1] || "").get("tab");
+const persistor = settingsPreview ? null : persistStore(store);
 const root = ReactDOM.createRoot(document.getElementById("root"));
-root.render(
+root.render(settingsPreview ? (
+  <Provider store={store}>
+    <SettingsModal id="SETTINGS_PREVIEW" preview previewTab={previewTab} />
+  </Provider>
+) : (
   <Provider store={store}>
     <PersistGate loading={null} persistor={persistor}>
       <ModalRouter />
@@ -46,7 +54,7 @@ root.render(
       <AxiosMiddleware />
     </PersistGate>
   </Provider>
-);
+));
 
 // If you want to start measuring performance in your app, pass a function
 // to log results (for example: reportWebVitals(console.log))

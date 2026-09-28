@@ -7,6 +7,8 @@
 # Migration and local caches
 /apps/desktop/e2ee/
 /apps/desktop/public/resources/native/
+/.local/
+/apps/desktop/.local/
 /.tmp/
 /.monorepo-build/
 /pkg/
