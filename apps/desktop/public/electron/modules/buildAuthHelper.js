@@ -2,7 +2,9 @@ const { execFile } = require("node:child_process");
 const { promisify } = require("node:util");
 const fs = require("node:fs/promises");
 const path = require("node:path");
+const { assertPackagedTrust } = require('../../../scripts/updateTrustRoot.cjs');
 module.exports = async function buildAuthHelper(context) {
+  assertPackagedTrust(context.packager.projectDir);
   if (context.electronPlatformName !== "win32") return;
   const root = context.packager.projectDir;
   await promisify(execFile)("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File",

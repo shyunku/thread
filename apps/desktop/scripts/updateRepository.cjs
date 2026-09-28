@@ -4,6 +4,7 @@ const {createRequire}=require("node:module"),{Readable}=require("node:stream");
 const tr=createRequire(require.resolve("tuf-js")),m=tr("@tufjs/models");
 const {TrustedMetadataStore}=tr("./store"),versions=require("compare-versions");
 const ROLES=["targets","snapshot","timestamp"];
+const {promptSecret,loadEncryptedKey}=require('./updateSigningSecrets.cjs');
 const check=(ok,code)=>{if(!ok)throw Error(code);};
 function read(file,limit=2*1024*1024){
  const fd=fs.openSync(file,"r");
@@ -106,7 +107,11 @@ if(require.main===module){
  (async()=>{
   check(process.argv.length===3,"USAGE_UPDATE_REPOSITORY_PLAN_JSON");
   const plan=JSON.parse(read(path.resolve(process.argv[2]))),keys={};
-  for(const role of ROLES){const bytes=read(path.resolve(plan.keys[role]),16384);try{keys[role]=crypto.createPrivateKey(bytes);}finally{bytes.fill(0);}}
+  for(const role of ROLES){
+   const passphrase=await promptSecret(`${role} key passphrase`);
+   try{keys[role]=loadEncryptedKey(path.resolve(plan.keys[role]),passphrase);}
+   finally{passphrase.fill(0);}
+  }
   console.log(JSON.stringify(await buildRepository({...plan,rootBytes:read(path.resolve(plan.root)),keys})));
  })().catch(()=>{console.error("UPDATE_REPOSITORY_BUILD_FAILED");process.exitCode=1;});
 }

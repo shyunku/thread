@@ -24,6 +24,8 @@ Verification: synthetic TUF tests confirm threshold 1/root-role isolation, valid
 
 ## Offline generator (2026-09-22 15:00 KST)
 
+The offline root ceremony, encrypted-key CLI, packaging gate and read-only publication preflight are documented in [Windows update operations](../v3-update-operations.md). Operational keys and certificates are still not provisioned.
+
 `apps/desktop/scripts/updateRepository.cjs` creates a **new** public repository directory; it never generates keys, signs roots, uploads artifacts or changes RMS. Only temporary synthetic keys were used for implementation tests.
 
 - Test without operational material: from `apps/desktop`, run `node --test tests/updateRepository.test.cjs`.

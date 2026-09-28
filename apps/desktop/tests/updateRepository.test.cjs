@@ -2,6 +2,7 @@ const test=require("node:test"),assert=require("node:assert/strict"),crypto=requ
 const fs=require("node:fs"),os=require("node:os"),path=require("node:path"),{createRequire}=require("node:module");
 const tr=createRequire(require.resolve("tuf-js")),m=tr("@tufjs/models"),{TrustedMetadataStore}=tr("./store");
 const {buildRepository}=require("../scripts/updateRepository.cjs");
+const {verifyUpdateRepository}=require('../scripts/verifyUpdateRepository.cjs');
 function fixture(t){
  const directory=fs.mkdtempSync(path.join(os.tmpdir(),"thread-signing-synthetic-"));
  t.after(()=>fs.rmSync(directory,{recursive:true,force:true}));
@@ -17,6 +18,19 @@ function fixture(t){
   releases:[{file,platform:"win",arch:"x64",version:"2.0.0",mandatory:true}]};
  return {directory,options};
 }
+test('read-only publication preflight verifies app root and every signed target',async t=>{
+ const {options,directory}=fixture(t);
+ await buildRepository(options);
+ const appRoot=path.join(directory,'app-root.json');
+ fs.writeFileSync(appRoot,options.rootBytes);
+ const result=await verifyUpdateRepository(options.output,appRoot);
+ assert.equal(result.releases,1);
+ fs.writeFileSync(appRoot,Buffer.from('{}'));
+ await assert.rejects(verifyUpdateRepository(options.output,appRoot),/APP_ROOT_MISMATCH/);
+ fs.writeFileSync(appRoot,options.rootBytes);
+ fs.appendFileSync(path.join(options.output,'targets/win/x64/2.0.0/installer.exe'),'tampered');
+ await assert.rejects(verifyUpdateRepository(options.output,appRoot));
+});
 test("signed public repository validates with actual client and retains mandatory catalog on renewal",async t=>{
  const {options,directory}=fixture(t);await buildRepository(options);
  const next={...options,bootstrap:false,version:2,previous:options.output,output:path.join(directory,"repo2"),
