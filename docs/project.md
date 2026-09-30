@@ -93,6 +93,8 @@ v3 데이터 잠금 해제는 Windows Hello/Touch ID를 지원하고, 최초 설
 
 ## 배포 구조
 
+운영 절차와 주의사항은 [운영 가이드](production.md)에 정리한다.
+
 업데이트 신뢰 초기 정책(2026-09-10 17:29 KST): 최상위 root 키는 1개(threshold 1), 배포 키와 분리한다. 앱은 내장 공개 신뢰 정보로 검증하며 개인키를 포함하지 않는다. 운영 키 생성 및 배포는 별도 승인 대상이다. 이후 서명된 root 교체로 키 구성/threshold를 변경할 수 있다. [운영 경계](initiatives/v3-encryption/protocol/v3-update-signing-policy.md).
 
 E2EE v3 서버 API는 별도 배포 플래그 없이 기본 등록한다. 이 사실만으로 기존 계정을 자동 이관하지 않으며, 계정 JWT와 기기 서명을 별도로 검사한다. 승인 만료·키 세대 회전·수신자 전용 키 전달 및 암호문 동기화의 구현 계약은 [E2EE v3 API](initiatives/v3-encryption/protocol/v3-api.md)에 기록한다. 운영 서명 업데이트와 배포 후 확인은 #64에 남는다.
