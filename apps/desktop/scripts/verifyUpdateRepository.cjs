@@ -109,16 +109,19 @@ async function verifyUpdateRepository(repository, appRootFile, { authenticode } 
 
 if (require.main === module) {
   (async () => {
-    const args = process.argv.slice(2);
-    const valid = args.length === 2 || (args.length === 4 && args[2] === '--authenticode');
-    if (!valid) throw Error('USAGE_VERIFY_REPOSITORY_AND_APP_ROOT_[--authenticode_THUMBPRINT]');
+    const args = process.argv.slice(2).filter(arg => arg !== '--');
+    const unsigned = args.length === 3 && args[2] === '--no-authenticode';
+    const valid = args.length === 2 || unsigned || (args.length === 4 && args[2] === '--authenticode');
+    if (!valid)
+      throw Error('USAGE_VERIFY_REPOSITORY_AND_APP_ROOT_[--authenticode_THUMBPRINT|--no-authenticode]');
     const repository = path.resolve(args[0]);
     const appRootFile = path.resolve(args[1]);
-    const authenticode = args[3]?.toUpperCase();
+    const authenticode = unsigned ? undefined : args[3]?.toUpperCase();
     const result = await verifyUpdateRepository(repository, appRootFile, { authenticode });
-    // Publication CLI never accepts an OS-unsigned Windows installer.
-    check(result.authenticodeVerified === result.windowsReleases, 'AUTHENTICODE_THUMBPRINT_REQUIRED');
-    console.log(JSON.stringify(result));
+    // Windows code signing is optional (2026-09-30 decision), but skipping it must be explicit.
+    check(unsigned || result.authenticodeVerified === result.windowsReleases,
+      'AUTHENTICODE_CHOICE_REQUIRED_USE_--authenticode_OR_--no-authenticode');
+    console.log(JSON.stringify({ ...result, authenticodeSkipped: unsigned }));
   })().catch(error => { console.error(error.message); process.exitCode = 1; });
 }
 

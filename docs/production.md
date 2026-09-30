@@ -38,7 +38,7 @@ EC2 호스트 한 대에서 Docker Compose(프로젝트 이름 `thread`)로 서�
 | 데스크톱 운영 설정 | `apps/desktop/.env.production` | 공개 endpoint만 둔다. 설치 파일에 포함되므로 비밀값 금지 |
 | 업데이트 서명 키 | 서명 PC의 `%USERPROFILE%\.thread-trust\trust-YYMMDD-HHMM\` | [7장](#7-서명-키-관리) 참고 |
 | root 비밀번호 | 비밀번호 관리자와 종이 | 어떤 파일에도 저장하지 않는다 |
-| Windows 코드 서명 인증서 | 인증서 발급처의 토큰이나 클라우드 | 아직 준비 전이다(64.3.2) |
+| Windows 코드 서명 인증서 | 사용하지 않음 | 선택 사항이다([6.2](#62-빌드-키가-있는-windows-pc)) |
 | TUF 저장소 생성 결과 | 서명 PC의 작업 폴더(`repo-N`) | 공개 파일이다. 서버 `rms-tuf` 볼륨에도 있다 |
 
 `.env.production`의 `E2EE_*` 값은 현재 코드에서 쓰지 않는다. 남아 있어도 동작에는 영향이 없다.
@@ -117,14 +117,14 @@ docker rm -f thread-restore-check
 - **beta 버전(`x.y.z-beta.N`)은 필수 업데이트로 지정할 수 없다.** 구버전 사용을 막아야 하면 정식 버전으로 낸다.
 - 필수(`mandatory: true`)로 게시한 버전은 이후 저장소에서도 필수로 유지된다. 그보다 낮은 버전의 앱은 그 버전 이상으로 올라가야 계속 쓸 수 있다.
 
-### 6.2 빌드와 서명 (Windows 서명 PC)
+### 6.2 빌드 (키가 있는 Windows PC)
 1. `apps/desktop/public/resources/update-trust/root.json`이 현재 root와 같은지 확인한다. 다르거나 없으면 빌드가 중단된다.
 2. 빌드한다. `pnpm build:desktop`
-3. 코드 서명 인증서로 설치 파일에 서명하고 확인한다.
-   ```powershell
-   Get-AuthenticodeSignature .\apps\desktop\dist\<설치파일>.exe | Format-List Status, SignerCertificate
-   ```
-   인증서 지문(Thumbprint)을 기록한다.
+3. Windows 코드 서명은 **하지 않는다**(2026-09-30 결정). Thread는 Windows 코드 서명을 쓴 적이 없다.
+   - 앱 안에서 받는 업데이트에는 SmartScreen 경고가 뜨지 않는다. 경고는 브라우저로 받은 파일에만 뜬다.
+   - 브라우저로 설치 파일을 받아 처음 설치하면 "Windows의 PC 보호" 경고가 뜬다. "추가 정보 → 실행"으로 넘어간다.
+   - 업데이트 파일의 진위는 TUF 서명으로 따로 검증되므로, 코드 서명이 없어도 업데이트 보안은 유지된다.
+   - 나중에 인증서(유료)를 도입하면, 서명한 뒤 `Get-AuthenticodeSignature <설치파일>`로 확인하고 지문(Thumbprint)을 6.3에 쓴다.
 
 ### 6.3 TUF 저장소 생성과 검증
 저장소 밖에 계획 파일을 만든다(예: `D:\thread-release\plan-N.json`).
@@ -152,7 +152,8 @@ docker rm -f thread-restore-check
 ```powershell
 cd apps/desktop
 node scripts/updateRepository.cjs D:\thread-release\plan-N.json
-node scripts/verifyUpdateRepository.cjs D:\thread-release\repo-N <절대경로>\apps\desktop\public\resources\update-trust\root.json --authenticode <지문>
+node scripts/verifyUpdateRepository.cjs D:\thread-release\repo-N <절대경로>\apps\desktop\public\resources\update-trust\root.json --no-authenticode
+# 코드 서명 인증서를 쓰는 경우: --no-authenticode 대신 --authenticode <지문>
 ```
 
 ### 6.4 게시
@@ -196,7 +197,6 @@ node scripts/verifyUpdateRepository.cjs D:\thread-release\repo-N <절대경로>\
 | --- | --- | --- |
 | root | 5년 | `pnpm cert:desktop:renew <trust 폴더>` 후 다음 저장소 생성, 게시 |
 | targets / snapshot / timestamp 메타데이터 | 1년 | 6.5 |
-| Windows 코드 서명 인증서 | 발급처 기준 | 발급처 절차. 이미 서명한 설치 파일은 타임스탬프 덕에 계속 유효하다 |
 
 **만료일을 달력에 등록하고, 한 달 전에 갱신한다.** root가 이미 만료됐더라도 키가 있으면 갱신할 수 있다. 다만 갱신본을 게시할 때까지 모든 앱이 업데이트를 받지 못한다.
 
@@ -255,13 +255,13 @@ pnpm cert:desktop:renew <현재 trust 폴더> [만료일] [--rotate-release-keys
 ### 배포 작업
 - [ ] Compose 명령에는 항상 `--env-file .env.production`을 붙인다.
 - [ ] 옛 API와 새 API를 동시에 띄우지 않는다.
-- [ ] 게시 전 `verifyUpdateRepository`(서명 지문 포함), 게시 후 `verifyPublishedRepository`를 모두 통과시킨다.
+- [ ] 게시 전 `verifyUpdateRepository`, 게시 후 `verifyPublishedRepository`를 모두 통과시킨다.
 - [ ] 게시하는 것은 `metadata/`와 `targets/`뿐이다. `READY`, 계획 파일, 키는 올리지 않는다.
 - [ ] root 없는 설치 파일은 배포하지 않는다. 빌드 단계에서 막히지만, 우회하지 않는다.
 - [ ] 모바일 앱과 macOS 앱은 v3 검증이 끝날 때까지 배포하지 않는다.
 
 ### 정기 점검
-- [ ] 메타데이터 만료(1년), root 만료(5년), 코드 서명 인증서 만료를 달력에 등록한다.
+- [ ] 메타데이터 만료(1년)와 root 만료(5년)를 달력에 등록한다.
 - [ ] 1년에 한 번, 백업한 `root.pem`이 root 비밀번호로 열리는지 확인한다. 백업 폴더로 `pnpm cert:desktop:renew`를 실행해 성공하면 된다. 이때 생긴 새 폴더는 게시하지 않고 지운다. 게시하지 않은 root는 효력이 없다.
 - [ ] `docker compose ps`로 컨테이너 상태와 디스크 여유를 확인한다.
 
@@ -277,7 +277,7 @@ pnpm cert:desktop:renew <현재 trust 폴더> [만료일] [--rotate-release-keys
 | `app-server`가 계속 재시작, 로그에 `Database schema migration failed` | 마이그레이션 실패 또는 이전 실패의 `applying` 표시 | 서버를 멈추고 로그를 확인한다. 부분 실패면 백업을 복원한 뒤 원인을 고치고 다시 배포한다. `thread_schema_migrations`를 직접 고치지 않는다 |
 | 앱에서 업데이트 확인 실패 (`SIGNED_UPDATE_UNAVAILABLE`) | 메타데이터나 root 만료, `/tuf/` 게시 누락, 네트워크 | `verifyPublishedRepository`로 게시 상태를 확인한다. 만료면 6.5나 7.4 |
 | 앱에서 `UPDATE_TRUST_NOT_CONFIGURED` | root 없이 빌드한 설치본 | root가 들어간 새 설치 파일을 수동으로 설치한다 |
-| `verifyUpdateRepository` 실패 | 코드로 원인이 나온다 | `APP_ROOT_MISMATCH`: 앱 root와 저장소 root가 다르다. `AUTHENTICODE_*`: 코드 서명 문제. `ROOT_HISTORY_MISSING`: 과거 root 누락 |
+| `verifyUpdateRepository` 실패 | 코드로 원인이 나온다 | `APP_ROOT_MISMATCH`: 앱 root와 저장소 root가 다르다. `AUTHENTICODE_CHOICE_REQUIRED`: `--no-authenticode`를 빠뜨렸다. `AUTHENTICODE_*`: 코드 서명 문제. `ROOT_HISTORY_MISSING`: 과거 root 누락 |
 | `updateRepository` 실패 `ROOT_VERSION_GAP` | root를 두 번 이상 갱신하고 중간 버전을 게시하지 않았다 | 중간 root로 먼저 저장소를 만들어 게시한 뒤 다음 버전으로 진행한다 |
 | 관리자 웹 로그인 불가 | `ADMIN_ID`, `ADMIN_PASSWORD` 누락 | `.env.production`을 확인하고 `app-server`를 재기동한다 |
 | 1.x 앱 동기화 실패(404) | v2 동기화 종료 | 정상 동작이다. 새 버전 설치를 안내한다 |

@@ -154,3 +154,13 @@ test("root renewal with rotated release keys is followed by a client holding the
  assert.equal(JSON.parse(fs.readFileSync(path.join(metadataDir,"root.json"))).signed.version,2);
  assert.ok(await client.getTargetInfo("win/x64/2.0.1/installer.exe"));
 });
+test("preflight CLI requires an explicit code-signing choice for Windows installers",async t=>{
+ const {execFileSync}=require("node:child_process");
+ const {options,directory}=fixture(t);await buildRepository(options);
+ const appRoot=path.join(directory,'app-root.json');fs.writeFileSync(appRoot,options.rootBytes);
+ const run=(...extra)=>{try{return {ok:true,out:execFileSync(process.execPath,[path.join(__dirname,"../scripts/verifyUpdateRepository.cjs"),options.output,appRoot,...extra],{encoding:"utf8",stdio:"pipe"})};}
+  catch(error){return {ok:false,out:String(error.stderr)};}};
+ const missing=run();assert.equal(missing.ok,false);assert.match(missing.out,/AUTHENTICODE_CHOICE_REQUIRED/);
+ const skipped=run("--no-authenticode");assert.equal(skipped.ok,true);assert.equal(JSON.parse(skipped.out).authenticodeSkipped,true);
+ if(process.platform==="win32"){const bad=run("--authenticode","0".repeat(40));assert.equal(bad.ok,false);assert.match(bad.out,/AUTHENTICODE_NOT_VALID/);}
+});

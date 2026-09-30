@@ -35,7 +35,7 @@ Record the reported SHA-256 and expiry. Independently compare the SHA-256 of the
 
 ## 2. Build and sign the Windows installer
 
-Obtain a Windows code-signing certificate through the separately approved process, then build and OS-sign the x64 installer. TUF metadata signing and Windows Authenticode signing are separate: one does not substitute for the other. The pack hook now fails if the public root is missing, invalid, expired or differs from `build/resources/update-trust/root.json`. This prevents another rootless installer, but does not itself prove Authenticode status.
+Build the x64 installer. Windows Authenticode signing is optional (decision 2026-09-30 18:06 KST): Thread has never shipped an OS-signed Windows installer, in-app updates carry no Mark of the Web and so trigger no SmartScreen prompt, and only a browser-downloaded first install shows the "unknown publisher" warning. If a certificate is added later, OS-sign the installer before generating the repository. TUF metadata signing and Windows Authenticode signing are separate: one does not substitute for the other. The pack hook now fails if the public root is missing, invalid, expired or differs from `build/resources/update-trust/root.json`. This prevents another rootless installer, but does not itself prove Authenticode status.
 
 ## 3. Generate and preflight a public TUF repository
 
@@ -61,10 +61,12 @@ node scripts/updateRepository.cjs <absolute-plan-path>
 Use the separate read-only preflight against the generated directory and the exact app root:
 
 ```powershell
+node scripts/verifyUpdateRepository.cjs <absolute-generated-repository> <absolute-app-root.json> --no-authenticode
+# with a code-signing certificate:
 node scripts/verifyUpdateRepository.cjs <absolute-generated-repository> <absolute-app-root.json> --authenticode <signing-certificate-SHA1-thumbprint>
 ```
 
-Preflight checks that every root version from `1.root.json` chains to the latest `root.json` and that the app root is one of them; self-signature, expiry and role separation; timestamp/snapshot/targets signatures; signed catalog; every listed installer hash and size; and the `READY` marker. On Windows, `--authenticode` also requires every Windows installer to carry a valid embedded, timestamped Authenticode signature from the given certificate thumbprint. The CLI refuses a repository with Windows installers when the thumbprint is omitted. It does **not** verify server TLS, database backups or actual installation. Check those separately before approval. The public repository must contain only metadata and targets, never keys or plans.
+Preflight checks that every root version from `1.root.json` chains to the latest `root.json` and that the app root is one of them; self-signature, expiry and role separation; timestamp/snapshot/targets signatures; signed catalog; every listed installer hash and size; and the `READY` marker. On Windows, `--authenticode` also requires every Windows installer to carry a valid embedded, timestamped Authenticode signature from the given certificate thumbprint. For a repository with Windows installers the CLI requires an explicit choice: `--authenticode <thumbprint>` or `--no-authenticode`. It does **not** verify server TLS, database backups or actual installation. Check those separately before approval. The public repository must contain only metadata and targets, never keys or plans.
 
 ## 4. Publish and verify only after separate approval
 
