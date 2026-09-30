@@ -157,10 +157,14 @@ node scripts/verifyUpdateRepository.cjs <저장소>\.local\release\repo-N <저�
 ```
 
 ### 6.4 게시
-1. `repo-N`의 `metadata/`와 `targets/`만 호스트로 옮긴다(예: `scp -r`). `READY`, 계획 파일, 키는 옮기지 않는다.
-2. `rms-tuf` 볼륨에 복사한다. 클라이언트가 중간 상태를 덜 보도록 **설치 파일 → 메타데이터 → `timestamp.json`** 순서로 넣는다.
+1. `repo-N`의 `metadata/`와 `targets/`만 서버 저장소의 `.local/tuf-upload/repo-N/`으로 옮긴다. `READY`, 계획 파일, 키는 옮기지 않는다. `.local`은 Git과 Docker 빌드에서 제외되어 있다.
+   ```powershell
+   ssh <서버> "mkdir -p <서버 저장소>/.local/tuf-upload/repo-N"
+   scp -r .local\release\repo-N\metadata .local\release\repo-N\targets <서버>:<서버 저장소>/.local/tuf-upload/repo-N/
+   ```
+2. 서버 저장소 루트에서 `rms-tuf` 볼륨에 복사한다. 클라이언트가 중간 상태를 덜 보도록 **설치 파일 → 메타데이터 → `timestamp.json`** 순서로 넣는다.
    ```bash
-   docker run --rm -v thread_rms-tuf:/dst -v /path/repo-N:/src:ro alpine sh -c '
+   docker run --rm -v thread_rms-tuf:/dst -v "$PWD/.local/tuf-upload/repo-N:/src:ro" alpine sh -c '
      mkdir -p /dst/metadata /dst/targets &&
      cp -r /src/targets/. /dst/targets/ &&
      for f in /src/metadata/*; do [ "$(basename "$f")" = timestamp.json ] || cp "$f" /dst/metadata/; done &&
@@ -171,6 +175,7 @@ node scripts/verifyUpdateRepository.cjs <저장소>\.local\release\repo-N <저�
    node scripts/verifyPublishedRepository.cjs https://rms.threadapp.kr/tuf <저장소>\.local\release\repo-N
    ```
 4. 설치된 앱에서 업데이트 알림, 다운로드, 설치 후 재시작을 확인한다.
+5. 서버의 `.local/tuf-upload/repo-N`을 지운다. 원본은 로컬 `.local\release\`에, 게시본은 볼륨에 있다.
 5. `repo-N` 폴더를 보관한다. 다음 릴리스의 `previous`로 쓴다.
 
 ### 6.5 메타데이터 만료 갱신
