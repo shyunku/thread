@@ -1,6 +1,7 @@
 // Offline initial trust ceremony. Never run with operational keys in CI or on RMS.
 const crypto = require('node:crypto');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const { createRequire } = require('node:module');
 const tufRequire = createRequire(require.resolve('tuf-js'));
@@ -32,9 +33,13 @@ function verifyRootBytes(bytes) {
     sha256: crypto.createHash('sha256').update(bytes).digest('hex') };
 }
 
-function createRootBytes(keys, expires) {
+function checkRootExpiry(expires) {
   check(typeof expires === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/.test(expires) &&
     Number.isFinite(Date.parse(expires)) && Date.parse(expires) > Date.now(), 'INVALID_ROOT_EXPIRY');
+}
+
+function createRootBytes(keys, expires) {
+  checkRootExpiry(expires);
   const root = new models.Root({ version: 1, specVersion: '1.0.31', expires,
     consistentSnapshot: false });
   const ids = [];
@@ -95,20 +100,56 @@ function assertPackagedTrust(projectDir) {
   return verifyRootBytes(bundledBytes);
 }
 
+// Default ceremony location: outside the repository, one new directory per run.
+function defaultTrustOutput(now = new Date()) {
+  const pad = value => String(value).padStart(2, '0');
+  const stamp = `${pad(now.getFullYear() % 100)}${pad(now.getMonth() + 1)}${pad(now.getDate())}-` +
+    `${pad(now.getHours())}${pad(now.getMinutes())}`;
+  return path.join(os.homedir(), '.thread-trust', `trust-${stamp}`);
+}
+
+function defaultRootExpiry(now = new Date()) {
+  const expires = new Date(now);
+  expires.setUTCFullYear(expires.getUTCFullYear() + 3);
+  return expires.toISOString().replace(/\.\d{3}Z$/, 'Z');
+}
+
+async function runInitialTrust(output, expires) {
+  // Validate before asking for eight passphrases.
+  checkRootExpiry(expires);
+  checkOutputLocation(output);
+  const passphrases = {};
+  try {
+    for (const role of ROLES) passphrases[role] = await newPassphrase(role);
+    console.log(JSON.stringify({ output, ...writeInitialTrust(output, expires, passphrases) }));
+  } finally { for (const value of Object.values(passphrases)) value.fill(0); }
+}
+
+const USAGE = [
+  'Usage:',
+  '  create [<UTC-ISO-expiry>]                        new directory under ~/.thread-trust (default expiry: 3 years)',
+  '  init <new-absolute-directory> <UTC-ISO-expiry>   e.g. init D:\\thread-trust 2029-09-30T00:00:00Z',
+  '  verify <root.json>',
+].join('\n');
+
 if (require.main === module) {
   (async () => {
-    const [command, first, second] = process.argv.slice(2);
-    if (command === 'verify' && first && !second) {
+    const args = process.argv.slice(2).filter(arg => arg !== '--');
+    const [command, first, second] = args;
+    if (command === 'verify' && args.length === 2) {
       console.log(JSON.stringify(verifyRootBytes(fs.readFileSync(path.resolve(first)))));
-    } else if (command === 'init' && first && second && process.argv.length === 5) {
-      checkOutputLocation(first);
-      const passphrases = {};
-      try {
-        for (const role of ROLES) passphrases[role] = await newPassphrase(role);
-        console.log(JSON.stringify(writeInitialTrust(first, second, passphrases)));
-      } finally { for (const value of Object.values(passphrases)) value.fill(0); }
-    } else throw Error('USAGE_INIT_OR_VERIFY');
+    } else if (command === 'init' && args.length === 3) {
+      await runInitialTrust(first, second);
+    } else if (command === 'create' && args.length <= 2) {
+      const output = defaultTrustOutput();
+      fs.mkdirSync(path.dirname(output), { recursive: true, mode: 0o700 });
+      await runInitialTrust(output, first ?? defaultRootExpiry());
+    } else {
+      console.error(USAGE);
+      throw Error(`USAGE_CREATE_INIT_OR_VERIFY: got ${args.length} argument(s)`);
+    }
   })().catch(error => { console.error(error.message); process.exitCode = 1; });
 }
 
-module.exports = { verifyRootBytes, createRootBytes, writeInitialTrust, assertPackagedTrust };
+module.exports = { verifyRootBytes, createRootBytes, writeInitialTrust, assertPackagedTrust,
+  defaultTrustOutput, defaultRootExpiry };

@@ -17,6 +17,7 @@
     "dev:admin": "pnpm --dir apps/web/admin start",
     "build:web": "pnpm --dir apps/web/site build && pnpm --dir apps/web/admin build",
     "build:desktop": "pnpm --dir apps/desktop win-pack",
+    "cert:desktop:create": "node apps/desktop/scripts/updateTrustRoot.cjs create",
     "lint:mobile": "pnpm --dir apps/mobile lint"
   }
 }

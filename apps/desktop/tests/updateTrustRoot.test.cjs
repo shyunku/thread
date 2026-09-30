@@ -66,3 +66,10 @@ test('beforePack hook refuses a rootless package', async t => {
   await assert.rejects(beforePack({ electronPlatformName: 'darwin',
     packager: { projectDir: f.directory } }), /UPDATE_TRUST_NOT_CONFIGURED/);
 });
+
+test('create defaults to a timestamped directory outside the project and a 3-year expiry', () => {
+  const { defaultTrustOutput, defaultRootExpiry } = require('../scripts/updateTrustRoot.cjs');
+  const now = new Date(2026, 8, 30, 15, 7);
+  assert.equal(defaultTrustOutput(now), path.join(os.homedir(), '.thread-trust', 'trust-260930-1507'));
+  assert.equal(defaultRootExpiry(new Date('2026-09-30T06:07:08.123Z')), '2029-09-30T06:07:08Z');
+});
