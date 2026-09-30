@@ -34,30 +34,30 @@ EC2 호스트 한 대에서 Docker Compose(프로젝트 이름 `thread`)로 서�
 
 | 무엇 | 위치 | 비고 |
 | --- | --- | --- |
-| 운영 서버 환경 변수 | 호스트의 저장소 루트 `.env.production` | DB, JWT, 관리자 계정, Google OAuth. Git에 넣지 않는다 |
+| 운영 서버 환경 변수 | 호스트의 저장소 루트 `.env` | DB, JWT, 관리자 계정, Google OAuth. Git에 넣지 않는다. 로컬 개발 PC에서는 `.env`(개발)와 `.env.production`(운영 값)을 나눠 두지만, 운영 서버에는 운영 값이 든 `.env` 하나만 둔다 |
 | 데스크톱 운영 설정 | `apps/desktop/.env.production` | 공개 endpoint만 둔다. 설치 파일에 포함되므로 비밀값 금지 |
 | 업데이트 서명 키 | 서명 PC의 `%USERPROFILE%\.thread-trust\trust-YYMMDD-HHMM\` | [7장](#7-서명-키-관리) 참고 |
 | root 비밀번호 | 비밀번호 관리자와 종이 | 어떤 파일에도 저장하지 않는다 |
 | Windows 코드 서명 인증서 | 사용하지 않음 | 선택 사항이다([6.2](#62-빌드-키가-있는-windows-pc)) |
 | TUF 저장소 생성 결과 | 서명 PC의 작업 폴더(`repo-N`) | 공개 파일이다. 서버 `rms-tuf` 볼륨에도 있다 |
 
-`.env.production`의 `E2EE_*` 값은 현재 코드에서 쓰지 않는다. 남아 있어도 동작에는 영향이 없다.
+운영 `.env`의 `E2EE_*` 값은 현재 코드에서 쓰지 않는다. 남아 있어도 동작에는 영향이 없다.
 
 ## 3. 서버 일상 운영
 
-모든 명령은 호스트의 저장소 루트에서 실행한다. **항상 `--env-file .env.production`을 붙인다.** 빠뜨리면 개발용 기본값(`thread-dev-password` 등)으로 뜬다.
+모든 명령은 호스트의 저장소 루트에서 실행한다. Compose는 같은 폴더의 `.env`를 자동으로 읽는다. **`.env`가 없거나 값이 빠지면 개발용 기본값(`thread-dev-password` 등)으로 뜬다.** 명령 전에 운영 `.env`가 있는지 확인한다.
 
 ```bash
 # 상태, 로그
-docker compose --env-file .env.production ps
-docker compose --env-file .env.production logs -f --tail=200 app-server
+docker compose ps
+docker compose logs -f --tail=200 app-server
 
 # 전체 기동, 재기동
-docker compose --env-file .env.production up -d --build
-docker compose --env-file .env.production restart rms
+docker compose up -d --build
+docker compose restart rms
 
 # 중지 (볼륨 유지)
-docker compose --env-file .env.production down
+docker compose down
 ```
 
 - 관리자 웹의 API/RMS 주소는 **빌드할 때** 들어간다. `ADMIN_APP_SERVER_ENTRY`, `ADMIN_RMS_ENTRY`를 바꾸면 `admin-site`를 다시 빌드한다.
@@ -70,7 +70,7 @@ docker compose --env-file .env.production down
 ```bash
 # 백업 (컨테이너 안의 root 비밀번호 사용. 파일 권한을 본인만 읽게 한다)
 umask 077
-docker compose --env-file .env.production exec -T mysql sh -c \
+docker compose exec -T mysql sh -c \
   'exec mysqldump --single-transaction --routines --triggers --hex-blob -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE"' \
   > thread-$(date +%Y%m%d-%H%M).sql
 
@@ -99,15 +99,15 @@ docker rm -f thread-restore-check
 2. `git pull`로 배포할 커밋을 받는다.
 3. 기존 API를 멈춘다. 옛 버전과 새 버전 API를 동시에 띄우지 않는다.
    ```bash
-   docker compose --env-file .env.production stop app-server
+   docker compose stop app-server
    ```
 4. 새 API를 빌드하고 기동한다.
    ```bash
-   docker compose --env-file .env.production up -d --build app-server
-   docker compose --env-file .env.production logs --tail=200 app-server
+   docker compose up -d --build app-server
+   docker compose logs --tail=200 app-server
    ```
    로그에서 `Database schema version: N`을 확인한다. `Database schema migration failed`가 보이면 즉시 멈추고 [11장](#11-장애-대응)을 따른다.
-5. 나머지 서비스를 반영한다. `docker compose --env-file .env.production up -d --build`
+5. 나머지 서비스를 반영한다. `docker compose up -d --build`
 6. 설치된 데스크톱 앱으로 로그인, 잠금 해제, 편집, 동기화를 확인한다.
 
 ## 6. 데스크톱 릴리스
@@ -253,7 +253,7 @@ pnpm cert:desktop:renew <현재 trust 폴더> [만료일] [--rotate-release-keys
 - [ ] 백업 SQL 파일에는 사용자 평문 데이터가 있다. 권한을 제한하고, 암호화된 곳에만 옮긴다.
 
 ### 배포 작업
-- [ ] Compose 명령에는 항상 `--env-file .env.production`을 붙인다.
+- [ ] Compose 명령은 운영 `.env`가 있는 저장소 루트에서만 실행한다. 로컬 PC에서 운영 값으로 띄울 때만 `--env-file .env.production`을 붙인다.
 - [ ] 옛 API와 새 API를 동시에 띄우지 않는다.
 - [ ] 게시 전 `verifyUpdateRepository`, 게시 후 `verifyPublishedRepository`를 모두 통과시킨다.
 - [ ] 게시하는 것은 `metadata/`와 `targets/`뿐이다. `READY`, 계획 파일, 키는 올리지 않는다.
@@ -279,5 +279,5 @@ pnpm cert:desktop:renew <현재 trust 폴더> [만료일] [--rotate-release-keys
 | 앱에서 `UPDATE_TRUST_NOT_CONFIGURED` | root 없이 빌드한 설치본 | root가 들어간 새 설치 파일을 수동으로 설치한다 |
 | `verifyUpdateRepository` 실패 | 코드로 원인이 나온다 | `APP_ROOT_MISMATCH`: 앱 root와 저장소 root가 다르다. `AUTHENTICODE_CHOICE_REQUIRED`: `--no-authenticode`를 빠뜨렸다. `AUTHENTICODE_*`: 코드 서명 문제. `ROOT_HISTORY_MISSING`: 과거 root 누락 |
 | `updateRepository` 실패 `ROOT_VERSION_GAP` | root를 두 번 이상 갱신하고 중간 버전을 게시하지 않았다 | 중간 root로 먼저 저장소를 만들어 게시한 뒤 다음 버전으로 진행한다 |
-| 관리자 웹 로그인 불가 | `ADMIN_ID`, `ADMIN_PASSWORD` 누락 | `.env.production`을 확인하고 `app-server`를 재기동한다 |
+| 관리자 웹 로그인 불가 | `ADMIN_ID`, `ADMIN_PASSWORD` 누락 | 운영 `.env`를 확인하고 `app-server`를 재기동한다 |
 | 1.x 앱 동기화 실패(404) | v2 동기화 종료 | 정상 동작이다. 새 버전 설치를 안내한다 |
