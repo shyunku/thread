@@ -176,7 +176,7 @@ node scripts/verifyUpdateRepository.cjs <저장소>\.local\release\repo-N <저�
    ```
 4. 설치된 앱에서 업데이트 알림, 다운로드, 설치 후 재시작을 확인한다.
 5. 서버의 `.local/tuf-upload/repo-N`을 지운다. 원본은 로컬 `.local\release\`에, 게시본은 볼륨에 있다.
-5. `repo-N` 폴더를 보관한다. 다음 릴리스의 `previous`로 쓴다.
+6. 로컬 `.local\release\repo-N` 폴더는 보관한다. 다음 릴리스의 `previous`로 쓴다.
 
 ### 6.5 메타데이터 만료 갱신
 새 릴리스가 없어도 **1년 안에** 다시 서명해 게시해야 한다. 만료되면 앱이 업데이트 확인에 실패한다. 앱 자체는 계속 쓸 수 있다. 방법은 6.3~6.4와 같고, `"releases": []`로 둔다.
