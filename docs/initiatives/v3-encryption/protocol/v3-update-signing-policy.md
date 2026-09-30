@@ -5,6 +5,7 @@ Confirmed: 2026-09-10 17:29 (KST).
 - Initial root: one independent key, threshold 1. The previously proposed 2-of-3 policy is not selected.
 - Root private key stays outside the repository, RMS/API servers and CI. Maintain a separately protected backup. Losing all copies prevents normal root renewal.
 - Release signing keys are separate from root. Timestamp/snapshot roles are also separate in the existing synthetic tests.
+- Passphrases (2026-09-30 15:29 KST, user decision): the root passphrase is typed and never stored. Release-key passphrases are generated and stored beside the keys in `release-passphrases.json`; a leaked release key is recovered by root renewal with release-key rotation. Default expiry: root 5 years, release metadata 1 year.
 - The desktop ships public trusted root metadata, verifies metadata and installer bytes locally, and retains rollback history.
 - Future root/threshold changes must follow TUF's signed old/new-root authorization chain; changing server configuration alone cannot replace installed trust.
 - Root separation does not prevent malicious releases if an attacker controls sufficient release-signing authority. CI release authorization remains a separate operational decision.
@@ -33,5 +34,5 @@ The offline root ceremony, encrypted-key CLI, packaging gate and read-only publi
 - Plan fields: `root` (approved signed public root path), `keys.targets/snapshot/timestamp` (distinct Ed25519 private key paths outside repository/RMS), `output` (new absolute directory), `version` (increasing metadata version), and `expires.targets/snapshot/timestamp` (future ISO times, timestamp ≤ snapshot ≤ targets ≤ root).
 - `releases` is a list of `{file,platform,arch,version,mandatory}`; installer paths and mandatory flags must be explicitly selected. Beta cannot be mandatory.
 - Supply `previous` with the last public repository for renewal; explicit `bootstrap:true` is required for first creation. Previous signatures, catalog, hashes and installer bytes are reverified and retained, including mandatory version boundaries. Existing version paths cannot be replaced.
-- This initial tool requires `consistent_snapshot:false` and the same approved root. Root/threshold rotation is a separate signed-root-chain workflow, not a flag to bypass trust.
+- This tool requires `consistent_snapshot:false`. A changed root is accepted only as version N+1 authorized by the previous root, and all earlier root versions are carried forward. Renewal and key rotation use `updateTrustRoot.cjs renew` ([operations](../v3-update-operations.md#5-renew-the-root-or-rotate-keys)); threshold changes remain unsupported.
 - Only a successful directory with `READY` may be considered for **separately approved** publishing. A failed partial directory has no READY and is not automatically deleted or deployed. Grant the serving account read access to public artifacts only; no private key/plan belongs in `rms-tuf`.

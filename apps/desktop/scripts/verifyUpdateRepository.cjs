@@ -49,9 +49,19 @@ function safeTarget(root, name) {
 async function verifyUpdateRepository(repository, appRootFile, { authenticode } = {}) {
   const rootBytes = readRegular(path.join(repository, 'metadata/root.json'), 1024 * 1024);
   const root = verifyRootBytes(rootBytes);
-  check(rootBytes.equals(readRegular(appRootFile, 1024 * 1024)), 'APP_ROOT_MISMATCH');
-  check(rootBytes.equals(readRegular(path.join(repository, `metadata/${root.version}.root.json`),
-    1024 * 1024)), 'VERSIONED_ROOT_MISMATCH');
+  // Every root version from 1 must chain to the latest, so any installed app root can follow it.
+  const chain = [];
+  for (let version = 1; version <= root.version; version++) {
+    const file = path.join(repository, `metadata/${version}.root.json`);
+    check(fs.existsSync(file), 'ROOT_HISTORY_MISSING');
+    chain.push(readRegular(file, 1024 * 1024));
+    verifyRootBytes(chain.at(-1), { allowExpired: version < root.version });
+  }
+  check(rootBytes.equals(chain.at(-1)), 'VERSIONED_ROOT_MISMATCH');
+  const walker = new TrustedMetadataStore(chain[0]);
+  for (const bytes of chain.slice(1)) walker.updateRoot(bytes);
+  const appRootBytes = readRegular(appRootFile, 1024 * 1024);
+  check(chain.some(bytes => bytes.equals(appRootBytes)), 'APP_ROOT_MISMATCH');
   const store = new TrustedMetadataStore(rootBytes);
   const timestamp = readRegular(path.join(repository, 'metadata/timestamp.json'), 1024 * 1024);
   const snapshot = readRegular(path.join(repository, 'metadata/snapshot.json'), 1024 * 1024);

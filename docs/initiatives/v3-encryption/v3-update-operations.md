@@ -4,17 +4,26 @@ This is the offline preparation and verification sequence for #64. It does not a
 
 ## 1. Create the initial trust root
 
-On a trusted offline Windows machine with the project dependencies installed, choose a new absolute directory outside the Thread checkout, CI, RMS and cloud-synced folders. Protect the disk and account first. From `apps/desktop` run:
+On a trusted Windows machine with the project dependencies installed, run from the repository root:
 
 ```powershell
-node scripts/updateTrustRoot.cjs init <new-absolute-directory> <future-UTC-ISO-expiry>
+pnpm cert:desktop:create [<future-UTC-ISO-expiry>]
 ```
 
-Alternatively, from the repository root, `pnpm cert:desktop:create [<future-UTC-ISO-expiry>]` creates a new `%USERPROFILE%\.thread-trust	rust-YYMMDD-HHMM` directory (local time) with a default expiry three years ahead. Move the result to offline storage afterwards.
+It creates a new `%USERPROFILE%\.thread-trust\trust-YYMMDD-HHMM` directory (local time). The default root expiry is five years ahead. `node scripts/updateTrustRoot.cjs init <new-absolute-directory> <future-UTC-ISO-expiry>` from `apps/desktop` does the same for an explicit directory. Both refuse an existing directory and a destination inside the repository. Do not retry into a partially created directory or publish it; inspect it and start in a different new location.
 
-The command requires an interactive terminal. It asks twice for a separate 12-byte-or-longer passphrase for each of the root, targets, snapshot and timestamp Ed25519 keys. The passphrases do not appear in arguments or environment variables. Output is a self-signed public `root.json` plus four encrypted `*.key.pem` files. It refuses an existing directory and a destination inside the repository. Do not retry into a partially created directory or publish it; inspect it and start in a different new location.
+The command requires an interactive terminal and asks twice for the root key passphrase (12 bytes or longer). The targets, snapshot and timestamp passphrases are generated (18 random alphanumerics). Output:
 
-Keep the root private key and an independently protected backup offline. Record the passphrases in a separate secure password manager. Losing the root key and backup prevents normal trust-root renewal; exposing it permits unauthorized key changes. Do not put any private key, passphrase or signing plan into Git, `.env`, CI or RMS. Node file mode is not a Windows ACL policy: check the destination permissions yourself.
+| File | Content |
+| --- | --- |
+| `root.json` | Public self-signed root metadata |
+| `root.pem` | Root private key, encrypted with the typed passphrase. The passphrase is not stored |
+| `targets.pem`, `snapshot.pem`, `timestamp.pem` | Release-role private keys, encrypted with generated passphrases |
+| `release-passphrases.json` | The three generated release-key passphrases |
+
+Storing the release passphrases beside their keys is an accepted trade-off (2026-09-30): anyone who copies the directory can sign release metadata, but still needs write access to the RMS `/tuf/` repository or the HTTPS channel to reach clients, and the root key remains protected by a passphrase that is not stored. A leaked release key is recovered by a root renewal that rotates the release keys (section 5).
+
+Keep the root passphrase in a password manager plus an independent offline copy. Back up the directory offline and exclude `~/.thread-trust` from cloud sync. Losing the root key or its passphrase prevents root renewal and key rotation; clients then fail update checks once the root expires and need a manual reinstall. Do not put any private key, passphrase or signing plan into Git, `.env`, CI or RMS. Node file mode is not a Windows ACL policy: check the destination permissions yourself. `node scripts/generatePassphrase.cjs [length]` prints a random passphrase if one is needed elsewhere.
 
 Validate the public document before using it:
 
@@ -22,7 +31,7 @@ Validate the public document before using it:
 node scripts/updateTrustRoot.cjs verify <absolute-path-to-root.json>
 ```
 
-Record the reported SHA-256 and expiry. Independently compare the SHA-256 of the copy that will go into the app. Copy **only** the public `root.json` to `apps/desktop/public/resources/update-trust/root.json`. The repository generator must receive the same bytes as the app; do not replace this root later without a signed root-rotation workflow.
+Record the reported SHA-256 and expiry. Independently compare the SHA-256 of the copy that will go into the app. Copy **only** the public `root.json` to `apps/desktop/public/resources/update-trust/root.json`. The repository generator must receive the same bytes as the app.
 
 ## 2. Build and sign the Windows installer
 
@@ -30,9 +39,20 @@ Obtain a Windows code-signing certificate through the separately approved proces
 
 ## 3. Generate and preflight a public TUF repository
 
-Create a JSON plan outside Git. Its fields are `root` (signed public root path), `keys.targets`, `keys.snapshot`, `keys.timestamp` (encrypted PEM paths), `output` (new absolute directory), `version` (metadata version), `expires.targets`, `expires.snapshot`, `expires.timestamp` (future UTC ISO timestamps), `releases` (signed installer file path, platform `win`, architecture `x64`, version and mandatory flag), and `bootstrap: true` for the first repository. The tool requires timestamp expiry no later than snapshot, snapshot no later than targets, and targets no later than root. A beta release cannot be mandatory. Never include the root private key in this plan.
+Create a JSON plan outside Git. Fields:
 
-From `apps/desktop` run the existing generator. It now prompts for the encrypted targets, snapshot and timestamp key passphrases; plaintext PEM files are rejected by this CLI:
+| Field | Content |
+| --- | --- |
+| `root` | Current public `root.json` path |
+| `keys.targets`, `keys.snapshot`, `keys.timestamp` | Encrypted release-key PEM paths |
+| `passphrases` | Optional `release-passphrases.json` path. Without it the CLI prompts for each passphrase |
+| `output` | New absolute directory |
+| `version` | Metadata version, increasing on every generation |
+| `expires.targets`, `expires.snapshot`, `expires.timestamp` | Optional future UTC ISO timestamps. Default: one year for each |
+| `releases` | Signed installer file path, platform `win`, architecture `x64`, version and mandatory flag |
+| `bootstrap` / `previous` | `true` for the first repository / the last published repository afterwards |
+
+The tool requires timestamp expiry no later than snapshot, snapshot no later than targets, and targets no later than root. A beta release cannot be mandatory. Never include the root private key in this plan. Plaintext PEM files are rejected. From `apps/desktop` run:
 
 ```powershell
 node scripts/updateRepository.cjs <absolute-plan-path>
@@ -44,7 +64,7 @@ Use the separate read-only preflight against the generated directory and the exa
 node scripts/verifyUpdateRepository.cjs <absolute-generated-repository> <absolute-app-root.json> --authenticode <signing-certificate-SHA1-thumbprint>
 ```
 
-Preflight checks root byte equality, self-signature, expiry and role separation; timestamp/snapshot/targets signatures; signed catalog; every listed installer hash and size; and the `READY` marker. On Windows, `--authenticode` also requires every Windows installer to carry a valid embedded, timestamped Authenticode signature from the given certificate thumbprint. The CLI refuses a repository with Windows installers when the thumbprint is omitted. It does **not** verify server TLS, database backups or actual installation. Check those separately before approval. The public repository must contain only metadata and targets, never keys or plans.
+Preflight checks that every root version from `1.root.json` chains to the latest `root.json` and that the app root is one of them; self-signature, expiry and role separation; timestamp/snapshot/targets signatures; signed catalog; every listed installer hash and size; and the `READY` marker. On Windows, `--authenticode` also requires every Windows installer to carry a valid embedded, timestamped Authenticode signature from the given certificate thumbprint. The CLI refuses a repository with Windows installers when the thumbprint is omitted. It does **not** verify server TLS, database backups or actual installation. Check those separately before approval. The public repository must contain only metadata and targets, never keys or plans.
 
 ## 4. Publish and verify only after separate approval
 
@@ -56,4 +76,16 @@ node scripts/verifyPublishedRepository.cjs https://rms.threadapp.kr/tuf <absolut
 
 The check is read-only, requires HTTPS for non-local hosts, refuses redirects and reports the first missing or different file. Verify a real Windows installation as well before considering #64 complete. Existing rootless beta.2 installations need a one-time manual install of the trusted-root build; server publication alone cannot give them a trusted initial root.
 
-For later releases, supply the last published public repository as `previous`, omit `bootstrap`, increment metadata `version`, and use a fresh output directory. Keep the previous repository and all numbered root versions. Root key rotation is a separate old-and-new-root-signed workflow and is not supported by the initial generator. Renew metadata before expiry; never replace an existing version path in place.
+For later releases, supply the last published public repository as `previous`, omit `bootstrap`, increment metadata `version`, and use a fresh output directory. `releases: []` renews metadata expiry without a new release. Keep the previous repository. Renew metadata before expiry; never replace an existing version path in place.
+
+## 5. Renew the root or rotate keys
+
+Renew the root before it expires, or when a key must be replaced. From the repository root:
+
+```powershell
+pnpm cert:desktop:renew <current-trust-directory> [<future-UTC-ISO-expiry>] [--rotate-release-keys] [--rotate-root-key]
+```
+
+It asks for the current root passphrase and writes root version N+1 into a new `~/.thread-trust/trust-YYMMDD-HHMM` directory. Without options the keys and `release-passphrases.json` are copied. `--rotate-release-keys` generates new release keys and passphrases (for a leaked or lost release key; the current release keys are then not needed). `--rotate-root-key` asks for a new root passphrase and signs the new root with both the old and new root keys. The current root may already be expired: installed clients still follow a root signed by the key they trust and resume updates once it is published.
+
+Then generate the next repository with the new `root.json`, the new directory's release keys and the last published repository as `previous`. The generator accepts only root version N+1 signed by the previous root and carries every earlier `N.root.json` forward, so clients on any older root walk the chain. Publish it as in section 4, and copy the new `root.json` into `apps/desktop/public/resources/update-trust/` for later builds. Keep the previous trust directory until the new repository is published and verified.

@@ -18,6 +18,8 @@
     "build:web": "pnpm --dir apps/web/site build && pnpm --dir apps/web/admin build",
     "build:desktop": "pnpm --dir apps/desktop win-pack",
     "cert:desktop:create": "node apps/desktop/scripts/updateTrustRoot.cjs create",
+    "cert:desktop:renew": "node apps/desktop/scripts/updateTrustRoot.cjs renew",
+    "cert:desktop:passphrase": "node apps/desktop/scripts/generatePassphrase.cjs",
     "lint:mobile": "pnpm --dir apps/mobile lint"
   }
 }

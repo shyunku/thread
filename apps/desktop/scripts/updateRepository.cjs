@@ -4,7 +4,7 @@ const {createRequire}=require("node:module"),{Readable}=require("node:stream");
 const tr=createRequire(require.resolve("tuf-js")),m=tr("@tufjs/models");
 const {TrustedMetadataStore}=tr("./store"),versions=require("compare-versions");
 const ROLES=["targets","snapshot","timestamp"];
-const {promptSecret,loadEncryptedKey}=require('./updateSigningSecrets.cjs');
+const {promptSecret,loadEncryptedKey,loadReleasePassphrases}=require('./updateSigningSecrets.cjs');
 const check=(ok,code)=>{if(!ok)throw Error(code);};
 function read(file,limit=2*1024*1024){
  const fd=fs.openSync(file,"r");
@@ -50,13 +50,24 @@ async function buildRepository({rootBytes,keys,releases,output,previous,bootstra
   signers[role]=signer(root,role,keys[role]);
  }
  check(new Set(ROLES.map(role=>crypto.createPublicKey(keys[role]).export({format:"der",type:"spki"}).toString("hex"))).size===3,"ROLE_KEYS_MUST_DIFFER");
- const targets={},sources=new Map(),catalog=new Map();
+ const targets={},sources=new Map(),catalog=new Map(),roots=new Map();
  if(previous){
-  check(read(path.join(previous,"metadata","root.json")).equals(rootBytes),"ROOT_CHANGE_REQUIRES_SEPARATE_WORKFLOW");
+  // A renewed root must be the next version, authorized by the previous root (as clients check it).
+  const previousRootBytes=read(path.join(previous,"metadata","root.json"));
+  const previousRoot=m.Metadata.fromJSON("root",JSON.parse(previousRootBytes));
+  if(!previousRootBytes.equals(rootBytes)){
+   check(root.signed.version===previousRoot.signed.version+1,"ROOT_VERSION_GAP");
+   new TrustedMetadataStore(previousRootBytes).updateRoot(rootBytes);
+  }
+  for(const name of fs.readdirSync(path.join(previous,"metadata"))){
+   const match=/^([1-9]\d*)\.root\.json$/.exec(name);
+   if(match)roots.set(Number(match[1]),read(path.join(previous,"metadata",name)));
+  }
+  check(roots.get(previousRoot.signed.version)?.equals(previousRootBytes),"PREVIOUS_ROOT_HISTORY_MISMATCH");
   const old={},bytes={};
   for(const role of ROLES){
    bytes[role]=read(path.join(previous,"metadata",role+".json"));
-   old[role]=m.Metadata.fromJSON(role,JSON.parse(bytes[role]));root.verifyDelegate(role,old[role]);
+   old[role]=m.Metadata.fromJSON(role,JSON.parse(bytes[role]));previousRoot.verifyDelegate(role,old[role]);
    check(version>old[role].signed.version,"VERSION_ROLLBACK");
   }
   old.timestamp.signed.snapshotMeta.verify(bytes.snapshot);
@@ -98,21 +109,34 @@ async function buildRepository({rootBytes,keys,releases,output,previous,bootstra
   const dest=path.join(output,"targets",name);fs.mkdirSync(path.dirname(dest),{recursive:true});
   fs.copyFileSync(file,dest,fs.constants.COPYFILE_EXCL);await targets[name].verify(fs.createReadStream(dest));
  }
- write("metadata/root.json",rootBytes);write("metadata/"+root.signed.version+".root.json",rootBytes);
+ // Keep every published root version: clients on an older root walk the chain N -> N+1.
+ check(!roots.has(root.signed.version)||roots.get(root.signed.version).equals(rootBytes),"ROOT_VERSION_CONFLICT");
+ roots.set(root.signed.version,rootBytes);
+ for(const [number,bytes] of roots)write("metadata/"+number+".root.json",bytes);
+ write("metadata/root.json",rootBytes);
  write("metadata/targets.json",targetBytes);write("metadata/snapshot.json",snapshot);write("metadata/timestamp.json",timestamp);
  write("READY",Buffer.from(JSON.stringify({schema:1,version,releases:catalog.size})));
  return {version,releases:catalog.size};
+}
+// Default metadata lifetime: one year for every release role (must not exceed root expiry).
+function defaultExpires(now=new Date()){
+ const next=new Date(now);next.setUTCFullYear(next.getUTCFullYear()+1);
+ const value=next.toISOString().replace(/\.\d{3}Z$/,"Z");
+ return Object.fromEntries(ROLES.map(role=>[role,value]));
 }
 if(require.main===module){
  (async()=>{
   check(process.argv.length===3,"USAGE_UPDATE_REPOSITORY_PLAN_JSON");
   const plan=JSON.parse(read(path.resolve(process.argv[2]))),keys={};
+  // Optional stored release passphrases; otherwise prompt for each key.
+  const stored=plan.passphrases?loadReleasePassphrases(path.resolve(plan.passphrases)):null;
   for(const role of ROLES){
-   const passphrase=await promptSecret(`${role} key passphrase`);
+   const passphrase=stored?stored[role]:await promptSecret(`${role} key passphrase`);
    try{keys[role]=loadEncryptedKey(path.resolve(plan.keys[role]),passphrase);}
    finally{passphrase.fill(0);}
   }
-  console.log(JSON.stringify(await buildRepository({...plan,rootBytes:read(path.resolve(plan.root)),keys})));
- })().catch(()=>{console.error("UPDATE_REPOSITORY_BUILD_FAILED");process.exitCode=1;});
+  const expires=plan.expires??defaultExpires();
+  console.log(JSON.stringify(await buildRepository({...plan,expires,rootBytes:read(path.resolve(plan.root)),keys})));
+ })().catch(error=>{console.error("UPDATE_REPOSITORY_BUILD_FAILED: "+error.message);process.exitCode=1;});
 }
-module.exports={buildRepository};
+module.exports={buildRepository,defaultExpires};
