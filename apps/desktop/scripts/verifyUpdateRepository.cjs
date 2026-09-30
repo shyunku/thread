@@ -3,11 +3,34 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { createRequire } = require('node:module');
 const { Readable } = require('node:stream');
+const { execFileSync } = require('node:child_process');
 const tufRequire = createRequire(require.resolve('tuf-js'));
 const { TrustedMetadataStore } = tufRequire('./store');
 const { verifyRootBytes } = require('./updateTrustRoot.cjs');
 
 function check(ok, code) { if (!ok) throw Error(code); }
+
+// Windows OS signature is separate from TUF. Requires an embedded, timestamped signature
+// by the expected certificate; catalog-signed or unsigned installers are rejected.
+function inspectAuthenticode(file) {
+  check(process.platform === 'win32', 'AUTHENTICODE_REQUIRES_WINDOWS');
+  const script = '$s=Get-AuthenticodeSignature -LiteralPath $env:THREAD_AUTHENTICODE_FILE;' +
+    '[pscustomobject]@{status=[string]$s.Status;type=[string]$s.SignatureType;' +
+    'thumbprint=[string]$s.SignerCertificate.Thumbprint;timestamped=[bool]$s.TimeStamperCertificate}' +
+    '|ConvertTo-Json -Compress';
+  const output = execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script],
+    { env: { ...process.env, THREAD_AUTHENTICODE_FILE: path.resolve(file) }, windowsHide: true,
+      timeout: 60000, encoding: 'utf8' });
+  return JSON.parse(output);
+}
+function verifyAuthenticode(file, thumbprint) {
+  check(/^[0-9A-F]{40}$/.test(thumbprint), 'INVALID_AUTHENTICODE_THUMBPRINT');
+  const info = inspectAuthenticode(file);
+  check(info.status === 'Valid' && info.type === 'Authenticode', 'AUTHENTICODE_NOT_VALID');
+  check(info.thumbprint.toUpperCase() === thumbprint, 'AUTHENTICODE_SIGNER_MISMATCH');
+  check(info.timestamped === true, 'AUTHENTICODE_NOT_TIMESTAMPED');
+  return info;
+}
 function readRegular(file, limit) {
   const stat = fs.lstatSync(file);
   check(stat.isFile() && stat.size > 0 && stat.size <= limit, 'INVALID_PUBLIC_ARTIFACT');
@@ -23,7 +46,7 @@ function safeTarget(root, name) {
   return target;
 }
 
-async function verifyUpdateRepository(repository, appRootFile) {
+async function verifyUpdateRepository(repository, appRootFile, { authenticode } = {}) {
   const rootBytes = readRegular(path.join(repository, 'metadata/root.json'), 1024 * 1024);
   const root = verifyRootBytes(rootBytes);
   check(rootBytes.equals(readRegular(appRootFile, 1024 * 1024)), 'APP_ROOT_MISMATCH');
@@ -64,20 +87,29 @@ async function verifyUpdateRepository(repository, appRootFile) {
     check(stat.isFile() && stat.size > 0 && stat.size <= 2 * 1024 ** 3,
       'INVALID_PUBLIC_ARTIFACT');
     await entries[name].verify(fs.createReadStream(file));
+    if (authenticode && name.endsWith('/installer.exe')) verifyAuthenticode(file, authenticode);
   }
   const ready = JSON.parse(readRegular(path.join(repository, 'READY'), 1024));
   check(ready.schema === 1 && ready.releases === catalog.releases.length &&
     ready.version === store.targets.signed.version, 'REPOSITORY_NOT_READY');
-  return { rootSha256: root.sha256, metadataVersion: ready.version, releases: ready.releases };
+  const windows = catalog.releases.filter(row => row.platform === 'win').length;
+  return { rootSha256: root.sha256, metadataVersion: ready.version, releases: ready.releases,
+    windowsReleases: windows, authenticodeVerified: authenticode ? windows : 0 };
 }
 
 if (require.main === module) {
   (async () => {
-    if (process.argv.length !== 4) throw Error('USAGE_VERIFY_REPOSITORY_AND_APP_ROOT');
-    const repository = path.resolve(process.argv[2]);
-    const appRootFile = path.resolve(process.argv[3]);
-    console.log(JSON.stringify(await verifyUpdateRepository(repository, appRootFile)));
+    const args = process.argv.slice(2);
+    const valid = args.length === 2 || (args.length === 4 && args[2] === '--authenticode');
+    if (!valid) throw Error('USAGE_VERIFY_REPOSITORY_AND_APP_ROOT_[--authenticode_THUMBPRINT]');
+    const repository = path.resolve(args[0]);
+    const appRootFile = path.resolve(args[1]);
+    const authenticode = args[3]?.toUpperCase();
+    const result = await verifyUpdateRepository(repository, appRootFile, { authenticode });
+    // Publication CLI never accepts an OS-unsigned Windows installer.
+    check(result.authenticodeVerified === result.windowsReleases, 'AUTHENTICODE_THUMBPRINT_REQUIRED');
+    console.log(JSON.stringify(result));
   })().catch(error => { console.error(error.message); process.exitCode = 1; });
 }
 
-module.exports = { verifyUpdateRepository };
+module.exports = { verifyUpdateRepository, inspectAuthenticode, verifyAuthenticode };

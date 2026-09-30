@@ -67,3 +67,36 @@ test("modified previous public artifacts cannot be carried into a renewed signed
  await assert.rejects(buildRepository({...options,version:2,previous:options.output,output,releases:[]}));
  assert.equal(fs.existsSync(output),false);
 });
+test("authenticode gate requires the expected embedded timestamped signer",{skip:process.platform!=="win32"},async t=>{
+ const {inspectAuthenticode,verifyAuthenticode}=require('../scripts/verifyUpdateRepository.cjs');
+ const signed=inspectAuthenticode(process.execPath);
+ if(signed.status!=="Valid"||signed.type!=="Authenticode")return t.skip("node.exe is not Authenticode-signed");
+ assert.equal(verifyAuthenticode(process.execPath,signed.thumbprint.toUpperCase()).status,"Valid");
+ assert.throws(()=>verifyAuthenticode(process.execPath,"0".repeat(40)),/AUTHENTICODE_SIGNER_MISMATCH/);
+ assert.throws(()=>verifyAuthenticode(process.execPath,"not-a-thumbprint"),/INVALID_AUTHENTICODE_THUMBPRINT/);
+ const {options,directory}=fixture(t);await buildRepository(options);
+ const appRoot=path.join(directory,'app-root.json');fs.writeFileSync(appRoot,options.rootBytes);
+ await assert.rejects(verifyUpdateRepository(options.output,appRoot,{authenticode:signed.thumbprint.toUpperCase()}),/AUTHENTICODE_NOT_VALID/);
+});
+test("published repository check compares every served public byte",async t=>{
+ const http=require("node:http"),{verifyPublishedRepository}=require('../scripts/verifyPublishedRepository.cjs');
+ const {options}=fixture(t);await buildRepository(options);
+ const overrides={};
+ const server=http.createServer((req,res)=>{
+  const name=decodeURIComponent(req.url.replace(/^\/tuf\//,""));
+  if(overrides[name]!==undefined){if(overrides[name]===null){res.statusCode=404;return res.end();}return res.end(overrides[name]);}
+  const file=path.join(options.output,...name.split("/"));
+  if(!/^(metadata|targets)\//.test(name)||!fs.existsSync(file)){res.statusCode=404;return res.end();}
+  fs.createReadStream(file).pipe(res);
+ });
+ await new Promise(resolve=>server.listen(0,"127.0.0.1",resolve));t.after(()=>server.close());
+ const url=`http://127.0.0.1:${server.address().port}/tuf`;
+ assert.equal((await verifyPublishedRepository(url,options.output)).files,7);
+ overrides["targets/win/x64/2.0.0/installer.exe"]="MZ-SYNTHETIC-ONLX";
+ await assert.rejects(verifyPublishedRepository(url,options.output),/SERVED_FILE_MISMATCH:targets\/win\/x64\/2.0.0\/installer.exe/);
+ overrides["targets/win/x64/2.0.0/installer.exe"]="MZ-SYNTHETIC-ONLY-appended";
+ await assert.rejects(verifyPublishedRepository(url,options.output),/SERVED_FILE_SIZE_MISMATCH/);
+ overrides["targets/win/x64/2.0.0/installer.exe"]=null;
+ await assert.rejects(verifyPublishedRepository(url,options.output),/SERVED_FILE_MISSING:404/);
+ await assert.rejects(verifyPublishedRepository("http://rms.example.com/tuf",options.output),/HTTPS_REQUIRED/);
+});

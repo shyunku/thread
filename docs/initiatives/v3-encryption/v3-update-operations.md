@@ -39,13 +39,19 @@ node scripts/updateRepository.cjs <absolute-plan-path>
 Use the separate read-only preflight against the generated directory and the exact app root:
 
 ```powershell
-node scripts/verifyUpdateRepository.cjs <absolute-generated-repository> <absolute-app-root.json>
+node scripts/verifyUpdateRepository.cjs <absolute-generated-repository> <absolute-app-root.json> --authenticode <signing-certificate-SHA1-thumbprint>
 ```
 
-Preflight checks root byte equality, self-signature, expiry and role separation; timestamp/snapshot/targets signatures; signed catalog; every listed installer hash and size; and the `READY` marker. It does **not** verify Authenticode, server TLS, database backups or actual installation. Check those separately before approval. The public repository must contain only metadata and targets, never keys or plans.
+Preflight checks root byte equality, self-signature, expiry and role separation; timestamp/snapshot/targets signatures; signed catalog; every listed installer hash and size; and the `READY` marker. On Windows, `--authenticode` also requires every Windows installer to carry a valid embedded, timestamped Authenticode signature from the given certificate thumbprint. The CLI refuses a repository with Windows installers when the thumbprint is omitted. It does **not** verify server TLS, database backups or actual installation. Check those separately before approval. The public repository must contain only metadata and targets, never keys or plans.
 
 ## 4. Publish and verify only after separate approval
 
-Publish the verified public `metadata/` and `targets/` directories to the HTTPS RMS `/tuf/` repository. Compose mounts the `rms-tuf` volume read-only into RMS, so publication is a separate operator action. Verify the served bytes and a real Windows installation before considering #64 complete. Existing rootless beta.2 installations need a one-time manual install of the trusted-root build; server publication alone cannot give them a trusted initial root.
+Publish the verified public `metadata/` and `targets/` directories to the HTTPS RMS `/tuf/` repository. Compose mounts the `rms-tuf` volume read-only into RMS, so publication is a separate operator action. Then compare every served file with the preflighted local repository:
+
+```powershell
+node scripts/verifyPublishedRepository.cjs https://rms.threadapp.kr/tuf <absolute-generated-repository>
+```
+
+The check is read-only, requires HTTPS for non-local hosts, refuses redirects and reports the first missing or different file. Verify a real Windows installation as well before considering #64 complete. Existing rootless beta.2 installations need a one-time manual install of the trusted-root build; server publication alone cannot give them a trusted initial root.
 
 For later releases, supply the last published public repository as `previous`, omit `bootstrap`, increment metadata `version`, and use a fresh output directory. Keep the previous repository and all numbered root versions. Root key rotation is a separate old-and-new-root-signed workflow and is not supported by the initial generator. Renew metadata before expiry; never replace an existing version path in place.
