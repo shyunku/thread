@@ -42,6 +42,11 @@ test('initial ceremony only writes encrypted keys outside the project and never 
     assert.throws(() => loadEncryptedKey(file, Buffer.from('wrong-passphrase')));
   }
   assert.throws(() => writeInitialTrust(output, f.expires, f.passphrases), /OUTPUT_MUST_BE_NEW/);
+  const short = { ...f.passphrases, snapshot: Buffer.from('11-bytes-xx') };
+  assert.throws(() => writeInitialTrust(path.join(f.directory, 'short'), f.expires, short),
+    /WEAK_KEY_PASSPHRASE/);
+  const minimum = { ...f.passphrases, snapshot: Buffer.from('12-bytes-xxx') };
+  assert.equal(writeInitialTrust(path.join(f.directory, 'minimum'), f.expires, minimum).version, 1);
   assert.throws(() => writeInitialTrust(path.join(__dirname, 'unsafe'), f.expires, f.passphrases),
     /PRIVATE_KEYS_MUST_BE_OUTSIDE_PROJECT/);
 });

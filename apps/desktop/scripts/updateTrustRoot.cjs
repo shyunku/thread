@@ -6,7 +6,7 @@ const path = require('node:path');
 const { createRequire } = require('node:module');
 const tufRequire = createRequire(require.resolve('tuf-js'));
 const models = tufRequire('@tufjs/models');
-const { ROLES, newPassphrase } = require('./updateSigningSecrets.cjs');
+const { ROLES, MIN_PASSPHRASE_BYTES, newPassphrase } = require('./updateSigningSecrets.cjs');
 
 function check(ok, code) { if (!ok) throw Error(code); }
 
@@ -76,7 +76,7 @@ function writeInitialTrust(output, expires, passphrases) {
   checkOutputLocation(output);
   const keys = {}, encrypted = {};
   for (const role of ROLES) {
-    check(Buffer.isBuffer(passphrases[role]) && passphrases[role].length >= 16,
+    check(Buffer.isBuffer(passphrases[role]) && passphrases[role].length >= MIN_PASSPHRASE_BYTES,
       'WEAK_KEY_PASSPHRASE');
     keys[role] = crypto.generateKeyPairSync('ed25519').privateKey;
     encrypted[role] = keys[role].export({ format: 'pem', type: 'pkcs8',

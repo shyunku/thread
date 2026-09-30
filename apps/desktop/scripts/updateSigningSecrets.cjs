@@ -2,6 +2,7 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 
 const ROLES = ['root', 'targets', 'snapshot', 'timestamp'];
+const MIN_PASSPHRASE_BYTES = 12;
 
 function promptSecret(label) {
   if (!process.stdin.isTTY || !process.stdout.isTTY || typeof process.stdin.setRawMode !== 'function')
@@ -33,9 +34,9 @@ function promptSecret(label) {
 }
 
 async function newPassphrase(role) {
-  const first = await promptSecret(`${role} key passphrase (16+ bytes)`);
+  const first = await promptSecret(`${role} key passphrase (${MIN_PASSPHRASE_BYTES}+ bytes)`);
   try {
-    if (first.length < 16) throw Error('WEAK_KEY_PASSPHRASE');
+    if (first.length < MIN_PASSPHRASE_BYTES) throw Error('WEAK_KEY_PASSPHRASE');
     const confirm = await promptSecret(`${role} key passphrase again`);
     try {
       if (first.length !== confirm.length || !crypto.timingSafeEqual(first, confirm))
@@ -59,4 +60,4 @@ function loadEncryptedKey(file, passphrase) {
   } finally { bytes.fill(0); }
 }
 
-module.exports = { ROLES, promptSecret, newPassphrase, loadEncryptedKey };
+module.exports = { ROLES, MIN_PASSPHRASE_BYTES, promptSecret, newPassphrase, loadEncryptedKey };
