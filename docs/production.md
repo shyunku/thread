@@ -39,7 +39,7 @@ EC2 호스트 한 대에서 Docker Compose(프로젝트 이름 `thread`)로 서�
 | 업데이트 서명 키 | 서명 PC의 `%USERPROFILE%\.thread-trust\trust-YYMMDD-HHMM\` | [7장](#7-서명-키-관리) 참고 |
 | root 비밀번호 | 비밀번호 관리자와 종이 | 어떤 파일에도 저장하지 않는다 |
 | Windows 코드 서명 인증서 | 사용하지 않음 | 선택 사항이다([6.2](#62-빌드-키가-있는-windows-pc)) |
-| TUF 저장소 생성 결과 | 서명 PC의 작업 폴더(`repo-N`) | 공개 파일이다. 서버 `rms-tuf` 볼륨에도 있다 |
+| 릴리스 계획, TUF 저장소 생성 결과 | 로컬 저장소의 `.local\release\` (`plan-N.json`, `repo-N`) | Git과 Docker 빌드에서 제외된다. 저장소는 공개 파일이며 서버 `rms-tuf` 볼륨에도 있다 |
 
 운영 `.env`의 `E2EE_*` 값은 현재 코드에서 쓰지 않는다. 남아 있어도 동작에는 영향이 없다.
 
@@ -127,7 +127,7 @@ docker rm -f thread-restore-check
    - 나중에 인증서(유료)를 도입하면, 서명한 뒤 `Get-AuthenticodeSignature <설치파일>`로 확인하고 지문(Thumbprint)을 6.3에 쓴다.
 
 ### 6.3 TUF 저장소 생성과 검증
-저장소 밖에 계획 파일을 만든다(예: `D:\thread-release\plan-N.json`).
+계획 파일과 결과 저장소는 Git에서 제외된 `.local\release\`에 둔다(`plan-N.json`, `repo-N`). `.local`은 Docker 빌드 재료에서도 제외되어 있다. 계획 파일에는 비밀값 없이 경로만 적는다.
 
 ```json
 {
@@ -138,11 +138,11 @@ docker rm -f thread-restore-check
     "timestamp": "C:\\Users\\<me>\\.thread-trust\\trust-YYMMDD-HHMM\\timestamp.pem"
   },
   "passphrases": "C:\\Users\\<me>\\.thread-trust\\trust-YYMMDD-HHMM\\release-passphrases.json",
-  "output": "D:\\thread-release\\repo-N",
+  "output": "<저장소>\\.local\\release\\repo-N",
   "version": N,
-  "releases": [{ "file": "D:\\...\\Thread-Setup-2.0.0.exe", "platform": "win",
-                 "arch": "x64", "version": "2.0.0", "mandatory": true }],
-  "previous": "D:\\thread-release\\repo-(N-1)"
+  "releases": [{ "file": "<저장소>\\apps\\desktop\\dist\\Thread Setup 2.0.1.exe", "platform": "win",
+                 "arch": "x64", "version": "2.0.1", "mandatory": false }],
+  "previous": "<저장소>\\.local\\release\\repo-(N-1)"
 }
 ```
 - 첫 게시에는 `previous` 대신 `"bootstrap": true`를 쓴다.
@@ -151,8 +151,8 @@ docker rm -f thread-restore-check
 
 ```powershell
 cd apps/desktop
-node scripts/updateRepository.cjs D:\thread-release\plan-N.json
-node scripts/verifyUpdateRepository.cjs D:\thread-release\repo-N <절대경로>\apps\desktop\public\resources\update-trust\root.json --no-authenticode
+node scripts/updateRepository.cjs <저장소>\.local\release\plan-N.json
+node scripts/verifyUpdateRepository.cjs <저장소>\.local\release\repo-N <저장소>\apps\desktop\public\resources\update-trust\root.json --no-authenticode
 # 코드 서명 인증서를 쓰는 경우: --no-authenticode 대신 --authenticode <지문>
 ```
 
@@ -168,7 +168,7 @@ node scripts/verifyUpdateRepository.cjs D:\thread-release\repo-N <절대경로>\
    ```
 3. 게시된 파일을 대조한다.
    ```powershell
-   node scripts/verifyPublishedRepository.cjs https://rms.threadapp.kr/tuf D:\thread-release\repo-N
+   node scripts/verifyPublishedRepository.cjs https://rms.threadapp.kr/tuf <저장소>\.local\release\repo-N
    ```
 4. 설치된 앱에서 업데이트 알림, 다운로드, 설치 후 재시작을 확인한다.
 5. `repo-N` 폴더를 보관한다. 다음 릴리스의 `previous`로 쓴다.
