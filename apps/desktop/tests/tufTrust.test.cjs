@@ -37,18 +37,27 @@ test("application discovery uses a verified catalog and refuses modified cache b
  const fs=require("node:fs"),os=require("node:os"),path=require("node:path"),vm=require("node:vm");
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),"thread-trusted-catalog-")),rootFile=path.join(dir,"root.json"),f=fixture();
  t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));fs.writeFileSync(rootFile,f.rootBytes);
- let store,tamper=false;
+ let tamper=false,clients=0;
+ // Like tuf-js, one client holds one trusted set: a second refresh() on it throws.
  class Client{
-  async refresh(){store=new TrustedMetadataStore(f.rootBytes);store.updateTimestamp(f.timestamp);store.updateSnapshot(f.snapshot);store.updateDelegatedTargets(f.targets,"targets","root");}
-  async getTargetInfo(name){return store.targets.signed.targets[name];}
+  constructor(){clients++;this.store=new TrustedMetadataStore(f.rootBytes);}
+  async refresh(){this.store.updateTimestamp(f.timestamp);this.store.updateSnapshot(f.snapshot);this.store.updateDelegatedTargets(f.targets,"targets","root");}
+  async getTargetInfo(name){return this.store.targets.signed.targets[name];}
   async downloadTarget(info){
-   const file=path.join(dir,path.basename(info.path));fs.writeFileSync(file,tamper?Buffer.from("changed"):f.catalogData);return file;
+   const file=path.join(dir,path.basename(info.path));
+   fs.writeFileSync(file,tamper?Buffer.from("changed"):info.path==="releases.json"?f.catalogData:f.data);return file;
   }
  }
  const exported={exports:{}};
  vm.runInNewContext(fs.readFileSync(require.resolve("../public/electron/e2ee/trustedUpdates"),"utf8"),{URL,module:exported,require:id=>id==="tuf-js"?{Updater:Client}:require(id)});
  const trust=new exported.exports.TrustedUpdates({rootFile,cacheDir:path.join(dir,"cache"),repositoryURL:"https://fixture.invalid/tuf/",platform:"win",arch:"ia32",installedVersion:"1.1.3"});
  const release=await trust.latest();assert.equal(release.version,"1.1.4");assert.equal(release.mandatory,true);
+ // Periodic checks, download and pre-install verification all work in one process.
+ assert.equal((await trust.latest()).version,"1.1.4");
+ const [again,downloaded]=await Promise.all([trust.latest(),trust.download("1.1.4")]);
+ assert.equal(again.version,"1.1.4");assert.equal(downloaded.version,"1.1.4");
+ assert.equal((await trust.verifyBeforeInstall(downloaded)).version,"1.1.4");
+ assert.equal(clients,5);
  tamper=true;await assert.rejects(trust.latest());
  assert.throws(()=>new exported.exports.TrustedUpdates({rootFile:path.join(dir,"absent"),cacheDir:dir,repositoryURL:"https://fixture.invalid",platform:"win",arch:"x64",installedVersion:"1.1.3"}),/TRUST_NOT_CONFIGURED/);
 });
