@@ -1,4 +1,15 @@
 const fs=require("node:fs"),rotation=require("./rotationCoordinator");
+// Approximate connection time: a signed add record carries the pairing request's
+// expiry (request time + 10 minutes). Genesis and recovered/rotated devices have no
+// signed time, so their date is null and the UI omits it.
+function connectedDevices(history,ownId){
+ const added=new Map();
+ for(const record of history.records.values()){
+  const body=record?.body;
+  if(body?.operation==="add"&&typeof body.device?.id==="string"&&Number.isSafeInteger(body.expiresAt))added.set(body.device.id,body.expiresAt-600000);
+ }
+ return [...history.current.devices.values()].map(value=>({id:value.id,role:value.role,own:value.id===ownId,addedAt:added.get(value.id)??null}));
+}
 async function execute(service,action,input={}){
  if(!["status","devices","prepare","code","export","confirm","commit","cancel"].includes(action))throw Error("INVALID_ROTATION_ACTION");
  if(service.busy)throw Error("VAULT_BUSY");
@@ -18,7 +29,7 @@ async function execute(service,action,input={}){
   if(action==="devices"){
    const owner=store.get("recovery","$owner-identity");if(owner?.phase!=="RECOVERY_CONFIRMED")throw Error("ACTIVE_OWNER_REQUIRED");
    const history=await require("./filePairing").historyFor(store,transport,owner.fingerprint);ready();
-   return [...history.current.devices.values()].map(value=>({id:value.id,role:value.role,own:value.id===owner.deviceId}));
+   return connectedDevices(history,owner.deviceId);
   }
   if(action==="prepare")return await rotation.prepare({store,transport,remove:input.remove||[],ready});
   if(action==="code")return rotation.material(store).code;
@@ -50,4 +61,4 @@ async function execute(service,action,input={}){
   return await rotation.confirm({store,code:input.code,bytes,ready});
  }finally{input.password=undefined;input.code=undefined;service.busy=false;}
 }
-module.exports={execute};
+module.exports={execute,connectedDevices};

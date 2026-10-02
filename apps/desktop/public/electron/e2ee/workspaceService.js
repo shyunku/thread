@@ -153,7 +153,7 @@ class VaultWorkspaceService{
    }
    const status=await entry.sync.engine.run();
    if(this.active!==entry||generation!==this.generation)throw Error("VAULT_SESSION_CHANGED");
-   entry.connected=true;
+   entry.connected=true;entry.lastSyncedAt=Date.now();
    entry.controller.use(store=>store.put("recovery","$last-sync-authority",{epoch:entry.sync.epoch,
     keyGeneration:entry.sync.engine.history.current.keyGeneration,head:entry.sync.engine.history.current.head,cursor:status.cursor}));
    require("./reencryption").advance(entry.sync.replica);

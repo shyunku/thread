@@ -29,7 +29,7 @@ async function intercept(service,topic,reqId,args){
    if(reads[topic])return adapter.lists()[reads[topic]];
    if(topic==="category/getCategoryTasks")return adapter.lists().relations.filter(row=>row.cid===args[0]);
    if(topic==="system/isDatabaseClear")return adapter.lists().tasks.length===0;
-   if(topic==="sync-v2/getStatus"){const status=replica.status();return {uid:entry.uid,protocolVersion:3,ready:true,connected:!!entry.connected,canSync:true,seq:status.cursor,pending:status.pending,recovery:status.conflicts,error:null};}
+   if(topic==="sync-v2/getStatus"){const status=replica.status();return {uid:entry.uid,protocolVersion:3,ready:true,connected:!!entry.connected,canSync:true,seq:status.cursor,pending:status.pending,recovery:status.conflicts,lastSyncedAt:entry.lastSyncedAt??null,error:null};}
    return true;
   });
   publish(service,entry);ipc.sender(topic,reqId,true,result);
@@ -48,6 +48,6 @@ function publish(service,entry){
   const {EncryptedReplica}=require("./replica"),meta=store.get("confirmed","$sync-state");
   return new EncryptedReplica(store,meta.scope,{initialize:false}).status();
  });
- service.group?.ipcService.sender("sync-v2/status",null,true,{uid:entry.uid,protocolVersion:3,ready:true,connected:!!entry.connected,canSync:true,seq:status.cursor,pending:status.pending,recovery:status.conflicts,error:null});
+ service.group?.ipcService.sender("sync-v2/status",null,true,{uid:entry.uid,protocolVersion:3,ready:true,connected:!!entry.connected,canSync:true,seq:status.cursor,pending:status.pending,recovery:status.conflicts,lastSyncedAt:entry.lastSyncedAt??null,error:null});
 }
 module.exports={intercept,publish};

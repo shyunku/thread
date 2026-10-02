@@ -16,7 +16,10 @@ function fixture(t){
 test("backup UI service reauthenticates, preserves live data, and exposes only bounded task previews",async t=>{
  const f=fixture(t),code=await workspace.execute(f.service,"code"),input=()=>({confirmed:true,method:"os",code});
  await assert.rejects(workspace.execute(f.service,"export",{}),/CONSENT/);assert.equal(f.auth(),0);
- assert.equal((await workspace.execute(f.service,"export",input())).phase,"EXPORTED");
+ assert.equal(await workspace.execute(f.service,"last"),null);
+ const before=Date.now();assert.equal((await workspace.execute(f.service,"export",input())).phase,"EXPORTED");
+ // The settings summary shows the last successful export (time and count only).
+ const last=await workspace.execute(f.service,"last");assert.deepEqual(Object.keys(last).sort(),["at","count"]);assert.ok(last.at>=before&&last.count>0);
  const restored=await workspace.execute(f.service,"restore",input());assert.equal(restored.phase,"REVIEW_REQUIRED");assert.equal(f.auth(),2);
  const list=await workspace.execute(f.service,"list");assert.equal(list.length,1);assert.deepEqual(Object.keys(list[0]).sort(),["id","phase"]);
  const page=await workspace.execute(f.service,"review",{id:restored.id});

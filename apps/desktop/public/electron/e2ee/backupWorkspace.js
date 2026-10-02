@@ -34,13 +34,14 @@ function reviews(service,store,input){
  }finally{db?.close();marker.key.fill(0);}
 }
 async function execute(service,action,input={}){
- if(!["code","export","restore","list","review","apply"].includes(action))throw Error("INVALID_BACKUP_ACTION");
+ if(!["code","last","export","restore","list","review","apply"].includes(action))throw Error("INVALID_BACKUP_ACTION");
  if(service.busy)throw Error("VAULT_BUSY");
  const entry=service.context(),generation=service.generation,store=entry.controller.use(value=>value);
  const ready=()=>{if(service.active!==entry||service.generation!==generation||entry.abort.signal.aborted)throw Error("VAULT_SESSION_CHANGED");entry.controller.use(()=>{});};
  service.busy=true;
  try{
   if(action==="code")return backup.newBackupCode();
+  if(action==="last")return store.get("recovery","$last-backup")||null;
   if(action==="list"){
    const result=[];let after="";
    for(;;){const rows=store.entries("recovery",after,256);for(const row of rows)if(row.id.startsWith(PREFIX))result.push({id:row.id.slice(PREFIX.length),phase:row.value.phase});if(rows.length<256)return result;after=rows.at(-1).id;}
@@ -67,7 +68,9 @@ async function execute(service,action,input={}){
   if(action==="export"){
    const result=await dialog.showSaveDialog(service.runtime().getWindow(),{defaultPath:"Thread.threadbackup",filters:[{name:"Encrypted Thread backup",extensions:["threadbackup"]}]});ready();
    if(result.canceled)return null;
-   const resultData=await backup.exportBackup({store,scope,filename:result.filePath,code:input.code});ready();return {phase:"EXPORTED",count:resultData.count};
+   const resultData=await backup.exportBackup({store,scope,filename:result.filePath,code:input.code});ready();
+   store.put("recovery","$last-backup",{at:Date.now(),count:resultData.count});
+   return {phase:"EXPORTED",count:resultData.count};
   }
   const result=await dialog.showOpenDialog(service.runtime().getWindow(),{properties:["openFile"],filters:[{name:"Encrypted Thread backup",extensions:["threadbackup"]}]});ready();
   if(result.canceled)return null;
