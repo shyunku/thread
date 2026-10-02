@@ -17,7 +17,7 @@ import (
 	"math/big"
 	"net/http"
 	"os"
-	json2 "thread_api/libs/json"
+	"time"
 	"thread_api/log"
 	database2 "thread_api/service/database"
 )
@@ -62,59 +62,71 @@ func SignupWithGoogleAuth(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	identity, err := parseGoogleLinkToken(body.GoogleLinkToken, time.Now())
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"code": "GOOGLE_LINK_INVALID"})
+		return
+	}
 	mode, modeErr := signupMode(body.SignupMode)
 	if modeErr != nil {
 		signupModeError(c, modeErr)
 		return
 	}
 
-	// check if user already registered in database with Google auth
+	var linked int
+	if err = database2.DB.QueryRow("SELECT COUNT(*) FROM user_master WHERE google_auth_id = ?", identity.Id).Scan(&linked); err != nil {
+		log.Error(err)
+		c.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+	if linked > 0 {
+		c.AbortWithStatus(http.StatusConflict)
+		return
+	}
+
 	var userEntity database2.UserEntity
-	result := database2.DB.QueryRowx("SELECT * FROM user_master WHERE auth_id = ? OR google_auth_id = ?", body.AuthId, body.GoogleAuthId)
-	err := result.StructScan(&userEntity)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			// create user
-			// case: user that Google login as first
-			uid := uuid.New().String()
-			err = createSignupUser(c, uid, mode,
-				"INSERT INTO user_master (uid, username, auth_id, auth_encrypted_pw, google_auth_id, google_email, google_profile_image_url) VALUES (?, ?, ?, ?, ?, ?, ?)",
-				uid, body.Username, body.AuthId, body.EncryptedPassword, body.GoogleAuthId, body.GoogleEmail, body.GoogleProfileImageUrl,
-			)
-			if err != nil {
-				log.Error(err)
-				c.AbortWithStatus(http.StatusInternalServerError)
-				return
-			}
-		} else {
+	err = database2.DB.QueryRowx("SELECT * FROM user_master WHERE auth_id = ?", body.AuthId).StructScan(&userEntity)
+	if err == sql.ErrNoRows {
+		// New account created together with the verified Google identity.
+		uid := uuid.New().String()
+		err = createSignupUser(c, uid, mode,
+			"INSERT INTO user_master (uid, username, auth_id, auth_encrypted_pw, google_auth_id, google_email, google_profile_image_url) VALUES (?, ?, ?, ?, ?, ?, ?)",
+			uid, body.Username, body.AuthId, body.EncryptedPassword, identity.Id, identity.Email, identity.Picture,
+		)
+		if err != nil {
 			log.Error(err)
 			c.AbortWithStatus(http.StatusInternalServerError)
 			return
 		}
+	} else if err != nil {
+		log.Error(err)
+		c.AbortWithStatus(http.StatusInternalServerError)
+		return
 	} else {
-		// user found with Google auth
-		// check if user already registered in database with email
-		if userEntity.AuthId != nil && userEntity.GoogleAuthId != nil {
-			// already bind with auth and Google auth
-			// case: user already bind with Google auth
+		// Linking an existing account requires that account's password.
+		if userEntity.GoogleAuthId != nil {
 			c.AbortWithStatus(http.StatusConflict)
 			return
-		} else if userEntity.AuthId != nil {
-			// case: user is binding Google auth with auth
-			// update user with Google auth
-			_, err = database2.DB.Exec("UPDATE user_master SET google_auth_id = ?, google_email = ?, google_profile_image_url = ? WHERE auth_id = ?", body.GoogleAuthId, body.GoogleEmail, body.GoogleProfileImageUrl, body.AuthId)
-		} else {
-			// case: just google auth exists or no auth exists
-			// this is fatal error
-			log.Error("Fatal error: user found with Google auth but no auth")
+		}
+		if !passwordMatches(userEntity.AuthEncryptedPw, body.EncryptedPassword) {
+			c.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
+		updated, err := database2.DB.Exec("UPDATE user_master SET google_auth_id = ?, google_email = ?, google_profile_image_url = ? WHERE uid = ? AND google_auth_id IS NULL",
+			identity.Id, identity.Email, identity.Picture, *userEntity.UserId)
+		if err != nil {
+			log.Error(err)
 			c.AbortWithStatus(http.StatusInternalServerError)
+			return
+		}
+		if rows, _ := updated.RowsAffected(); rows != 1 {
+			c.AbortWithStatus(http.StatusConflict)
 			return
 		}
 	}
 
 	// rescan user
-	result = database2.DB.QueryRowx("SELECT * FROM user_master WHERE auth_id = ? OR google_auth_id = ? LIMIT 1", body.AuthId, body.GoogleAuthId)
-	err = result.StructScan(&userEntity)
+	err = database2.DB.QueryRowx("SELECT * FROM user_master WHERE google_auth_id = ? LIMIT 1", identity.Id).StructScan(&userEntity)
 	if err != nil {
 		log.Error(err)
 		c.AbortWithStatus(http.StatusInternalServerError)
@@ -190,10 +202,15 @@ func SignupWithMobileGoogleAuth(c *gin.Context) {
 		return
 	}
 
-	googleAuthId := claims["sub"].(string)
-	username := claims["name"].(string)
-	googleEmail := claims["email"].(string)
-	googleProfileImageUrl := claims["picture"].(string)
+	// The signature alone proves Google issued the token, not that it was issued to Thread.
+	identity, username, err := googleIdTokenIdentity(claims, time.Now())
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"code": "GOOGLE_TOKEN_REJECTED"})
+		return
+	}
+	googleAuthId := identity.Id
+	googleEmail := identity.Email
+	googleProfileImageUrl := identity.Picture
 
 	var userEntity database2.UserEntity
 	result := database2.DB.QueryRowx("SELECT * FROM user_master WHERE google_auth_id = ?", googleAuthId)
@@ -351,27 +368,25 @@ func GoogleOauth2Callback(c *gin.Context) {
 			c.AbortWithStatus(http.StatusInternalServerError)
 			return
 		}
+	} else {
+		googleAuthResult.LinkToken, err = createGoogleLinkToken(googleIdentity{
+			Id: googleOauthUserInfo.Id, Email: googleOauthUserInfo.Email, Picture: googleOauthUserInfo.Picture,
+		}, time.Now())
+		if err != nil {
+			log.Error(err)
+			c.AbortWithStatus(http.StatusInternalServerError)
+			return
+		}
 	}
 
-	// Send a message to the client's window object
-	marshaled, err := json2.Marshal(googleAuthResult)
+	page, err := googleOauthResultPage(googleAuthResult)
 	if err != nil {
 		log.Error(err)
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
-
-	script := fmt.Sprintf(`<script>
-		try {
-			const data = %s;
-			window.opener.postMessage({type: "google_oauth_callback_result", data, success: true}, '*');
-		} catch (e) {
-			window.opener.postMessage({type: "google_oauth_callback_result", success: false}, '*');
-		} finally {
-			window.close();
-		}
-	</script>`, marshaled)
-	c.Data(http.StatusOK, "text/html", []byte(script))
+	googleOauthResultHeaders(c.Header)
+	c.Data(http.StatusOK, "text/html; charset=utf-8", page)
 }
 
 // Google credentials identify the user; Thread credentials authorize API access.

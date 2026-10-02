@@ -85,4 +85,6 @@ type googleAuthResultDto struct {
 	GoogleUserInfo *GoogleOauth2UserInfo `json:"googleUserInfo"`
 	Auth           *authTokenDto         `json:"auth"`
 	User           *userDto              `json:"user"`
+	// Set only when no account is linked yet; proves the Google identity to signup.
+	LinkToken string `json:"linkToken,omitempty"`
 }

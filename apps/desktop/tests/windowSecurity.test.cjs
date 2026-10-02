@@ -97,6 +97,19 @@ test("renderer window options cannot override preload, sandbox, parent or URL", 
   assert.equal(policy.validRoute("https://evil.invalid"), false);
 });
 
+test("OAuth result is read only from the exact API callback path", () => {
+  const api = "https://api.threadapp.kr/v1";
+  assert.equal(policy.isOAuthCallbackURL(api + "/google_auth/login_callback?state=s&code=c", api), true);
+  for (const url of [api + "/google_auth/login", "https://evil.invalid/v1/google_auth/login_callback",
+    "https://api.threadapp.kr.evil.invalid/v1/google_auth/login_callback",
+    "https://user@api.threadapp.kr/v1/google_auth/login_callback", "file:///v1/google_auth/login_callback", "not a url"])
+    assert.equal(policy.isOAuthCallbackURL(url, api), false);
+  assert.deepEqual(policy.parseOAuthResult('{"linkToken":"t"}'), { linkToken: "t" });
+  for (const raw of [null, "", "[]", "1", "{bad", "x".repeat(64 * 1024 + 1)])
+    assert.equal(policy.parseOAuthResult(raw), null);
+  assert.ok(contract.EVENT_TOPICS.includes("auth/googleOauthResult"));
+});
+
 test("only exact OAuth launch URL is accepted; production CSP forbids eval", () => {
   const api = "https://api.threadapp.kr/v1";
   assert.equal(policy.canOpenOAuth(api + "/google_auth/login", api), true);

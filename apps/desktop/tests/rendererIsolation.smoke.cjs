@@ -33,6 +33,13 @@ function finish(code) {
 (async () => {
   server = http.createServer((req, res) => {
     res.setHeader("Content-Type", "text/html");
+    if (req.url.startsWith("/v1/google_auth/login_callback")) {
+      // Same shape as the API: inert JSON, no script, no postMessage.
+      res.setHeader("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'");
+      res.end('<!doctype html><title>Thread</title><script type="application/json" id="thread-oauth-result">' +
+        '{"linkToken":"fixture-link","user":null,"googleUserInfo":{"email":"\\u003c/script\\u003e@example.invalid"}}</script>');
+      return;
+    }
     res.end("<!doctype html><title>Synthetic isolation fixture</title><body>Fixture only</body>");
   });
   server.listen(0, "127.0.0.1");
@@ -82,9 +89,17 @@ function finish(code) {
   assert.equal(await child.webContents.executeJavaScript("typeof window.thread"), "undefined");
   assert.equal(await child.webContents.executeJavaScript("typeof window.require"), "undefined");
   assert.equal(service.trustedWindows.has(child.webContents.id), false);
-  await main.webContents.executeJavaScript("window.fixtureMessage = new Promise(resolve => window.addEventListener('message', e => resolve(e.data), {once:true})); true");
-  await child.webContents.executeJavaScript("window.opener.postMessage('fixture-oauth-result', '*'); true");
-  assert.equal(await main.webContents.executeJavaScript("window.fixtureMessage"), "fixture-oauth-result");
+  // Main reads the callback page and forwards it to the opener over IPC, then closes the window.
+  await main.webContents.executeJavaScript(`window.fixtureOauth = new Promise(resolve => {
+    const stop = window.thread.listen("auth/googleOauthResult", (_id, body) => { stop(); resolve(body); });
+  }); true`);
+  const childClosed = once(child, "closed");
+  await child.webContents.loadURL(origin + "/v1/google_auth/login_callback?state=fixture&code=fixture");
+  const oauth = await main.webContents.executeJavaScript("window.fixtureOauth");
+  assert.equal(oauth.success, true);
+  assert.equal(oauth.data.linkToken, "fixture-link");
+  assert.equal(oauth.data.googleUserInfo.email, "</script>@example.invalid");
+  await childClosed;
 
   const updater = service.invokeWindow("/update-checker", { show:false }, null, null, "updater");
   updater.show = () => {};
@@ -108,6 +123,6 @@ function finish(code) {
   assert.equal(progress[1].data.percentage, 50);
   assert.deepEqual(ipc.listenerMap["release_download@state"], [updater.webContents.id]);
 
-  console.log("PASS: real sandboxed preload, IPC ownership, updater roles, OAuth without bridge, postMessage");
+  console.log("PASS: real sandboxed preload, IPC ownership, updater roles, OAuth without bridge, callback captured by main");
   finish(0);
 })().catch(error => { console.error(error); finish(1); });

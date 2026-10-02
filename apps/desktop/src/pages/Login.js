@@ -129,7 +129,7 @@ const Login = () => {
   };
 
   const onGoogleLoginSuccess = (userInfo) => {
-    const { auth, googleUserInfo } = userInfo;
+    const { auth, googleUserInfo, linkToken: googleLinkToken } = userInfo;
     const {
       email: googleEmail,
       id: googleAuthId,
@@ -146,6 +146,8 @@ const Login = () => {
               googleEmail,
               googleAuthId,
               googleProfileImageUrl,
+              // Server-issued proof of the verified Google identity, valid for 10 minutes.
+              googleLinkToken,
             });
             setCurrentUserAuth(auth);
             setGoogleBinding(true);
@@ -236,9 +238,7 @@ const Login = () => {
           username: signupUserName,
           authId: signupId,
           encryptedPassword: singleEncryptedPassword,
-          googleAuthId: currentUserInfo.googleAuthId,
-          googleEmail: currentUserInfo.googleEmail,
-          googleProfileImageUrl: currentUserInfo.googleProfileImageUrl,
+          googleLinkToken: currentUserInfo.googleLinkToken,
           hashedPassword,
         },
         ({ success, data }) => {
@@ -269,6 +269,9 @@ const Login = () => {
             switch (status) {
               case 400:
                 Toast.error("잘못된 요청입니다.");
+                break;
+              case 401:
+                Toast.error("Google 인증이 만료되었습니다. Google 로그인을 다시 진행해주세요.");
                 break;
               case 409:
                 handleGoogleSignupConflict();
@@ -346,9 +349,7 @@ const Login = () => {
         {
           authId: signinId,
           encryptedPassword: singleEncryptedPassword,
-          googleAuthId: currentUserInfo.googleAuthId,
-          googleEmail: currentUserInfo.googleEmail,
-          googleProfileImageUrl: currentUserInfo.googleProfileImageUrl,
+          googleLinkToken: currentUserInfo.googleLinkToken,
         },
         ({ success, data }) => {
           if (success) {
@@ -377,6 +378,9 @@ const Login = () => {
             switch (status) {
               case 400:
                 Toast.error("잘못된 요청입니다.");
+                break;
+              case 401:
+                Toast.error("아이디·비밀번호가 일치하지 않거나 Google 인증이 만료되었습니다.");
                 break;
               case 409:
                 handleGoogleSignupConflict();
@@ -463,30 +467,26 @@ const Login = () => {
   };
 
   useEffect(() => {
-    const onMessage = (e) => {
+    // Main reads the API callback page and forwards the result only to this window.
+    const onResult = ({ success, data }) => {
+      if (success !== true || !data) {
+        Toast.error("구글 로그인에 실패했습니다.");
+        return;
+      }
       try {
-        if (e.origin !== new URL(getAppServerEndpoint()).origin || e.source !== childWindow) return;
-        const data = e?.data;
-        if (data?.type === "google_oauth_callback_result") {
-          if (data.success !== true) {
-            Toast.error("구글 로그인에 실패했습니다.");
-            return;
-          }
-          const result = data?.data;
-          onGoogleLoginSuccess(result);
-        }
+        onGoogleLoginSuccess(data);
       } catch (err) {
         console.error(err);
         Toast.error("구글 로그인에 실패했습니다.");
       }
     };
+    const listener = IpcSender.onAll("auth/googleOauthResult", onResult);
     const unmountChildWindow = () => {
       if (childWindow) childWindow.close();
     };
-    window.addEventListener("message", onMessage);
     window.addEventListener("beforeunload", unmountChildWindow);
     return () => {
-      window.removeEventListener("message", onMessage);
+      IpcSender.off("auth/googleOauthResult", listener);
       window.removeEventListener("beforeunload", unmountChildWindow);
       unmountChildWindow();
     };

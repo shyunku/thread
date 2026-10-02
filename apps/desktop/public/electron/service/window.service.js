@@ -3,7 +3,7 @@ const WindowPropertyFactory = require("../util/WindowPropertyFactory");
 const { WindowType } = require("../modules/constants");
 const {
   appEntryURL, isAppURL, securePreferences, canOpenOAuth, validRoute,
-  contentSecurityPolicy, secureOAuthPreferences,
+  contentSecurityPolicy, secureOAuthPreferences, isOAuthCallbackURL, parseOAuthResult,
 } = require("../modules/windowSecurity");
 const { getServerFinalEndpoint } = require("../modules/util");
 const AlertPopupConstants = require("../constants/AlertPopup.constants");
@@ -94,8 +94,21 @@ class WindowService {
       }};
     });
     contents.on("did-create-window", child => {
-      // OAuth retains window.opener.postMessage, but no native bridge.
+      // The OAuth window gets no native bridge and cannot open further windows.
       child.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+      // Read the callback's inert JSON here and hand it only to the opener.
+      // The page no longer posts tokens to window.opener with an unchecked origin.
+      child.webContents.on("did-finish-load", async () => {
+        if (!isOAuthCallbackURL(child.webContents.getURL(), getServerFinalEndpoint())) return;
+        let result = null;
+        try {
+          result = parseOAuthResult(await child.webContents.executeJavaScript(
+            `document.getElementById("thread-oauth-result")?.textContent ?? null`));
+        } catch {}
+        if (!contents.isDestroyed())
+          contents.send("auth/googleOauthResult", null, { success: result != null, data: result });
+        if (!child.isDestroyed()) child.close();
+      });
     });
     let refinedUrl = (urlPrefix + "#" + url).replace(/\s/g, "");
 

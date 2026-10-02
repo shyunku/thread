@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-sql-driver/mysql"
@@ -50,6 +51,16 @@ func TestMySQLSignupModes(t *testing.T) {
 	previous := database.DB
 	database.DB = sqlx.NewDb(raw, "mysql")
 	defer func() { database.DB = previous }()
+	t.Setenv("JWT_ACCESS_SECRET", "test-access-secret")
+	linkToken := func(googleID string) string {
+		t.Helper()
+		token, err := createGoogleLinkToken(googleIdentity{Id: googleID, Email: googleID + "@example.invalid",
+			Picture: "https://example.invalid/avatar.png"}, time.Now())
+		if err != nil {
+			t.Fatal(err)
+		}
+		return token
+	}
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	router.POST("/signup", Signup)
@@ -61,9 +72,7 @@ func TestMySQLSignupModes(t *testing.T) {
 			body["signup_mode"] = mode
 		}
 		if path == "/google-signup" {
-			body["google_auth_id"] = "google-" + authID
-			body["google_email"] = authID + "@example.invalid"
-			body["google_profile_image_url"] = "https://example.invalid/avatar.png"
+			body["google_link_token"] = linkToken("google-" + authID)
 		}
 		payload, _ := json.Marshal(body)
 		recorder := httptest.NewRecorder()
@@ -104,5 +113,33 @@ func TestMySQLSignupModes(t *testing.T) {
 	}
 	if err := raw.QueryRow("SELECT COUNT(*) FROM user_master WHERE auth_id IN ('new-v2-test','v2-after-release')").Scan(&count); err != nil || count != 0 {
 		t.Fatal("blocked signup created a user", count, err)
+	}
+
+	// Linking Google to an existing password account requires that account's password.
+	link := func(authID, password, googleID string) int {
+		t.Helper()
+		payload, _ := json.Marshal(map[string]string{"auth_id": authID, "encrypted_password": password,
+			"google_link_token": linkToken(googleID)})
+		recorder := httptest.NewRecorder()
+		req := httptest.NewRequest("POST", "/google-signup", bytes.NewReader(payload))
+		req.Header.Set("Content-Type", "application/json")
+		router.ServeHTTP(recorder, req)
+		return recorder.Code
+	}
+	if code := link("new-default", "wrong-hash", "google-attacker"); code != 401 {
+		t.Fatal("link without the account password", code)
+	}
+	var linked sql.NullString
+	if err := raw.QueryRow("SELECT google_auth_id FROM user_master WHERE auth_id='new-default'").Scan(&linked); err != nil || linked.Valid {
+		t.Fatal("rejected link changed the account", linked, err)
+	}
+	if code := link("new-default", "synthetic-hash", "google-new-default"); code != 200 {
+		t.Fatal("link with the account password", code)
+	}
+	if code := link("new-default", "synthetic-hash", "google-second"); code != 409 {
+		t.Fatal("second Google link", code)
+	}
+	if code := link("new-after-release", "synthetic-hash", "google-new-default"); code != 409 {
+		t.Fatal("Google identity linked twice", code)
 	}
 }

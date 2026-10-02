@@ -577,9 +577,8 @@ module.exports = function (s) {
               username: signupRequest.username,
               auth_id: signupRequest.authId,
               encrypted_password: sha256(signupRequest.encryptedPassword),
-              google_auth_id: signupRequest.googleAuthId,
-              google_email: signupRequest.googleEmail,
-              google_profile_image_url: signupRequest.googleProfileImageUrl,
+              // Google identity comes only from the server-issued link token.
+              google_link_token: signupRequest.googleLinkToken,
             }
           );
         } catch (err) {

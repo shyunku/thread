@@ -78,6 +78,24 @@ function canOpenOAuth(candidate, apiEntry) {
   } catch { return false; }
 }
 
+// The API callback page holds the OAuth result as inert JSON; main reads it
+// only from this exact URL instead of trusting window.opener messages.
+function isOAuthCallbackURL(candidate, apiEntry) {
+  try {
+    const actual = new URL(candidate), expected = new URL(apiEntry + "/google_auth/login_callback");
+    return ["http:", "https:"].includes(actual.protocol) && !actual.username && !actual.password &&
+      actual.origin === expected.origin && actual.pathname === expected.pathname;
+  } catch { return false; }
+}
+
+function parseOAuthResult(raw) {
+  if (typeof raw !== "string" || raw.length === 0 || raw.length > 64 * 1024) return null;
+  try {
+    const value = JSON.parse(raw);
+    return value && typeof value === "object" && !Array.isArray(value) ? value : null;
+  } catch { return null; }
+}
+
 function contentSecurityPolicy(entry, apiEntry, development = false) {
   const connections = new Set(["'self'"]);
   for (const raw of [apiEntry, development ? entry : null]) {
@@ -102,5 +120,6 @@ function contentSecurityPolicy(entry, apiEntry, development = false) {
 module.exports = {
   appEntryURL, isAppURL, securePreferences, isTrustedEvent,
   canRequest, canSubscribe, rendererWindowOptions, validRoute, canOpenOAuth,
+  isOAuthCallbackURL, parseOAuthResult,
   contentSecurityPolicy, secureOAuthPreferences,
 };

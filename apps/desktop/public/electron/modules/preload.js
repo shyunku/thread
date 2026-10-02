@@ -100,6 +100,7 @@ const EVENT_TOPICS = Object.freeze([
   "win_state_changed",
   "__window_param__",
   "auth/tokenUpdated",
+  "auth/googleOauthResult",
   "socket/connected",
   "socket/disconnected",
   "transaction/error",

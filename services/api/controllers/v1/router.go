@@ -98,6 +98,11 @@ func AuthMiddleware(c *gin.Context) {
 			c.AbortWithError(http.StatusInternalServerError, err)
 			return
 		}
+		// A valid Google token issued to another application must not act as a Thread session.
+		if googleTokenInfo.UserId == "" || !googleAudienceAllowed(googleTokenInfo.Audience) {
+			c.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
 
 		// find user by google auth id
 		var userEntity database.UserEntity
