@@ -116,3 +116,26 @@ test("non-owner device does not list or manage devices and sees unconfirmed acti
   expect(screen.getByText(/다시 보호하는 작업이 멈췄어요/)).toBeInTheDocument();
   expect(screen.getByText("이전 버전 데이터 검토")).toBeInTheDocument();
 });
+
+test("a stale locked state recovers on unlock events and when the window regains focus", async () => {
+  let phase = "LOCKED";
+  let vaultListener;
+  IpcSender.onAll.mockImplementation((topic, fn) => { if (topic === "vault/status") vaultListener = fn; if (topic === "sync-v2/status") listener = fn; return fn; });
+  IpcSender.vault = {
+    status: (cb) => cb({ success: true, data: { uid: "fixture", phase, osAvailable: true } }),
+    identityStatus: ok({ phase: "RECOVERY_CONFIRMED", fingerprint: "a".repeat(64) }),
+    intakes: ok([]),
+    rotation: okAction({ status: null, devices: [] }),
+    reencryption: okAction({ status: null }),
+    backup: okAction({ last: null }),
+  };
+  await act(async () => { render(<SettingData />); });
+  expect(screen.getByRole("navigation", { name: "데이터 관리 작업" })).toBeInTheDocument();
+  phase = "UNLOCKED";
+  await act(async () => { window.dispatchEvent(new Event("focus")); });
+  expect(await screen.findByText("✓ 보관됨")).toBeInTheDocument();
+  await act(async () => { vaultListener({ success: true, data: { uid: "fixture", phase: "LOCKED" } }); });
+  expect(screen.getByRole("navigation", { name: "데이터 관리 작업" })).toBeInTheDocument();
+  await act(async () => { vaultListener({ success: true, data: { uid: "fixture", phase: "UNLOCKED" } }); });
+  expect(await screen.findByText("✓ 보관됨")).toBeInTheDocument();
+});

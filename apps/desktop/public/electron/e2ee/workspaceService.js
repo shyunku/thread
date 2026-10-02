@@ -58,15 +58,20 @@ class VaultWorkspaceService{
     if(this.active!==entry||entry.uid!==this.runtime().getAccount())throw Error("VAULT_SESSION_CHANGED");
     entry.vault.create();
    }else await entry.vault.createWithPassword(password);
-   if(this.active!==entry||entry.uid!==this.runtime().getAccount())throw Error("VAULT_SESSION_CHANGED");return await this.status();
+   if(this.active!==entry||entry.uid!==this.runtime().getAccount())throw Error("VAULT_SESSION_CHANGED");return this.publishStatus(await this.status());
   }
   finally{password=undefined;this.busy=false;}
+ }
+ // Lock already notifies; unlock/create must too, or open views keep showing LOCKED.
+ publishStatus(value){
+  if(value?.uid)this.runtime().notify?.({uid:value.uid,phase:value.phase,generation:value.generation,osAvailable:value.osAvailable});
+  return value;
  }
  async unlock(method,password){
   if(this.busy)throw Error("VAULT_BUSY");
   const entry=this.context();this.busy=true;
   try{await entry.controller.unlock(method,password);if(entry!==this.active||entry.uid!==this.runtime().getAccount()){entry.controller.lock();throw Error("VAULT_SESSION_CHANGED");}
-   entry.unlocked=true;entry.abort=new AbortController();return await this.status();
+   entry.unlocked=true;entry.abort=new AbortController();return this.publishStatus(await this.status());
   }finally{password=undefined;this.busy=false;}
  }
  lock(){this.context().controller.lock();}

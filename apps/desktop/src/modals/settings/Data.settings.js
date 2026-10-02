@@ -31,7 +31,14 @@ function useVaultStatus(uid) {
         if (active && success && data?.uid === uid) setVault((old) => ({ ...old, ...data }));
       });
     } catch { /* no IPC bridge (tests, browser preview) */ }
-    return () => { active = false; if (listener) IpcSender.off?.("vault/status", listener); };
+    // Settings stays mounted while hidden; re-check when the app window regains focus.
+    const refresh = () => vaultCall("status").then((value) => { if (active) setVault(value); }).catch(() => {});
+    window.addEventListener("focus", refresh);
+    return () => {
+      active = false;
+      window.removeEventListener("focus", refresh);
+      if (listener) IpcSender.off?.("vault/status", listener);
+    };
   }, [uid, setVault]);
   return vault;
 }

@@ -34,6 +34,8 @@ test("actual workspace creation, password reopen, lock and account isolation pre
  s.busy=true;assert.throws(()=>s.resolveConflict({}),/VAULT_BUSY/);s.busy=false;
  await assert.rejects(s.unlock("password","wrong"),/./);
  assert.equal((await s.unlock("os")).phase,"UNLOCKED");
+ // Open views learn about unlocks too, not only locks.
+ assert.equal(f.events.at(-1).phase,"UNLOCKED");assert.equal(f.events.at(-1).uid,"fixture");
  const before=fs.readdirSync(f.dir);f.switchAccount("other");
  assert.equal((await s.status()).phase,"ABSENT");assert.deepEqual(fs.readdirSync(f.dir),before);
  assert.throws(()=>s.outboxReviews(),/LOCKED/);
