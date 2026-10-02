@@ -12,7 +12,8 @@ test("settings preview keeps all six sections and their controls", () => {
   expect(navigation.querySelectorAll("button")).toHaveLength(6);
   expect(screen.getByRole("heading", { name: "데이터" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "지금 동기화" })).toBeDisabled();
-  expect(screen.getByRole("navigation", { name: "데이터 관리 작업" }).querySelectorAll("button")).toHaveLength(6);
+  expect(screen.getAllByText("복구 키").length).toBeGreaterThan(0);
+  expect(screen.getByText("마지막 백업")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "계정" }));
   expect(screen.getByRole("button", { name: "로그아웃" })).toBeDisabled();
   fireEvent.click(screen.getByRole("button", { name: "정보" }));

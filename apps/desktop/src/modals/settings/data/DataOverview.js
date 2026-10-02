@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { IoCubeOutline, IoDesktopOutline, IoKeyOutline } from "react-icons/io5";
-import { Badge, SettingsButton, SettingsCard, SettingsRow, SettingsSection } from "../SettingsUI";
+import { Badge, SettingsButton, SettingsCard, SettingsRow, SettingsSection, Skeleton } from "../SettingsUI";
 import { Callout } from "./StepDialog";
 import { vaultAction, vaultCall } from "./vaultIpc";
 import { shortDate, shortDeviceId } from "./format";
@@ -13,6 +13,8 @@ import LegacyReviewDialog from "./LegacyReviewDialog";
 const ROTATION_PENDING = ["RECOVERY_UNCONFIRMED", "RECOVERY_CONFIRMED", "COMMITTING"];
 const REENCRYPTION_ACTIVE = ["READY", "WAITING", "PAUSED"];
 const softly = (promise) => promise.catch(() => undefined);
+// Last loaded values per account: revisiting the tab shows them at once and refreshes behind.
+const overviewCache = new Map();
 
 // Unlocked data tab: protection summary, sync (passed in), devices, backup & recovery.
 // Vault actions run one at a time in main, so the initial loads are sequential.
@@ -20,13 +22,14 @@ const softly = (promise) => promise.catch(() => undefined);
 const PREVIEW_DIALOGS = { pair: { type: "add" }, add: { type: "add" }, rotation: { type: "key", mode: "renew" },
   renew: { type: "key", mode: "renew" }, backup: { type: "backup" }, recovery: { type: "recovery" } };
 
-export default function DataOverview({ uid, vault, sync, initialDialog = null }) {
-  const [identity, setIdentity] = useState(undefined);
-  const [devices, setDevices] = useState(undefined);
-  const [lastBackup, setLastBackup] = useState(undefined);
-  const [rotation, setRotation] = useState(null);
-  const [reencryption, setReencryption] = useState(null);
-  const [intakes, setIntakes] = useState([]);
+export default function DataOverview({ uid, vault, ready = true, sync, initialDialog = null }) {
+  const cached = overviewCache.get(uid) || {};
+  const [identity, setIdentity] = useState(cached.identity);
+  const [devices, setDevices] = useState(cached.devices);
+  const [lastBackup, setLastBackup] = useState(cached.lastBackup);
+  const [rotation, setRotation] = useState(cached.rotation ?? null);
+  const [reencryption, setReencryption] = useState(cached.reencryption ?? null);
+  const [intakes, setIntakes] = useState(cached.intakes || []);
   const [dialog, setDialog] = useState(null);
   const [resuming, setResuming] = useState(false);
   const live = useRef(true);
@@ -46,14 +49,16 @@ export default function DataOverview({ uid, vault, sync, initialDialog = null })
     setLastBackup(backup ?? null);
     setIntakes(pending || []);
     if (id?.phase === "RECOVERY_CONFIRMED") {
-      setDevices(undefined);
       try {
         const list = await vaultAction("rotation", "devices");
         if (live.current) setDevices(list);
       } catch { if (live.current) setDevices(null); }
     } else setDevices(null);
   }, []);
-  useEffect(() => { void load(); }, [load, uid]);
+  useEffect(() => { if (ready) void load(); }, [load, uid, ready]);
+  useEffect(() => {
+    overviewCache.set(uid, { identity, devices, lastBackup, rotation, reencryption, intakes });
+  }, [uid, identity, devices, lastBackup, rotation, reencryption, intakes]);
   useEffect(() => {
     if (PREVIEW_DIALOGS[initialDialog]) setDialog(PREVIEW_DIALOGS[initialDialog]);
   }, [initialDialog]);
@@ -72,15 +77,16 @@ export default function DataOverview({ uid, vault, sync, initialDialog = null })
   const owner = !!identity && identity.phase === "RECOVERY_CONFIRMED";
   const close = () => setDialog(null);
   const osAvailable = !!vault?.osAvailable;
-  const recoveryCell = identity === undefined ? { value: "확인 중" }
+  const loading = { loading: true };
+  const recoveryCell = identity === undefined ? loading
     : identity === null ? { value: "다른 기기에서 관리", sub: "처음 만든 기기에서 관리해요" }
     : identity.recoveryStale ? { value: "⚠ 다시 만들어야 해요", tone: "warning", sub: "다른 기기에서 열쇠가 바뀌었어요", action: ["새로 만들기", () => setDialog({ type: "key", mode: "renew" })] }
     : identity.phase === "RECOVERY_CONFIRMED" ? { value: "✓ 보관됨", tone: "success", sub: "확인 완료" }
     : { value: "⚠ 확인 필요", tone: "warning", sub: "모든 기기를 잃으면 되찾을 수 없어요", action: ["지금 설정", () => setDialog({ type: "recovery" })] };
-  const devicesCell = devices === undefined ? { value: "확인 중" }
+  const devicesCell = devices === undefined ? loading
     : devices === null ? { value: "—", sub: owner ? "목록을 불러오지 못했어요" : "처음 만든 기기에서 볼 수 있어요" }
     : { value: `${devices.length}대`, sub: "이 PC 포함" };
-  const backupCell = lastBackup === undefined ? { value: "확인 중" }
+  const backupCell = lastBackup === undefined ? loading
     : lastBackup ? { value: shortDate(lastBackup.at), sub: `${lastBackup.count}개 항목` }
     : { value: "⚠ 없음", tone: "warning", action: ["백업 만들기", () => setDialog({ type: "backup" })] };
 
@@ -90,8 +96,10 @@ export default function DataOverview({ uid, vault, sync, initialDialog = null })
         {[["복구 키", <IoKeyOutline />, recoveryCell], ["연결된 기기", <IoDesktopOutline />, devicesCell], ["마지막 백업", <IoCubeOutline />, backupCell]].map(([title, icon, cell]) => (
           <div className="data-summary__cell" key={title}>
             <div className="data-summary__title">{icon}{title}</div>
-            <div className={"data-summary__value" + (cell.tone ? " data-summary__value--" + cell.tone : "")}>{cell.value}</div>
-            {(cell.sub || cell.action) && (
+            {cell.loading ? (
+              <><div className="data-summary__value"><Skeleton width="56%" height={20} /></div><div className="data-summary__sub"><Skeleton width="40%" height={12} /></div></>
+            ) : <div className={"data-summary__value" + (cell.tone ? " data-summary__value--" + cell.tone : "")}>{cell.value}</div>}
+            {!cell.loading && (cell.sub || cell.action) && (
               <div className="data-summary__sub">
                 {cell.sub}{cell.sub && cell.action ? " · " : ""}
                 {cell.action && <SettingsButton variant="link" onClick={cell.action[1]}>{cell.action[0]}</SettingsButton>}
@@ -117,11 +125,13 @@ export default function DataOverview({ uid, vault, sync, initialDialog = null })
 
       <SettingsSection title="동기화">{sync}</SettingsSection>
 
-      {owner && (
+      {(owner || identity === undefined) && (
         <SettingsSection title="연결된 기기"
           action={<SettingsButton onClick={() => setDialog({ type: "add" })}>+ 새 기기 추가</SettingsButton>}>
           <SettingsCard>
-            {devices === undefined && <SettingsRow description="기기 목록을 불러오는 중…" />}
+            {devices === undefined && [0, 1].map((index) => (
+              <SettingsRow key={index} icon={<IoDesktopOutline />} label={<Skeleton width={120} />} description={<Skeleton width={160} height={12} />} />
+            ))}
             {devices === null && (
               <SettingsRow description="기기 목록을 불러오지 못했어요. 연결을 확인해 주세요.">
                 <SettingsButton onClick={() => void load()}>다시 시도</SettingsButton>

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { readPairingImage } from "../../../utils/pairingQrImage";
-import { SettingsButton } from "../SettingsUI";
-import StepDialog, { AuthAction, Callout, Code } from "./StepDialog";
+import { SettingsButton, CheckCard } from "../SettingsUI";
+import StepDialog, { AuthAction, Callout, Code, CopyableCode } from "./StepDialog";
 import { vaultAction } from "./vaultIpc";
 import { groupCode } from "./format";
 
@@ -16,7 +16,6 @@ export default function AddDeviceDialog({ vaultCode, osAvailable = false, onClos
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [copied, setCopied] = useState(false);
   const [now, setNow] = useState(Date.now());
   const live = useRef(true);
   const pending = useRef(false);
@@ -57,9 +56,6 @@ export default function AddDeviceDialog({ vaultCode, osAvailable = false, onClos
     setStep(4);
     onChanged?.();
   });
-  const copyCode = async () => {
-    try { await navigator.clipboard.writeText(vaultCode); setCopied(true); } catch { setCopied(false); }
-  };
   const minutesLeft = request ? Math.max(0, Math.ceil((request.expiresAt - now) / 60000)) : 0;
   const expired = request && request.expiresAt <= now;
 
@@ -82,10 +78,7 @@ export default function AddDeviceDialog({ vaultCode, osAvailable = false, onClos
       {step === 1 && (
         <>
           <p>새 기기에서 Thread에 같은 계정으로 로그인한 뒤 <b>기존 기기로 연결</b>을 고르세요. 새 기기가 아래 연결 코드를 요청하면 입력하거나 붙여 넣으세요.</p>
-          <Code size="small">{groupCode(vaultCode)}</Code>
-          <div className="step-dialog__list" style={{ display: "flex", justifyContent: "center" }}>
-            <SettingsButton onClick={copyCode}>{copied ? "복사했어요" : "연결 코드 복사"}</SettingsButton>
-          </div>
+          <CopyableCode value={vaultCode} display={groupCode(vaultCode)} label="연결 코드 복사" />
           <p>새 기기가 연결 요청 QR이나 요청 파일을 만들면 다음으로 넘어가세요.</p>
         </>
       )}
@@ -108,10 +101,9 @@ export default function AddDeviceDialog({ vaultCode, osAvailable = false, onClos
           <p>새 기기 화면에 표시된 확인 코드가 아래와 같은지 비교하세요.</p>
           <Code size="small">{groupCode(request.fingerprint)}</Code>
           <p className="step-dialog__list">권한: {request.role === "read" ? "보기만 가능" : "편집 가능"} · {expired ? "요청이 만료됐어요" : `${minutesLeft}분 뒤 만료`}</p>
-          <label className="step-dialog__check">
-            <input type="checkbox" checked={confirmed} disabled={busy || expired} onChange={(event) => setConfirmed(event.target.checked)} />
+          <CheckCard checked={confirmed} disabled={busy || expired} onChange={setConfirmed}>
             새 기기의 코드와 같습니다.
-          </label>
+          </CheckCard>
         </>
       )}
       {step === 4 && (

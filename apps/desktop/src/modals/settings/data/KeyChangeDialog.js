@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import IpcSender from "../../../utils/IpcSender";
-import { SettingsButton, SettingsCard, SettingsRow } from "../SettingsUI";
+import { SettingsButton, SettingsCard, SettingsRow, CheckCard } from "../SettingsUI";
 import StepDialog, { AuthAction, Callout, Code } from "./StepDialog";
 import { vaultAction } from "./vaultIpc";
 import { shortDeviceId } from "./format";
@@ -150,10 +150,9 @@ export default function KeyChangeDialog({ mode = "renew", device = null, osAvail
             <p>데이터를 지키는 열쇠를 새로 바꾸고, 새 복구 키를 받습니다. 연결된 기기는 그대로 유지돼요.</p>
           )}
           <p>진행하면 <b>새 복구 키</b>를 함께 저장해야 하고, 지금 가진 복구 키는 더 이상 쓸 수 없어요.</p>
-          <label className="step-dialog__check">
-            <input type="checkbox" checked={consent} disabled={busy} onChange={(event) => setConsent(event.target.checked)} />
+          <CheckCard checked={consent} disabled={busy} onChange={setConsent}>
             이해했어요. 새 복구 키를 안전하게 보관할게요.
-          </label>
+          </CheckCard>
         </>
       )}
       {step === 2 && (
@@ -183,10 +182,9 @@ export default function KeyChangeDialog({ mode = "renew", device = null, osAvail
                 placeholder="THREAD1-…" autoComplete="off" maxLength={128} disabled={busy} />
             </>
           )}
-          <label className="step-dialog__check">
-            <input type="checkbox" checked={applyConsent} disabled={busy} onChange={(event) => setApplyConsent(event.target.checked)} />
+          <CheckCard checked={applyConsent} disabled={busy} onChange={setApplyConsent}>
             {removing ? "적용하면 이 기기가 해제되고 이전 복구 키는 쓸 수 없어요." : "적용하면 이전 복구 키는 쓸 수 없어요."}
-          </label>
+          </CheckCard>
         </>
       )}
       {step === 4 && (

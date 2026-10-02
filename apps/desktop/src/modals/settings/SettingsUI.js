@@ -1,3 +1,4 @@
+import { IoCheckmark } from "react-icons/io5";
 import "./SettingsUI.scss";
 
 // Shared building blocks for every settings page (#70 design).
@@ -80,4 +81,20 @@ export function Soon() {
 
 export function SettingsButton({ variant = "default", className = "", ...props }) {
   return <button type="button" className={"settings-button settings-button--" + variant + " " + className} {...props} />;
+}
+
+// Confirmation checkbox styled as a selectable card (replaces bare HTML checkboxes).
+export function CheckCard({ checked, onChange, disabled = false, children }) {
+  return (
+    <label className={"settings-check" + (checked ? " settings-check--on" : "") + (disabled ? " settings-check--disabled" : "")}>
+      <input type="checkbox" checked={!!checked} disabled={disabled} onChange={(event) => onChange?.(event.target.checked)} />
+      <span className="settings-check__box" aria-hidden="true">{checked && <IoCheckmark />}</span>
+      <span className="settings-check__text">{children}</span>
+    </label>
+  );
+}
+
+// Placeholder bar while a value loads.
+export function Skeleton({ width = "60%", height = 14 }) {
+  return <span className="settings-skeleton" style={{ width, height }} aria-hidden="true" />;
 }

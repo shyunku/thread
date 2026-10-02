@@ -1,7 +1,7 @@
 // Development-only fixtures for #/__settings-preview. Replaces IpcSender.vault
 // with synthetic responses so every data-management screen can be reviewed
 // and clicked through without an account, keys, files or the main process.
-const LATENCY = 250;
+let LATENCY = 250;
 const DEVICES = [
   { id: "d3f1a9c2-own", role: "write", own: true, addedAt: null },
   { id: "7be04411-laptop", role: "write", own: false, addedAt: Date.now() - 8 * 86400000 },
@@ -73,7 +73,8 @@ function pairingFlow() {
   };
 }
 
-export function installSettingsPreviewIpc(IpcSender, { recovery = "confirmed" } = {}) {
+export function installSettingsPreviewIpc(IpcSender, { recovery = "confirmed", latency = 250 } = {}) {
+  LATENCY = latency;
   let identity = { phase: recovery === "confirmed" ? "RECOVERY_CONFIRMED" : "RECOVERY_UNCONFIRMED", fingerprint: FINGERPRINT };
   IpcSender.syncV2 = { ...(IpcSender.syncV2 || {}), retry: (cb) => reply(cb, { ready: true }) };
   // No Electron bridge in the browser preview: event subscriptions are no-ops.

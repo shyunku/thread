@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Segmented, SettingsButton, SettingsCard, SettingsRow } from "../SettingsUI";
-import StepDialog, { AuthAction, Callout, Code } from "./StepDialog";
+import { Segmented, SettingsButton, SettingsCard, SettingsRow, CheckCard } from "../SettingsUI";
+import StepDialog, { AuthAction, Callout, Code, CopyableCode } from "./StepDialog";
 import { vaultAction } from "./vaultIpc";
 
 const FAILED = "처리하지 못했어요. 백업 코드와 파일, 본인 확인을 확인해 주세요. 같은 이름의 파일이 있으면 덮어쓰지 않아요.";
@@ -14,7 +14,6 @@ export default function BackupDialog({ osAvailable = false, onClose, onChanged }
   // Export
   const [code, setCode] = useState("");
   const [kept, setKept] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [exported, setExported] = useState(null);
   // Import
   const [copies, setCopies] = useState([]);
@@ -42,7 +41,6 @@ export default function BackupDialog({ osAvailable = false, onClose, onChanged }
     finally { pending.current = false; if (live.current) setBusy(false); }
   };
 
-  const copy = async () => { try { await navigator.clipboard.writeText(code); setCopied(true); } catch { setCopied(false); } };
   const save = (auth) => run(async () => {
     const result = await vaultAction("backup", "export", { code, confirmed: true, ...auth });
     if (!result || !live.current) return; // save dialog cancelled
@@ -108,12 +106,11 @@ export default function BackupDialog({ osAvailable = false, onClose, onChanged }
       ) : (
         <>
           <p>할 일 전체를 암호화된 파일로 저장합니다. 파일을 열 때 필요한 <b>백업 코드</b>도 함께 보관하세요.</p>
-          <Code size="small">{code || "코드를 만드는 중…"}</Code>
-          <div className="step-dialog__list"><SettingsButton disabled={!code} onClick={copy}>{copied ? "복사했어요" : "코드 복사"}</SettingsButton></div>
-          <label className="step-dialog__check">
-            <input type="checkbox" checked={kept} disabled={busy || !code} onChange={(event) => setKept(event.target.checked)} />
+          <CopyableCode value={code} display={code || "코드를 만드는 중…"} label="백업 코드 복사" clearAfterMs={30000} />
+          <p className="step-dialog__hint">복사한 코드는 30초 뒤 클립보드에서 지워져요.</p>
+          <CheckCard checked={kept} disabled={busy || !code} onChange={setKept}>
             백업 코드를 따로 보관했어요.
-          </label>
+          </CheckCard>
         </>
       ))}
       {tab === "import" && (applied ? (
@@ -129,10 +126,9 @@ export default function BackupDialog({ osAvailable = false, onClose, onChanged }
           </SettingsCard>
           {page.next && <div className="step-dialog__list"><SettingsButton disabled={busy} onClick={() => review(staged.id, page.next)}>다음 항목 보기</SettingsButton></div>}
           <Callout>같은 할 일이 이미 있으면 중복될 수 있어요.</Callout>
-          <label className="step-dialog__check">
-            <input type="checkbox" checked={consent} disabled={busy} onChange={(event) => setConsent(event.target.checked)} />
+          <CheckCard checked={consent} disabled={busy} onChange={setConsent}>
             백업의 항목을 새 항목으로 추가할게요.
-          </label>
+          </CheckCard>
         </>
       ) : (
         <>
