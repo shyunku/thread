@@ -1,6 +1,7 @@
 import {useCallback,useEffect,useRef,useState} from "react";
 import IpcSender from "../utils/IpcSender";
 import VaultUnlock from "./VaultUnlock";
+import LockScreen from "./LockScreen";
 import VaultWorkspace from "./VaultWorkspace";
 import {CircularProgress} from "react-cssfx-loading";
 import {VscChromeMinimize,VscChromeClose,VscRefresh} from "react-icons/vsc";
@@ -24,9 +25,11 @@ export default function ApplicationGate({uid,children}){
   return()=>{live.current=false;sequence.current++;IpcSender.off("vault/status",listener);};
  },[uid,refresh]);
  useEffect(()=>setSetupProgressed(false),[uid]);
+ // A plain lock uses the compact lock window; setup and migration flows keep the larger one.
+ const plainLock=screen.mode==="LOCKED"&&!screen.migrationPending;
  useEffect(()=>{
-  if(screen.mode!=="CHECKING")IpcSender.vault.windowMode?.(screen.mode==="E2EE"?"app":"setup",()=>{});
- },[screen.mode]);
+  if(screen.mode!=="CHECKING")IpcSender.vault.windowMode?.(screen.mode==="E2EE"?"app":plainLock?"lock":"setup",()=>{});
+ },[screen.mode,plainLock]);
  useEffect(()=>()=>{IpcSender.vault.windowMode?.("app",()=>{});},[]);
  const unlock=async(method,password)=>{
   await invoke("unlock",method,password);
@@ -37,12 +40,14 @@ export default function ApplicationGate({uid,children}){
  const workspace=["SETUP_REQUIRED","MIGRATION_REQUIRED","NEW_ACCOUNT_SETUP"].includes(screen.mode);
  const showIntro=introSeenFor!==uid&&(screen.mode==="MIGRATION_REQUIRED"||(screen.mode==="LOCKED"&&screen.migrationPending));
  const title=showIntro?"데이터 보호 업데이트":{CHECKING:"작업 공간을 준비하고 있어요",LOCKED:"내 데이터 잠금 해제",SETUP_REQUIRED:"이 기기에서 데이터 연결",NEW_ACCOUNT_SETUP:"새 데이터 보호 설정",MIGRATION_REQUIRED:"데이터 보호 업데이트",RECOVERY_REQUIRED:"데이터 확인이 필요해요",ERROR:"데이터에 연결하지 못했어요"}[screen.mode];
- return <main className={`application-gate${workspace?" application-gate--workspace":""}`}>
+ return <main className={`application-gate${workspace?" application-gate--workspace":""}${plainLock?" application-gate--lock":""}`}>
   <div className="application-gate__titlebar"><span>Thread</span><div className="application-gate__window-actions"><button aria-label="최소화" onClick={()=>IpcSender.system.minimizeWindow()}><VscChromeMinimize aria-hidden="true"/></button><button aria-label="닫기" onClick={()=>IpcSender.system.closeWindow()}><VscChromeClose aria-hidden="true"/></button></div></div>
   <div className="application-gate__card" aria-busy={screen.mode==="CHECKING"}>
-  {!(screen.mode==="NEW_ACCOUNT_SETUP"&&setupProgressed)&&<header className="application-gate__header"><div className="application-gate__heading"><h1>{title}</h1>{["ERROR","RECOVERY_REQUIRED"].includes(screen.mode)&&<button type="button" className="application-gate__refresh" aria-label="상태 다시 확인" title="상태 다시 확인" onClick={()=>void refresh()}><VscRefresh aria-hidden="true"/></button>}</div></header>}
+  {!(screen.mode==="NEW_ACCOUNT_SETUP"&&setupProgressed)&&!plainLock&&<header className="application-gate__header"><div className="application-gate__heading"><h1>{title}</h1>{["ERROR","RECOVERY_REQUIRED"].includes(screen.mode)&&<button type="button" className="application-gate__refresh" aria-label="상태 다시 확인" title="상태 다시 확인" onClick={()=>void refresh()}><VscRefresh aria-hidden="true"/></button>}</div></header>}
   {screen.mode==="CHECKING"?<div className="application-gate__checking" role="status"><CircularProgress color="#6294ff" width="32px" height="32px"/><p>계정의 저장소를 확인하고 있습니다…</p></div>:
    showIntro?<section className="application-gate__intro"><p>새 버전은 데이터를 이 기기에서 암호화한 뒤 동기화해요. 기존 데이터를 계속 사용하려면 한 번만 새 방식으로 옮겨야 합니다.</p><p>이동은 동의한 뒤에만 시작되며, 기존 데이터는 바로 삭제되지 않아요.</p><button type="button" onClick={()=>setIntroSeenFor(uid)}>계속</button></section>:
+   plainLock?<LockScreen osAvailable={screen.status?.osAvailable} passwordAvailable={screen.status?.passwordAvailable}
+    onOSUnlock={()=>unlock("os")} onPasswordUnlock={password=>unlock("password",password)}/>:
    screen.mode==="LOCKED"?<>{screen.migrationPending&&<ol className="application-gate__progress" aria-label="데이터 보호 업데이트 진행 단계"><li aria-current="step">1. 본인 확인</li><li>2. 백업 수단 저장</li><li>3. 데이터 이동</li></ol>}<p className="application-gate__notice">이 기기의 암호화된 데이터를 보호하기 위해 본인 확인이 필요해요. 처음 업데이트하는 경우 잠금 해제 후 데이터 이동을 안내합니다. 지금 확인만으로 데이터가 이동되지는 않아요.</p><VaultUnlock embedded osAvailable={screen.status?.osAvailable} passwordAvailable={screen.status?.passwordAvailable}
     onOSUnlock={()=>unlock("os")} onPasswordUnlock={password=>unlock("password",password)}/></>:
    screen.mode==="SETUP_REQUIRED"?<><p className="application-gate__notice">기존 기기의 연결 정보 또는 복구 파일로 암호화된 데이터를 연결해주세요.</p><VaultWorkspace uid={uid} connectionOnly onContinue={()=>void refresh()}/></>:

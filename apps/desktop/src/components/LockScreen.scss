@@ -1,0 +1,96 @@
+// Nested under the gate so these win over .application-gate button/input defaults.
+.application-gate {
+  .lock-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100%;
+    margin: 0 auto;
+    width: min(100%, 300px);
+    text-align: center;
+    color: var(--text, #edf1f7);
+
+    &__icon {
+      display: grid;
+      place-items: center;
+      width: 56px;
+      height: 56px;
+      margin-bottom: 16px;
+      border-radius: 14px;
+      background: #1c2028;
+      color: var(--secondary, #a0aaba);
+      font-size: 24px;
+    }
+
+    h1 { margin: 0 0 6px; font-size: 19px; font-weight: 700; line-height: 1.35; }
+    > p { margin: 0 0 20px; color: var(--secondary, #a0aaba); font-size: 13px; }
+
+    &__form {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: 100%;
+
+      .password-field input {
+        box-sizing: border-box;
+        width: 100%;
+        height: 38px;
+        padding: 0 40px 0 12px;
+        border: 1px solid #2b303b;
+        border-radius: 8px;
+        background: #10141a;
+        color: inherit;
+        font: inherit;
+
+        &:focus-visible { outline: none; border-color: #6294ff; }
+      }
+    }
+
+    &__primary {
+      width: 100%;
+      height: 38px;
+      border: 1px solid #6294ff;
+      border-radius: 8px;
+      background: #6294ff;
+      color: #0b1222;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+
+      &:hover:not(:disabled) { background: #79a5ff; }
+      &:disabled { opacity: .55; cursor: default; }
+      &:focus-visible { outline: 2px solid #9dbbff; outline-offset: 2px; }
+    }
+
+    &__switch {
+      margin-top: 12px;
+      padding: 4px 8px;
+      border: 0;
+      border-radius: 6px;
+      background: none;
+      color: var(--secondary, #a0aaba);
+      font: inherit;
+      font-size: 12.5px;
+      cursor: pointer;
+
+      &:hover:not(:disabled) { background: #252b36; color: #edf1f7; }
+      &:disabled { opacity: .5; cursor: default; }
+      &:focus-visible { outline: 2px solid #83aaff; outline-offset: 1px; }
+    }
+
+    &__error {
+      margin: 14px 0 0 !important;
+      color: #f0838b !important;
+      font-size: 12.5px !important;
+    }
+  }
+}
+
+// The gate card becomes a centered frame on the compact lock window.
+.application-gate--lock .application-gate__card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 24px;
+}

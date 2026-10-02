@@ -17,7 +17,7 @@ test("normal app mounts only after bootstrap and unmounts on lock until unlock",
  expect(await screen.findByText("Private application")).toBeInTheDocument();
  act(()=>notify({data:{uid:"u",phase:"LOCKED"}}));
  expect(screen.queryByText("Private application")).not.toBeInTheDocument();
- fireEvent.click(await screen.findByRole("button",{name:"Windows Hello / Touch ID로 열기"}));
+ fireEvent.click(await screen.findByRole("button",{name:"Windows Hello로 열기"}));
  expect(await screen.findByText("Private application")).toBeInTheDocument();
 });
 test("an already migrated account opens its home in E2EE mode after unlock",async()=>{
@@ -26,7 +26,7 @@ test("an already migrated account opens its home in E2EE mode after unlock",asyn
  IpcSender.vault.unlock.mockImplementation((method,password,cb)=>cb({success:true,data:{}}));
  render(<ApplicationGate uid="u">{mode=><p>Home mode: {mode}</p>}</ApplicationGate>);
  expect(screen.queryByText("Home mode: E2EE")).not.toBeInTheDocument();
- fireEvent.click(await screen.findByRole("button",{name:"Windows Hello / Touch ID로 열기"}));
+ fireEvent.click(await screen.findByRole("button",{name:"Windows Hello로 열기"}));
  expect(await screen.findByText("Home mode: E2EE")).toBeInTheDocument();
 });
 test("new v3 account requires setup and does not mount home",async()=>{
