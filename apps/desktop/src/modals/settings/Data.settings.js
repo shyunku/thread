@@ -7,7 +7,7 @@ import IpcSender from "../../utils/IpcSender";
 import VaultWorkspace from "../../components/VaultWorkspace";
 import Tooltip from "../../components/Tooltip";
 
-const SettingData = ({ modalRef, preview = false }) => {
+const SettingData = ({ modalRef, preview = false, previewPanel = null }) => {
   const { uid: accountUid } = useSelector(accountInfoSlice);
   const uid = preview ? "settings-preview" : accountUid;
   const [status, setStatus] = useState(preview ? { uid, protocolVersion: 3, connected: true, pending: 2, seq: "128", canSync: true, recovery: 0 } : null);
@@ -78,7 +78,7 @@ const SettingData = ({ modalRef, preview = false }) => {
       <section className="setting-item data-settings__manage">
         <div className="head"><h3 className="label">데이터 관리</h3></div>
         <div className="body">
-          <div className="data-settings__vault"><VaultWorkspace key={uid} uid={uid} preview={preview} onLocked={() => modalRef?.current?.close()} /></div>
+          <div className="data-settings__vault"><VaultWorkspace key={uid} uid={uid} preview={preview} initialPanel={preview ? previewPanel : null} onLocked={() => modalRef?.current?.close()} /></div>
         </div>
       </section>
     </div>

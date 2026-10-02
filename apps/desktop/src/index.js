@@ -35,12 +35,19 @@ const store = configureStore({
 
 const settingsPreview = process.env.NODE_ENV === "development" &&
   window.location.hash.startsWith("#/__settings-preview");
-const previewTab = new URLSearchParams(window.location.hash.split("?")[1] || "").get("tab");
+const previewParams = new URLSearchParams(window.location.hash.split("?")[1] || "");
+const previewTab = previewParams.get("tab");
+const previewPanel = previewParams.get("panel");
+if (settingsPreview) {
+  // Dev-only synthetic IPC; this branch is removed from production builds.
+  require("./preview/settingsPreviewIpc").installSettingsPreviewIpc(
+    require("./utils/IpcSender").default, { recovery: previewParams.get("recovery") || "unconfirmed" });
+}
 const persistor = settingsPreview ? null : persistStore(store);
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(settingsPreview ? (
   <Provider store={store}>
-    <SettingsModal id="SETTINGS_PREVIEW" preview previewTab={previewTab} />
+    <SettingsModal id="SETTINGS_PREVIEW" preview previewTab={previewTab} previewPanel={previewPanel} />
   </Provider>
 ) : (
   <Provider store={store}>

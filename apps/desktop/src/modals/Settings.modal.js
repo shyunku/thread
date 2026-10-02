@@ -48,7 +48,7 @@ const SETTING_MENU = {
 };
 const PREVIEW_MENU = { general: "GENERAL", data: "DATA", custom: "CUSTOM", account: "ACCOUNT", about: "ABOUT" };
 
-const SettingsModal = ({ preview = false, previewTab, ...props }) => {
+const SettingsModal = ({ preview = false, previewTab, previewPanel, ...props }) => {
   const [activeMenu, setActiveMenu] = useState(preview ? PREVIEW_MENU[previewTab] || "GENERAL" : "GENERAL");
   const modalRef = useRef(null);
 
@@ -86,7 +86,7 @@ const SettingsModal = ({ preview = false, previewTab, ...props }) => {
             <h2>{SETTING_MENU[activeMenu]?.key}</h2>
             <p>{SETTING_MENU[activeMenu]?.description}</p>
           </header>
-          {SETTING_MENU[activeMenu]?.page?.({ modalRef, preview }) ?? (
+          {SETTING_MENU[activeMenu]?.page?.({ modalRef, preview, previewPanel }) ?? (
             <div>페이지가 없습니다.</div>
           )}
         </main>
