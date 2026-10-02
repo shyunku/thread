@@ -84,7 +84,7 @@ func TestMySQLSignupModes(t *testing.T) {
 	if code := signup("/signup", "new-default", ""); code != 201 {
 		t.Fatal("default v3 signup", code)
 	}
-	if code := signup("/signup", "new-v2-test", "v2"); code != 403 {
+	if code := signup("/signup", "new-v2-test", "v2"); code != 400 {
 		t.Fatal("test v2 signup accepted", code)
 	}
 	if code := signup("/google-signup", "new-google", ""); code != 200 {
@@ -93,7 +93,7 @@ func TestMySQLSignupModes(t *testing.T) {
 	if code := signup("/signup", "new-after-release", ""); code != 201 {
 		t.Fatal("released v3 signup", code)
 	}
-	if code := signup("/signup", "v2-after-release", "v2"); code != 403 {
+	if code := signup("/signup", "v2-after-release", "v2"); code != 400 {
 		t.Fatal("released v2 signup accepted", code)
 	}
 	for _, tc := range []struct {
