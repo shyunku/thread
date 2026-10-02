@@ -114,6 +114,11 @@ const IpcSender = {
     download: callback => sender("release-alert/download", callback),
     install: callback => sender("release-alert/install", callback),
   },
+  appSettings: {
+    get: (callback) => sender("settings/get", callback),
+    set: (patch, callback) => sender("settings/set", callback, patch),
+  },
+  openExternal: (target, callback) => sender("system/openExternal", callback, target),
   syncV2: {
     getStatus: (callback) => sender("sync-v2/getStatus", callback),
     retry: (callback) => sender("sync-v2/retry", callback),

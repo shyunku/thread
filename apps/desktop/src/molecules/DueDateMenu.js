@@ -6,8 +6,10 @@ import { IoCalendarClearOutline, IoCalendarOutline } from "react-icons/io5";
 import JsxUtil from "utils/JsxUtil";
 import { v4 } from "uuid";
 import "./TaskOptionMenu.scss";
+import { useTimeFormat, withTimeFormat } from "utils/timeFormat";
 
 const DueDateMenu = ({ date, setDate, stickRefTo, withoutForm = false }) => {
+  const timeFormat = useTimeFormat();
   const [dateMenuId] = useState(`due_date_menu_${v4()}`);
   const dueDateSettingCtx = useContextMenu({
     stickRefTo,
@@ -34,7 +36,7 @@ const DueDateMenu = ({ date, setDate, stickRefTo, withoutForm = false }) => {
           onClick={dueDateSettingCtx.opener}
         >
           <div className="icon-wrapper">{date != null ? <IoCalendarOutline /> : <IoCalendarClearOutline />}</div>
-          {date != null && <div className="summary">{moment(date).format("YY년 M월 D일 (ddd) A h시 mm분")}</div>}
+          {date != null && <div className="summary">{moment(date).format(withTimeFormat("YY년 M월 D일 (ddd) A h시 mm분", timeFormat))}</div>}
         </div>
         <ContextMenu className={"menus"} reference={dueDateSettingCtx.ref} sticky={true}>
           <div

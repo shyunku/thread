@@ -1,4 +1,6 @@
 import moment from "moment";
+import { useSelector } from "react-redux";
+import { prefsSelector } from "store/prefsSlice";
 import { useEffect, useMemo, useState } from "react";
 import { IoPlay, IoPlayBack, IoPlayForward } from "react-icons/io5";
 import { fastInterval, fromRelativeTime } from "utils/Common";
@@ -47,6 +49,9 @@ const TaskCalendarView = ({
       1
     ).getDay();
   }, [watchingMonth]);
+  // 설정 > 일반 > 주 시작 요일 (0 = Sunday, 1 = Monday)
+  const weekStart = useSelector(prefsSelector).weekStart === 1 ? 1 : 0;
+  const leadingDays = (curMonthFirstDay - weekStart + 7) % 7;
   const curMonthLastDate = useMemo(() => {
     return new Date(
       watchingMonth.getFullYear(),
@@ -128,26 +133,27 @@ const TaskCalendarView = ({
             {Array(7)
               .fill(0)
               .map((_, index) => {
+                const dayIndex = (weekStart + index) % 7;
                 return (
                   <div
                     className={
                       "week-cell cell" +
                       JsxUtil.classByCondition(
-                        hoveredDate?.getDay() == index,
+                        hoveredDate?.getDay() == dayIndex,
                         "focused"
                       ) +
-                      JsxUtil.classByCondition(index == 0, "sunday") +
-                      JsxUtil.classByCondition(index == 6, "saturday")
+                      JsxUtil.classByCondition(dayIndex == 0, "sunday") +
+                      JsxUtil.classByCondition(dayIndex == 6, "saturday")
                     }
                     key={index}
                   >
-                    {moment().weekday(index).format("dd")}
+                    {moment().day(dayIndex).format("dd")}
                   </div>
                 );
               })}
           </div>
           <div className="day-cells">
-            {Array(curMonthFirstDay)
+            {Array(leadingDays)
               .fill(0)
               .map((_, index) => (
                 <DayCell
@@ -157,7 +163,7 @@ const TaskCalendarView = ({
                   selectedDate={selectedDate} onDateSelect={setSelectedDate}
                   day={
                     moment(prevMonthLastDate).date() -
-                    curMonthFirstDay +
+                    leadingDays +
                     index +
                     1
                   }
@@ -185,8 +191,8 @@ const TaskCalendarView = ({
                   categories={categories}
                 />
               ))}
-            {curMonthLastDate.getDay() < 6 &&
-              Array(6 - curMonthLastDate.getDay())
+            {(weekStart + 6 - curMonthLastDate.getDay()) % 7 > 0 &&
+              Array((weekStart + 6 - curMonthLastDate.getDay()) % 7)
                 .fill(0)
                 .map((_, index) => (
                   <DayCell

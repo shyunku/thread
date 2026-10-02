@@ -19,6 +19,8 @@ import {
 import JsxUtil from "utils/JsxUtil";
 import { ContextMenu } from "./CustomContextMenu";
 import "./CustomDateTimePicker.scss";
+import { useSelector } from "react-redux";
+import { prefsSelector } from "store/prefsSlice";
 
 moment.locale("ko");
 
@@ -40,13 +42,16 @@ const DateTimePicker = ({
   const prevMonthLastDate = useMemo(() => {
     return new Date(watchingMonth.getFullYear(), watchingMonth.getMonth(), 0);
   }, [watchingMonth]);
+  // Number of previous-month cells before day 1, following 설정 > 일반 > 주 시작 요일.
+  const weekStart = useSelector(prefsSelector).weekStart === 1 ? 1 : 0;
   const curMonthFirstDay = useMemo(() => {
-    return new Date(
+    const firstDay = new Date(
       watchingMonth.getFullYear(),
       watchingMonth.getMonth(),
       1
     ).getDay();
-  }, [watchingMonth]);
+    return (firstDay - weekStart + 7) % 7;
+  }, [watchingMonth, weekStart]);
   const curMonthLastDate = useMemo(() => {
     return new Date(
       watchingMonth.getFullYear(),
@@ -225,6 +230,7 @@ const DateTimePicker = ({
           hoveredDate={hoveredDate}
           setHoveredDate={setHoveredDate}
           curMonthFirstDay={curMonthFirstDay}
+          weekStart={weekStart}
           prevMonthLastDate={prevMonthLastDate}
           selectToday={selectToday}
           selectPrevMonthDate={selectPrevMonthDate}
@@ -262,6 +268,7 @@ const DatePicker = ({
   hoveredDate,
   setHoveredDate,
   curMonthFirstDay,
+  weekStart = 0,
   prevMonthLastDate,
   selectToday,
   selectPrevMonthDate,
@@ -291,18 +298,19 @@ const DatePicker = ({
           {Array(7)
             .fill(0)
             .map((_, index) => {
+              const dayIndex = (weekStart + index) % 7;
               return (
                 <div
                   className={
                     "date-picker-weekday" +
                     JsxUtil.classByCondition(
-                      hoveredDate?.getDay() == index,
+                      hoveredDate?.getDay() == dayIndex,
                       "focused"
                     )
                   }
                   key={index}
                 >
-                  {moment().weekday(index).format("dd")}
+                  {moment().day(dayIndex).format("dd")}
                 </div>
               );
             })}
@@ -381,8 +389,8 @@ const DatePicker = ({
                 </div>
               );
             })}
-          {curMonthLastDate.getDay() < 6 &&
-            Array(6 - curMonthLastDate.getDay())
+          {(weekStart + 6 - curMonthLastDate.getDay()) % 7 > 0 &&
+            Array((weekStart + 6 - curMonthLastDate.getDay()) % 7)
               .fill(0)
               .map((_, index) => {
                 return (

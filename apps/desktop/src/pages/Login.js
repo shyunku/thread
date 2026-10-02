@@ -68,6 +68,7 @@ const Login = () => {
       dispatch(
         setAccount({
           uid: user.uid,
+          authId: user.auth_id ?? null,
           googleEmail: user.google_email,
           googleProfileImageUrl: user.google_profile_image_url,
           offlineMode: false,

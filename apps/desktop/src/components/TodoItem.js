@@ -16,6 +16,7 @@ import { ContextMenu, useContextMenu } from "molecules/CustomContextMenu";
 import TaskRemainTimer from "./TaskRemainTimer";
 import TaskRepeatMenu from "molecules/TaskRepeatMenu";
 import { fastInterval, fromRelativeTime } from "utils/Common";
+import { useTimeFormat, withTimeFormat } from "utils/timeFormat";
 
 const TodoItem = ({
   todo,
@@ -80,6 +81,7 @@ const TodoItem = ({
     return moment(todo.dueDate).format("YY.MM.DD");
   }, [todo.dueDate]);
 
+  const timeFormat = useTimeFormat();
   const dueTimeText = useMemo(() => {
     if (!todo.dueDate) return "";
     const dueMoment = moment(todo.dueDate);
@@ -87,15 +89,15 @@ const TodoItem = ({
       return " 자정 전";
     if (dueMoment.hours() === 0 && dueMoment.minutes() === 0)
       return " 새벽 0시";
-    if (dueMoment.minutes() === 0) return dueMoment.format(" A h시");
-    return moment(todo.dueDate).format(" A h시 mm분");
-  }, [todo.dueDate]);
+    if (dueMoment.minutes() === 0) return dueMoment.format(withTimeFormat(" A h시", timeFormat));
+    return moment(todo.dueDate).format(withTimeFormat(" A h시 mm분", timeFormat));
+  }, [todo.dueDate, timeFormat]);
 
   const repeatTimeText = useMemo(() => {
     // console.log(todo.repeatStartAt);
     if (!todo.repeatStartAt) return "";
     if (todo.repeatPeriod == "day")
-      return `매일 ${moment(todo.repeatStartAt).format("A h시 mm분")}`;
+      return `매일 ${moment(todo.repeatStartAt).format(withTimeFormat("A h시 mm분", timeFormat))}`;
     if (todo.repeatPeriod == "week")
       return `매주 ${moment(todo.repeatStartAt).format("ddd요일")}`;
     if (todo.repeatPeriod == "month")
@@ -103,7 +105,7 @@ const TodoItem = ({
     if (todo.repeatPeriod == "year")
       return `매년 ${moment(todo.repeatStartAt).format("M월 D일")}`;
     return "";
-  }, [todo.repeatStartAt, todo.repeatPeriod]);
+  }, [todo.repeatStartAt, todo.repeatPeriod, timeFormat]);
 
   const remainTimeMilli = useMemo(() => {
     if (!todo.dueDate) return null;

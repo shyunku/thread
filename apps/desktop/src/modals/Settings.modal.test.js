@@ -17,8 +17,8 @@ test("settings preview keeps all six sections and their controls", () => {
   fireEvent.click(screen.getByRole("button", { name: "계정" }));
   expect(screen.getByRole("button", { name: "로그아웃" })).toBeDisabled();
   fireEvent.click(screen.getByRole("button", { name: "정보" }));
-  expect(screen.getByText("버전")).toBeInTheDocument();
-  expect(screen.getByRole("link", { name: "shyunku.dev@gmail.com" })).toHaveAttribute("href", "mailto:shyunku.dev@gmail.com");
+  expect(screen.getByText(/^버전 \d/)).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "메일 보내기" })).toBeInTheDocument();
 });
 
 test("normal settings retain the account action", () => {

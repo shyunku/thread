@@ -4,6 +4,8 @@ const initialState = Object.freeze({
   account: {
     uid: null,
     username: null,
+    // Password-login ID; null when the account has none, undefined for sessions saved before it was stored.
+    authId: undefined,
     profileImageUrl: null,
     googleEmail: null,
     googleProfileImageUrl: null,

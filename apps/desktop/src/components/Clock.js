@@ -1,6 +1,7 @@
 import moment from "moment/moment";
 import "./Clock.scss";
 import { useEffect, useMemo, useState } from "react";
+import { useTimeFormat, withTimeFormat } from "utils/timeFormat";
 
 const Clock = () => {
   const [incrementer, setIncrementer] = useState(0);
@@ -8,7 +9,8 @@ const Clock = () => {
     () => moment().format("YYYY년 MM월 DD일 (dddd)"),
     [incrementer]
   );
-  const time = useMemo(() => moment().format("a h:mm:ss"), [incrementer]);
+  const timeFormat = useTimeFormat();
+  const time = useMemo(() => moment().format(withTimeFormat("a h:mm:ss", timeFormat)), [incrementer, timeFormat]);
 
   useEffect(() => {
     const interval = setInterval(() => {

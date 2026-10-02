@@ -28,6 +28,7 @@ import {
 } from "utils/Common";
 import { useSelector } from "react-redux";
 import { accountAuthSlice, accountInfoSlice } from "store/accountSlice";
+import { prefsSelector } from "store/prefsSlice";
 import {
   applyAddTask,
   applyAddTaskCategory,
@@ -98,8 +99,10 @@ const TodoContent = (callback, deps) => {
 
   // main objects
   const [selectedTodoItemId, setSelectedTodoItemId] = useState(null);
+  // Initial view follows 설정 > 일반 > 시작할 때 보기.
+  const { startView } = useSelector(prefsSelector);
   const [taskViewMode, setTaskViewMode] = useState(
-    TASK_VIEW_MODE.LIST
+    () => ({ calendar: TASK_VIEW_MODE.CALENDAR, timeline: TASK_VIEW_MODE.TIMELINE })[startView] || TASK_VIEW_MODE.LIST
   );
   const [wideWorkspace, setWideWorkspace] = useState(() => window.innerWidth > 1100);
   useEffect(() => {

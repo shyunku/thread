@@ -4,6 +4,7 @@ import "./TaskTimelineView.scss";
 import JsxUtil from "../utils/JsxUtil";
 import { fromRelativeTime } from "../utils/Common";
 import { IoPlay, IoPlayBack, IoPlayForward } from "react-icons/io5";
+import { useTimeFormat, withTimeFormat } from "utils/timeFormat";
 
 const TIMELINE_VIEW_COLS = 4;
 
@@ -207,6 +208,7 @@ const TaskTimelineDayColumn = ({ targetDate, tasks, current, ...rest }) => {
 };
 
 const TaskTimelineTimeColumn = ({ targetDate, tasks, ...rest }) => {
+  const timeFormat = useTimeFormat();
   const isCurrentSection = useMemo(() => {
     return moment(targetDate).isSame(new Date(), "hour");
   }, [targetDate]);
@@ -238,7 +240,7 @@ const TaskTimelineTimeColumn = ({ targetDate, tasks, ...rest }) => {
   return (
     <div className={"time-cell-row"} {...rest}>
       <div className={"time-cell-header"}>
-        {moment(targetDate).format("a h시")}
+        {moment(targetDate).format(withTimeFormat("a h시", timeFormat))}
       </div>
       <div className={"time-cell-body"}>
         {isCurrentSection && (
@@ -252,7 +254,7 @@ const TaskTimelineTimeColumn = ({ targetDate, tasks, ...rest }) => {
                 "label" + JsxUtil.classByCondition(isAfternoon, "afternoon")
               }
             >
-              {moment().format("a h시 mm분 ss초")}
+              {moment().format(withTimeFormat("a h시 mm분 ss초", timeFormat))}
             </div>
           </div>
         )}

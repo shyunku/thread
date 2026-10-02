@@ -5,6 +5,7 @@ import JsxUtil from "utils/JsxUtil";
 import { v4 } from "uuid";
 import { ContextMenu, useContextMenu } from "./CustomContextMenu";
 import "./TaskOptionMenu.scss";
+import { useTimeFormat, withTimeFormat } from "utils/timeFormat";
 
 const REPEAT_TYPES = {
   day: "매일",
@@ -19,11 +20,12 @@ const TaskRepeatMenu = ({ date, curRepeat, onRepeatChange, stickRefTo, withoutFo
     preventCloseIdList: [taskRepeatMenuId],
     stickRefTo,
   });
+  const timeFormat = useTimeFormat();
   const taskPostfixLabel = useMemo(() => {
     if (!date) return "";
     switch (curRepeat) {
       case "day":
-        return moment(date).format(" A h시 mm분");
+        return moment(date).format(withTimeFormat(" A h시 mm분", timeFormat));
       case "week":
         return moment(date).format(" ddd요일");
       case "month":
@@ -32,7 +34,7 @@ const TaskRepeatMenu = ({ date, curRepeat, onRepeatChange, stickRefTo, withoutFo
         return moment(date).format(" M월 D일");
     }
     return "";
-  }, [date, curRepeat]);
+  }, [date, curRepeat, timeFormat]);
 
   return (
     <div className={"option task-option-menu" + JsxUtil.classByCondition(curRepeat != null, "active")}>
