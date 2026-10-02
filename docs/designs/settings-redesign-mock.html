@@ -53,7 +53,7 @@
   .row { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 10px 14px; }
   .row + .row { border-top: 1px solid var(--border); }
   .row .grow { flex: 1; min-width: 0; }
-  .row .label { font-weight: 600; }
+  .row .label { font-weight: 600; color: var(--text); }
   .row .desc { color: var(--secondary); font-size: 12.5px; }
   .row .icon { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 8px; background: #252b36; color: var(--secondary); flex: 0 0 30px; }
   .row .icon svg { width: 16px; height: 16px; }
@@ -81,7 +81,9 @@
 
   .sync { display: flex; align-items: center; gap: 12px; padding: 12px 14px; }
   .bar { flex: 1; height: 6px; display: flex; gap: 6px; }
-  .bar i { display: block; height: 100%; border-radius: 3px; }
+  .bar i { display: block; height: 100%; }
+  /* Round only the outer ends; the gap between segments stays square-edged. */
+  .bar i:first-child { border-radius: 3px 0 0 3px; } .bar i:last-child { border-radius: 0 3px 3px 0; } .bar i:only-child { border-radius: 3px; }
   .bar .done { background: var(--success); } .bar .pend { background: var(--pending); }
   .bar .idle { background: #3a4250; }
   .sync .meta { font-size: 12.5px; color: var(--secondary); white-space: nowrap; }
