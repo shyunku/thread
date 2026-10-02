@@ -55,7 +55,8 @@ const SettingData = ({ modalRef, preview = false, previewPanel = null }) => {
 
   const lock = () => {
     setLocking(true);
-    vaultCall("lock").then(() => modalRef?.current?.close()).catch(() => setLocking(false));
+    // The settings modal stays mounted after closing, so reset the flag for the next unlock.
+    vaultCall("lock").then(() => modalRef?.current?.close()).catch(() => {}).finally(() => setLocking(false));
   };
   const sync = <SyncStatus uid={uid} preview={preview} />;
 

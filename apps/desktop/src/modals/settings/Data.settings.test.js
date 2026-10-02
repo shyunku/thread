@@ -97,6 +97,8 @@ test("unlocked owner sees protection summary, devices and can lock the app", asy
   await act(async () => { fireEvent.click(screen.getByRole("button", { name: /앱 잠금/ })); });
   expect(IpcSender.vault.lock).toHaveBeenCalledTimes(1);
   expect(close).toHaveBeenCalled();
+  // The modal stays mounted while locked; the button must work again after the next unlock.
+  expect(screen.getByRole("button", { name: /앱 잠금/ })).toBeEnabled();
 });
 
 test("non-owner device does not list or manage devices and sees unconfirmed actions only where allowed", async () => {

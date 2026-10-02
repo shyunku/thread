@@ -34,9 +34,14 @@ const SettingsModal = ({ preview = false, previewTab, previewPanel, ...props }) 
   const onClose = () => {
     return 1234;
   };
+  // Backdrop click and Escape close the settings, unless a step dialog is open on top.
+  const onCancel = () => {
+    if (document.getElementById(`modal-${props.id}`)?.querySelector(".step-dialog__scrim")) return false;
+    return onClose();
+  };
 
   return (
-    <Modal {...props} active={preview || props.active} onClose={onClose} className={"settings"} ref={modalRef}>
+    <Modal {...props} active={preview || props.active} onClose={onClose} onCancel={preview ? undefined : onCancel} className={"settings"} ref={modalRef}>
       <div className={"content"}>
         <aside className="settings-sidebar">
           <div className="settings-sidebar__title">설정</div>
