@@ -80,10 +80,10 @@
   .link { border: 0; background: none; padding: 0; color: var(--accent); font-size: 12px; }
 
   .sync { display: flex; align-items: center; gap: 12px; padding: 12px 14px; }
-  .bar { flex: 1; height: 6px; display: flex; gap: 6px; }
+  .bar { flex: 1; height: 8px; display: flex; gap: 3px; }
   .bar i { display: block; height: 100%; }
-  /* Round only the outer ends; the gap between segments stays square-edged. */
-  .bar i:first-child { border-radius: 3px 0 0 3px; } .bar i:last-child { border-radius: 0 3px 3px 0; } .bar i:only-child { border-radius: 3px; }
+  /* Confirmed variant E: thin gap (thinner than the bar) reads as one divided bar. */
+  .bar i:first-child { border-radius: 4px 2px 2px 4px; } .bar i:last-child { border-radius: 2px 4px 4px 2px; } .bar i:only-child { border-radius: 4px; }
   .bar .done { background: var(--success); } .bar .pend { background: var(--pending); }
   .bar .idle { background: #3a4250; }
   .sync .meta { font-size: 12.5px; color: var(--secondary); white-space: nowrap; }
@@ -212,7 +212,7 @@ const screens = {
   "data": { group: "데이터", label: "데이터 탭", html: () => dataTab(false), notes: [
     "제목 1단: 페이지 제목 + 한 줄 설명. 상단 '환경설정' 헤더 바는 없애고 사이드바 위 작은 '설정'으로 대체",
     "보호 상태 요약 3칸: 복구 키, 연결된 기기, 마지막 백업. 조치가 필요하면 경고색 + 바로가기",
-    "동기화 막대 유지. 완료(초록)와 대기(주황) 사이 6px 간격. 대기 0개면 회색 막대 + 흐린 문구(경고 상태 화면 참고)",
+    "동기화 막대 유지. 확정(비교 E): 두께 8 · 간격 3 · 바깥 4px/안쪽 2px 모서리. 대기 0개면 회색 막대 + 흐린 문구(경고 상태 화면 참고)",
     "보낼 변경이 있으면 문구도 대기 색으로 강조. '5분 전 동기화'는 마지막 성공 시각 기준 상대 시간이며 1분마다 갱신(현재 동기화 상태에 시각 값이 없어 메인 프로세스에 기록 추가 필요)",
     "연결된 기기를 바로 표시. 서버에 기기 이름이 없어 '이 PC / 다른 기기 · 짧은 ID'로 구분. 연결 날짜는 넣는 방향(멤버십 기록에서 계산 가능한지 구현 시 확인)",
     "작업은 모두 자식 모달로 열림. '기기 분실 복구'와 '암호화 갱신' 카드는 없음",
@@ -362,7 +362,7 @@ const screens = {
         ${v("D. 얇은 간격 · 살짝 둥긂", "두께 6 · 간격 3 · 안쪽 1px", 6, 3, 1, 3)}
         ${v("E. 두껍게 · 얇은 간격", "두께 8 · 간격 3 · 안쪽 2px", 8, 3, 2, 4)}
         ${v("F. 두껍게 · 알약", "두께 8 · 간격 4 · 안쪽 둥긂", 8, 4, 4, 4)}
-      </div></div>`; }, notes: ["추천: D 또는 E. 간격을 두께보다 얇게 두면 '하나를 나눈 막대'로 읽힘", "A·B는 간격이 두께와 같아 끊긴 막대나 별개 알약처럼 보임"] },
+      </div></div>`; }, notes: ["확정: E(2026-10-02). 추천 D 또는 E. 간격을 두께보다 얇게 두면 '하나를 나눈 막대'로 읽힘", "A·B는 간격이 두께와 같아 끊긴 막대나 별개 알약처럼 보임"] },
   "terms": { group: "용어", label: "용어 교체표", html: () => `<div class="settings" style="padding:24px 28px;overflow:auto;display:block"><h2 style="margin:0 0 4px;font-size:19px">용어 교체</h2><p style="margin:0 0 16px;color:var(--secondary)">화면에서 쓰지 않는 말: 보관함, 키 회전, 키 세대, identity, 서명, 재인증, 이관, 미전송</p>
       <table class="terms"><tr><th>현재</th><th>변경</th><th>쓰는 곳</th></tr>
       <tr><td>복구 자료 / 백업 수단</td><td>복구 키</td><td>데이터 탭, 최초 설정</td></tr>
