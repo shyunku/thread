@@ -9,6 +9,8 @@
     --canvas: #101216; --panel: #15181e; --surface: #1c2028; --hover: #252b36; --border: #2b303b;
     --text: #edf1f7; --secondary: #a0aaba; --muted: #8792a4; --accent: #6294ff; --selected: #253858;
     --success: #70d5a0; --warning: #edbc72; --danger: #f0838b; --radius: 10px;
+    /* Sync pending: warning shifted slightly toward orange */
+    --pending: #f0a65e;
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: #0b0d10; color: var(--text); font: 14px/1.5 Pretendard, "Malgun Gothic", "Segoe UI", sans-serif; }
@@ -78,11 +80,14 @@
   .link { border: 0; background: none; padding: 0; color: var(--accent); font-size: 12px; }
 
   .sync { display: flex; align-items: center; gap: 12px; padding: 12px 14px; }
-  .bar { flex: 1; height: 6px; border-radius: 3px; background: #2a313d; overflow: hidden; display: flex; }
-  .bar i { display: block; height: 100%; }
-  .bar .done { background: var(--success); } .bar .pend { background: var(--warning); }
+  .bar { flex: 1; height: 6px; display: flex; gap: 6px; }
+  .bar i { display: block; height: 100%; border-radius: 3px; }
+  .bar .done { background: var(--success); } .bar .pend { background: var(--pending); }
+  .bar .idle { background: #3a4250; }
   .sync .meta { font-size: 12.5px; color: var(--secondary); white-space: nowrap; }
   .sync .meta.dim { opacity: .5; }
+  .sync .meta .pending { color: var(--pending); font-weight: 600; }
+  .sync .refresh { width: 34px; height: 34px; padding: 0; font-size: 19px; line-height: 1; }
   .badge { padding: 2px 8px; border-radius: 99px; font-size: 11.5px; font-weight: 600; background: #1f3a2d; color: var(--success); }
   .badge.gray { background: #2a303b; color: var(--secondary); }
   .badge.warn { background: #3d3220; color: var(--warning); }
@@ -126,8 +131,6 @@
   .window.w900 .side { width: 56px; flex-basis: 56px; padding: 18px 8px; }
   .window.w900 .side .title, .window.w900 .side .nav span { display: none; }
   .window.w900 .side .nav button { justify-content: center; padding: 0; }
-  .float { position: absolute; z-index: 5; top: 0; left: 0; bottom: 0; width: 204px; padding: 18px 10px; background: #12161d; border-right: 1px solid #2d3644; box-shadow: 12px 0 40px #0009; }
-  .float .title { padding: 2px 10px 14px; font-size: 15px; font-weight: 700; }
 
   table.terms { border-collapse: collapse; width: 100%; font-size: 13px; }
   table.terms th, table.terms td { padding: 9px 12px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
@@ -169,9 +172,9 @@ const head = (title, desc, action = "") => `<div class="page-head"><div><h2>${ti
 const syncRow = pending => `
   <div class="card sync">
     <span class="badge">온라인</span>
-    <div class="bar">${pending ? '<i class="done" style="width:82%"></i><i class="pend" style="width:18%"></i>' : '<i style="width:100%;background:#3a4250"></i>'}</div>
-    <span class="meta ${pending ? "" : "dim"}">${pending ? "보낼 변경 2개" : "보낼 변경 0개"} · 방금 동기화</span>
-    <button class="btn ghost" title="지금 동기화">↻</button>
+    <div class="bar">${pending ? '<i class="done" style="flex:82"></i><i class="pend" style="flex:18"></i>' : '<i class="idle" style="flex:1"></i>'}</div>
+    <span class="meta ${pending ? "" : "dim"}">${pending ? '<span class="pending">보낼 변경 2개</span> · 5분 전 동기화' : "보낼 변경 0개 · 방금 동기화"}</span>
+    <button class="btn ghost refresh" title="지금 동기화">↻</button>
   </div>`;
 
 const deviceRows = `
@@ -207,7 +210,8 @@ const screens = {
   "data": { group: "데이터", label: "데이터 탭", html: () => dataTab(false), notes: [
     "제목 1단: 페이지 제목 + 한 줄 설명. 상단 '환경설정' 헤더 바는 없애고 사이드바 위 작은 '설정'으로 대체",
     "보호 상태 요약 3칸: 복구 키, 연결된 기기, 마지막 백업. 조치가 필요하면 경고색 + 바로가기",
-    "동기화 막대 유지. 대기 0개면 회색 막대 + 흐린 문구(경고 상태 화면 참고)",
+    "동기화 막대 유지. 완료(초록)와 대기(주황) 사이 6px 간격. 대기 0개면 회색 막대 + 흐린 문구(경고 상태 화면 참고)",
+    "보낼 변경이 있으면 문구도 대기 색으로 강조. '5분 전 동기화'는 마지막 성공 시각 기준 상대 시간이며 1분마다 갱신(현재 동기화 상태에 시각 값이 없어 메인 프로세스에 기록 추가 필요)",
     "연결된 기기를 바로 표시. 서버에 기기 이름이 없어 '이 PC / 다른 기기 · 짧은 ID'로 구분. 연결 날짜는 넣는 방향(멤버십 기록에서 계산 가능한지 구현 시 확인)",
     "작업은 모두 자식 모달로 열림. '기기 분실 복구'와 '암호화 갱신' 카드는 없음",
     "'앱 잠금'은 페이지 오른쪽 위. 트레이 메뉴에도 추가"] },
@@ -335,11 +339,10 @@ const screens = {
         <div class="row"><div class="grow"><div class="label">문의</div><div class="desc">shyunku.dev@gmail.com</div></div><button class="btn ghost">메일 보내기</button></div>
       </div></div>`), notes: ["개인정보처리방침은 #69 공개 사이트 페이지로 연결", "업데이트 확인: 15초 주기 + 창 포커스 시 즉시(70.7). 버튼은 즉시 확인"] },
   "custom": { group: "탭", label: "사용자 맞춤", html: () => shell("custom", `${head("사용자 맞춤", "화면 구성을 바꿉니다.")}<div class="card"><div class="row"><div class="grow desc">현재 조정할 항목이 없습니다. 레이아웃 조정은 화면에서 직접 하도록 준비 중입니다.</div></div></div>`), notes: ["보류. 빈 탭 허용"] },
-  "narrow": { group: "좁은 창", label: "사이드바 펼침", narrow: true, html: () => shell("data", dataTab(false).match(/<main class="main"><button class="close"[^>]*>✕<\/button>([\s\S]*)<\/main>/)[1],
-      `<div class="float"><div class="title">설정</div>${nav("data")}</div>`), notes: [
-    "창이 좁으면 사이드바를 아이콘 레일(56px)로 접음",
-    "아이콘을 누르거나 가리키면 노션처럼 떠 있는 패널로 펼쳐짐. 바깥을 누르거나 메뉴를 고르면 닫힘",
-    "시안 상단의 '900px' 버튼으로 접힌 레일만 볼 수 있음"] },
+  "narrow": { group: "좁은 창", label: "아이콘 레일", narrow: true, html: () => dataTab(false), notes: [
+    "창이 좁으면 사이드바를 아이콘 레일(56px)로 접음. 아이콘에 마우스를 올리면 메뉴 이름 툴팁",
+    "떠 있는 패널은 쓰지 않음(사용자 결정). 좁은 창 문제는 추후 Electron 최소 창 크기 조정으로 검토",
+    "상단 '900px' 버튼으로 다른 화면도 좁은 폭으로 볼 수 있음"] },
   "terms": { group: "용어", label: "용어 교체표", html: () => `<div class="settings" style="padding:24px 28px;overflow:auto;display:block"><h2 style="margin:0 0 4px;font-size:19px">용어 교체</h2><p style="margin:0 0 16px;color:var(--secondary)">화면에서 쓰지 않는 말: 보관함, 키 회전, 키 세대, identity, 서명, 재인증, 이관, 미전송</p>
       <table class="terms"><tr><th>현재</th><th>변경</th><th>쓰는 곳</th></tr>
       <tr><td>복구 자료 / 백업 수단</td><td>복구 키</td><td>데이터 탭, 최초 설정</td></tr>
