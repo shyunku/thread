@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thread 설정 개편 시안 (#70)</title>
+<style>
+  :root {
+    --canvas: #101216; --panel: #15181e; --surface: #1c2028; --hover: #252b36; --border: #2b303b;
+    --text: #edf1f7; --secondary: #a0aaba; --muted: #8792a4; --accent: #6294ff; --selected: #253858;
+    --success: #70d5a0; --warning: #edbc72; --danger: #f0838b; --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0b0d10; color: var(--text); font: 14px/1.5 Pretendard, "Malgun Gothic", "Segoe UI", sans-serif; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  .toolbar { position: sticky; top: 0; z-index: 50; display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+    padding: 10px 16px; background: #0b0d10ee; border-bottom: 1px solid var(--border); backdrop-filter: blur(6px); }
+  .toolbar strong { margin-right: 8px; font-size: 13px; color: var(--secondary); }
+  .toolbar button { padding: 5px 10px; border: 1px solid var(--border); border-radius: 7px; background: var(--panel); font-size: 12px; color: var(--secondary); }
+  .toolbar button.on { background: var(--selected); border-color: #3a5486; color: var(--text); }
+  .toolbar .sep { width: 1px; height: 20px; background: var(--border); margin: 0 6px; }
+  .stage { display: flex; gap: 24px; align-items: flex-start; justify-content: center; padding: 32px 16px 64px; }
+  .notes { width: 300px; flex: 0 0 300px; padding: 16px 18px; border: 1px dashed #3a4252; border-radius: 12px; color: var(--secondary); font-size: 13px; }
+  .notes h3 { margin: 0 0 8px; font-size: 13px; color: var(--text); }
+  .notes ul { margin: 0; padding-left: 18px; } .notes li { margin: 4px 0; }
+
+  /* Window frame that simulates the app window width */
+  .window { position: relative; height: 760px; border-radius: 12px; background: var(--canvas); border: 1px solid #222731; overflow: hidden; flex: 0 0 auto; }
+  .window.w1280 { width: 1080px; } .window.w900 { width: 760px; }
+  .window::before { content: "Thread"; position: absolute; inset: 0 0 auto 0; height: 34px; padding: 8px 14px; font-size: 12px; color: var(--muted); border-bottom: 1px solid #1d2129; }
+
+  /* Settings modal */
+  .settings { position: absolute; inset: 60px 28px 28px; display: flex; border: 1px solid #354051; border-radius: 14px; background: #151a23; overflow: hidden; box-shadow: 0 20px 60px #0008; }
+  .side { width: 196px; flex: 0 0 196px; padding: 18px 10px; background: #12161d; border-right: 1px solid #262d39; }
+  .side .title { padding: 2px 10px 14px; font-size: 15px; font-weight: 700; }
+  .nav { display: flex; flex-direction: column; gap: 2px; }
+  .nav button { display: flex; gap: 10px; align-items: center; height: 34px; padding: 0 10px; border: 0; border-radius: 8px; background: none; color: var(--secondary); text-align: left; }
+  .nav button:hover { background: var(--hover); color: var(--text); }
+  .nav button.on { background: var(--selected); color: var(--text); font-weight: 600; }
+  .nav svg { width: 16px; height: 16px; flex: 0 0 16px; }
+  .main { position: relative; flex: 1; min-width: 0; overflow: auto; padding: 22px 28px 28px; }
+  .close { position: absolute; top: 14px; right: 14px; width: 30px; height: 30px; border: 0; border-radius: 7px; background: none; color: var(--secondary); font-size: 18px; }
+  .close:hover { background: var(--hover); }
+  .page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin: 0 40px 18px 0; }
+  .page-head h2 { margin: 0; font-size: 19px; font-weight: 700; }
+  .page-head p { margin: 2px 0 0; color: var(--secondary); font-size: 13px; }
+
+  .section { margin-top: 18px; }
+  .section > h3 { margin: 0 0 8px; font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--muted); }
+  .card { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+  .row { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 10px 14px; }
+  .row + .row { border-top: 1px solid var(--border); }
+  .row .grow { flex: 1; min-width: 0; }
+  .row .label { font-weight: 600; }
+  .row .desc { color: var(--secondary); font-size: 12.5px; }
+  .row .icon { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 8px; background: #252b36; color: var(--secondary); flex: 0 0 30px; }
+  .row .icon svg { width: 16px; height: 16px; }
+
+  .btn { height: 32px; padding: 0 12px; border: 1px solid #39414f; border-radius: 8px; background: #232a35; color: var(--text); font-size: 13px; white-space: nowrap; }
+  .btn:hover { background: #2b3441; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #0b1222; font-weight: 600; }
+  .btn.primary:hover { background: #79a5ff; }
+  .btn.danger { background: none; border-color: #5a3238; color: var(--danger); }
+  .btn.ghost { background: none; border-color: transparent; color: var(--secondary); }
+  .btn[disabled] { opacity: .45; cursor: not-allowed; }
+
+  .summary { display: grid; grid-template-columns: repeat(3, 1fr); }
+  .summary > div { padding: 14px 16px; }
+  .summary > div + div { border-left: 1px solid var(--border); }
+  .summary .k { color: var(--muted); font-size: 12px; }
+  .summary .v { margin-top: 2px; font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+  .summary .s { color: var(--secondary); font-size: 12px; }
+  .ok { color: var(--success); } .warn { color: var(--warning); } .bad { color: var(--danger); }
+  .link { border: 0; background: none; padding: 0; color: var(--accent); font-size: 12px; }
+
+  .sync { display: flex; align-items: center; gap: 12px; padding: 12px 14px; }
+  .bar { flex: 1; height: 6px; border-radius: 3px; background: #2a313d; overflow: hidden; display: flex; }
+  .bar i { display: block; height: 100%; }
+  .bar .done { background: var(--success); } .bar .pend { background: var(--warning); }
+  .sync .meta { font-size: 12.5px; color: var(--secondary); white-space: nowrap; }
+  .sync .meta.dim { opacity: .5; }
+  .badge { padding: 2px 8px; border-radius: 99px; font-size: 11.5px; font-weight: 600; background: #1f3a2d; color: var(--success); }
+  .badge.gray { background: #2a303b; color: var(--secondary); }
+  .badge.warn { background: #3d3220; color: var(--warning); }
+
+  .toggle { width: 38px; height: 22px; border-radius: 11px; border: 0; background: #39414f; position: relative; flex: 0 0 38px; }
+  .toggle::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #c9d1dd; transition: left .15s; }
+  .toggle.on { background: var(--accent); } .toggle.on::after { left: 19px; background: #fff; }
+  .seg { display: inline-flex; padding: 2px; border: 1px solid var(--border); border-radius: 8px; background: #161a21; }
+  .seg button { height: 28px; padding: 0 12px; border: 0; border-radius: 6px; background: none; color: var(--secondary); font-size: 12.5px; }
+  .seg button.on { background: var(--selected); color: var(--text); font-weight: 600; }
+  .soon { margin-left: 6px; padding: 1px 6px; border-radius: 5px; background: #2a303b; color: var(--muted); font-size: 11px; font-weight: 500; }
+
+  details.adv { margin-top: 18px; color: var(--secondary); }
+  details.adv summary { cursor: pointer; font-size: 12px; font-weight: 600; color: var(--muted); }
+
+  /* Child modal */
+  .scrim { position: absolute; inset: 0; z-index: 10; background: #05070acc; display: grid; place-items: center; }
+  .dialog { width: min(540px, calc(100% - 40px)); max-height: calc(100% - 40px); display: flex; flex-direction: column; border: 1px solid #3a4456; border-radius: 14px; background: #181d26; box-shadow: 0 24px 70px #000a; }
+  .dialog header { padding: 18px 22px 0; }
+  .dialog h4 { margin: 0; font-size: 17px; }
+  .steps { display: flex; gap: 6px; margin: 12px 0 0; padding: 0; list-style: none; }
+  .steps li { flex: 1; height: 4px; border-radius: 2px; background: #2c3442; }
+  .steps li.done { background: var(--accent); } .steps li.cur { background: #9dbbff; }
+  .steplabel { margin-top: 8px; font-size: 12px; color: var(--muted); }
+  .dialog .body { padding: 16px 22px; overflow: auto; }
+  .dialog .body p { margin: 0 0 12px; color: var(--secondary); }
+  .dialog footer { display: flex; justify-content: space-between; gap: 8px; padding: 14px 22px; border-top: 1px solid var(--border); }
+  .code { padding: 14px; border-radius: 10px; background: #10141a; border: 1px solid var(--border); text-align: center; font: 600 22px/1.3 Consolas, monospace; letter-spacing: .08em; }
+  .callout { padding: 10px 12px; border-radius: 9px; background: #2a2418; border: 1px solid #4a3c22; color: #f2d7a6; font-size: 12.5px; }
+  .callout.info { background: #182234; border-color: #2b3d5d; color: #c7d7f5; }
+  .check { display: flex; gap: 8px; align-items: flex-start; margin-top: 12px; font-size: 13px; }
+  .qr { width: 132px; height: 132px; margin: 0 auto 10px; border-radius: 8px;
+    background: repeating-conic-gradient(#e9edf3 0 25%, #10141a 0 50%) 0 0 / 12px 12px; border: 6px solid #e9edf3; }
+  .choice { display: grid; gap: 8px; }
+  .choice button { text-align: left; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+  .choice button.on { border-color: var(--accent); background: #1b2740; }
+  .choice b { display: block; } .choice span { color: var(--secondary); font-size: 12.5px; }
+  .progress { height: 6px; border-radius: 3px; background: #2a313d; overflow: hidden; } .progress i { display: block; height: 100%; width: 35%; background: var(--accent); }
+
+  /* Narrow window: icon rail + floating panel */
+  .window.w900 .side { width: 56px; flex-basis: 56px; padding: 18px 8px; }
+  .window.w900 .side .title, .window.w900 .side .nav span { display: none; }
+  .window.w900 .side .nav button { justify-content: center; padding: 0; }
+  .float { position: absolute; z-index: 5; top: 0; left: 0; bottom: 0; width: 204px; padding: 18px 10px; background: #12161d; border-right: 1px solid #2d3644; box-shadow: 12px 0 40px #0009; }
+  .float .title { padding: 2px 10px 14px; font-size: 15px; font-weight: 700; }
+
+  table.terms { border-collapse: collapse; width: 100%; font-size: 13px; }
+  table.terms th, table.terms td { padding: 9px 12px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+  table.terms th { color: var(--muted); font-weight: 600; font-size: 12px; }
+  table.terms td:first-child { color: var(--muted); text-decoration: line-through; }
+</style>
+</head>
+<body>
+<div class="toolbar" id="toolbar"></div>
+<div class="stage">
+  <div class="window w1280" id="window"></div>
+  <aside class="notes" id="notes"></aside>
+</div>
+<script>
+const I = {
+  general: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
+  data: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 4 6v6c0 5 3.4 8.7 8 10 4.6-1.3 8-5 8-10V6z"/></svg>',
+  custom: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M17.5 14v7M14 17.5h7"/></svg>',
+  account: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
+  system: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>',
+  about: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg>',
+  pc: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8"/></svg>',
+  phone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>',
+  key: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="7.5" cy="15.5" r="4.5"/><path d="m10.7 12.3 9.3-9.3M16 7l3 3M14 9l2 2"/></svg>',
+  box: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>',
+  lock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>',
+};
+const TABS = [["general","일반"],["data","데이터"],["custom","사용자 맞춤"],["account","계정"],["system","시스템"],["about","정보"]];
+
+const nav = (active, floating) => `<nav class="nav">${TABS.map(([k,l]) => `<button class="${k===active?"on":""}" title="${l}">${I[k]}<span>${l}</span></button>`).join("")}</nav>`;
+const shell = (active, content, extra = "") => `
+  <div class="settings">
+    <aside class="side"><div class="title">설정</div>${nav(active)}</aside>
+    <main class="main"><button class="close" aria-label="닫기">✕</button>${content}</main>
+    ${extra}
+  </div>`;
+const head = (title, desc, action = "") => `<div class="page-head"><div><h2>${title}</h2><p>${desc}</p></div>${action}</div>`;
+
+const syncRow = pending => `
+  <div class="card sync">
+    <span class="badge">온라인</span>
+    <div class="bar">${pending ? '<i class="done" style="width:82%"></i><i class="pend" style="width:18%"></i>' : '<i style="width:100%;background:#3a4250"></i>'}</div>
+    <span class="meta ${pending ? "" : "dim"}">${pending ? "보낼 변경 2개" : "보낼 변경 0개"} · 방금 동기화</span>
+    <button class="btn ghost" title="지금 동기화">↻</button>
+  </div>`;
+
+const deviceRows = `
+  <div class="row"><div class="icon">${I.pc}</div><div class="grow"><div class="label">이 PC</div><div class="desc">편집 가능 · 현재 사용 중</div></div><span class="badge gray">이 기기</span></div>
+  <div class="row"><div class="icon">${I.pc}</div><div class="grow"><div class="label">다른 기기 · 7BE0</div><div class="desc">편집 가능 · 9월 24일 연결</div></div><button class="btn danger" data-go="remove-1">해제</button></div>
+  <div class="row"><div class="icon">${I.phone}</div><div class="grow"><div class="label">다른 기기 · C90D</div><div class="desc">보기만 가능 · 9월 27일 연결</div></div><button class="btn danger" data-go="remove-1">해제</button></div>`;
+
+const dataTab = (warn) => shell("data", `
+  ${head("데이터", "내 데이터는 기기에서 암호화되어 저장·동기화됩니다.", `<button class="btn" data-go="locked">${I.lock.replace('<svg','<svg style="width:14px;height:14px;vertical-align:-2px;margin-right:6px"')}앱 잠금</button>`)}
+  <div class="card summary">
+    <div><div class="k">복구 키</div><div class="v ${warn ? "warn" : "ok"}">${warn ? "⚠ 확인 필요" : "✓ 보관됨"}</div><div class="s">${warn ? "모든 기기를 잃으면 되찾을 수 없어요 · <button class=link data-go=recovery-1>지금 설정</button>" : "9월 22일 확인"}</div></div>
+    <div><div class="k">연결된 기기</div><div class="v">3대</div><div class="s">이 PC 포함</div></div>
+    <div><div class="k">마지막 백업</div><div class="v ${warn ? "warn" : ""}">${warn ? "⚠ 없음" : "9월 29일"}</div><div class="s">${warn ? "<button class=link data-go=backup-1>백업 만들기</button>" : "42개 항목"}</div></div>
+  </div>
+  <div class="section"><h3>동기화</h3>${syncRow(!warn)}</div>
+  <div class="section"><h3 style="display:flex;justify-content:space-between;align-items:center">연결된 기기 <button class="btn" data-go="pair-1">+ 새 기기 추가</button></h3><div class="card">${deviceRows}</div></div>
+  <div class="section"><h3>백업과 복구</h3><div class="card">
+    <div class="row"><div class="icon">${I.box}</div><div class="grow"><div class="label">데이터 백업</div><div class="desc">할 일 전체를 암호화된 파일로 내보내거나 불러옵니다.</div></div><button class="btn" data-go="backup-1">백업 관리</button></div>
+    <div class="row"><div class="icon">${I.key}</div><div class="grow"><div class="label">복구 키</div><div class="desc">모든 기기를 잃었을 때 데이터를 되찾는 파일과 코드입니다.</div></div><button class="btn" data-go="recovery-1">${warn ? "설정하기" : "새로 만들기"}</button></div>
+  </div></div>
+  <details class="adv"><summary>고급</summary><div class="card" style="margin-top:8px"><div class="row"><div class="grow"><div class="label">이전 버전 데이터 검토</div><div class="desc">업데이트 전에 보내지 못한 변경이 남아 있을 때만 표시됩니다.</div></div><button class="btn">검토</button></div></div></details>
+`);
+
+const dialog = (title, step, total, label, body, back, next, nextClass = "primary") => `
+  <div class="scrim"><div class="dialog">
+    <header><h4>${title}</h4><ol class="steps">${Array.from({length: total}, (_, i) => `<li class="${i < step - 1 ? "done" : i === step - 1 ? "cur" : ""}"></li>`).join("")}</ol><div class="steplabel">${step}/${total} · ${label}</div></header>
+    <div class="body">${body}</div>
+    <footer>${back === "none" ? "<span></span>" : `<button class="btn ghost" data-go="${back || "data"}">${back ? "이전" : "취소"}</button>`}${next}</footer>
+  </div></div>`;
+const withDialog = d => dataTab(false).replace(/<\/div>\s*$/, d + "</div>");
+
+const screens = {
+  "data": { group: "데이터", label: "데이터 탭", html: () => dataTab(false), notes: [
+    "제목 1단: 페이지 제목 + 한 줄 설명. 상단 '환경설정' 헤더 바는 없애고 사이드바 위 작은 '설정'으로 대체",
+    "보호 상태 요약 3칸: 복구 키, 연결된 기기, 마지막 백업. 조치가 필요하면 경고색 + 바로가기",
+    "동기화 막대 유지. 대기 0개면 회색 막대 + 흐린 문구(경고 상태 화면 참고)",
+    "연결된 기기를 바로 표시. 서버에 기기 이름이 없어 '이 PC / 다른 기기 · 짧은 ID'로 구분. 연결 날짜는 멤버십 기록에서 계산 가능한지 구현 시 확인",
+    "작업은 모두 자식 모달로 열림. '기기 분실 복구'와 '암호화 갱신' 카드는 없음",
+    "'앱 잠금'은 페이지 오른쪽 위. 트레이 메뉴에도 추가"] },
+  "data-warn": { group: "데이터", label: "경고 상태", html: () => dataTab(true), notes: [
+    "복구 키를 아직 확인하지 않았거나 백업이 없을 때의 모습",
+    "요약 칸에서 바로 '지금 설정', '백업 만들기'로 이동",
+    "동기화 대기 0개: 채색 없이 흐리게"] },
+  "pair-1": { group: "새 기기 추가", label: "1. 새 기기 준비", html: () => withDialog(dialog("새 기기 추가", 1, 4, "새 기기에서 연결 시작", `
+      <p>새 기기에서 Thread에 같은 계정으로 로그인한 뒤 <b>'기존 기기로 연결'</b>을 고르세요. 새 기기에 아래 코드를 입력하거나 QR을 스캔합니다.</p>
+      <div class="qr"></div><div class="code">4F1C · 9A7B · E2D0 · 3C58</div>
+      <p style="margin-top:12px">새 기기가 연결 요청 QR이나 파일을 만들면 다음으로 넘어가세요.</p>`,
+      null, `<button class="btn primary" data-go="pair-2">다음</button>`)), notes: [
+    "설정(기존 기기)에서는 '요청 받기·승인'만 다룸. 새 기기 쪽 절차는 새 기기의 연결 화면으로 이동",
+    "지금은 새 기기가 기존 기기의 64자리 지문을 직접 입력해야 하는데 기존 기기 어디에도 표시되지 않음 → 1단계에서 QR과 짧게 끊은 표시를 제공",
+    "짧은 표시(앞 16자리)는 사람이 대조하기 위한 것. 실제 바인딩은 전체 지문을 QR로 전달"] },
+  "pair-2": { group: "새 기기 추가", label: "2. 요청 열기", html: () => withDialog(dialog("새 기기 추가", 2, 4, "새 기기의 요청 열기", `
+      <p>새 기기 화면의 QR을 이 PC로 가져오거나, 새 기기가 저장한 요청 파일을 여세요.</p>
+      <div class="choice"><button><b>QR 이미지 열기</b><span>새 기기 화면을 캡처한 이미지</span></button><button><b>요청 파일 열기</b><span>새 기기에서 저장한 .thread-pair 파일</span></button></div>`,
+      "pair-1", `<button class="btn primary" data-go="pair-3">다음</button>`)), notes: ["파일 선택은 기본 HTML 입력 대신 선택 카드로"] },
+  "pair-3": { group: "새 기기 추가", label: "3. 확인·권한", html: () => withDialog(dialog("새 기기 추가", 3, 4, "확인 코드와 권한", `
+      <p>새 기기 화면에 표시된 확인 코드가 아래와 같은지 비교하세요.</p>
+      <div class="code">B71E · 04A9 · 5C2D · 88F3</div>
+      <div class="section"><h3>이 기기에 줄 권한</h3><div class="seg"><button class="on">편집 가능</button><button>보기만</button></div></div>
+      <label class="check"><input type="checkbox" checked> 새 기기의 코드와 같습니다.</label>
+      <p class="steplabel" style="margin-top:10px">요청은 9분 뒤 만료됩니다.</p>`,
+      "pair-2", `<button class="btn primary" data-go="pair-4">Windows Hello로 승인</button>`)), notes: [
+    "재인증 방식 선택 드롭다운 대신 기본 버튼 1개(Windows Hello). 비밀번호를 쓰는 경우에만 '비밀번호로 승인' 보조 링크",
+    "'보관함 지문', '요청 지문' → '확인 코드'"] },
+  "pair-4": { group: "새 기기 추가", label: "4. 승인 파일 전달", html: () => withDialog(dialog("새 기기 추가", 4, 4, "완료", `
+      <p class="ok" style="font-weight:600">✓ 승인했어요.</p>
+      <p>승인 파일을 저장해서 새 기기로 옮긴 뒤, 새 기기에서 '승인 파일 열기'를 누르세요.</p>
+      <button class="btn">승인 파일 저장</button>
+      <div class="callout info" style="margin-top:14px">파일은 새 기기만 열 수 있도록 암호화되어 있어요.</div>`,
+      "none", `<button class="btn primary" data-go="data">완료</button>`)), notes: [] },
+  "remove-1": { group: "기기 해제", label: "1. 영향 확인", html: () => withDialog(dialog("기기 해제", 1, 4, "다른 기기 · 7BE0", `
+      <p>이 기기는 앞으로 새로 바뀐 데이터를 받지 못합니다.</p>
+      <div class="callout">이미 그 기기에 있는 데이터는 지울 수 없어요. 잃어버린 기기라면 해제 후 비밀번호도 바꾸세요.</div>
+      <p style="margin-top:12px">해제하면 데이터를 지키는 열쇠가 바뀌므로 <b>새 복구 키</b>를 함께 저장해야 합니다. 이전 복구 키는 더 이상 쓸 수 없어요.</p>`,
+      null, `<button class="btn primary" data-go="remove-2">다음</button>`)), notes: [
+    "현재: 기기 체크박스와 동의 체크박스가 섞여 있음 → 목록의 '해제' 버튼에서 대상이 정해진 채로 시작",
+    "되돌릴 수 없는 결과를 쉬운 말로 먼저 보여 줌",
+    "'복구 키 새로 만들기'는 같은 흐름에서 해제 대상 없이 시작(1단계 문구만 다름)"] },
+  "remove-2": { group: "기기 해제", label: "2. 새 복구 키 저장", html: () => withDialog(dialog("기기 해제", 2, 4, "새 복구 키 저장", `
+      <p>파일과 코드를 <b>서로 다른 곳</b>에 보관하세요. 복원할 때 둘 다 필요합니다.</p>
+      <div class="row card"><div class="icon">${I.key}</div><div class="grow"><div class="label">복구 파일</div><div class="desc">thread_recovery.trec</div></div><button class="btn">저장</button></div>
+      <div class="row card" style="margin-top:8px"><div class="icon">#</div><div class="grow"><div class="label">복구 코드</div><div class="desc">THREAD1-F52B8 •••• •••• ••••</div></div><button class="btn">복사</button></div>
+      <p class="steplabel" style="margin-top:8px">복사한 코드는 30초 뒤 클립보드에서 지워져요.</p>`,
+      "remove-1", `<button class="btn primary" data-go="remove-3">저장했어요</button>`)), notes: ["코드 '보기(30초)'와 '복사'를 하나로. 기존 30초 클립보드 정리 유지"] },
+  "remove-3": { group: "기기 해제", label: "3. 확인", html: () => withDialog(dialog("기기 해제", 3, 4, "새 복구 키 확인", `
+      <p>방금 저장한 코드를 입력하세요. 저장한 파일도 함께 열어 맞는지 확인합니다.</p>
+      <input style="width:100%;height:38px;padding:0 12px;border:1px solid var(--border);border-radius:8px;background:#10141a;color:var(--text)" placeholder="THREAD1-…">`,
+      "remove-2", `<button class="btn primary" data-go="remove-4">확인하고 해제</button>`)), notes: ["확인 후 Windows Hello 재인증 → 서버 적용"] },
+  "remove-4": { group: "기기 해제", label: "4. 완료", html: () => withDialog(dialog("기기 해제", 4, 4, "완료", `
+      <p class="ok" style="font-weight:600">✓ 다른 기기 · 7BE0을 해제했어요.</p>
+      <p>기존 데이터를 새 열쇠로 다시 보호하고 있어요. 앱을 계속 사용해도 됩니다.</p>
+      <div class="progress"><i></i></div><p class="steplabel">42 / 120</p>`,
+      "none", `<button class="btn primary" data-go="data">닫기</button>`)), notes: [
+    "현재 별도 카드인 '암호화 갱신'(재암호화)을 해제 직후 자동 진행으로 통합. 진행률은 데이터 탭 요약에도 표시",
+    "'키 세대 2 · 확인 0개 · IDLE' 같은 내부 값은 노출하지 않음"] },
+  "backup-1": { group: "데이터 백업", label: "내보내기", html: () => withDialog(dialog("데이터 백업", 1, 2, "백업 파일 만들기", `
+      <div class="seg" style="margin-bottom:14px"><button class="on">내보내기</button><button data-go="backup-2">불러오기</button></div>
+      <p>할 일 전체를 암호화된 파일로 저장합니다. 파일을 열 때 필요한 <b>백업 코드</b>도 함께 보관하세요.</p>
+      <div class="code" style="font-size:17px">BACKUP1-6R2K-Q9WM-3HXT-7NPA</div>
+      <div style="display:flex;gap:8px;margin-top:10px"><button class="btn">코드 복사</button></div>`,
+      null, `<button class="btn primary">Windows Hello로 저장</button>`)), notes: [
+    "현재: 코드 생성 → 같은 코드를 다시 입력 → 동의 → 재인증 → 저장이 한 화면에 섞여 있음",
+    "내보내기·불러오기를 탭으로 분리. 저장 직후 '파일을 열어 확인' 단계 유지",
+    "저장 성공 시 날짜를 기록해 요약의 '마지막 백업'에 사용(현재 저장 안 됨)"] },
+  "backup-2": { group: "데이터 백업", label: "불러오기", html: () => withDialog(dialog("데이터 백업", 1, 2, "백업 파일 불러오기", `
+      <div class="seg" style="margin-bottom:14px"><button data-go="backup-1">내보내기</button><button class="on">불러오기</button></div>
+      <p>백업 파일의 항목을 <b>새 항목으로 추가</b>합니다. 지금 있는 데이터는 바뀌지 않아요.</p>
+      <div class="choice"><button><b>백업 파일 선택</b><span>.thread-backup</span></button></div>
+      <div class="card" style="margin-top:12px"><div class="row"><div class="grow"><div class="label">주간 회의 자료 정리</div><div class="desc">금요일 오전까지</div></div></div><div class="row"><div class="grow"><div class="label">치과 예약</div></div></div><div class="row"><div class="grow desc">외 40개</div></div></div>
+      <div class="callout" style="margin-top:12px">같은 할 일이 이미 있으면 중복될 수 있어요.</div>`,
+      null, `<button class="btn primary">42개 추가</button>`)), notes: ["'로컬 최종 보기 / 서버 확인 사본' 같은 내부 구분은 숨기고 제목 미리보기만"] },
+  "recovery-1": { group: "복구 키", label: "처음 설정", html: () => withDialog(dialog("복구 키", 1, 2, "파일과 코드 저장", `
+      <p>모든 기기를 잃었을 때 데이터를 되찾는 데 필요합니다. 로그인 비밀번호와는 별개예요.</p>
+      <div class="row card"><div class="icon">${I.key}</div><div class="grow"><div class="label">복구 파일</div><div class="desc">thread_recovery.trec</div></div><button class="btn">저장</button></div>
+      <div class="row card" style="margin-top:8px"><div class="icon">#</div><div class="grow"><div class="label">복구 코드</div><div class="desc">THREAD1-F52B8 •••• •••• ••••</div></div><button class="btn">복사</button></div>`,
+      null, `<button class="btn primary">저장했어요</button>`)), notes: ["'복구 자료', '백업 수단' → '복구 키'로 통일", "이미 확인된 상태에서 누르면 '새로 만들기' = 기기 해제 흐름(대상 없음)"] },
+  "locked": { group: "데이터", label: "앱 잠금", html: () => `<div class="settings" style="display:grid;place-items:center"><div style="text-align:center"><div style="width:56px;height:56px;margin:0 auto 14px;border-radius:14px;background:var(--surface);display:grid;place-items:center">${I.lock.replace('<svg','<svg style="width:24px"')}</div><h2 style="margin:0 0 6px;font-size:19px">Thread가 잠겼어요</h2><p style="color:var(--secondary);margin:0 0 16px">다시 열려면 본인 확인이 필요합니다.</p><button class="btn primary" data-go="data">Windows Hello로 열기</button></div></div>`, notes: ["현재 '데이터 잠그기'와 같은 동작. 이름만 '앱 잠금'", "트레이 메뉴: '지금 잠그기' 추가"] },
+  "general": { group: "탭", label: "일반", html: () => shell("general", `
+      ${head("일반", "앱의 기본 동작을 정합니다.")}
+      <div class="card">
+        <div class="row"><div class="grow"><div class="label">시작할 때 보기</div><div class="desc">앱을 열면 처음 보여 줄 화면</div></div><div class="seg"><button class="on">리스트</button><button>캘린더</button><button>타임라인</button></div></div>
+        <div class="row"><div class="grow"><div class="label">주 시작 요일</div><div class="desc">캘린더의 첫 번째 열</div></div><div class="seg"><button class="on">일요일</button><button>월요일</button></div></div>
+        <div class="row"><div class="grow"><div class="label">시간 표시</div></div><div class="seg"><button>12시간</button><button class="on">24시간</button></div></div>
+        <div class="row"><div class="grow"><div class="label">테마<span class="soon">준비 중</span></div><div class="desc">다크, 라이트, 시스템 설정 따르기</div></div><div class="seg"><button class="on">다크</button><button disabled>라이트</button><button disabled>시스템</button></div></div>
+      </div>`), notes: ["테마는 후순위. 구현 전에는 항목을 숨길지, '준비 중'으로 보여 줄지 결정 필요(시안은 표시)"] },
+  "account": { group: "탭", label: "계정", html: () => shell("account", `
+      ${head("계정", "로그인한 계정을 관리합니다.")}
+      <div class="card"><div class="row" style="min-height:68px"><div class="icon" style="width:40px;height:40px;border-radius:50%;background:#2d3a55;color:#cfe0ff;font-weight:700">J</div><div class="grow"><div class="label">Jo</div><div class="desc">whdudgns••••@gmail.com</div></div></div></div>
+      <div class="section"><h3>로그인 방식</h3><div class="card">
+        <div class="row"><div class="grow"><div class="label">아이디·비밀번호</div><div class="desc">shyunku</div></div><span class="badge">사용 중</span></div>
+        <div class="row"><div class="grow"><div class="label">Google</div><div class="desc">연결하면 Google 계정으로도 로그인할 수 있어요.</div></div><button class="btn">Google 계정 연결</button></div>
+      </div></div>
+      <div class="section"><h3>세션</h3><div class="card">
+        <div class="row"><div class="grow"><div class="label">이 기기</div><div class="desc">Windows · 2.0.0</div></div></div>
+        <div class="row"><div class="grow"><div class="label">다른 곳에서 모두 로그아웃</div><div class="desc">이 기기를 제외한 모든 로그인을 끊습니다.</div></div><button class="btn" disabled>로그아웃</button></div>
+      </div></div>
+      <div class="section"><div class="card"><div class="row"><div class="grow"><div class="label">로그아웃</div><div class="desc">이 기기에서 로그아웃합니다. 암호화된 데이터는 이 기기에 남습니다.</div></div><button class="btn danger">로그아웃</button></div></div></div>`), notes: [
+    "Google 연결은 #71 배포 후 활성화(비밀번호 확인 필수 흐름)",
+    "'다른 곳에서 모두 로그아웃'은 #72(세션 폐기) 이후 활성화. 그 전에는 숨기거나 비활성",
+    "'이 기기 이름'은 서버에 기기 이름이 없어 OS·버전으로 표시",
+    "로그아웃 시 로컬 데이터가 어떻게 되는지 한 줄로 안내(구현 시 실제 동작 확인)"] },
+  "system": { group: "탭", label: "시스템", html: () => shell("system", `
+      ${head("시스템", "운영체제와 관련된 동작을 정합니다.")}
+      <div class="card">
+        <div class="row"><div class="grow"><div class="label">컴퓨터를 켜면 자동 시작</div><div class="desc">로그인하면 Thread가 트레이에서 시작됩니다.</div></div><button class="toggle on"></button></div>
+        <div class="row"><div class="grow"><div class="label">창을 닫으면 트레이로</div><div class="desc">끄면 창을 닫을 때 앱이 종료됩니다.</div></div><button class="toggle on"></button></div>
+        <div class="row"><div class="grow"><div class="label">하드웨어 가속</div><div class="desc">화면이 깨지거나 깜박이면 꺼 보세요.</div></div><span class="badge warn">다시 시작하면 적용</span><button class="toggle"></button></div>
+      </div>`), notes: [
+    "자동 시작: 현재 운영 빌드에서 항상 켜짐(main.js 고정) → 설정값으로",
+    "트레이: 아이콘·메뉴는 있으나 닫기 동작 설정 없음",
+    "하드웨어 가속: 다음 실행 때 app.disableHardwareAcceleration() 적용. 바꾸면 '다시 시작' 버튼 제공"] },
+  "about": { group: "탭", label: "정보", html: () => shell("about", `
+      ${head("정보", "Thread 버전과 관련 정보입니다.")}
+      <div class="card">
+        <div class="row"><div class="grow"><div class="label">버전 2.0.0</div><div class="desc ok">최신 버전입니다 · 방금 확인</div></div><button class="btn">업데이트 확인</button></div>
+        <div class="row"><div class="grow"><div class="label">베타 버전 받기</div><div class="desc">새 기능을 먼저 받아 봅니다. 불안정할 수 있어요.</div></div><button class="toggle"></button></div>
+      </div>
+      <div class="section"><div class="card">
+        <div class="row"><div class="grow label">개인정보처리방침</div><button class="btn ghost">열기 ↗</button></div>
+        <div class="row"><div class="grow label">오픈소스 라이선스</div><button class="btn ghost">보기</button></div>
+        <div class="row"><div class="grow"><div class="label">문의</div><div class="desc">shyunku.dev@gmail.com</div></div><button class="btn ghost">메일 보내기</button></div>
+      </div></div>`), notes: ["개인정보처리방침은 #69 공개 사이트 페이지로 연결", "업데이트 확인: 15초 주기 + 창 포커스 시 즉시(70.7). 버튼은 즉시 확인"] },
+  "custom": { group: "탭", label: "사용자 맞춤", html: () => shell("custom", `${head("사용자 맞춤", "화면 구성을 바꿉니다.")}<div class="card"><div class="row"><div class="grow desc">현재 조정할 항목이 없습니다. 레이아웃 조정은 화면에서 직접 하도록 준비 중입니다.</div></div></div>`), notes: ["보류. 빈 탭 허용"] },
+  "narrow": { group: "좁은 창", label: "사이드바 펼침", narrow: true, html: () => shell("data", dataTab(false).match(/<main class="main"><button class="close"[^>]*>✕<\/button>([\s\S]*)<\/main>/)[1],
+      `<div class="float"><div class="title">설정</div>${nav("data")}</div>`), notes: [
+    "창이 좁으면 사이드바를 아이콘 레일(56px)로 접음",
+    "아이콘을 누르거나 가리키면 노션처럼 떠 있는 패널로 펼쳐짐. 바깥을 누르거나 메뉴를 고르면 닫힘",
+    "시안 상단의 '900px' 버튼으로 접힌 레일만 볼 수 있음"] },
+  "terms": { group: "용어", label: "용어 교체표", html: () => `<div class="settings" style="padding:24px 28px;overflow:auto;display:block"><h2 style="margin:0 0 4px;font-size:19px">용어 교체</h2><p style="margin:0 0 16px;color:var(--secondary)">화면에서 쓰지 않는 말: 보관함, 키 회전, 키 세대, identity, 서명, 재인증, 이관, 미전송</p>
+      <table class="terms"><tr><th>현재</th><th>변경</th><th>쓰는 곳</th></tr>
+      <tr><td>복구 자료 / 백업 수단</td><td>복구 키</td><td>데이터 탭, 최초 설정</td></tr>
+      <tr><td>기기 연결 / QR·파일로 기기 연결</td><td>새 기기 추가</td><td>데이터 탭</td></tr>
+      <tr><td>보관함 지문 / 요청 지문</td><td>확인 코드</td><td>새 기기 추가</td></tr>
+      <tr><td>암호화 백업 / 암호화 데이터 백업</td><td>데이터 백업</td><td>데이터 탭</td></tr>
+      <tr><td>기기·키 관리 / 기기 해지와 키 회전</td><td>연결된 기기 / 기기 해제</td><td>데이터 탭</td></tr>
+      <tr><td>암호화 갱신 / 기존 데이터 재암호화</td><td>(기기 해제 과정에 통합) 기존 데이터를 새 열쇠로 다시 보호</td><td>기기 해제 완료</td></tr>
+      <tr><td>기기 분실 복구 / 모든 기기 분실 복구</td><td>복구 키로 복원</td><td>새 기기 연결 화면으로 이동</td></tr>
+      <tr><td>데이터 잠그기</td><td>앱 잠금</td><td>데이터 탭, 트레이</td></tr>
+      <tr><td>데이터 잠금 해제됨</td><td>(삭제)</td><td></td></tr>
+      <tr><td>복구 자료 · 자료 N</td><td>이전 버전 데이터 검토</td><td>데이터 탭 고급</td></tr>
+      <tr><td>OS 인증 / 보관함 비밀번호 (재인증 선택)</td><td>Windows Hello로 ○○ (기본) / 비밀번호로 ○○ (보조)</td><td>모든 확인 단계</td></tr>
+      <tr><td>미전송 회전 취소</td><td>취소</td><td>모달 하단</td></tr>
+      </table></div>`, notes: ["문장 규칙: 한 화면 설명은 한두 문장. 결과를 먼저, 이유는 짧게", "되돌릴 수 없는 작업은 버튼 문구에 동작을 명시(예: '확인하고 해제')"] },
+};
+
+let current = screens[location.hash.slice(1)] ? location.hash.slice(1) : "data", width = new URLSearchParams(location.search).get("w") === "900" ? "w900" : "w1280";
+function render() {
+  const s = screens[current];
+  const win = document.getElementById("window");
+  win.className = "window " + (s.narrow ? "w900" : width);
+  win.innerHTML = s.html();
+  document.getElementById("notes").innerHTML = `<h3>${s.group} · ${s.label}</h3><ul>${s.notes.map(n => `<li>${n}</li>`).join("")}</ul>`;
+  const groups = {};
+  for (const [k, v] of Object.entries(screens)) (groups[v.group] ||= []).push([k, v.label]);
+  document.getElementById("toolbar").innerHTML = `<strong>설정 개편 시안 #70</strong>` +
+    Object.entries(groups).map(([g, items]) => items.map(([k, l]) => `<button class="${k === current ? "on" : ""}" data-go="${k}">${items.length > 1 ? g + ": " : ""}${l}</button>`).join("")).join('<span class="sep"></span>') +
+    `<span class="sep"></span><button class="${width === "w1280" ? "on" : ""}" data-width="w1280">1280px</button><button class="${width === "w900" ? "on" : ""}" data-width="w900">900px</button>`;
+}
+document.addEventListener("click", e => {
+  const go = e.target.closest("[data-go]"); const w = e.target.closest("[data-width]");
+  if (go && screens[go.dataset.go]) { current = go.dataset.go; render(); }
+  if (w) { width = w.dataset.width; render(); }
+});
+render();
+</script>
+</body>
+</html>
