@@ -61,9 +61,12 @@ console.debug(`[AppData Path] ${appDataPath}`);
 console.debug(`[UserData Path] ${userDataPath}`);
 
 /* ---------------------------------------- Main execute statements ---------------------------------------- */
-// auto start app on startup of OS (only on production mode)
+// User preferences (app-settings.json); hardware acceleration must be decided before ready.
+const appSettings = require("../modules/appSettings").initSettings(app);
+if (!appSettings.hardwareAcceleration) app.disableHardwareAcceleration();
+// auto start app on startup of OS (only on production mode, unless the user turned it off)
 app.setLoginItemSettings({
-  openAtLogin: isProdMode,
+  openAtLogin: isProdMode && appSettings.autoStart,
 });
 
 app.on("ready", async () => {

@@ -130,7 +130,10 @@ class UpdaterService {
     return this.trusted;
   }
 
-  latestTrustedRelease() {return this.trustedCoordinator().latest(!!PackageJson.enableBetaUpdate);}
+  latestTrustedRelease() {
+    const beta=!!PackageJson.enableBetaUpdate||require("../modules/appSettings").getSettings().betaUpdates;
+    return this.trustedCoordinator().latest(beta);
+  }
 
   async checkForUpdates(category) {
     try{

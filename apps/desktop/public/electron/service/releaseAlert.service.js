@@ -1,4 +1,5 @@
 const versions = require("compare-versions");
+const CHECK_INTERVAL_MS = 15000;
 const Util = require("../modules/util");
 const FileSystem = require("../modules/filesystem");
 
@@ -40,8 +41,11 @@ class ReleaseAlertService {
   start() {
     if (this.timer) return;
     void this.check();
-    this.timer = setInterval(() => void this.check(), 30000);
+    // Signed metadata is tiny; check every 15 s and right away when the window regains focus.
+    this.timer = setInterval(() => void this.check(), CHECK_INTERVAL_MS);
     this.timer.unref?.();
+    const window = this.group?.windowService?.mainWindow;
+    if (window && !window.isDestroyed()) window.on("focus", () => void this.check());
   }
   publish() {
     const window = this.group.windowService?.mainWindow;

@@ -44,6 +44,13 @@ module.exports = function (s) {
         enabled: false,
       },
       {
+        label: "지금 잠그기",
+        click: function () {
+          // Same as 설정 > 데이터 > 앱 잠금; ignored when no account/vault is open.
+          Promise.resolve().then(() => s.ipcService?.vaultWorkspaceService?.lock()).catch(() => {});
+        },
+      },
+      {
         label: "로그 보기",
         click: function () {
           const logFilePath = getLogFilePath();

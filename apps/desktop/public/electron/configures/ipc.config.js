@@ -1,7 +1,7 @@
 /**
  * @param ipcService {IpcService}
  */
-const { app, BrowserWindow, powerMonitor } = require("electron");
+const { app, BrowserWindow, powerMonitor, shell } = require("electron");
 const Request = require("../core/request");
 const sha256 = require("sha256");
 const IpcRouter = require("../objects/IpcRouter");
@@ -136,12 +136,42 @@ module.exports = function (s) {
     app.exit();
   });
 
+  // App preferences (app-settings.json). Main window only.
+  const appSettings = require("../modules/appSettings");
+  const settingsView = () => ({ ...appSettings.getSettings(), restartRequired: appSettings.restartRequired() });
+  s.register("settings/get", (event, reqId) => {
+    if (event.sender !== s.windowService.mainWindow?.webContents) return s.sender("settings/get", reqId, false, null);
+    s.sender("settings/get", reqId, true, settingsView());
+  });
+  s.register("settings/set", (event, reqId, patch) => {
+    if (event.sender !== s.windowService.mainWindow?.webContents) return s.sender("settings/set", reqId, false, null);
+    try {
+      const next = appSettings.updateSettings(patch);
+      if ("autoStart" in patch && process.env.NODE_ENV === "production")
+        app.setLoginItemSettings({ openAtLogin: next.autoStart });
+      if ("betaUpdates" in patch) void s.releaseAlertService.check();
+      s.sender("settings/set", reqId, true, settingsView());
+    } catch {
+      s.sender("settings/set", reqId, false, null);
+    }
+  });
+
+  // External links: Thread's site over HTTPS and the contact address only.
+  s.register("system/openExternal", (event, reqId, target) => {
+    if (event.sender !== s.windowService.mainWindow?.webContents) return s.sender("system/openExternal", reqId, false, null);
+    if (!require("../modules/externalLinks").isAllowedExternal(target)) return s.sender("system/openExternal", reqId, false, null);
+    shell.openExternal(target).then(() => s.sender("system/openExternal", reqId, true, null))
+      .catch(() => s.sender("system/openExternal", reqId, false, null));
+  });
+
   s.register("system/close_window", (event, reqId, param) => {
     let currentWindow = BrowserWindow.fromWebContents(event.sender);
     let mainWindow = s.windowService.mainWindow;
     if (currentWindow) {
       if (currentWindow.id === mainWindow.id) {
-        mainWindow.hide();
+        // "창을 닫으면 트레이로" (default on); off quits the app.
+        if (require("../modules/appSettings").getSettings().closeToTray) mainWindow.hide();
+        else app.quit();
         return;
       }
       currentWindow.close();
