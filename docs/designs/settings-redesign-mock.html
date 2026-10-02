@@ -345,6 +345,24 @@ const screens = {
     "창이 좁으면 사이드바를 아이콘 레일(56px)로 접음. 아이콘에 마우스를 올리면 메뉴 이름 툴팁",
     "떠 있는 패널은 쓰지 않음(사용자 결정). 좁은 창 문제는 추후 Electron 최소 창 크기 조정으로 검토",
     "상단 '900px' 버튼으로 다른 화면도 좁은 폭으로 볼 수 있음"] },
+  "bar-compare": { group: "비교", label: "동기화 막대", html: () => {
+    const v = (title, desc, height, gap, inner, outer) => `
+      <div class="row"><div style="width:230px;flex:0 0 230px"><div class="label">${title}</div><div class="desc">${desc}</div></div>
+        <div style="flex:1;display:flex;gap:${gap}px;height:${height}px">
+          <i style="flex:82;background:var(--success);border-radius:${outer}px ${inner}px ${inner}px ${outer}px"></i>
+          <i style="flex:18;background:var(--pending);border-radius:${inner}px ${outer}px ${outer}px ${inner}px"></i>
+        </div>
+        <span class="meta" style="width:150px;font-size:12.5px;color:var(--secondary)"><span style="color:var(--pending);font-weight:600">보낼 변경 2개</span></span></div>`;
+    return `<div class="settings" style="display:block;padding:24px 28px;overflow:auto">
+      <h2 style="margin:0 0 4px;font-size:19px">동기화 막대 비교</h2><p style="margin:0 0 16px;color:var(--secondary)">두께·간격·안쪽 모서리 조합</p>
+      <div class="card">
+        ${v("A. 현재", "두께 6 · 간격 6 · 안쪽 각짐", 6, 6, 0, 3)}
+        ${v("B. 이전", "두께 6 · 간격 6 · 안쪽 둥긂", 6, 6, 3, 3)}
+        ${v("C. 얇은 간격 · 각짐", "두께 6 · 간격 2 · 안쪽 각짐", 6, 2, 0, 3)}
+        ${v("D. 얇은 간격 · 살짝 둥긂", "두께 6 · 간격 3 · 안쪽 1px", 6, 3, 1, 3)}
+        ${v("E. 두껍게 · 얇은 간격", "두께 8 · 간격 3 · 안쪽 2px", 8, 3, 2, 4)}
+        ${v("F. 두껍게 · 알약", "두께 8 · 간격 4 · 안쪽 둥긂", 8, 4, 4, 4)}
+      </div></div>`; }, notes: ["추천: D 또는 E. 간격을 두께보다 얇게 두면 '하나를 나눈 막대'로 읽힘", "A·B는 간격이 두께와 같아 끊긴 막대나 별개 알약처럼 보임"] },
   "terms": { group: "용어", label: "용어 교체표", html: () => `<div class="settings" style="padding:24px 28px;overflow:auto;display:block"><h2 style="margin:0 0 4px;font-size:19px">용어 교체</h2><p style="margin:0 0 16px;color:var(--secondary)">화면에서 쓰지 않는 말: 보관함, 키 회전, 키 세대, identity, 서명, 재인증, 이관, 미전송</p>
       <table class="terms"><tr><th>현재</th><th>변경</th><th>쓰는 곳</th></tr>
       <tr><td>복구 자료 / 백업 수단</td><td>복구 키</td><td>데이터 탭, 최초 설정</td></tr>
