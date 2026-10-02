@@ -4,12 +4,12 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import accountReducer from "../store/accountSlice";
 import SettingsModal from "./Settings.modal";
 
-test("settings preview keeps all five sections and their controls", () => {
+test("settings preview keeps all six sections and their controls", () => {
   const store = configureStore({ reducer: { account: accountReducer } });
   render(<Provider store={store}><SettingsModal id="SETTINGS_PREVIEW" preview previewTab="data" /></Provider>);
 
   const navigation = screen.getByRole("navigation", { name: "설정 메뉴" });
-  expect(navigation.querySelectorAll("button")).toHaveLength(5);
+  expect(navigation.querySelectorAll("button")).toHaveLength(6);
   expect(screen.getByRole("heading", { name: "데이터" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "동기화" })).toBeDisabled();
   expect(screen.getByRole("navigation", { name: "데이터 관리 작업" }).querySelectorAll("button")).toHaveLength(6);

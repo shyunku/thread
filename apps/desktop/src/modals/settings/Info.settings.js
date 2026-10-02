@@ -1,8 +1,10 @@
 import PackageJson from "../../../package.json";
 import "./Info.settings.scss";
+import { SettingsPage } from "./SettingsUI";
 
 const SettingInfo = ({ ...props }) => {
   return (
+    <SettingsPage title="정보" description="Thread 버전과 관련 정보입니다.">
     <div className={"setting-info"}>
       <div className={"info-item"}>
         <div className={"label"}>버전</div>
@@ -19,6 +21,7 @@ const SettingInfo = ({ ...props }) => {
         </div>
       </div>
     </div>
+    </SettingsPage>
   );
 };
 

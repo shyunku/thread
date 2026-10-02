@@ -1,0 +1,173 @@
+// Spacing scale for settings (#70): row text < card rows < sections.
+.settings-page {
+  color: var(--text);
+
+  &__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin: 0 44px 18px 0;
+
+    h2 { margin: 0; font-size: 19px; font-weight: 700; line-height: 1.35; }
+    p { margin: 2px 0 0; color: var(--secondary); font-size: 13px; line-height: 1.5; }
+  }
+
+  &__action { flex: 0 0 auto; }
+}
+
+.settings-section {
+  margin-top: 20px;
+
+  &__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 24px;
+    margin-bottom: 8px;
+
+    h3 { margin: 0; color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: .02em; }
+  }
+}
+
+.settings-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 10px 14px;
+
+  & + & { border-top: 1px solid var(--border); }
+
+  &__icon {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    flex: 0 0 30px;
+    border-radius: 8px;
+    background: var(--hover);
+    color: var(--secondary);
+    font-size: 16px;
+  }
+
+  &__text { flex: 1; min-width: 0; }
+  &__label { color: var(--text); font-size: 14px; font-weight: 600; line-height: 1.4; }
+  &__desc { color: var(--secondary); font-size: 12.5px; line-height: 1.5; overflow-wrap: anywhere; }
+  &__control { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+}
+
+.settings-button {
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid #39414f;
+  border-radius: 8px;
+  background: #232a35;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+
+  &:hover:not(:disabled) { background: #2b3441; }
+  &:disabled { opacity: .45; cursor: not-allowed; }
+  &:focus-visible { outline: 2px solid #83aaff; outline-offset: 2px; }
+
+  &--primary { border-color: var(--accent); background: var(--accent); color: #0b1222; font-weight: 600; }
+  &--primary:hover:not(:disabled) { background: #79a5ff; }
+  &--danger { border-color: #5a3238; background: none; color: var(--danger); }
+  &--danger:hover:not(:disabled) { background: #2a1c20; }
+  &--ghost { border-color: transparent; background: none; color: var(--secondary); }
+  &--ghost:hover:not(:disabled) { background: var(--hover); color: var(--text); }
+  &--link { height: auto; padding: 0; border: 0; background: none; color: var(--accent); font-size: 12px; }
+  &--link:hover:not(:disabled) { background: none; text-decoration: underline; }
+
+  svg { vertical-align: -2px; }
+}
+
+.settings-toggle {
+  position: relative;
+  width: 38px;
+  height: 22px;
+  flex: 0 0 38px;
+  padding: 0;
+  border: 0;
+  border-radius: 11px;
+  background: #39414f;
+  cursor: pointer;
+
+  &::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #c9d1dd;
+    transition: left .15s ease;
+  }
+
+  &--on { background: var(--accent); }
+  &--on::after { left: 19px; background: #fff; }
+  &:disabled { opacity: .45; cursor: not-allowed; }
+  &:focus-visible { outline: 2px solid #83aaff; outline-offset: 2px; }
+}
+
+.settings-segmented {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #161a21;
+
+  button {
+    height: 28px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 6px;
+    background: none;
+    color: var(--secondary);
+    font: inherit;
+    font-size: 12.5px;
+    cursor: pointer;
+
+    &:disabled { opacity: .45; cursor: not-allowed; }
+    &:focus-visible { outline: 2px solid #83aaff; outline-offset: 1px; }
+  }
+
+  &__on { background: var(--selected) !important; color: var(--text) !important; font-weight: 600; }
+}
+
+.settings-badge {
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+
+  &--success { background: #1f3a2d; color: var(--success); }
+  &--neutral { background: #2a303b; color: var(--secondary); }
+  &--warning { background: #3d3220; color: var(--warning); }
+}
+
+.settings-soon {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: #2a303b;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-toggle::after { transition: none; }
+}

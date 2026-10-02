@@ -6,6 +6,7 @@ import { accountInfoSlice } from "../../store/accountSlice";
 import IpcSender from "../../utils/IpcSender";
 import VaultWorkspace from "../../components/VaultWorkspace";
 import Tooltip from "../../components/Tooltip";
+import { SettingsPage } from "./SettingsUI";
 
 const SettingData = ({ modalRef, preview = false, previewPanel = null }) => {
   const { uid: accountUid } = useSelector(accountInfoSlice);
@@ -52,6 +53,7 @@ const SettingData = ({ modalRef, preview = false, previewPanel = null }) => {
   };
 
   return (
+    <SettingsPage title="데이터" description="내 데이터는 기기에서 암호화되어 저장·동기화됩니다.">
     <div className="settings data-settings">
       <div className="data-settings__overview">
         <section className="setting-item data-settings__card sync-status" role="status">
@@ -82,6 +84,7 @@ const SettingData = ({ modalRef, preview = false, previewPanel = null }) => {
         </div>
       </section>
     </div>
+    </SettingsPage>
   );
 };
 

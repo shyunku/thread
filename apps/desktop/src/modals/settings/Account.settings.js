@@ -11,6 +11,7 @@ import {
 } from "../../store/accountSlice";
 import {useDispatch, useSelector} from "react-redux";
 import {useNavigate} from "react-router-dom";
+import { SettingsPage } from "./SettingsUI";
 
 const SettingData = ({modalRef, preview = false}) => {
   const accountInfo = useSelector(accountInfoSlice);
@@ -38,6 +39,7 @@ const SettingData = ({modalRef, preview = false}) => {
   };
 
   return (
+    <SettingsPage title="계정" description="로그인한 계정을 관리합니다.">
     <div className={"settings"}>
       <div className={"setting-item sync-status"}>
         <div className={"head"}>
@@ -51,6 +53,7 @@ const SettingData = ({modalRef, preview = false}) => {
         </div>
       </div>
     </div>
+    </SettingsPage>
   );
 };
 

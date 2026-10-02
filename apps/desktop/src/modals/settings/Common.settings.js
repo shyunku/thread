@@ -1,25 +1,9 @@
-import PackageJson from "../../../package.json";
-import "./Info.settings.scss";
-import { useState } from "react";
-import CheckBox from "../../molecules/CheckBox";
+import { SettingsPage } from "./SettingsUI";
 
-const SettingCommon = ({ ...props }) => {
-  const [startOnBoot, setStartOnBoot] = useState(false);
-
-  return (
-    <div className="settings-empty">
-      현재 조정할 항목이 없습니다.
-      {/*<div className={"setting-item"}>*/}
-      {/*  <div className={"head"}>*/}
-      {/*    <div className={"label"}>부팅 시 자동 시작</div>*/}
-      {/*    <div className={"controller"}>*/}
-      {/*      <CheckBox value={startOnBoot} onChange={setStartOnBoot} />*/}
-      {/*    </div>*/}
-      {/*  </div>*/}
-      {/*  <div className={"description"}>부팅 시 자동 시작됩니다.</div>*/}
-      {/*</div>*/}
-    </div>
-  );
-};
+const SettingCommon = () => (
+  <SettingsPage title="일반" description="앱의 기본 동작을 정합니다.">
+    <div className="settings-empty">현재 조정할 항목이 없습니다.</div>
+  </SettingsPage>
+);
 
 export default SettingCommon;
