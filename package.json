@@ -20,6 +20,7 @@
     "cert:desktop:create": "node apps/desktop/scripts/updateTrustRoot.cjs create",
     "cert:desktop:renew": "node apps/desktop/scripts/updateTrustRoot.cjs renew",
     "cert:desktop:passphrase": "node apps/desktop/scripts/generatePassphrase.cjs",
+    "db:backup": "sh scripts/db-backup.sh",
     "lint:mobile": "pnpm --dir apps/mobile lint"
   }
 }

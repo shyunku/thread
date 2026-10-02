@@ -68,21 +68,19 @@ docker compose down
 서버 배포, 스키마 변경, 데이터 정리 전에는 **반드시** 백업하고, 복원까지 확인한 뒤 진행한다.
 
 ```bash
-# 백업 (컨테이너 안의 root 비밀번호 사용. 파일 권한을 본인만 읽게 한다)
-umask 077
-docker compose exec -T mysql sh -c \
-  'exec mysqldump --single-transaction --routines --triggers --hex-blob -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE"' \
-  > thread-$(date +%Y%m%d-%H%M).sql
+# 백업. 서버 저장소 안에서 실행한다(pnpm이 없으면 sh scripts/db-backup.sh)
+pnpm db:backup
 
 # 복원 확인: 운영과 분리된 임시 MySQL에 복원하고 테이블과 행 수를 비교한 뒤 삭제
 docker run -d --name thread-restore-check -e MYSQL_ROOT_PASSWORD=restore-check -e MYSQL_DATABASE=thread mysql:8.0
 # 초기화가 끝날 때까지 대기 (mysqld: ready for connections 로그가 두 번 나올 때까지)
 docker logs -f thread-restore-check
-docker exec -i thread-restore-check sh -c 'exec mysql -uroot -prestore-check thread' < thread-YYYYMMDD-HHMM.sql
+docker exec -i thread-restore-check sh -c 'exec mysql -uroot -prestore-check thread' < .local/db-backups/thread-YYYYMMDD-HHMMSS.sql
 docker exec thread-restore-check mysql -uroot -prestore-check thread -e "SELECT version,state FROM thread_schema_migrations"
 docker rm -f thread-restore-check
 ```
 
+- `db:backup`은 `.env`가 없거나 `mysql` 서비스가 꺼져 있으면 멈춘다. 결과는 `.local/db-backups/thread-YYYYMMDD-HHMMSS.sql`(본인만 읽기 권한)이다. 덤프 끝 표시(`-- Dump completed`)가 없으면 실패로 처리하고 파일을 남기지 않는다. `.local`은 Git과 Docker 빌드에서 제외되어 있다.
 - 백업 파일에는 v2 평문 데이터가 들어 있다. 호스트 밖으로 옮길 때는 암호화된 저장소에만 둔다.
 - 백업 사본을 Codex나 Claude에 넘기면 원문을 출력하지 않는 격리 복원 리허설을 맡길 수 있다.
 - Redis는 세션만 담는다. 잃어도 사용자가 다시 로그인하면 된다.
@@ -95,8 +93,8 @@ docker rm -f thread-restore-check
 - 실패하면 `applying` 표시를 남기고 서버가 종료된다. 이 표시가 있으면 자동으로 재실행되지 않는다. **DB를 되돌리는 기능은 없다.** 부분 실패는 백업 복원으로만 복구한다.
 
 순서:
-1. [4장](#4-db-백업과-복원-확인)대로 백업하고 복원을 확인한다.
-2. `git pull`로 배포할 커밋을 받는다.
+1. `git pull`로 배포할 커밋을 받는다. 실행 중인 서비스는 아직 바뀌지 않는다.
+2. [4장](#4-db-백업과-복원-확인)대로 백업하고 복원을 확인한다.
 3. 기존 API를 멈춘다. 옛 버전과 새 버전 API를 동시에 띄우지 않는다.
    ```bash
    docker compose stop app-server
