@@ -37,3 +37,12 @@ test("optional notice opens on indicator click and required notice cannot be dis
   unmount();
   expect(IpcSender.off).toHaveBeenCalled();
 });
+
+test("tray update check opens the optional notice directly", () => {
+  IpcSender.onAll.mockClear();
+  render(<ReleaseAlert />);
+  const open = IpcSender.onAll.mock.calls.find(([topic]) => topic === "release-alert/open")[1];
+  act(() => open({ success: true, data: { version: "2.0.6", mandatory: false, status: "available" } }));
+  expect(screen.getByRole("alertdialog")).toHaveTextContent("2.0.6");
+  expect(screen.getByText("나중에")).toBeInTheDocument();
+});

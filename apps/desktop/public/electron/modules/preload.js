@@ -117,6 +117,7 @@ const EVENT_TOPICS = Object.freeze([
   "sync-v2/status",
   "sync-v2/error",
   "release-alert/available",
+  "release-alert/open",
   "release_download@initial",
   "release_download@state",
   "release_download@done",

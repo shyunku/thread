@@ -177,3 +177,11 @@ test("first recovery key: save file, copy code through main, then confirm", asyn
   expect(screen.getByText("✓ 복구 키를 확인했어요.")).toBeInTheDocument();
   expect(changed).toHaveBeenCalled();
 });
+
+test("step dialogs can be closed with the X button unless busy", async () => {
+  IpcSender.vault = { relay: group("relay", { ownerStart: { phase: "WAITING" }, cancel: { phase: "CANCELLED" } }) };
+  const onClose = jest.fn();
+  await act(async () => { render(<AddDeviceDialog vaultCode={"a".repeat(64)} osAvailable onClose={onClose} />); });
+  await click("닫기");
+  expect(onClose).toHaveBeenCalled();
+});

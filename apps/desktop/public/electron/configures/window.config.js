@@ -51,6 +51,12 @@ module.exports = function (s) {
         },
       },
       {
+        label: "업데이트 확인",
+        click: function () {
+          Promise.resolve().then(() => s.ipcService?.releaseAlertService?.checkFromTray()).catch(() => {});
+        },
+      },
+      {
         label: "로그 보기",
         click: function () {
           const logFilePath = getLogFilePath();

@@ -56,6 +56,26 @@ class ReleaseAlertService {
       });
     }
   }
+  // Manual check from the tray: shows the update notice, or tells the user there is none.
+  async checkFromTray() {
+    const found = await this.check();
+    const window = this.group.windowService?.mainWindow;
+    if (found && window && !window.isDestroyed()) {
+      window.show();
+      window.focus();
+      window.webContents.send("release-alert/open", null, { success: true, data: found });
+      return "available";
+    }
+    const { Notification } = require("electron");
+    const PackageJson = require("../../../package.json");
+    const result = this.lastCheckFailed ? "failed" : "latest";
+    if (Notification?.isSupported?.()) {
+      new Notification(result === "failed"
+        ? { title: "업데이트를 확인하지 못했어요", body: "인터넷 연결을 확인한 뒤 다시 시도해 주세요." }
+        : { title: "최신 버전이에요", body: `Thread ${PackageJson.version}을 쓰고 있어요.` }).show();
+    }
+    return result;
+  }
   async check() {
     if (this.checking) return this.checking;
     this.checking = (async () => {
@@ -67,9 +87,11 @@ class ReleaseAlertService {
           this.current = next ? { ...next, status: "available" } : null;
           this.installerPath = null;
         }
+        this.lastCheckFailed = false;
         this.publish();
       } catch {
         /* Keep an already received required notice during network outages. */
+        this.lastCheckFailed = true;
       }
       return this.current;
     })().finally(() => {

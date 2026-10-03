@@ -19,8 +19,29 @@
   color: var(--text);
 
   &__head {
-    padding: 18px 22px 0;
+    position: relative;
+    padding: 18px 56px 0 22px;
     h3 { margin: 0; font-size: 17px; font-weight: 700; }
+  }
+
+  &__close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: none;
+    color: var(--secondary);
+    font-size: 18px;
+    cursor: pointer;
+
+    &:hover { background: var(--hover, #252b36); color: var(--text); }
+    &:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   }
 
   &__steps {

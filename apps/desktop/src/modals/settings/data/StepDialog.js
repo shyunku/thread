@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { VscCheck, VscCopy } from "react-icons/vsc";
+import { IoClose } from "react-icons/io5";
 import { SettingsButton } from "../SettingsUI";
 import { osAuthLabel } from "./format";
 import "./StepDialog.scss";
@@ -9,7 +10,7 @@ export default function StepDialog({ title, step = 1, total = 1, stepLabel, chil
   const ref = useRef(null);
   useEffect(() => {
     const previous = document.activeElement;
-    ref.current?.querySelector("button:not(:disabled), input:not(:disabled)")?.focus();
+    ref.current?.querySelector(".step-dialog__body button:not(:disabled), .step-dialog__body input:not(:disabled), .step-dialog__foot button:not(:disabled)")?.focus();
     return () => previous?.focus?.();
   }, []);
   useEffect(() => {
@@ -26,6 +27,11 @@ export default function StepDialog({ title, step = 1, total = 1, stepLabel, chil
       <div className="step-dialog" role="dialog" aria-modal="true" aria-label={title} ref={ref}>
         <header className="step-dialog__head">
           <h3>{title}</h3>
+          {onClose && closable && (
+            <button type="button" className="step-dialog__close" aria-label="닫기" title="닫기" onClick={onClose}>
+              <IoClose aria-hidden="true" />
+            </button>
+          )}
           {total > 1 && (
             <>
               <ol className="step-dialog__steps" aria-hidden="true">

@@ -25,12 +25,17 @@ export default function ReleaseAlert() {
       }
     };
     const listener = IpcSender.onAll("release-alert/available", receive);
+    // Tray "업데이트 확인" found an update: show the notice even when it is optional.
+    const openListener = IpcSender.onAll("release-alert/open", ({ success, data }) => {
+      if (active && success && data) { setAlert(data); setOpen(true); }
+    });
     IpcSender.releaseAlerts.get(receive);
     const show = () => setOpen(true);
     window.addEventListener("thread:open-update", show);
     return () => {
       active = false;
       IpcSender.off("release-alert/available", listener);
+      IpcSender.off("release-alert/open", openListener);
       window.removeEventListener("thread:open-update", show);
     };
   }, []);
