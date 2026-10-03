@@ -19,7 +19,7 @@ EC2 호스트 한 대에서 Docker Compose(프로젝트 이름 `thread`)로 서�
 | Compose 서비스 | 역할 | 호스트 포트 | 영속 데이터 |
 | --- | --- | --- | --- |
 | `mysql` | MySQL 8.0. API와 RMS가 같은 DB를 쓴다 | `127.0.0.1:3309` (SSH 터널 접속용) | `mysql-data` |
-| `redis` | refresh token, 세션 | 없음 | `redis-data` |
+| `redis` | 로그인 세션(refresh token 회전·폐기) | 없음 | `redis-data` |
 | `app-server` | Go API. 인증, v3 암호문 동기화 | `4033` (`https://api.threadapp.kr`) | 없음 |
 | `rms` | 릴리스 관리 서버. 구 방식 릴리스와 `/tuf/` 서명 저장소 | `4034` (`https://rms.threadapp.kr`) | `rms-releases`, `rms-tuf`(읽기 전용 마운트) |
 | `site` | 공개 웹사이트 | `3000` | 없음 |
@@ -83,7 +83,7 @@ docker rm -f thread-restore-check
 - `db:backup`은 `.env`가 없거나 `mysql` 서비스가 꺼져 있으면 멈춘다. 결과는 `.local/db-backups/thread-YYYYMMDD-HHMMSS.sql`(본인만 읽기 권한)이다. 덤프 끝 표시(`-- Dump completed`)가 없으면 실패로 처리하고 파일을 남기지 않는다. `.local`은 Git과 Docker 빌드에서 제외되어 있다.
 - 백업 파일에는 v2 평문 데이터가 들어 있다. 호스트 밖으로 옮길 때는 암호화된 저장소에만 둔다.
 - 백업 사본을 Codex나 Claude에 넘기면 원문을 출력하지 않는 격리 복원 리허설을 맡길 수 있다.
-- Redis는 세션만 담는다. 잃어도 사용자가 다시 로그인하면 된다.
+- Redis는 로그인 세션만 담는다. 데이터를 잃으면 모든 기기가 다시 로그인하면 된다. Redis가 멈추면 로그인·토큰 갱신과 인증이 필요한 API가 모두 503을 반환한다(세션 확인 없이 통과시키지 않는다).
 
 ## 5. 서버 배포
 

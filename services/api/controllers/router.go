@@ -9,10 +9,17 @@ import (
 	"thread_api/controllers/v1"
 	"thread_api/controllers/v3"
 	"thread_api/log"
+	"thread_api/service/session"
 )
 
 func ping(c *gin.Context) {
 	c.String(200, "pong")
+}
+
+// UseSessions connects the login session store to every authenticated route.
+func UseSessions(store session.Store) {
+	v1.Sessions = store
+	v3.SetSessionVerifier(store)
 }
 
 func SetupRouter() *gin.Engine {

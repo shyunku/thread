@@ -1,6 +1,8 @@
 package v3
 
 import (
+	"context"
+	"errors"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
 	"net/http/httptest"
@@ -70,5 +72,54 @@ func TestRejectInvalidCredentials(t *testing.T) {
 				t.Fatal("invalid credentials accepted")
 			}
 		}
+	}
+}
+
+type fixedSessions struct {
+	active bool
+	err    error
+	seen   *[2]string
+}
+
+func (f fixedSessions) Active(_ context.Context, uid, sid string) (bool, error) {
+	*f.seen = [2]string{uid, sid}
+	return f.active, f.err
+}
+
+func TestUserPrincipalChecksSession(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	defer SetSessionVerifier(allowSessions{})
+	secret := []byte(strings.Repeat("s", 32))
+	claims := jwt.MapClaims{"uid": "fixture-user", "admin": false, "authorized": true, "exp": time.Now().Unix() + 60, "sid": "session-1"}
+	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(secret)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name     string
+		verifier SessionVerifier
+		want     int
+	}{
+		{"active", fixedSessions{active: true, seen: new([2]string)}, 200},
+		{"revoked", fixedSessions{active: false, seen: new([2]string)}, 401},
+		{"store down", fixedSessions{err: errors.New("redis down"), seen: new([2]string)}, 503},
+		{"not configured", nil, 503},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			SetSessionVerifier(tc.verifier)
+			r := gin.New()
+			r.Use(UserPrincipal(secret))
+			r.GET("/", func(c *gin.Context) { c.Status(200) })
+			req := httptest.NewRequest("GET", "/", nil)
+			req.Header.Set("Authorization", "Bearer "+token)
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
+			if w.Code != tc.want {
+				t.Fatalf("status %d, expected %d", w.Code, tc.want)
+			}
+			if f, ok := tc.verifier.(fixedSessions); ok && *f.seen != [2]string{"fixture-user", "session-1"} {
+				t.Fatalf("checked wrong session: %v", *f.seen)
+			}
+		})
 	}
 }

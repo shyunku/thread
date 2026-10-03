@@ -44,15 +44,9 @@ func Login(c *gin.Context) {
 
 	userId := *userEntity.UserId
 
-	// set auth token with jwt
-	authToken, err := createAuthToken(userId)
+	// start a login session
+	authToken, err := issueSession(c.Request.Context(), userId, false)
 	if err != nil {
-		log.Error(err)
-		c.AbortWithStatus(http.StatusInternalServerError)
-		return
-	}
-
-	if err := saveRefreshToken(userId, authToken.RefreshToken); err != nil {
 		log.Error(err)
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
@@ -82,15 +76,9 @@ func AdminLogin(c *gin.Context) {
 
 	adminId := os.Getenv("ADMIN_ID")
 
-	// set auth token with jwt
-	authToken, err := createAdminAuthToken()
+	// start a login session
+	authToken, err := issueSession(c.Request.Context(), adminTokenSubject, true)
 	if err != nil {
-		log.Error(err)
-		c.AbortWithStatus(http.StatusInternalServerError)
-		return
-	}
-
-	if err := saveRefreshToken(adminTokenSubject, authToken.RefreshToken); err != nil {
 		log.Error(err)
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
@@ -158,79 +146,8 @@ func Signup(c *gin.Context) {
 	}
 }
 
-func RefreshToken(c *gin.Context) {
-	// get refresh token from header
-	refreshToken := c.GetHeader("X-Refresh-Token")
-	if refreshToken == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "refresh token not found"})
-		return
-	}
-
-	userId, err := database.InMemoryDB.Get(refreshToken)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
-		return
-	}
-
-	if userId == adminTokenSubject {
-		authToken, err := createAdminAuthToken()
-		if err != nil {
-			log.Error(err)
-			c.AbortWithStatus(http.StatusInternalServerError)
-			return
-		}
-
-		if err := saveRefreshToken(adminTokenSubject, authToken.RefreshToken); err != nil {
-			log.Error(err)
-			c.AbortWithStatus(http.StatusInternalServerError)
-			return
-		}
-
-		authDto := NewAuthTokenDto(authToken.AccessToken, authToken.RefreshToken)
-		c.JSON(http.StatusOK, authDto)
-		return
-	}
-
-	// check if user exists
-	var userEntity database.UserEntity
-	if err := database.DB.QueryRowx("SELECT * FROM user_master WHERE uid = ?", userId).StructScan(&userEntity); err != nil {
-		if err == sql.ErrNoRows {
-			// user not found
-			log.Error("user not found")
-			c.AbortWithStatus(http.StatusInternalServerError)
-			return
-		}
-		log.Error(err)
-		c.AbortWithStatus(http.StatusForbidden)
-		return
-	}
-
-	authToken, err := createAuthToken(userId)
-	if err != nil {
-		log.Error(err)
-		c.AbortWithStatus(http.StatusInternalServerError)
-		return
-	}
-
-	if err := saveRefreshToken(userId, authToken.RefreshToken); err != nil {
-		log.Error(err)
-		c.AbortWithStatus(http.StatusInternalServerError)
-		return
-	}
-
-	authDto := NewAuthTokenDto(authToken.AccessToken, authToken.RefreshToken)
-	c.JSON(http.StatusOK, authDto)
-}
-
-func createAuthToken(uid string) (*authTokenDto, error) {
-	return createAuthTokenWithRole(uid, false)
-}
-
-func createAdminAuthToken() (*authTokenDto, error) {
-	return createAuthTokenWithRole(adminTokenSubject, true)
-}
-
-func createAuthTokenWithRole(uid string, isAdmin bool) (*authTokenDto, error) {
+// createAuthTokenWithRole signs an access/refresh token pair for session sid.
+func createAuthTokenWithRole(uid string, isAdmin bool, sid string) (*authTokenDto, error) {
 	var err error
 	atd := &authTokenDto{}
 
@@ -258,6 +175,7 @@ func createAuthTokenWithRole(uid string, isAdmin bool) (*authTokenDto, error) {
 	accessTokenClaims["exp"] = atd.AccessToken.ExpiresAt
 	accessTokenClaims["uuid"] = atd.AccessToken.Uuid
 	accessTokenClaims["authorized"] = true
+	accessTokenClaims["sid"] = sid
 	signedAccessClaims := jwt.NewWithClaims(jwt.SigningMethodHS256, accessTokenClaims)
 	atd.AccessToken.Token, err = signedAccessClaims.SignedString([]byte(jwtAccessSecretKey))
 	if err != nil {
@@ -272,6 +190,7 @@ func createAuthTokenWithRole(uid string, isAdmin bool) (*authTokenDto, error) {
 	refreshTokenClaims["admin"] = isAdmin
 	refreshTokenClaims["exp"] = atd.RefreshToken.ExpiresAt
 	refreshTokenClaims["uuid"] = atd.RefreshToken.Uuid
+	refreshTokenClaims["sid"] = sid
 	signedRefreshClaims := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshTokenClaims)
 	atd.RefreshToken.Token, err = signedRefreshClaims.SignedString([]byte(jwtRefreshSecretKey))
 	if err != nil {
@@ -282,28 +201,12 @@ func createAuthTokenWithRole(uid string, isAdmin bool) (*authTokenDto, error) {
 	return atd, nil
 }
 
-func saveRefreshToken(uid string, refreshToken authToken) error {
-	refreshTokenExpiresUnix := time.Unix(refreshToken.ExpiresAt, 0)
-	now := time.Now()
-
-	log.Debug("save refresh token", "redacted", uid, refreshTokenExpiresUnix.Sub(now))
-	if err := database.InMemoryDB.SetExp(refreshToken.Token, uid, refreshTokenExpiresUnix.Sub(now)); err != nil {
-		return err
-	}
-	return nil
-}
-
-func deleteRefreshToken(refreshToken string) error {
-	if err := database.InMemoryDB.Del(refreshToken); err != nil {
-		return err
-	}
-	return nil
-}
-
 func UseAuthRouter(g *gin.RouterGroup) {
 	sg := g.Group("/auth")
 	sg.POST("login", Login)
 	sg.POST("admin-login", AdminLogin)
 	sg.POST("signup", Signup)
 	sg.POST("refreshToken", RefreshToken)
+	sg.POST("logout", Logout)
+	sg.POST("sessions/revoke", AuthMiddleware, RevokeSessions)
 }

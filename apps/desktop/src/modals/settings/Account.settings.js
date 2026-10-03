@@ -4,6 +4,8 @@ import Prompt from "../../molecules/Prompt";
 import Toast from "../../molecules/Toast";
 import { accountInfoSlice, removeAccount, removeAuth } from "../../store/accountSlice";
 import { useDispatch, useSelector } from "react-redux";
+import { useState } from "react";
+import { vaultCall } from "./data/vaultIpc";
 import { Badge, SettingsButton, SettingsCard, SettingsPage, SettingsRow, SettingsSection } from "./SettingsUI";
 
 const maskEmail = (email) => {
@@ -17,6 +19,7 @@ const SettingAccount = ({ modalRef, preview = false }) => {
   const stored = useSelector(accountInfoSlice);
   const account = preview ? { username: "Jo", authId: "shyunku", googleEmail: null } : stored;
   const dispatch = useDispatch();
+  const [revoking, setRevoking] = useState(false);
   const name = account?.username || account?.googleEmail || "사용자";
   const email = account?.googleEmail;
   // authId: string = password login, null = none, undefined = saved before this was recorded.
@@ -38,6 +41,25 @@ const SettingAccount = ({ modalRef, preview = false }) => {
         } catch (err) {
           console.log(err);
           Toast.error("인증 정보 삭제에 실패했습니다. 다시 시도해주세요.");
+        }
+      },
+      onCancel: () => {},
+    });
+  };
+
+  const revokeOthers = () => {
+    Prompt.float("다른 곳에서 모두 로그아웃", "이 기기를 제외한 모든 기기와 앱에서 로그아웃합니다. 다른 기기에서는 다시 로그인해야 해요.", {
+      confirmText: "모두 로그아웃",
+      cancelText: "취소",
+      onConfirm: async () => {
+        setRevoking(true);
+        try {
+          await vaultCall("revokeOtherSessions");
+          Toast.info("다른 곳의 로그인을 모두 끊었어요.");
+        } catch {
+          Toast.error("로그아웃하지 못했어요. 잠시 뒤 다시 시도해 주세요.");
+        } finally {
+          setRevoking(false);
         }
       },
       onCancel: () => {},
@@ -67,7 +89,7 @@ const SettingAccount = ({ modalRef, preview = false }) => {
         <SettingsCard>
           <SettingsRow label="이 기기" description={`${platformLabel()} · ${PackageJson.version}`} />
           <SettingsRow label="다른 곳에서 모두 로그아웃" description="이 기기를 제외한 모든 로그인을 끊습니다.">
-            <SettingsButton disabled title="준비 중이에요">모두 로그아웃</SettingsButton>
+            <SettingsButton disabled={preview || revoking} onClick={revokeOthers}>{revoking ? "로그아웃 중…" : "모두 로그아웃"}</SettingsButton>
           </SettingsRow>
         </SettingsCard>
       </SettingsSection>

@@ -1,9 +1,12 @@
 package v1
 
 import (
+	"context"
 	"errors"
 	"github.com/golang-jwt/jwt"
 	"testing"
+	"thread_api/service/session"
+	"time"
 )
 
 func TestGoogleLoginIssuesThreadTokens(t *testing.T) {
@@ -11,18 +14,13 @@ func TestGoogleLoginIssuesThreadTokens(t *testing.T) {
 	t.Setenv("JWT_REFRESH_SECRET", "test-refresh-secret")
 	t.Setenv("JWT_ACCESS_EXPIRE", "3h")
 	t.Setenv("JWT_REFRESH_EXPIRE", "7d")
-	var saved authToken
-	auth, err := createGoogleLoginSession("user-1", func(uid string, token authToken) error {
-		if uid != "user-1" {
-			t.Fatal("wrong refresh owner")
-		}
-		saved = token
-		return nil
-	})
+	store := session.NewMemory()
+	useSessions(t, store)
+	auth, err := createGoogleLoginSession(context.Background(), "user-1")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if saved.Token == "" || saved.Token != auth.RefreshToken.Token {
+	if info, state, err := store.Resolve(context.Background(), session.Hash(auth.RefreshToken.Token)); err != nil || info.UID != "user-1" || state != session.Current {
 		t.Fatal("refresh token not saved")
 	}
 	for _, tc := range []struct{ token, secret string }{
@@ -42,8 +40,15 @@ func TestGoogleLoginIssuesThreadTokens(t *testing.T) {
 			t.Fatal("wrong subject")
 		}
 	}
-	_, err = createGoogleLoginSession("user-1", func(string, authToken) error { return errors.New("redis unavailable") })
+	useSessions(t, failingSessions{store})
+	_, err = createGoogleLoginSession(context.Background(), "user-1")
 	if err == nil {
 		t.Fatal("must reject refresh persistence failure")
 	}
+}
+
+type failingSessions struct{ session.Store }
+
+func (failingSessions) Create(context.Context, session.Info, string, time.Duration) error {
+	return errors.New("redis unavailable")
 }

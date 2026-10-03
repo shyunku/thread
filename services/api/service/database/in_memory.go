@@ -47,6 +47,11 @@ func NewRedis() *Redis {
 	return r
 }
 
+// Client exposes the connection for stores that need more than key/value access.
+func (r *Redis) Client() *redis.Client {
+	return r.client
+}
+
 func (r *Redis) Set(key string, value string) error {
 	return r.client.Set(context.Background(), key, value, 0).Err()
 }

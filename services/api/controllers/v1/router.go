@@ -117,18 +117,26 @@ func AuthMiddleware(c *gin.Context) {
 			}
 		}
 
+		// Google tokens have no Thread session; "log out everywhere" still stops them.
+		if !checkSession(c, *userEntity.UserId, "") {
+			return
+		}
 		c.Set("uid", *userEntity.UserId)
 		c.Next()
 	} else {
 		claims, ok := token.Claims.(jwt.MapClaims)
-		if ok && token.Valid {
-			userId := claims["uid"].(string)
+		userId, _ := claims["uid"].(string)
+		if ok && token.Valid && userId != "" {
 			isAdmin, _ := claims["admin"].(bool)
+			sid, _ := claims["sid"].(string)
+			if !checkSession(c, userId, sid) {
+				return
+			}
 			c.Set("uid", userId)
 			c.Set("is_admin", isAdmin)
 			c.Next()
 		} else {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
 		}
 	}
 }

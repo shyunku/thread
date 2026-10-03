@@ -11,6 +11,7 @@ import (
 	"thread_api/log"
 	"thread_api/service/database"
 	"thread_api/service/database/migrations"
+	"thread_api/service/session"
 	"thread_api/service/state"
 	"time"
 )
@@ -104,7 +105,9 @@ func main() {
 
 	// Initialize in-memory database
 	log.Info("Initializing in-memory database...")
-	database.InMemoryDB = database.NewRedis()
+	redisDB := database.NewRedis()
+	database.InMemoryDB = redisDB
+	controllers.UseSessions(session.NewRedis(redisDB.Client()))
 
 	// TODO :: check redis connection
 

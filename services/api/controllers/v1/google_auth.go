@@ -251,14 +251,8 @@ func SignupWithMobileGoogleAuth(c *gin.Context) {
 	}
 
 	userId := *userEntity.UserId
-	authToken, err := createAuthToken(userId)
+	authToken, err := issueSession(c.Request.Context(), userId, false)
 	if err != nil {
-		log.Error(err)
-		c.AbortWithStatus(http.StatusInternalServerError)
-		return
-	}
-
-	if err := saveRefreshToken(userId, authToken.RefreshToken); err != nil {
 		log.Error(err)
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
@@ -363,7 +357,7 @@ func GoogleOauth2Callback(c *gin.Context) {
 	}
 	if err == nil {
 		googleAuthResult.User = UserDtoFromEntity(user)
-		googleAuthResult.Auth, err = createGoogleLoginSession(*user.UserId, saveRefreshToken)
+		googleAuthResult.Auth, err = createGoogleLoginSession(c.Request.Context(), *user.UserId)
 		if err != nil {
 			c.AbortWithStatus(http.StatusInternalServerError)
 			return
@@ -390,18 +384,11 @@ func GoogleOauth2Callback(c *gin.Context) {
 }
 
 // Google credentials identify the user; Thread credentials authorize API access.
-func createGoogleLoginSession(uid string, save func(string, authToken) error) (*authTokenDto, error) {
+func createGoogleLoginSession(ctx context.Context, uid string) (*authTokenDto, error) {
 	if uid == "" {
 		return nil, fmt.Errorf("missing user ID")
 	}
-	auth, err := createAuthToken(uid)
-	if err != nil {
-		return nil, err
-	}
-	if err := save(uid, auth.RefreshToken); err != nil {
-		return nil, err
-	}
-	return auth, nil
+	return issueSession(ctx, uid, false)
 }
 
 func fetchGoogleOauthPublicRsaKeys() ([]json.RawMessage, error) {

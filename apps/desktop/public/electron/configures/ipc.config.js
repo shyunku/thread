@@ -99,6 +99,7 @@ module.exports = function (s) {
     "vault/lock":()=>{s.vaultWorkspaceService.lock();return true;},
     "vault/intakes":()=>s.vaultWorkspaceService.intakes(),
     "vault/reviews":request=>s.vaultWorkspaceService.reviews(request),
+    "vault/revokeOtherSessions":()=>s.vaultWorkspaceService.revokeOtherSessions(),
   };
   for(const [topic,action] of Object.entries(vaultActions))s.register(topic,async(event,reqId,...args)=>{
     const reply=await require("../e2ee/vaultIpcReply").vaultIpcReply(s,topic,action,args);
@@ -540,6 +541,13 @@ module.exports = function (s) {
   s.register("auth/deleteAuthInfo", async (event, reqId, userId) => {
     try {
       const rootDB = await s.databaseService.getRootDatabaseContext();
+      // End the server session first (best effort), then forget the tokens locally.
+      const [user] = await rootDB.all("SELECT refresh_token FROM users WHERE uid = ?;", [userId]);
+      let endpoint = null;
+      try { endpoint = s.vaultWorkspaceService.registrationEndpoint(); } catch {}
+      if (endpoint && user?.refresh_token) {
+        await require("../e2ee/accountSessions").logout({ endpoint, refreshToken: user.refresh_token });
+      }
       await rootDB.run(
         "UPDATE users SET access_token = NULL, refresh_token = NULL WHERE uid = ?;",
         [userId]

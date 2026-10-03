@@ -108,6 +108,7 @@ const IpcSender = {
     lock:callback=>sender("vault/lock",callback),
     intakes:callback=>sender("vault/intakes",callback),
     reviews:(request,callback)=>sender("vault/reviews",callback,request),
+    revokeOtherSessions:callback=>sender("vault/revokeOtherSessions",callback),
   },
   releaseAlerts: {
     get: callback => sender("release-alert/get", callback),

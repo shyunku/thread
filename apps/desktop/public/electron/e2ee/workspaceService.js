@@ -197,6 +197,13 @@ class VaultWorkspaceService{
    return await entry.controller.use(store=>require("./ownerRegistration").registerOwner({store,transport,signal:entry.abort.signal}));
   }finally{this.busy=false;}
  }
+ // Logs out every other device of this account; this session stays.
+ async revokeOtherSessions(){
+  const entry=this.context();this.transportFor(entry);
+  if(!entry.tokenSession)throw Error("AUTH_REQUIRED");
+  return require("./accountSessions").revokeOtherSessions({endpoint:this.registrationEndpoint(),tokens:entry.tokenSession,
+   fetch:this.runtime().fetch||globalThis.fetch,signal:entry.abort.signal});
+ }
  async activateEmpty(){
   if(this.busy)throw Error("VAULT_BUSY");
   const entry=this.context();entry.controller.use(()=>{});this.busy=true;
