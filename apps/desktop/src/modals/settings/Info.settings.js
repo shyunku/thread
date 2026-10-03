@@ -6,7 +6,7 @@ import { SettingsButton, SettingsCard, SettingsPage, SettingsRow, SettingsSectio
 import { useAppSettings } from "./System.settings";
 import { relativeTime } from "./data/format";
 
-export const PRIVACY_URL = "https://threadapp.kr/privacy";
+export const PRIVACY_URL = "https://site.threadapp.kr/privacy";
 export const CONTACT = "shyunku.dev@gmail.com";
 
 const openExternal = (target) => { try { IpcSender.openExternal?.(target, () => {}); } catch { /* no bridge */ } };
