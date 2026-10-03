@@ -1,11 +1,15 @@
 import TaskList from "components/TaskList";
 import { forwardRef, useImperativeHandle, useMemo, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { prefsSelector, setPrefs } from "store/prefsSlice";
 import { printf } from "utils/Common";
 import "./TaskListView.scss";
 
 const TaskListView = forwardRef(
   ({ taskMap, filteredTaskMap, sorter, ...rest }, ref) => {
     const [suppressOffset, setSuppressOffset] = useState(10);
+    const { listTodoOpen, listDoneOpen } = useSelector(prefsSelector);
+    const dispatch = useDispatch();
 
     // Convert taskMap to taskList while checking if the task list is sorted correctly
     const taskList = useMemo(() => {
@@ -87,27 +91,41 @@ const TaskListView = forwardRef(
     return (
       <div className="task-view list">
         <div className="todo-item-groups">
-          <div className="todo-item-group">
-            <div className="title">해야할 일 ({notDoneTaskList.length})</div>
-            <TaskList
-              taskList={notDoneTaskList}
-              draggable={sorter == null}
-              {...rest}
-            />
-            {notDoneTaskList.length === 0 && <p className="empty-list">진행 중인 할 일이 없어요. 새로운 일을 추가하거나 다른 필터를 선택해보세요.</p>}
+          <div className={"todo-item-group" + (listTodoOpen ? "" : " closed")}>
+            <button type="button" className="title" aria-expanded={listTodoOpen}
+              onClick={() => dispatch(setPrefs({ listTodoOpen: !listTodoOpen }))}>
+              해야할 일 ({notDoneTaskList.length})
+            </button>
+            {listTodoOpen && (
+              <>
+                <TaskList
+                  taskList={notDoneTaskList}
+                  draggable={sorter == null}
+                  {...rest}
+                />
+                {notDoneTaskList.length === 0 && <p className="empty-list">진행 중인 할 일이 없어요. 새로운 일을 추가하거나 다른 필터를 선택해보세요.</p>}
+              </>
+            )}
           </div>
-          <div className="todo-item-group">
-            <div className="title">완료됨 ({doneTaskList.length})</div>
-            <TaskList
-              taskList={suppressedDoneTaskList}
-              draggable={sorter == null}
-              {...rest}
-            />
-            {doneTaskList.length === 0 && <p className="empty-list">완료한 할 일이 여기에 모여요.</p>}
-            {doneTaskList.length > suppressOffset && (
-              <button className="load-more" onClick={() => setSuppressOffset((count) => count + 10)}>
-                완료한 할 일 더 보기
-              </button>
+          <div className={"todo-item-group done-group" + (listDoneOpen ? "" : " closed")}>
+            <button type="button" className="title" aria-expanded={listDoneOpen}
+              onClick={() => dispatch(setPrefs({ listDoneOpen: !listDoneOpen }))}>
+              완료됨 ({doneTaskList.length})
+            </button>
+            {listDoneOpen && (
+              <>
+                <TaskList
+                  taskList={suppressedDoneTaskList}
+                  draggable={sorter == null}
+                  {...rest}
+                />
+                {doneTaskList.length === 0 && <p className="empty-list">완료한 할 일이 여기에 모여요.</p>}
+                {doneTaskList.length > suppressOffset && (
+                  <button className="load-more" onClick={() => setSuppressOffset((count) => count + 10)}>
+                    완료한 할 일 더 보기
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>

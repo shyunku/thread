@@ -29,7 +29,7 @@ test("general preferences are stored in the persisted prefs slice", () => {
   fireEvent.click(screen.getByRole("radio", { name: "타임라인" }));
   fireEvent.click(screen.getByRole("radio", { name: "월요일" }));
   fireEvent.click(screen.getByRole("radio", { name: "24시간" }));
-  expect(s.getState().prefs).toEqual({ startView: "timeline", weekStart: 1, timeFormat: "24" });
+  expect(s.getState().prefs).toEqual({ startView: "timeline", weekStart: 1, timeFormat: "24", listTodoOpen: true, listDoneOpen: false });
   expect(screen.getByRole("radio", { name: "라이트" })).toBeDisabled();
 });
 

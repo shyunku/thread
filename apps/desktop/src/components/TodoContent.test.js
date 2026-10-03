@@ -8,7 +8,8 @@ import {fromSyncV2View} from "../utils/syncV2View";
 let mockContext;
 jest.mock("react-router-dom", () => ({ useOutletContext: () => mockContext }));
 jest.mock("react-redux", () => ({
-  useSelector: () => ({ uid: "fixture", offlineMode: false }),
+  useSelector: () => ({ uid: "fixture", offlineMode: false, listTodoOpen: true, listDoneOpen: true }),
+  useDispatch: () => () => {},
 }));
 jest.mock("../utils/IpcSender", () => {
   const groups = {};
