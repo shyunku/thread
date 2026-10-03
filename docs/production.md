@@ -22,7 +22,7 @@ EC2 호스트 한 대에서 Docker Compose(프로젝트 이름 `thread`)로 서�
 | `redis` | 로그인 세션(refresh token 회전·폐기) | 없음 | `redis-data` |
 | `app-server` | Go API. 인증, v3 암호문 동기화 | `4033` (`https://api.threadapp.kr`) | 없음 |
 | `rms` | 릴리스 관리 서버. 구 방식 릴리스와 `/tuf/` 서명 저장소 | `4034` (`https://rms.threadapp.kr`) | `rms-releases`, `rms-tuf`(읽기 전용 마운트) |
-| `site` | 공개 웹사이트 | `3000` | 없음 |
+| `site` | 공개 웹사이트 | `3000` (`https://site.threadapp.kr`, `threadapp.kr`은 Cloudflare에서 리다이렉트) | 없음 |
 | `admin-site` | 관리자 웹 | `3001` | 없음 |
 
 클라이언트:
