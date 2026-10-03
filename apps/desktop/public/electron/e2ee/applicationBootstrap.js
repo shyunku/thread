@@ -30,6 +30,16 @@ function selectApplication(service,entry){
   },15000);
   entry.poller.unref?.();
  }
+ // Server signals arrive within a second; the poller above stays as a fallback.
+ if(!entry.events&&!service.runtime().transport){
+  try{
+   service.transportFor(entry);
+   const {startSyncEvents,syncScheduler}=require("./syncEvents");
+   const schedule=syncScheduler(()=>service.active===entry&&entry.unlocked?service.syncEncrypted():null);
+   entry.events=startSyncEvents({endpoint:service.registrationEndpoint(),tokens:entry.tokenSession,signal:entry.abort.signal,
+    fetch:service.runtime().fetch||globalThis.fetch,onChange:schedule});
+  }catch{entry.events=null;}
+ }
 }
 async function bootstrap(service,uid){
  if(service.busy)throw Error("VAULT_BUSY");

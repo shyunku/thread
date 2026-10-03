@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thread 동기화 표시 시안</title>
+<style>
+  :root { --panel: #15181e; --surface: #1c2028; --hover: #252b36; --border: #2b303b; --text: #edf1f7; --secondary: #a0aaba; --muted: #8792a4;
+    --success: #70d5a0; --pending: #f0a65e; --danger: #f0838b; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0b0d10; color: var(--text); font: 14px/1.5 Pretendard, "Malgun Gothic", "Segoe UI", sans-serif; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  .toolbar { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 10px 16px; background: #0b0d10ee; border-bottom: 1px solid var(--border); }
+  .toolbar strong { margin-right: 4px; font-size: 12px; color: var(--muted); }
+  .toolbar button { padding: 5px 10px; border: 1px solid var(--border); border-radius: 7px; background: var(--panel); font-size: 12px; color: var(--secondary); }
+  .toolbar button.on { background: #253858; border-color: #3a5486; color: var(--text); }
+  .toolbar .sep { width: 1px; height: 20px; margin: 0 6px; background: var(--border); }
+  main { display: flex; flex-wrap: wrap; gap: 28px; justify-content: center; padding: 32px 16px 64px; }
+  .page { width: 820px; max-width: 100%; padding: 22px 28px; border: 1px solid #354051; border-radius: 14px; background: #151a23; }
+  .page h2 { margin: 0; font-size: 19px; } .page > p { margin: 2px 0 18px; color: var(--secondary); font-size: 13px; }
+  .section-title { margin: 0 0 8px; color: var(--muted); font-size: 12px; font-weight: 600; }
+  .card { border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+  .row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; }
+  .badge { padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .badge.success { background: #1d3a2b; color: var(--success); } .badge.neutral { background: #2a303b; color: var(--secondary); }
+  .badge.warn { background: #3a2d1d; color: var(--pending); }
+  .bar { display: flex; flex: 1; gap: 3px; min-width: 60px; height: 8px; }
+  .bar i { display: block; height: 100%; border-radius: 4px; }
+  .bar .done { background: var(--success); flex: 82; border-radius: 4px 2px 2px 4px; }
+  .bar .pending { background: var(--pending); flex: 18; border-radius: 2px 4px 4px 2px; }
+  .bar .idle { background: #3a4250; flex: 1; }
+  .bar .full { background: var(--success); flex: 1; }
+  .bar .syncing { flex: 1; background: linear-gradient(90deg, #3a4250 0%, var(--success) 50%, #3a4250 100%); background-size: 200% 100%; animation: slide 1.4s linear infinite; }
+  @keyframes slide { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+  .bar.offline { opacity: .35; }
+  .meta { color: var(--secondary); font-size: 12.5px; white-space: nowrap; }
+  .meta.quiet { opacity: .5; }
+  .meta .p { color: var(--pending); font-weight: 600; }
+  .meta .ok { color: var(--success); font-weight: 600; }
+  .checkline { display: flex; flex: 1; align-items: center; gap: 8px; color: var(--success); font-weight: 600; font-size: 13px; }
+  .checkline span { color: var(--secondary); font-weight: 400; }
+  .refresh { width: 34px; height: 34px; border: 0; border-radius: 8px; background: none; color: var(--secondary); font-size: 18px; }
+  .message { padding: 0 14px 12px; color: #f3afb5; font-size: 12.5px; }
+  .notes { width: 820px; max-width: 100%; padding: 16px 18px; border: 1px dashed #3a4252; border-radius: 12px; color: var(--secondary); font-size: 13px; }
+  .notes h3 { margin: 12px 0 6px; color: var(--text); font-size: 13px; } .notes h3:first-child { margin-top: 0; }
+  .notes ul { margin: 0; padding-left: 18px; } .notes li { margin: 3px 0; }
+  .notes .q { color: #edbc72; }
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <strong>상태</strong>
+  <button data-state="synced" class="on">동기화 완료</button>
+  <button data-state="syncing">동기화 중</button>
+  <button data-state="pending">보낼 변경 있음</button>
+  <button data-state="offline">오프라인</button>
+  <button data-state="conflict">충돌 검토</button>
+  <span class="sep"></span>
+  <strong>완료 표시</strong>
+  <button data-variant="a">A 지금(회색)</button>
+  <button data-variant="b" class="on">B 초록으로 채움</button>
+  <button data-variant="c">C 바 대신 체크</button>
+</div>
+<main>
+  <div class="page">
+    <h2>데이터</h2>
+    <p>내 데이터는 기기에서 암호화되어 저장·동기화됩니다.</p>
+    <div class="section-title">동기화</div>
+    <div class="card" data-card></div>
+  </div>
+  <section class="notes">
+    <h3>문제</h3>
+    <ul><li>다 동기화된 상태인데 바가 회색으로 비어 있어서 "아무것도 안 된" 것처럼 보임.</li></ul>
+    <h3>후보 (동기화 완료일 때만 다름)</h3>
+    <ul>
+      <li><b>A 지금:</b> 회색 빈 바 + 흐린 "보낼 변경 0개".</li>
+      <li><b>B 초록으로 채움:</b> 바를 초록으로 꽉 채우고 "모두 동기화됨 · 방금"으로 바꿈. 보낼 변경이 있으면 지금처럼 초록+주황으로 나뉨.</li>
+      <li><b>C 바 대신 체크:</b> 완료일 땐 바를 없애고 "✓ 모두 동기화됨 · 방금"만 보여 줌. 바는 보낼 변경이 있거나 동기화 중일 때만 나타남.</li>
+    </ul>
+    <h3>같이 바뀌는 것</h3>
+    <ul>
+      <li><b>동기화 중:</b> 지금은 따로 표시가 없음. 바 위로 초록 빛이 흐르는 표시를 넣음(실시간 동기화가 들어가면 잠깐씩 보임).</li>
+      <li>오프라인·충돌 검토 표시는 그대로.</li>
+    </ul>
+    <h3 class="q">정해 줘야 할 것</h3>
+    <ul><li class="q">완료 표시를 A/B/C 중 어떤 걸로 할지, "동기화 중" 흐르는 표시를 넣을지.</li></ul>
+  </section>
+</main>
+<script>
+  let state = "synced", variant = "b";
+  function render() {
+    const card = document.querySelector("[data-card]");
+    const badge = state === "offline" ? '<span class="badge neutral">오프라인</span>' : state === "syncing" ? '<span class="badge success">동기화 중</span>' : '<span class="badge success">온라인</span>';
+    let bar, meta;
+    if (state === "pending") { bar = '<div class="bar"><i class="done"></i><i class="pending"></i></div>'; meta = '<span class="meta"><span class="p">보낼 변경 2개</span> · 방금 동기화</span>'; }
+    else if (state === "offline") { bar = '<div class="bar offline"><i class="done"></i><i class="pending"></i></div>'; meta = '<span class="meta"><span class="p">보낼 변경 2개</span> · 5분 전 동기화</span>'; }
+    else if (state === "syncing") { bar = '<div class="bar"><i class="syncing"></i></div>'; meta = '<span class="meta">받아오는 중…</span>'; }
+    else if (variant === "a") { bar = '<div class="bar"><i class="idle"></i></div>'; meta = '<span class="meta quiet">보낼 변경 0개 · 방금 동기화</span>'; }
+    else if (variant === "b") { bar = '<div class="bar"><i class="full"></i></div>'; meta = '<span class="meta"><span class="ok">모두 동기화됨</span> · 방금</span>'; }
+    else { bar = '<div class="checkline">✓ 모두 동기화됨 <span>· 방금</span></div>'; meta = ""; }
+    card.innerHTML = `<div class="row">${badge}${bar}${meta}<button class="refresh" title="지금 동기화">↻</button></div>` +
+      (state === "conflict" ? '<div class="message">충돌 검토가 필요한 변경: 1개</div>' : "");
+    document.querySelectorAll("[data-state]").forEach((b) => b.classList.toggle("on", b.dataset.state === state));
+    document.querySelectorAll("[data-variant]").forEach((b) => b.classList.toggle("on", b.dataset.variant === variant));
+  }
+  document.addEventListener("click", (e) => {
+    const s = e.target.closest("[data-state]"), v = e.target.closest("[data-variant]");
+    if (s) state = s.dataset.state; if (v) variant = v.dataset.variant; if (s || v) render();
+  });
+  render();
+</script>
+</body>
+</html>

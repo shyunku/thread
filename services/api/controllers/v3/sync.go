@@ -9,6 +9,7 @@ import (
 	"os"
 	"thread_api/service/database"
 	"thread_api/service/pairing"
+	"thread_api/service/syncevents"
 	"thread_api/service/vault"
 	"time"
 
@@ -31,13 +32,18 @@ func UseRouter(r *gin.Engine) {
 	s := &vault.Store{DB: database.DB.DB}
 	secret := []byte(os.Getenv("JWT_ACCESS_SECRET"))
 	RegisterPending(r, s, secret)
+	syncBroker = syncevents.NewBroker()
 	RegisterSync(r, s, secret)
+	RegisterSyncEvents(r, syncBroker, secret)
 	if pairingStore != nil {
 		RegisterPairing(r, pairingStore, secret)
 	}
 }
 
 var pairingStore pairing.Store
+
+// syncBroker signals an account's other devices after a successful push (nil in tests).
+var syncBroker *syncevents.Broker
 
 // SetPairingStore enables the device-connection relay routes.
 func SetPairingStore(store pairing.Store) { pairingStore = store }
@@ -87,7 +93,13 @@ func RegisterSync(r *gin.Engine, s EncryptedSyncStore, secret []byte) {
 			c.JSON(status, gin.H{"code": code})
 		}
 	}
-	g.POST("/push", handle(func(ctx context.Context, uid string, b []byte) (interface{}, error) { return s.Push(ctx, uid, b) }))
+	g.POST("/push", handle(func(ctx context.Context, uid string, b []byte) (interface{}, error) {
+		result, err := s.Push(ctx, uid, b)
+		if err == nil && syncBroker != nil {
+			syncBroker.Notify(uid)
+		}
+		return result, err
+	}))
 	g.POST("/envelope", handle(func(ctx context.Context, uid string, b []byte) (interface{}, error) {
 		return s.SignedEnvelope(ctx, uid, b)
 	}))
