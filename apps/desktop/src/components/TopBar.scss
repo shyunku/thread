@@ -105,10 +105,13 @@
     .update-indicator { padding: 0 7px; }
     .update-indicator span { display: none; }
   }
+  // Window controls stay at the right edge with or without the update button.
   .menu-section {
     display: flex;
     align-self: stretch;
+    margin-left: auto;
   }
+  .update-indicator ~ .menu-section { margin-left: 0; }
   .menu-item {
     width: 44px;
     border: 0;
@@ -130,8 +133,6 @@
     kbd {
       display: none;
     }
-    .menu-section { margin-left: auto; }
-    .update-indicator ~ .menu-section { margin-left: 0; }
     .menu-item {
       width: 36px;
     }
