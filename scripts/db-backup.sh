@@ -2,7 +2,7 @@
 # Back up the production MySQL database from the Compose "mysql" service.
 # Run on the server from anywhere inside the repository: `pnpm db:backup` or `sh scripts/db-backup.sh`.
 # The dump contains v2 plaintext data: it is written owner-only under .local/db-backups/,
-# which is excluded from Git and Docker builds.
+# which is excluded from Git and Docker builds. Dumps older than 30 days are deleted.
 set -eu
 
 cd "$(dirname "$0")/.."
@@ -32,3 +32,9 @@ trap - EXIT INT TERM
 
 echo "db-backup: done ($(du -h "$file" | cut -f1)) $file"
 echo "db-backup: tables: $(grep -c '^CREATE TABLE' "$file")"
+
+# The privacy policy promises backups are kept for 30 days. Only this folder's dumps are
+# removed; copies moved elsewhere must be cleaned up by hand.
+find "$dir" -maxdepth 1 -type f -name 'thread-*.sql' -mtime +29 -print | while read -r old; do
+  rm -f "$old" && echo "db-backup: removed backup older than 30 days: $old"
+done
