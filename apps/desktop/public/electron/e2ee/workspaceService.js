@@ -291,14 +291,19 @@ class VaultWorkspaceService{
  async relay(action,input={}){
   const actions=["ownerStart","ownerPoll","ownerApprove","recipientPoll","recipientConfirm","recipientReject","cancel"];
   if(!actions.includes(action)||!input||typeof input!=="object")throw Error("INVALID_PAIR_ACTION");
-  if(this.busy)throw Error("VAULT_BUSY");
+  // Polling only talks to the relay, so it must not fail while a background sync holds the
+  // vault. Approval changes membership: it waits for the sync to finish instead.
+  const approving=action==="ownerApprove";
+  if(approving)for(let i=0;this.busy&&i<100;i++)await new Promise(resolve=>setTimeout(resolve,100));
+  if(approving&&this.busy)throw Error("VAULT_BUSY");
   const entry=this.context(),generation=this.generation,store=entry.controller.use(value=>value),signal=entry.abort.signal;
+  if(entry.relayBusy)throw Error("VAULT_BUSY");
   const check=()=>{if(this.active!==entry||generation!==this.generation||signal.aborted)throw Error("VAULT_SESSION_CHANGED");entry.controller.use(()=>{});};
   const base=this.transportFor(entry),transport={};
   for(const name of ["membership","approve","pairingSession","pairingCreate","pairingRequest","pairingReveal","pairingTransfer","pairingCancel"])
    transport[name]=name==="pairingSession"?()=>{check();return base.pairingSession(signal);}:value=>{check();return base[name](value,signal);};
   const {OwnerRelay,RecipientRelay}=require("./relayPairing");
-  this.busy=true;
+  entry.relayBusy=true;if(approving)this.busy=true;
   try{
    if(action==="ownerStart"){await entry.relay?.cancel?.();entry.relay=new OwnerRelay({store,transport});return await entry.relay.start();}
    if(action==="recipientPoll"){
@@ -312,7 +317,7 @@ class VaultWorkspaceService{
    if(action==="ownerApprove")return await relay.approve(this.reauthenticator(entry,input,check));
    if(action==="recipientConfirm")return relay.confirm();
    return await relay.reject();
-  }finally{input.password=undefined;this.busy=false;}
+  }finally{input.password=undefined;entry.relayBusy=false;if(approving)this.busy=false;}
  }
  async prepareIdentity(){
   if(this.busy)throw Error("VAULT_BUSY");this.busy=true;

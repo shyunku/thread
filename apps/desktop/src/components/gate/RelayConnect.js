@@ -4,6 +4,8 @@ import { GateButton, GateCallout, GateLink, GateStep, SasCode, Waiting } from ".
 
 const KICKER = "쓰던 기기로 연결";
 const POLL_MS = 2000;
+// A poll can fail briefly (network, busy vault); give up only after several in a row.
+const MAX_FAILURES = 4;
 const relay = (action, input) => vaultCall("relay", action, input);
 
 function minutesLeft(expiresAt) {
@@ -35,17 +37,19 @@ export default function RelayConnect({ onBack, onOther, onConnected }) {
     if (!polling) return undefined;
     let timer = null;
     let stopped = false;
+    let failures = 0;
     const tick = async () => {
       if (acting.current) { timer = setTimeout(tick, POLL_MS); return; }
       try {
         inflight.current = relay("recipientPoll");
         const next = await inflight.current;
         if (stopped || !live.current) return;
+        failures = 0;
         if (next?.phase === "PAIRED") paired.current = true;
         setView((previous) => (next ? { ...previous, ...next } : previous));
-      } catch (error) {
+      } catch {
         if (stopped || !live.current) return;
-        if (error.message !== "VAULT_BUSY") { setFailed(true); return; }
+        if (++failures >= MAX_FAILURES) { setFailed(true); return; }
       }
       if (!stopped) timer = setTimeout(tick, POLL_MS);
     };

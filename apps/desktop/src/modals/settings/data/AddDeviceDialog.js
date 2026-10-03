@@ -5,6 +5,8 @@ import FileAddDeviceDialog from "./FileAddDeviceDialog";
 import { vaultCall } from "./vaultIpc";
 
 const POLL_MS = 2000;
+// A poll can fail briefly (network, background sync); give up only after several in a row.
+const MAX_FAILURES = 4;
 const relay = (action, input) => vaultCall("relay", action, input);
 
 function Sas({ code }) {
@@ -45,17 +47,21 @@ export default function AddDeviceDialog({ vaultCode, osAvailable = false, onClos
     if (!waiting) return undefined;
     let timer = null;
     let stopped = false;
+    let failures = 0;
     const tick = async () => {
       if (!acting.current) {
         try {
           inflight.current = relay("ownerPoll");
           const next = await inflight.current;
           if (stopped || !live.current) return;
+          failures = 0;
           setView(next);
         } catch {
           if (stopped || !live.current) return;
-          setError("새 기기와 연결하지 못했어요. 새 기기에서 다시 시도해 주세요.");
-          return;
+          if (++failures >= MAX_FAILURES) {
+            setError("새 기기와 연결하지 못했어요. 새 기기에서 다시 시도해 주세요.");
+            return;
+          }
         }
       }
       if (!stopped) timer = setTimeout(tick, POLL_MS);
