@@ -479,18 +479,7 @@ module.exports = function (s) {
             !data.auth?.access_token?.token || !data.auth?.refresh_token?.token) {
           throw new Error("INVALID_AUTH_INFO");
         }
-        const users = await rootDB.all("SELECT * FROM users WHERE uid = ?;", [user.uid]);
-        if (users.length === 0) {
-          await rootDB.run(
-            "INSERT INTO users (uid, auth_id, username, google_auth_id, google_email, google_profile_image_url) VALUES (?, ?, ?, ?, ?, ?);",
-            [user.uid, user.auth_id, user.username, user.google_auth_id, user.google_email, user.google_profile_image_url]
-          );
-        } else {
-          await rootDB.run(
-            "UPDATE users SET username = ?, google_auth_id = ?, google_email = ?, google_profile_image_url = ? WHERE uid = ?;",
-            [user.username, user.google_auth_id, user.google_email, user.google_profile_image_url, user.uid]
-          );
-        }
+        await require("../modules/localUsers").saveGoogleUser(rootDB, user);
       }
 
       s.sender("auth/sendGoogleOauthResult", reqId, true, {
@@ -857,10 +846,12 @@ module.exports = function (s) {
       } else {
         let [user] = users;
         // filter null options
+        // A row first created by Google sign-in has an empty password hash; fill it now.
         const nullProperties = Object.keys(user).filter(
-          (key) => user[key] == null
+          (key) => user[key] == null || (key === "auth_hashed_pw" && user[key] === "")
         );
         const newProperties = {
+          auth_hashed_pw: signinRequest.hashedPassword,
           auth_id,
           auth_encrypted_pw: signinRequest.encryptedPassword,
           google_auth_id,
