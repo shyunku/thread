@@ -92,6 +92,7 @@ const IpcSender = {
     resolveConflict:(request,callback)=>sender("vault/resolveConflict",callback,request),
     reconcileConflict:(request,callback)=>sender("vault/reconcileConflict",callback,request),
     pairing:(action,input,callback)=>sender("vault/pairing",callback,action,input),
+    relay:(action,input,callback)=>sender("vault/relay",callback,action,input),
     registrationEndpoint:callback=>sender("vault/registrationEndpoint",callback),
     registerIdentity:callback=>sender("vault/registerIdentity",callback),
     activateEmpty:callback=>sender("vault/activateEmpty",callback),

@@ -270,18 +270,48 @@ class VaultWorkspaceService{
     const value=await pair.previewRequest(store,codec.toRequestFile(record));check();return value;
    }
    if(action==="approve"){
-    const reauthenticate=async()=>{
-     check();let ok=false;
-     if(input.method==="os")ok=await this.runtime().osAuth.verify(this.runtime().getWindow());
-     else if(input.method==="password"){const temporary=await entry.vault.openWithPassword(input.password);temporary.close();ok=true;}
-     else throw Error("INVALID_AUTH_METHOD");
-     check();return ok;
-    };
+    const reauthenticate=this.reauthenticator(entry,input,check);
     const bytes=await pair.approveRequest({store,transport,requestId:input.requestId,fingerprint:input.fingerprint,reauthenticate});check();
     return {approved:true,saved:await save(bytes,"thread-key-transfer")};
    }
    const bytes=await read("thread-key-transfer",512*1024);if(!bytes)return null;
    const value=await pair.acceptFile({store,transport,bytes});check();return value;
+  }finally{input.password=undefined;this.busy=false;}
+ }
+ reauthenticator(entry,input,check){
+  return async()=>{
+   check();let ok=false;
+   if(input.method==="os")ok=await this.runtime().osAuth.verify(this.runtime().getWindow());
+   else if(input.method==="password"){const temporary=await entry.vault.openWithPassword(input.password);temporary.close();ok=true;}
+   else throw Error("INVALID_AUTH_METHOD");
+   check();return ok;
+  };
+ }
+ // Device connection through the server relay. The existing device runs owner*, the new device recipient*.
+ async relay(action,input={}){
+  const actions=["ownerStart","ownerPoll","ownerApprove","recipientPoll","recipientConfirm","recipientReject","cancel"];
+  if(!actions.includes(action)||!input||typeof input!=="object")throw Error("INVALID_PAIR_ACTION");
+  if(this.busy)throw Error("VAULT_BUSY");
+  const entry=this.context(),generation=this.generation,store=entry.controller.use(value=>value),signal=entry.abort.signal;
+  const check=()=>{if(this.active!==entry||generation!==this.generation||signal.aborted)throw Error("VAULT_SESSION_CHANGED");entry.controller.use(()=>{});};
+  const base=this.transportFor(entry),transport={};
+  for(const name of ["membership","approve","pairingSession","pairingCreate","pairingRequest","pairingReveal","pairingTransfer","pairingCancel"])
+   transport[name]=name==="pairingSession"?()=>{check();return base.pairingSession(signal);}:value=>{check();return base[name](value,signal);};
+  const {OwnerRelay,RecipientRelay}=require("./relayPairing");
+  this.busy=true;
+  try{
+   if(action==="ownerStart"){await entry.relay?.cancel?.();entry.relay=new OwnerRelay({store,transport});return await entry.relay.start();}
+   if(action==="recipientPoll"){
+    if(!(entry.relay instanceof RecipientRelay))entry.relay=new RecipientRelay({store,transport});
+    return await entry.relay.poll();
+   }
+   const relay=entry.relay;if(!relay)throw Error("PAIRING_NOT_READY");
+   if(action==="cancel"){entry.relay=null;return await relay.cancel();}
+   if(action.startsWith("owner")!==(relay instanceof OwnerRelay))throw Error("PAIRING_NOT_READY");
+   if(action==="ownerPoll")return await relay.poll();
+   if(action==="ownerApprove")return await relay.approve(this.reauthenticator(entry,input,check));
+   if(action==="recipientConfirm")return relay.confirm();
+   return await relay.reject();
   }finally{input.password=undefined;this.busy=false;}
  }
  async prepareIdentity(){

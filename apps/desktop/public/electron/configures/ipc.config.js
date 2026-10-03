@@ -83,6 +83,7 @@ module.exports = function (s) {
     "vault/resolveConflict":request=>s.vaultWorkspaceService.resolveConflict(request),
     "vault/reconcileConflict":request=>s.vaultWorkspaceService.reconcileConflict(request),
     "vault/pairing":(action,input)=>s.vaultWorkspaceService.pairing(action,input),
+    "vault/relay":(action,input)=>s.vaultWorkspaceService.relay(action,input),
     "vault/registrationEndpoint":()=>{s.vaultWorkspaceService.context();return s.vaultWorkspaceService.registrationEndpoint();},
     "vault/registerIdentity":()=>s.vaultWorkspaceService.registerIdentity(),
     "vault/activateEmpty":()=>s.vaultWorkspaceService.activateEmpty(),
