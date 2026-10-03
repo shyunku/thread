@@ -1,5 +1,5 @@
 // Links the renderer may open in the system browser/mail client.
-const CONTACT = "mailto:shyunku.dev@gmail.com";
+const CONTACT = "mailto:shyunku.support@gmail.com";
 
 function isAllowedExternal(target) {
   if (typeof target !== "string" || target.length > 512) return false;

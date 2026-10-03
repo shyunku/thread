@@ -50,7 +50,7 @@ test("privacy policy and unknown pages render", () => {
   global.fetch = jest.fn(() => new Promise(() => {}));
   const { unmount } = render(<App path="/privacy/" />);
   expect(screen.getByRole("heading", { level: 1, name: "개인정보처리방침" })).toBeInTheDocument();
-  expect(screen.getAllByRole("link", { name: "shyunku.dev@gmail.com" }).length).toBeGreaterThan(0);
+  expect(screen.getAllByRole("link", { name: "shyunku.support@gmail.com" }).length).toBeGreaterThan(0);
   unmount();
   render(<App path="/nope" />);
   expect(screen.getByRole("heading", { name: "페이지를 찾을 수 없어요" })).toBeInTheDocument();

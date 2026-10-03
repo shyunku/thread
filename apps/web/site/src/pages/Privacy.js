@@ -1,4 +1,4 @@
-export const CONTACT = "shyunku.dev@gmail.com";
+export const CONTACT = "shyunku.support@gmail.com";
 // Set to the day the policy is published.
 const EFFECTIVE = "2026년 10월 3일";
 

@@ -71,5 +71,5 @@ test("about tab checks for updates, toggles beta and opens allowed links", async
   fireEvent.click(screen.getByRole("button", { name: /열기/ }));
   expect(IpcSender.openExternal).toHaveBeenCalledWith("https://site.threadapp.kr/privacy", expect.any(Function));
   fireEvent.click(screen.getByRole("button", { name: "메일 보내기" }));
-  expect(IpcSender.openExternal).toHaveBeenCalledWith("mailto:shyunku.dev@gmail.com", expect.any(Function));
+  expect(IpcSender.openExternal).toHaveBeenCalledWith("mailto:shyunku.support@gmail.com", expect.any(Function));
 });

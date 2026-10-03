@@ -39,7 +39,7 @@ test("updates persist only valid boolean keys and flag a restart for hardware ac
 });
 
 test("only Thread's HTTPS site and the contact address can be opened externally", () => {
-  for (const ok of ["https://threadapp.kr/privacy", "https://www.threadapp.kr/", "mailto:shyunku.dev@gmail.com"])
+  for (const ok of ["https://threadapp.kr/privacy", "https://www.threadapp.kr/", "mailto:shyunku.support@gmail.com"])
     assert.equal(isAllowedExternal(ok), true, ok);
   for (const bad of ["http://threadapp.kr", "https://threadapp.kr.evil.example", "https://evil.example/threadapp.kr",
     "https://user@threadapp.kr", "https://threadapp.kr:8443/", "file:///C:/Windows", "javascript:alert(1)",
