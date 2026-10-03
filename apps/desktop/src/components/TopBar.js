@@ -49,6 +49,9 @@ const TopBar = ({ searchQuery = "", setSearchQuery }) => {
     <header className="component top-bar">
       <div className="brand" title={`Thread ${PackageJson.version}`}>
         <img src={process.env.PUBLIC_URL + "/logo192.png"} alt="Thread" />
+        <span className="build-label">
+          {process.env.NODE_ENV === "development" ? "DEV" : `Thread ${PackageJson.version}`}
+        </span>
       </div>
       <div className="drag-section" />
       <div className="workspace-search">
@@ -79,11 +82,6 @@ const TopBar = ({ searchQuery = "", setSearchQuery }) => {
         )}
       </div>
       {update && <button type="button" className={`update-indicator update-indicator--${update.status}`} aria-label={`Thread ${update.version} 업데이트 ${update.status === "ready" ? "설치 준비 완료" : update.status === "downloading" ? "다운로드 중" : update.status === "failed" ? "다운로드 실패" : "다운로드 가능"}`} title={`Thread ${update.version} 업데이트`} onClick={() => window.dispatchEvent(new Event("thread:open-update"))}><VscArrowDown aria-hidden="true" /><span>{UPDATE_LABEL[update.status] || "업데이트"}</span></button>}
-      <div className="build-label">
-        {process.env.NODE_ENV === "development"
-          ? "DEV"
-          : `v${PackageJson.version}`}
-      </div>
       <div className="menu-section">
         <button
           className="menu-item"
