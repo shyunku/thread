@@ -43,9 +43,21 @@ if (settingsPreview) {
   require("./preview/settingsPreviewIpc").installSettingsPreviewIpc(
     require("./utils/IpcSender").default, { recovery: previewParams.get("recovery") || "confirmed", latency: Number(previewParams.get("latency")) || 250 });
 }
-const persistor = settingsPreview ? null : persistStore(store);
+// Dev-only main window with synthetic tasks, used for website screenshots.
+const appPreview = process.env.NODE_ENV === "development" &&
+  window.location.hash.startsWith("#/__app-preview");
+if (appPreview) {
+  require("./preview/appPreview").installAppPreviewIpc(require("./utils/IpcSender").default);
+  store.dispatch(require("./store/accountSlice").setAccount({ uid: "preview", username: "Thread", offlineMode: false }));
+}
+const persistor = settingsPreview || appPreview ? null : persistStore(store);
 const root = ReactDOM.createRoot(document.getElementById("root"));
-root.render(settingsPreview ? (
+const AppPreview = appPreview ? require("./preview/appPreview").default : null;
+root.render(appPreview ? (
+  <Provider store={store}>
+    <AppPreview />
+  </Provider>
+) : settingsPreview ? (
   <Provider store={store}>
     <SettingsModal id="SETTINGS_PREVIEW" preview previewTab={previewTab} previewPanel={previewPanel} />
   </Provider>

@@ -1,24 +1,53 @@
-import "./App.css";
+import { useEffect } from "react";
+import logo from "./assets/logo.png";
+import Landing from "./pages/Landing";
+import Privacy, { CONTACT } from "./pages/Privacy";
 
-function App() {
+const PAGES = {
+  "/": { title: "Thread — 나만 볼 수 있는 할 일·일정 관리", Page: Landing },
+  "/privacy": { title: "개인정보처리방침 — Thread", Page: Privacy },
+};
+
+function NotFound() {
   return (
-    <div className="App">
-      <div className="header-bg">
-        <svg width="100%" height="100%" version="1.1" xmlns="http://www.w3.org/2000/svg">
-          {/* 그라디언트 정의 */}
-          <defs>
-            <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" style={{ stopColor: "rgb(255, 255, 255)", stopOpacity: 1 }} />
-              <stop offset="100%" style={{ stopColor: "rgb(0, 0, 255)", stopOpacity: 1 }} />
-            </linearGradient>
-          </defs>
-
-          {/* 둥글게 틀어지는 폴리곤 그리기 */}
-          <path d="M0,0 L0,100 A70,70 0 0,1 70,100 L100,0 Z" stroke="black" strokeWidth="1" fill="url(#gradient)" />
-        </svg>
-      </div>
-    </div>
+    <main className="policy container">
+      <h1>페이지를 찾을 수 없어요</h1>
+      <p><a href="/">처음으로 돌아가기</a></p>
+    </main>
   );
 }
 
-export default App;
+export default function App({ path = window.location.pathname }) {
+  const normalized = path.replace(/\/+$/, "") || "/";
+  const page = PAGES[normalized];
+  useEffect(() => {
+    document.title = page?.title || "Thread";
+  }, [page]);
+  const Page = page?.Page || NotFound;
+  const onLanding = normalized === "/";
+  return (
+    <div className="site">
+      <header className="nav">
+        <div className="container nav__inner">
+          <a className="nav__brand" href="/">
+            <img src={logo} width="28" height="28" alt="" />
+            <span>Thread</span>
+          </a>
+          <nav aria-label="주요 메뉴" className="nav__links">
+            <a href={onLanding ? "#features" : "/#features"}>기능</a>
+            <a href={onLanding ? "#security" : "/#security"}>보안</a>
+            <a className="nav__cta" href={onLanding ? "#download" : "/#download"}>다운로드</a>
+          </nav>
+        </div>
+      </header>
+      <Page />
+      <footer className="footer">
+        <div className="container footer__inner">
+          <span>© Thread</span>
+          <a href="/privacy">개인정보처리방침</a>
+          <a href={`mailto:${CONTACT}`}>{CONTACT}</a>
+        </div>
+      </footer>
+    </div>
+  );
+}
