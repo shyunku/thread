@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"thread_api/service/database"
+	"thread_api/service/pairing"
 	"thread_api/service/vault"
 	"time"
 
@@ -31,7 +32,15 @@ func UseRouter(r *gin.Engine) {
 	secret := []byte(os.Getenv("JWT_ACCESS_SECRET"))
 	RegisterPending(r, s, secret)
 	RegisterSync(r, s, secret)
+	if pairingStore != nil {
+		RegisterPairing(r, pairingStore, secret)
+	}
 }
+
+var pairingStore pairing.Store
+
+// SetPairingStore enables the device-connection relay routes.
+func SetPairingStore(store pairing.Store) { pairingStore = store }
 
 func RegisterSync(r *gin.Engine, s EncryptedSyncStore, secret []byte) {
 	g := r.Group("/v3/sync", UserPrincipal(secret))

@@ -9,6 +9,7 @@ import (
 	"thread_api/controllers/v1"
 	"thread_api/controllers/v3"
 	"thread_api/log"
+	"thread_api/service/pairing"
 	"thread_api/service/session"
 )
 
@@ -20,6 +21,11 @@ func ping(c *gin.Context) {
 func UseSessions(store session.Store) {
 	v1.Sessions = store
 	v3.SetSessionVerifier(store)
+}
+
+// UsePairing connects the device-connection relay store.
+func UsePairing(store pairing.Store) {
+	v3.SetPairingStore(store)
 }
 
 func SetupRouter() *gin.Engine {

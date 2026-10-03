@@ -11,6 +11,7 @@ import (
 	"thread_api/log"
 	"thread_api/service/database"
 	"thread_api/service/database/migrations"
+	"thread_api/service/pairing"
 	"thread_api/service/session"
 	"thread_api/service/state"
 	"time"
@@ -108,6 +109,7 @@ func main() {
 	redisDB := database.NewRedis()
 	database.InMemoryDB = redisDB
 	controllers.UseSessions(session.NewRedis(redisDB.Client()))
+	controllers.UsePairing(pairing.NewRedis(redisDB.Client()))
 
 	// TODO :: check redis connection
 
