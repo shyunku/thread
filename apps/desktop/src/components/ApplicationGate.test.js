@@ -3,6 +3,7 @@ import ApplicationGate from "./ApplicationGate";
 import IpcSender from "../utils/IpcSender";
 jest.mock("../utils/IpcSender",()=>({onAll:jest.fn(),off:jest.fn(),vault:{bootstrap:jest.fn(),status:jest.fn(),unlock:jest.fn()}}));
 jest.mock("./VaultWorkspace",()=>()=> <p>Setup panel</p>);
+jest.mock("./gate/DeviceConnect",()=>()=> <h1>Setup panel</h1>);
 let notify;
 beforeEach(()=>{
  jest.clearAllMocks();IpcSender.onAll.mockImplementation((topic,cb)=>{notify=cb;return cb;});

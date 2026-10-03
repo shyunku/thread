@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import IpcSender from "../../../utils/IpcSender";
 import KeyChangeDialog from "./KeyChangeDialog";
 import AddDeviceDialog from "./AddDeviceDialog";
+import FileAddDeviceDialog from "./FileAddDeviceDialog";
 import BackupDialog from "./BackupDialog";
 import RecoverySetupDialog from "./RecoverySetupDialog";
 
@@ -79,10 +80,44 @@ test("a failed key step keeps the dialog open with guidance", async () => {
   expect(screen.getByText("1/4 · 영향 확인")).toBeInTheDocument();
 });
 
+test("adding a device through the relay waits, compares the code and approves", async () => {
+  jest.useFakeTimers();
+  try {
+    let polls = 0;
+    IpcSender.vault = { relay: group("relay", {
+      ownerStart: { phase: "WAITING", expiresAt: Date.now() + 600000 },
+      ownerPoll: () => (++polls < 2 ? { phase: "WAITING" } : { phase: "COMPARE", code: "482913", role: "write", expiresAt: Date.now() + 540000 }),
+      ownerApprove: { phase: "DONE" },
+      cancel: { phase: "CANCELLED" },
+    }) };
+    const changed = jest.fn();
+    await act(async () => { render(<AddDeviceDialog vaultCode={"a".repeat(64)} osAvailable onClose={jest.fn()} onChanged={changed} />); });
+    expect(screen.getByText(/새 기기를 기다리는 중/)).toBeInTheDocument();
+    await act(async () => { jest.advanceTimersByTime(2000); });
+    await act(async () => { jest.advanceTimersByTime(2000); });
+    expect(screen.getByText("482 913")).toBeInTheDocument();
+    expect(screen.getByText(/편집 가능/)).toBeInTheDocument();
+    await click("Windows Hello로 승인");
+    expect(calls.find(([, action]) => action === "ownerApprove")).toEqual(["relay", "ownerApprove", { method: "os" }]);
+    expect(screen.getByText("✓ 새 기기를 추가했어요.")).toBeInTheDocument();
+    expect(changed).toHaveBeenCalled();
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
+test("the QR and file flow is still available from the relay dialog", async () => {
+  IpcSender.vault = { relay: group("relay", { ownerStart: { phase: "WAITING" }, cancel: { phase: "CANCELLED" } }) };
+  await act(async () => { render(<AddDeviceDialog vaultCode={"a".repeat(64)} osAvailable onClose={jest.fn()} />); });
+  await click("QR·파일로 연결");
+  expect(screen.getByText(/^AAAAAAAA AAAAAAAA/)).toBeInTheDocument();
+  expect(calls.some(([, action]) => action === "cancel")).toBe(true);
+});
+
 test("adding a device shows this vault's code, opens the request and approves the matching fingerprint", async () => {
   const fingerprint = "b".repeat(64);
   IpcSender.vault = { pairing: group("pairing", { preview: { requestId: "r".repeat(32), fingerprint, role: "write", expiresAt: Date.now() + 9 * 60000 }, approve: { approved: true, saved: true } }) };
-  render(<AddDeviceDialog vaultCode={"a".repeat(64)} osAvailable onClose={jest.fn()} />);
+  render(<FileAddDeviceDialog vaultCode={"a".repeat(64)} osAvailable onClose={jest.fn()} />);
   expect(screen.getByText(/^AAAAAAAA AAAAAAAA/)).toBeInTheDocument();
   await click("다음");
   await click(/요청 파일 열기/);

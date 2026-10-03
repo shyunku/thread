@@ -196,3 +196,39 @@
 }
 
 .step-dialog__hint { margin: 6px 0 0 !important; color: var(--muted) !important; font-size: 12px; }
+
+// Relay device connection (AddDeviceDialog)
+.step-dialog__sas {
+  margin: 10px 0 12px;
+  padding: 18px;
+  border: 1px solid #344670;
+  border-radius: 12px;
+  background: #141c2c;
+  color: #dfe8ff;
+  font: 700 40px/1 Consolas, "Cascadia Mono", monospace;
+  letter-spacing: .12em;
+  text-align: center;
+}
+.step-dialog__waiting {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 12px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #15181e;
+  color: var(--secondary);
+}
+.step-dialog__spinner {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #33405a;
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: step-dialog-spin .9s linear infinite;
+}
+@keyframes step-dialog-spin { to { transform: rotate(360deg); } }
+.step-dialog__muted { color: var(--muted); font-size: 13px; }
+.step-dialog__body p.step-dialog__center { text-align: center; }

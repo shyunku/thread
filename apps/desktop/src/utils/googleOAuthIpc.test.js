@@ -14,7 +14,9 @@ function setup(rows = []) {
   };
   const context = {
     module: { exports: {} },
-    require: () => ({ getServerFinalEndpoint: () => "http://test/v1" }),
+    require: (id) => (id.endsWith("/localUsers")
+      ? jest.requireActual(path.resolve("public/electron/modules/localUsers.js"))
+      : { getServerFinalEndpoint: () => "http://test/v1" }),
     console,
   };
   vm.runInNewContext(fs.readFileSync(path.resolve("public/electron/configures/ipc.config.js"), "utf8"), context);
@@ -28,6 +30,9 @@ test("existing server Google user signs in on a fresh local database", async () 
   await handler({}, "request", { user, auth });
   expect(db.all).toHaveBeenCalledWith(expect.any(String), ["server-user"]);
   expect(db.run).toHaveBeenCalledTimes(1);
+  // The template's NOT NULL password-hash column gets an empty value for Google-only rows.
+  expect(db.run.mock.calls[0][0]).toMatch(/auth_hashed_pw/);
+  expect(db.run.mock.calls[0][1].at(-1)).toBe("");
   expect(service.sender).toHaveBeenCalledWith("auth/sendGoogleOauthResult", "request", true, { isSignupNeeded: false, user });
 });
 

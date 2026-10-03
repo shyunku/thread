@@ -60,6 +60,20 @@ function reencryptionFlow() {
   };
 }
 
+// Relay connection: the new device shows up after a few polls.
+function relayFlow() {
+  let polls = 0;
+  return (action, _input, callback) => {
+    if (action === "ownerStart") { polls = 0; return reply(callback, { phase: "WAITING", expiresAt: Date.now() + 600000 }); }
+    if (action === "ownerPoll") {
+      polls += 1;
+      return reply(callback, polls < 3 ? { phase: "WAITING" } : { phase: "COMPARE", code: "482913", role: "write", expiresAt: Date.now() + 540000 });
+    }
+    if (action === "ownerApprove") return reply(callback, { phase: "DONE" });
+    return reply(callback, { phase: "CANCELLED" });
+  };
+}
+
 function pairingFlow() {
   const request = () => ({ fingerprint: FINGERPRINT, saved: true, expiresAt: Date.now() + 10 * 60 * 1000,
     qr: "thread-pair:v1:" + FINGERPRINT });
@@ -98,5 +112,6 @@ export function installSettingsPreviewIpc(IpcSender, { recovery = "confirmed", l
     backup: backupFlow(),
     reencryption: reencryptionFlow(),
     pairing: pairingFlow(),
+    relay: relayFlow(),
   };
 }

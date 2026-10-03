@@ -1,0 +1,162 @@
+// Nested under the gate so these win over .application-gate button/p defaults.
+.application-gate {
+  .gate-step {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+
+    &__head { flex: none; padding: 26px 28px 0; }
+    &__kicker { margin-bottom: 4px; color: #8792a4; font-size: 12px; }
+    h1 { margin: 0; font-size: 20px; font-weight: 700; line-height: 1.4; }
+    &__bar {
+      display: flex; gap: 6px; margin: 14px 0 0; padding: 0; list-style: none;
+      li { flex: 1; height: 4px; border-radius: 2px; background: #2c3442; }
+      li.done { background: #6294ff; }
+      li.current { background: #9dbbff; }
+    }
+    &__label { margin-top: 8px; color: #8792a4; font-size: 12px; }
+    &__body {
+      flex: 1; min-height: 0; overflow-y: auto; padding: 18px 28px;
+      p { margin: 0 0 12px; color: #a0aaba; }
+      b { color: #edf1f7; }
+    }
+    &__foot {
+      flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      padding: 14px 28px 18px; border-top: 1px solid #2b303b;
+    }
+  }
+
+  .gate-button {
+    min-height: 0; height: 36px; padding: 0 16px; border: 1px solid #2b303b; border-radius: 8px;
+    background: #1c2028; color: #edf1f7; font-weight: 600; white-space: nowrap;
+    &:hover:not(:disabled) { background: #252b36; border-color: #3a4456; }
+    &--primary { background: #6294ff; border-color: #6294ff; color: #0b1222; }
+    &--primary:hover:not(:disabled) { background: #79a5ff; border-color: #79a5ff; }
+    &--ghost { background: none; border-color: transparent; color: #a0aaba; }
+    &--ghost:hover:not(:disabled) { background: #252b36; border-color: transparent; color: #edf1f7; }
+    &--danger { background: #3a1d22; border-color: #5a2a31; color: #ffb3b9; }
+    &--danger:hover:not(:disabled) { background: #4a242b; border-color: #6a333b; }
+    &--block { width: 100%; height: 40px; }
+    &:disabled { opacity: .45; cursor: default; }
+  }
+
+  .gate-link {
+    min-height: 0; padding: 0; border: 0; background: none; color: #8792a4; font-size: 13px;
+    text-decoration: underline; text-underline-offset: 3px;
+    &:hover:not(:disabled) { background: none; color: #edf1f7; }
+  }
+
+  // Cards behave like buttons: their text must not be selectable.
+  .gate-choice, .gate-option, .gate-check { user-select: none; -webkit-user-select: none; }
+
+  .gate-choice {
+    display: flex; gap: 14px; align-items: flex-start; width: 100%; min-height: 0; margin-bottom: 10px; padding: 16px;
+    border: 1px solid #2b303b; border-radius: 12px; background: #1c2028; text-align: left;
+    &:hover:not(:disabled) { border-color: #3d4a62; background: #1f2430; }
+    &__icon { display: grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: 10px; background: #252c3a; color: #a0aaba; font-size: 18px; }
+    &--recommended .gate-choice__icon { background: #22314f; color: #6294ff; }
+    &__text { flex: 1; min-width: 0; }
+    &__text b { display: block; color: #edf1f7; font-size: 15px; }
+    &__text > span { color: #a0aaba; font-size: 13px; }
+    &__chevron { align-self: center; color: #8792a4; font-size: 18px; }
+  }
+
+  .gate-badge {
+    display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 10px;
+    background: #22314f; color: #9dbbff; font-size: 11px; font-weight: 600; vertical-align: 2px;
+  }
+
+  .gate-option {
+    display: flex; gap: 12px; align-items: flex-start; width: 100%; min-height: 0; margin-bottom: 10px; padding: 14px;
+    border: 1px solid #2b303b; border-radius: 10px; background: #1c2028; text-align: left;
+    &:hover:not(:disabled) { border-color: #3d4a62; background: #1f2430; }
+    &--selected, &--selected:hover:not(:disabled) { border-color: #4b6db8; background: #1b2436; }
+    &__radio { flex: none; width: 18px; height: 18px; margin-top: 2px; border: 2px solid #4a5468; border-radius: 50%; }
+    &--selected .gate-option__radio { border-color: #6294ff; background: #6294ff; box-shadow: inset 0 0 0 3px #1b2436; }
+    &__text b { display: block; color: #edf1f7; }
+    &__text span { color: #a0aaba; font-size: 13px; }
+  }
+
+  .gate-check {
+    display: flex; gap: 10px; align-items: flex-start; width: 100%; min-height: 0; padding: 12px 14px;
+    border: 1px solid #2b303b; border-radius: 10px; background: #1c2028; color: #edf1f7; text-align: left;
+    &:hover:not(:disabled) { border-color: #3d4a62; background: #1f2430; }
+    &--on, &--on:hover:not(:disabled) { border-color: #4b6db8; }
+    &__box { flex: none; width: 18px; height: 18px; margin-top: 2px; border: 2px solid #4a5468; border-radius: 5px; }
+    &--on .gate-check__box { border-color: #6294ff; background: #6294ff center / 12px no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 6.5l2.5 2.5L10 3.5' fill='none' stroke='%230b1222' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
+  }
+
+  .gate-waiting {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding: 14px;
+    border: 1px solid #2b303b; border-radius: 10px; background: #15181e; color: #a0aaba;
+    &__spinner {
+      flex: none; width: 16px; height: 16px; border: 2px solid #33405a; border-top-color: #6294ff; border-radius: 50%;
+      animation: gate-spin .9s linear infinite;
+    }
+  }
+  @keyframes gate-spin { to { transform: rotate(360deg); } }
+
+  .gate-sas {
+    margin: 10px 0 14px; padding: 18px; border: 1px solid #344670; border-radius: 12px; background: #141c2c;
+    color: #dfe8ff; text-align: center; font: 700 40px/1 Consolas, "Cascadia Mono", monospace; letter-spacing: .12em;
+    &--small { padding: 10px; border-color: #2b303b; background: #15181e; color: #a0aaba; font-size: 22px; }
+  }
+
+  .gate-callout {
+    margin: 12px 0; padding: 10px 12px; border: 1px solid; border-radius: 8px; font-size: 13px; line-height: 1.55;
+    &--info { border-color: #2a3a5a; background: #1a2335; color: #b8cbf5; }
+    &--warning { border-color: #4a3c22; background: #2b2417; color: #f1d39c; }
+    &--danger { border-color: #4c2a30; background: #2c1a1e; color: #f6b9be; }
+    b { color: inherit; }
+  }
+
+  .gate-field {
+    display: block; margin: 6px 0 12px;
+    > span { display: block; margin-bottom: 6px; color: #a0aaba; font-size: 13px; }
+    input {
+      width: 100%; height: 40px; padding: 0 12px; border: 1px solid #2b303b; border-radius: 8px; background: #10141a;
+      &:focus-visible { outline: none; border-color: #6294ff; }
+    }
+    small { display: block; margin-top: 6px; color: #8792a4; font-size: 12px; }
+  }
+
+  .gate-code {
+    margin: 4px 0 8px; padding: 12px 14px; border: 1px solid #2b303b; border-radius: 10px; background: #10141a;
+    color: #edf1f7; font: 600 14px/1.6 Consolas, "Cascadia Mono", monospace; letter-spacing: .06em; text-align: center;
+    overflow-wrap: anywhere; user-select: all;
+  }
+
+  .gate-path {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0 18px; color: #8792a4;
+    span { padding: 6px 12px; border: 1px solid #2b303b; border-radius: 8px; background: #1c2028; color: #edf1f7; font-size: 13px; font-weight: 600; }
+  }
+
+  .gate-list { margin: 0 0 12px; padding-left: 20px; color: #a0aaba; list-style: disc; li { margin: 4px 0; } }
+  .gate-muted { color: #8792a4 !important; font-size: 13px; }
+  .gate-center { text-align: center; }
+}
+
+// Full-window flows draw their own header, body and footer.
+.application-gate.application-gate--flow .application-gate__card { padding: 0; overflow: hidden; }
+
+.application-gate .gate-step .gate-ok { color: #70d5a0; font-weight: 600; }
+
+.application-gate .gate-start {
+  display: flex; flex-direction: column; height: 100%; padding: 40px 28px 22px; overflow-y: auto;
+  &__icon {
+    display: grid; place-items: center; width: 52px; height: 52px; margin-bottom: 18px;
+    border-radius: 14px; background: #1c2230; color: #6294ff; font-size: 26px;
+  }
+  h1 { margin: 0 0 8px; font-size: 22px; font-weight: 700; }
+  > p { margin: 0 0 22px; color: #a0aaba; }
+  &__account {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 22px; padding: 10px 12px;
+    border: 1px solid #2b303b; border-radius: 10px; background: #15181e; color: #a0aaba; font-size: 13px;
+  }
+  &__avatar {
+    display: grid; place-items: center; flex: none; width: 28px; height: 28px; border-radius: 50%;
+    background: #2f3a52; color: #edf1f7; font-size: 12px; font-weight: 700;
+  }
+  &__bottom { margin-top: auto; padding-top: 16px; text-align: center; }
+}
