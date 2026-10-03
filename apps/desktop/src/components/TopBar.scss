@@ -82,24 +82,7 @@
     color: var(--muted);
     white-space: nowrap;
   }
-  .update-indicator {
-    -webkit-app-region: no-drag;
-    display: inline-flex; align-items: center; gap: 5px; flex: none;
-    height: 24px; margin: 0 10px 0 auto; padding: 0 10px 0 8px;
-    border: 0; border-radius: 12px;
-    background: #34b874; color: #04150c;
-    font: inherit; font-size: 12px; font-weight: 600; line-height: 1; white-space: nowrap;
-    cursor: pointer; transition: background .15s;
-  }
-  .update-indicator svg { width: 14px; height: 14px; flex: none; }
-  .update-indicator:hover { background: #45c984; }
-  .update-indicator:focus-visible { outline: 2px solid #70d5a0; outline-offset: 2px; }
-  .update-indicator--downloading { color: var(--secondary); background: #ffffff10; }
-  .update-indicator--downloading svg { animation: update-indicator-bob 1.2s ease-in-out infinite; }
-
-  .update-indicator--failed { background: #f1858520; color: #f49a9a; }
-  .update-indicator--failed:hover { background: #f1858536; }
-  @keyframes update-indicator-bob { 50% { transform: translateY(2px); } }
+  .update-indicator { margin: 0 10px 0 auto; }
   // Below this width the centered search box would meet the label; keep only the icon.
   @media (max-width: 1100px) {
     .update-indicator { padding: 0 7px; }

@@ -14,6 +14,22 @@
     .application-gate__window-actions { display: flex; flex: 0 0 88px; width: 88px; height: 42px; }
     button { -webkit-app-region: no-drag; display: grid; place-items: center; flex: 0 0 44px; border: 0; border-radius: 0; width: 44px; height: 42px; min-height: 42px; margin: 0; padding: 0; }
     button svg { display: block; width: 16px; height: 16px; }
+    // Same green update button as the main title bar (UpdateButton.scss), restated
+    // here because the gate's own button defaults are more specific.
+    .update-indicator {
+      display: inline-flex; flex: none; width: auto; height: 24px; min-height: 0; margin: 0 6px 0 auto;
+      padding: 0 10px 0 8px; border: 0; border-radius: 12px; background: #34b874; color: #04150c;
+      font-size: 12px; font-weight: 600; line-height: 1;
+      &:hover:not(:disabled) { background: #45c984; border-color: transparent; }
+      &.update-indicator--downloading { background: #ffffff10; color: #a0aaba; }
+      &.update-indicator--failed { background: #f1858520; color: #f49a9a; }
+      svg { width: 14px; height: 14px; }
+    }
+  }
+  // The compact lock window only has room for the icon.
+  &.application-gate--lock .application-gate__titlebar .update-indicator {
+    padding: 0 7px;
+    span { display: none; }
   }
   .application-gate__header { margin-bottom: 24px; }
   .application-gate__heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }

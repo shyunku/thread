@@ -90,3 +90,13 @@ test("unexpected legacy bootstrap response fails closed",async()=>{
  expect(screen.queryByText("Private application")).not.toBeInTheDocument();
  expect(screen.queryByRole("button",{name:/기존 방식/})).not.toBeInTheDocument();
 });
+
+test("a pending update is offered on gate screens too",async()=>{
+ IpcSender.releaseAlerts={get:jest.fn(cb=>cb({success:true,data:{version:"9.9.9",status:"available",mandatory:false}}))};
+ IpcSender.vault.bootstrap.mockImplementation((uid,cb)=>cb({success:true,data:{mode:"SETUP_REQUIRED"}}));
+ const open=jest.fn();window.addEventListener("thread:open-update",open);
+ render(<ApplicationGate uid="u"><p>App</p></ApplicationGate>);
+ fireEvent.click(await screen.findByRole("button",{name:/9\.9\.9 업데이트/}));
+ expect(open).toHaveBeenCalled();
+ window.removeEventListener("thread:open-update",open);delete IpcSender.releaseAlerts;
+});
