@@ -23,3 +23,22 @@ test("a different selected day stays put at midnight", () => {
   act(() => { jest.advanceTimersByTime(3000); });
   expect(heading()).toMatch(/^10월 10일 /);
 });
+
+const task = (id, title, dueDate, done = false) => ({ id, title, dueDate, done, categories: {}, subtasks: {}, getFulfilledSubTaskCount: () => 0 });
+
+test("the day panel shows remaining or passed time, dims done tasks and shares hover both ways", () => {
+  jest.useFakeTimers().setSystemTime(new Date(2026, 9, 4, 12, 0, 0));
+  const tasks = { a: task("a", "보고서", new Date(2026, 9, 4, 14, 0)), b: task("b", "회고", new Date(2026, 9, 4, 9, 0)), c: task("c", "정리", new Date(2026, 9, 4, 8, 0), true) };
+  const setHovered = jest.fn();
+  const { rerender } = render(<TaskCalendarView filteredTaskMap={tasks} categories={{}} setHoveredTaskId={setHovered} hoveredTaskId={null} />);
+  const panel = screen.getByRole("region", { name: "선택한 날짜의 할 일" });
+  const row = (title) => [...panel.querySelectorAll(".selected-day-task")].find((el) => el.textContent.includes(title));
+  expect(row("보고서")).toHaveTextContent("2시간 남음");
+  expect(row("회고").querySelector(".selected-day-task__time")).toHaveClass("overdue");
+  expect(row("정리")).toHaveClass("done");
+  expect(row("정리").querySelector(".selected-day-task__time")).not.toHaveClass("overdue");
+  fireEvent.mouseEnter(row("보고서"));
+  expect(setHovered).toHaveBeenCalledWith("a");
+  rerender(<TaskCalendarView filteredTaskMap={tasks} categories={{}} setHoveredTaskId={setHovered} hoveredTaskId="b" />);
+  expect(row("회고")).toHaveClass("hovered");
+});

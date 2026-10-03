@@ -29,6 +29,11 @@
   .item .t { flex: 1; font-weight: 600; font-size: 13.5px; }
   .item.done .t { text-decoration: line-through; color: var(--muted); }
   .item .r { color: var(--secondary); font-size: 12px; }
+  .item.done.dim { opacity: var(--done-opacity); }
+  .group-title { display: flex; align-items: center; gap: 9px; margin: 18px 0 12px; padding: 0; border: 0; background: none; color: var(--secondary); font-size: 13px; font-weight: 600; }
+  .group-title .chev { width: 6px; height: 6px; border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted); transform: rotate(45deg); margin: -3px 3px 0; transition: transform .2s ease, margin .2s ease; }
+  .group-title.closed .chev { transform: rotate(-45deg); margin: 0 3px 0 1px; }
+  .group-title:hover { color: var(--text); }
   .item .detail { padding: 0 14px 14px; }
   .title-input { width: 100%; padding: 4px; border: 1px solid transparent; border-radius: 4px; background: none; color: var(--text); font-family: inherit; font-size: 19px; font-weight: 600; line-height: 1.4; }
   .title-input.focus-current { outline: 2px solid var(--accent); outline-offset: 1px; }
@@ -78,10 +83,14 @@
   <button data-k="hover" data-v="off">지금(연결 없음)</button>
   <button data-k="hover" data-v="on" class="on">리스트·캘린더 같이 표시</button>
   <span class="sep"></span>
+  <strong>리스트 완료 항목</strong>
+  <button data-k="dim" data-v="1">지금(그대로)</button>
+  <button data-k="dim" data-v="0.6" class="on">흐리게 60%</button>
+  <button data-k="dim" data-v="0.45">더 흐리게 45%</button>
+  <span class="sep"></span>
   <strong>제목 편집 focus</strong>
   <button data-k="focus" data-v="current">지금(파란 테두리)</button>
-  <button data-k="focus" data-v="none" class="on">A 테두리 없음</button>
-  <button data-k="focus" data-v="under">B 밑줄만</button>
+  <button data-k="focus" data-v="none" class="on">A 테두리 없음(확정)</button>
 </div>
 <main>
   <div class="app">
@@ -89,41 +98,52 @@
     <section class="pane" data-cal></section>
   </div>
   <section class="notes">
-    <h3>바뀌는 것</h3>
+    <h3>확정 (구현 완료)</h3>
     <ul>
-      <li><b>남은/지난 시간:</b> 캘린더 아래 목록의 각 할 일 오른쪽에 "3시간 남음" 또는 "2시간 지남"을 표시합니다. 지난 건 빨간색입니다. 완료한 할 일에는 시간을 표시하지 않습니다.</li>
-      <li><b>완료 항목:</b> 지금은 점만 초록색입니다. 바꾸면 제목에 취소선이 생기고 줄 전체가 흐려집니다(50%).</li>
-      <li><b>하단 hover:</b> 아래 목록의 할 일에 마우스를 올리면 왼쪽 리스트와 캘린더 칸에서 같은 할 일이 강조됩니다. 반대로 리스트나 캘린더에서 올려도 아래 목록의 해당 줄이 강조됩니다. 아래 목록에 직접 마우스를 올려서 확인할 수 있습니다.</li>
-      <li><b>제목 편집 focus:</b> 할 일을 펼쳐 제목 칸을 누르면 지금은 파란 테두리가 생깁니다. A는 테두리 없이 커서만, B는 테두리 대신 얇은 밑줄을 둡니다.</li>
+      <li><b>하단 시간:</b> 아래 목록의 모든 할 일에 "2시간 남음"/"3시간 지남". 지난 건 빨간색, 완료한 할 일은 회색으로 시간만 표시.</li>
+      <li><b>하단 완료 항목:</b> 취소선 + 50% 흐리게.</li>
+      <li><b>hover 연결:</b> 양방향. 아래 목록 ↔ 왼쪽 리스트 ↔ 캘린더 칸.</li>
+      <li><b>제목 편집:</b> A, 테두리 없음.</li>
+    </ul>
+    <h3>새로 바뀌는 것 (확인 필요)</h3>
+    <ul>
+      <li><b>리스트 완료 항목 흐리게:</b> 완료됨 그룹의 할 일 카드 전체를 흐리게 합니다(지금은 제목 취소선만). hover하면 그대로 흐린 상태에서 테두리만 밝아집니다.</li>
+      <li><b>그룹 접기:</b> "해야할 일"/"완료됨" 제목을 누르면 접히고 펼쳐집니다. 화살표가 아래(펼침)/오른쪽(접힘)으로 돌아갑니다. 기본은 해야할 일 펼침, 완료됨 접힘. 왼쪽 리스트의 그룹 제목을 눌러 보세요.</li>
+      <li>접힘 상태는 앱이 켜져 있는 동안 카테고리를 옮겨도 유지하고, 앱을 다시 켜면 기본값으로 돌아갑니다.</li>
     </ul>
     <h3>그대로인 것</h3>
     <ul>
-      <li>캘린더 칸 안의 할 일 모양, 리스트 모양, 날짜 선택 방식.</li>
-      <li>키보드로 이동할 때 다른 버튼의 파란 테두리(접근성 표시)는 그대로 둡니다. 제목 입력칸만 바꿉니다.</li>
+      <li>캘린더 칸 안의 할 일 모양, 날짜 선택 방식, 다른 버튼의 키보드 focus 표시.</li>
+      <li>완료됨이 접혀 있어도 "완료한 할 일 더 보기"는 펼쳤을 때 지금처럼 동작합니다.</li>
     </ul>
     <h3 class="q">정해 줘야 할 것</h3>
     <ul>
-      <li class="q">제목 편집 focus를 A(없음)와 B(밑줄) 중 어떤 걸로 할지.</li>
-      <li class="q">완료한 할 일에도 시간을 보여 줄지(예: "완료"), 지금 시안처럼 숨길지.</li>
-      <li class="q">hover 연결을 양방향(리스트·캘린더 → 아래 목록도 강조)으로 할지, 아래 목록 → 리스트·캘린더 한 방향만 할지.</li>
+      <li class="q">리스트 완료 항목을 얼마나 흐리게 할지(60% / 45%).</li>
+      <li class="q">접힘 상태 기억 방식이 위 설명대로 괜찮은지.</li>
     </ul>
   </section>
 </main>
 <script>
-  const s = { time: "on", done: "new", hover: "on", focus: "none" };
+  const s = { time: "on", done: "new", hover: "on", focus: "none", dim: "0.6" };
+  const open = { todo: true, done: false };
   let hovered = null;
   const tasks = [
     { id: "a", title: "분기 회고 자료 정리", time: "2시간 남음", over: false, done: false, day: 4 },
     { id: "b", title: "주간 보고서 제출", time: "3시간 지남", over: true, done: false, day: 4 },
-    { id: "c", title: "릴리스 노트 작성", time: "", over: false, done: true, day: 4 },
+    { id: "c", title: "릴리스 노트 작성", time: "10시간 지남", over: true, done: true, day: 4 },
     { id: "d", title: "디자인 리뷰 피드백 반영", time: "1일 남음", over: false, done: false, day: 5 },
   ];
   const hv = (id) => s.hover === "on" && hovered === id ? " hovered" : "";
   function render() {
+    document.documentElement.style.setProperty("--done-opacity", s.dim);
+    const item = (t, i) => `<div class="item${t.done ? " done dim" : ""}${hv(t.id)}" data-id="${t.id}"><div class="row"><span class="check"></span><span class="t">${t.title}</span><span class="r">${t.time}</span></div>` +
+        (i === 0 ? `<div class="detail"><input class="title-input ${s.focus === "current" ? "focus-current" : ""}" value="${t.title}"><div class="detail-meta">제목 칸을 누른 상태 · 26년 10월 4일 (일) 오후 11시 59분</div></div>` : "") + "</div>";
+    const todo = tasks.filter((t) => !t.done), done = tasks.filter((t) => t.done);
+    const group = (key, label, list) => `<button class="group-title${open[key] ? "" : " closed"}" data-group="${key}" aria-expanded="${open[key]}"><span class="chev"></span>${label} (${list.length})</button>` +
+      (open[key] ? list.map(item).join("") : "");
     document.querySelector("[data-list]").innerHTML =
       '<h2>업무 <small style="font-size:14px;color:var(--muted)">3</small></h2><p class="sub">4개의 할 일 · 1개 완료</p>' +
-      tasks.map((t, i) => `<div class="item${t.done ? " done" : ""}${hv(t.id)}" data-id="${t.id}"><div class="row"><span class="check"></span><span class="t">${t.title}</span><span class="r">${t.done ? "완료" : t.time}</span></div>` +
-        (i === 0 ? `<div class="detail"><input class="title-input ${s.focus === "current" ? "focus-current" : s.focus === "under" ? "focus-under" : ""}" value="${t.title}"><div class="detail-meta">제목 칸을 누른 상태 · 26년 10월 4일 (일) 오후 11시 59분</div></div>` : "") + "</div>").join("");
+      group("todo", "해야할 일", todo) + group("done", "완료됨", done);
     let cells = "";
     const first = 4, days = 31;
     for (const w of ["일", "월", "화", "수", "목", "금", "토"]) cells += `<div class="wd">${w}</div>`;
@@ -138,10 +158,13 @@
       `<div class="grid">${cells}</div>` +
       '<section class="day"><h3>10월 4일 (일)</h3>' +
       today.map((t) => `<div class="dt${t.done ? " done" : ""}${s.done === "new" ? " style-new" : ""}${hv(t.id)}" data-id="${t.id}" data-bottom><span class="dot"></span><span class="name">${t.title}</span>` +
-        (s.time === "on" && !t.done ? `<span class="time${t.over ? " over" : ""}">${t.time}</span>` : "") + "</div>").join("") + "</section>";
+        (s.time === "on" ? `<span class="time${t.over && !t.done ? " over" : ""}">${t.time}</span>` : "") + "</div>").join("") + "</section>";
     document.querySelectorAll("[data-k]").forEach((b) => b.classList.toggle("on", s[b.dataset.k] === b.dataset.v));
   }
-  document.addEventListener("click", (e) => { const b = e.target.closest("[data-k]"); if (b) { s[b.dataset.k] = b.dataset.v; render(); } });
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-k]"); if (b) { s[b.dataset.k] = b.dataset.v; render(); }
+    const g = e.target.closest("[data-group]"); if (g) { open[g.dataset.group] = !open[g.dataset.group]; render(); }
+  });
   document.addEventListener("mouseover", (e) => {
     const el = e.target.closest("[data-id]"); const id = el ? el.dataset.id : null;
     if (id !== hovered) { hovered = id; render(); }

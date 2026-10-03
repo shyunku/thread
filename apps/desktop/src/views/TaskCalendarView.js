@@ -10,10 +10,14 @@ import "./TaskCalendarView.scss";
 const TaskCalendarView = ({
   taskMap,
   filteredTaskMap,
-  setHoveredTaskId,
-  hoveredTaskId,
+  setHoveredTaskId: sharedSetHoveredTaskId,
+  hoveredTaskId: sharedHoveredTaskId,
   categories,
 }) => {
+  // In the split view the list shares hover with this calendar; alone, it keeps its own.
+  const [localHoveredTaskId, setLocalHoveredTaskId] = useState(null);
+  const setHoveredTaskId = sharedSetHoveredTaskId ?? setLocalHoveredTaskId;
+  const hoveredTaskId = sharedSetHoveredTaskId ? sharedHoveredTaskId : localHoveredTaskId;
   const [currentDate, setCurrentDate] = useState(new Date());
   const [watchingMonth, setWatchingMonth] = useState(new Date());
   const [hoveredDate, setHoveredDate] = useState(null);
@@ -227,8 +231,31 @@ const TaskCalendarView = ({
         <h3>{moment(selectedDate, "YYYY-M-D").format("M월 D일 (ddd)")}</h3>
         {(dateTaskMap[selectedDate] || []).length === 0
           ? <p>등록된 할 일이 없어요. 여유로운 하루를 계획해보세요.</p>
-          : (dateTaskMap[selectedDate] || []).map((task) => <div className="selected-day-task" key={task.id}><span className={task.done ? "done-dot" : "task-dot"} />{task.title}</div>)}
+          : (dateTaskMap[selectedDate] || []).map((task) => (
+            <SelectedDayTask key={task.id} task={task} now={currentDate}
+              hovered={hoveredTaskId === task.id} setHoveredTaskId={setHoveredTaskId} />
+          ))}
       </section>
+    </div>
+  );
+};
+
+const SelectedDayTask = ({ task, now, hovered, setHoveredTaskId }) => {
+  const remain = task.dueDate == null ? null : moment(task.dueDate).valueOf() - now.valueOf();
+  return (
+    <div
+      className={"selected-day-task" + JsxUtil.classByCondition(task.done, "done") +
+        JsxUtil.classByCondition(hovered, "hovered")}
+      onMouseEnter={() => setHoveredTaskId?.(task.id)}
+      onMouseLeave={() => setHoveredTaskId?.(null)}
+    >
+      <span className={task.done ? "done-dot" : "task-dot"} />
+      <span className="selected-day-task__title">{task.title}</span>
+      {remain != null && (
+        <span className={"selected-day-task__time" + JsxUtil.classByCondition(remain < 0 && !task.done, "overdue")}>
+          {fromRelativeTime(Math.abs(remain), { showLayerCount: 1, showMillisec: false })} {remain < 0 ? "지남" : "남음"}
+        </span>
+      )}
     </div>
   );
 };

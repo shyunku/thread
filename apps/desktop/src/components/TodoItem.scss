@@ -128,6 +128,8 @@
       margin: 0;
     }
     .metadata > .title {
+      // The edited title is already obvious from the caret; no focus ring here (task 95).
+      outline: none;
       flex: 1;
       min-width: 0;
       font-size: 19px;
