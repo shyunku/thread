@@ -16,6 +16,7 @@ const DueDateMenu = ({ date, setDate, stickRefTo, withoutForm = false }) => {
     preventCloseIdList: [dateMenuId],
   });
   const datePickerCtx = useContextMenu({});
+  const [pickerOpenCount, setPickerOpenCount] = useState(0);
   const isOverDue = useMemo(() => {
     if (!date) return false;
     return moment(date).isBefore(moment());
@@ -85,7 +86,10 @@ const DueDateMenu = ({ date, setDate, stickRefTo, withoutForm = false }) => {
             id="set_custom_date_for_new_todo"
             ref={datePickerCtx.openerRef}
             className="menu-option"
-            onClick={(e) => datePickerCtx.opener(e)}
+            onClick={(e) => {
+              setPickerOpenCount((count) => count + 1);
+              datePickerCtx.opener(e);
+            }}
           >
             직접 설정
           </div>
@@ -109,6 +113,7 @@ const DueDateMenu = ({ date, setDate, stickRefTo, withoutForm = false }) => {
           autoclose="false"
           datePickerRef={datePickerCtx.ref}
           date={date}
+          openCount={pickerOpenCount}
           closer={(...arg) => {
             dueDateSettingCtx.closer(...arg);
             datePickerCtx.closer(...arg);

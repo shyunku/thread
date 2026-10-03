@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thread 캘린더 하단·제목 편집 시안</title>
+<style>
+  :root { --canvas: #101216; --panel: #15181e; --surface: #1c2028; --hover: #252b36; --border: #2b303b; --text: #edf1f7;
+    --secondary: #a0aaba; --muted: #8792a4; --accent: #6294ff; --selected: #253858; --success: #70d5a0; --danger: #f0838b; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0b0d10; color: var(--text); font: 14px/1.5 Pretendard, "Malgun Gothic", "Segoe UI", sans-serif; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  .toolbar { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 10px 16px; background: #0b0d10ee; border-bottom: 1px solid var(--border); }
+  .toolbar strong { margin: 0 2px 0 6px; font-size: 12px; color: var(--muted); }
+  .toolbar button { padding: 5px 10px; border: 1px solid var(--border); border-radius: 7px; background: var(--panel); font-size: 12px; color: var(--secondary); }
+  .toolbar button.on { background: #253858; border-color: #3a5486; color: var(--text); }
+  .toolbar .sep { width: 1px; height: 20px; margin: 0 6px; background: var(--border); }
+  main { display: flex; flex-wrap: wrap; gap: 24px; justify-content: center; padding: 24px 16px 64px; }
+  .app { display: flex; width: 1200px; max-width: 100%; height: 760px; overflow: hidden; border: 1px solid #354051; border-radius: 12px; background: var(--canvas); }
+  .pane { flex: 1; min-width: 0; padding: 24px 26px; }
+  .pane + .pane { border-left: 1px solid var(--border); }
+  h2 { margin: 0 0 4px; font-size: 26px; letter-spacing: -.6px; }
+  .sub { margin: 0 0 18px; color: var(--muted); font-size: 11px; }
+  .item { border: 1px solid var(--border); border-radius: 9px; background: var(--surface); margin-bottom: 8px; transition: border-color .15s, background .15s; }
+  .item .row { display: flex; align-items: center; gap: 10px; padding: 14px; }
+  .item.hovered { border-color: #414b60; background: #202631; }
+  .item .check { width: 20px; height: 20px; border: 2px solid var(--muted); border-radius: 50%; flex-shrink: 0; }
+  .item.done .check { background: var(--accent); border-color: var(--accent); }
+  .item .t { flex: 1; font-weight: 600; font-size: 13.5px; }
+  .item.done .t { text-decoration: line-through; color: var(--muted); }
+  .item .r { color: var(--secondary); font-size: 12px; }
+  .item .detail { padding: 0 14px 14px; }
+  .title-input { width: 100%; padding: 4px; border: 1px solid transparent; border-radius: 4px; background: none; color: var(--text); font-family: inherit; font-size: 19px; font-weight: 600; line-height: 1.4; }
+  .title-input.focus-current { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .title-input.focus-under { border-bottom-color: var(--border); border-radius: 0; }
+  .detail-meta { display: flex; gap: 8px; margin-top: 8px; color: var(--muted); font-size: 11px; }
+  .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .head b { font-size: 20px; }
+  .grid { display: grid; grid-template-columns: repeat(7, 1fr); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .wd { padding: 6px; text-align: center; font-size: 11px; color: var(--muted); background: var(--panel); border-bottom: 1px solid var(--border); }
+  .cell { height: 74px; padding: 5px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); font-size: 11px; color: var(--secondary); overflow: hidden; }
+  .cell:nth-child(7n) { border-right: 0; }
+  .cell.sel { outline: 1px solid var(--accent); outline-offset: -1px; background: #1a2232; }
+  .cell .n { font-weight: 600; color: var(--text); }
+  .cell.sel .n { display: inline-block; padding: 0 5px; border-radius: 4px; background: var(--accent); color: #fff; }
+  .ct { position: relative; margin-top: 3px; padding: 3px 4px 3px 9px; border-radius: 4px; background: var(--surface); color: var(--text); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: background .15s; }
+  .ct::before { content: ""; position: absolute; left: 3px; top: 50%; width: 3px; height: 9px; margin-top: -4.5px; border-radius: 3px; background: var(--accent); }
+  .ct.done { color: var(--muted); text-decoration: line-through; }
+  .ct.hovered { background: var(--selected); }
+  .day { margin-top: 14px; padding: 18px; border: 1px solid var(--border); border-radius: 9px; background: var(--panel); }
+  .day h3 { margin: 0 0 6px; font-size: 14px; }
+  .dt { display: flex; align-items: center; gap: 9px; margin: 0 -8px; padding: 5px 8px; border-radius: 6px; font-size: 12px; color: var(--secondary); transition: background .15s, opacity .15s; cursor: default; }
+  .dt .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+  .dt .name { flex: 1; min-width: 0; }
+  .dt .time { flex-shrink: 0; color: var(--muted); font-size: 11.5px; }
+  .dt .time.over { color: var(--danger); }
+  .dt.done .dot { background: var(--success); }
+  .dt.done.style-new .name { text-decoration: line-through; }
+  .dt.done.style-new { opacity: .5; }
+  .dt.hovered, .dt:hover { background: var(--hover); }
+  .notes { width: 1200px; max-width: 100%; padding: 16px 18px; border: 1px dashed #3a4252; border-radius: 12px; color: var(--secondary); font-size: 13px; }
+  .notes h3 { margin: 12px 0 6px; color: var(--text); font-size: 13px; } .notes h3:first-child { margin-top: 0; }
+  .notes ul { margin: 0; padding-left: 18px; } .notes li { margin: 3px 0; }
+  .notes .q { color: #edbc72; }
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <strong>하단 시간</strong>
+  <button data-k="time" data-v="off">지금(없음)</button>
+  <button data-k="time" data-v="on" class="on">남은/지난 시간</button>
+  <span class="sep"></span>
+  <strong>완료 항목</strong>
+  <button data-k="done" data-v="old">지금(초록 점만)</button>
+  <button data-k="done" data-v="new" class="on">취소선 + 흐리게</button>
+  <span class="sep"></span>
+  <strong>하단 hover</strong>
+  <button data-k="hover" data-v="off">지금(연결 없음)</button>
+  <button data-k="hover" data-v="on" class="on">리스트·캘린더 같이 표시</button>
+  <span class="sep"></span>
+  <strong>제목 편집 focus</strong>
+  <button data-k="focus" data-v="current">지금(파란 테두리)</button>
+  <button data-k="focus" data-v="none" class="on">A 테두리 없음</button>
+  <button data-k="focus" data-v="under">B 밑줄만</button>
+</div>
+<main>
+  <div class="app">
+    <section class="pane" data-list></section>
+    <section class="pane" data-cal></section>
+  </div>
+  <section class="notes">
+    <h3>바뀌는 것</h3>
+    <ul>
+      <li><b>남은/지난 시간:</b> 캘린더 아래 목록의 각 할 일 오른쪽에 "3시간 남음" 또는 "2시간 지남"을 표시합니다. 지난 건 빨간색입니다. 완료한 할 일에는 시간을 표시하지 않습니다.</li>
+      <li><b>완료 항목:</b> 지금은 점만 초록색입니다. 바꾸면 제목에 취소선이 생기고 줄 전체가 흐려집니다(50%).</li>
+      <li><b>하단 hover:</b> 아래 목록의 할 일에 마우스를 올리면 왼쪽 리스트와 캘린더 칸에서 같은 할 일이 강조됩니다. 반대로 리스트나 캘린더에서 올려도 아래 목록의 해당 줄이 강조됩니다. 아래 목록에 직접 마우스를 올려서 확인할 수 있습니다.</li>
+      <li><b>제목 편집 focus:</b> 할 일을 펼쳐 제목 칸을 누르면 지금은 파란 테두리가 생깁니다. A는 테두리 없이 커서만, B는 테두리 대신 얇은 밑줄을 둡니다.</li>
+    </ul>
+    <h3>그대로인 것</h3>
+    <ul>
+      <li>캘린더 칸 안의 할 일 모양, 리스트 모양, 날짜 선택 방식.</li>
+      <li>키보드로 이동할 때 다른 버튼의 파란 테두리(접근성 표시)는 그대로 둡니다. 제목 입력칸만 바꿉니다.</li>
+    </ul>
+    <h3 class="q">정해 줘야 할 것</h3>
+    <ul>
+      <li class="q">제목 편집 focus를 A(없음)와 B(밑줄) 중 어떤 걸로 할지.</li>
+      <li class="q">완료한 할 일에도 시간을 보여 줄지(예: "완료"), 지금 시안처럼 숨길지.</li>
+      <li class="q">hover 연결을 양방향(리스트·캘린더 → 아래 목록도 강조)으로 할지, 아래 목록 → 리스트·캘린더 한 방향만 할지.</li>
+    </ul>
+  </section>
+</main>
+<script>
+  const s = { time: "on", done: "new", hover: "on", focus: "none" };
+  let hovered = null;
+  const tasks = [
+    { id: "a", title: "분기 회고 자료 정리", time: "2시간 남음", over: false, done: false, day: 4 },
+    { id: "b", title: "주간 보고서 제출", time: "3시간 지남", over: true, done: false, day: 4 },
+    { id: "c", title: "릴리스 노트 작성", time: "", over: false, done: true, day: 4 },
+    { id: "d", title: "디자인 리뷰 피드백 반영", time: "1일 남음", over: false, done: false, day: 5 },
+  ];
+  const hv = (id) => s.hover === "on" && hovered === id ? " hovered" : "";
+  function render() {
+    document.querySelector("[data-list]").innerHTML =
+      '<h2>업무 <small style="font-size:14px;color:var(--muted)">3</small></h2><p class="sub">4개의 할 일 · 1개 완료</p>' +
+      tasks.map((t, i) => `<div class="item${t.done ? " done" : ""}${hv(t.id)}" data-id="${t.id}"><div class="row"><span class="check"></span><span class="t">${t.title}</span><span class="r">${t.done ? "완료" : t.time}</span></div>` +
+        (i === 0 ? `<div class="detail"><input class="title-input ${s.focus === "current" ? "focus-current" : s.focus === "under" ? "focus-under" : ""}" value="${t.title}"><div class="detail-meta">제목 칸을 누른 상태 · 26년 10월 4일 (일) 오후 11시 59분</div></div>` : "") + "</div>").join("");
+    let cells = "";
+    const first = 4, days = 31;
+    for (const w of ["일", "월", "화", "수", "목", "금", "토"]) cells += `<div class="wd">${w}</div>`;
+    for (let i = 0; i < first; i++) cells += `<div class="cell" style="opacity:.4">${27 + i}</div>`;
+    for (let d = 1; d <= 24; d++) {
+      cells += `<div class="cell${d === 4 ? " sel" : ""}"><span class="n">${d}</span>` +
+        tasks.filter((t) => t.day === d).map((t) => `<div class="ct${t.done ? " done" : ""}${hv(t.id)}" data-id="${t.id}">${t.title}</div>`).join("") + "</div>";
+    }
+    const today = tasks.filter((t) => t.day === 4);
+    document.querySelector("[data-cal]").innerHTML =
+      '<div class="head"><b>2026년 10월</b><span style="color:var(--muted);font-size:12px">◀ 오늘 ▶</span></div>' +
+      `<div class="grid">${cells}</div>` +
+      '<section class="day"><h3>10월 4일 (일)</h3>' +
+      today.map((t) => `<div class="dt${t.done ? " done" : ""}${s.done === "new" ? " style-new" : ""}${hv(t.id)}" data-id="${t.id}" data-bottom><span class="dot"></span><span class="name">${t.title}</span>` +
+        (s.time === "on" && !t.done ? `<span class="time${t.over ? " over" : ""}">${t.time}</span>` : "") + "</div>").join("") + "</section>";
+    document.querySelectorAll("[data-k]").forEach((b) => b.classList.toggle("on", s[b.dataset.k] === b.dataset.v));
+  }
+  document.addEventListener("click", (e) => { const b = e.target.closest("[data-k]"); if (b) { s[b.dataset.k] = b.dataset.v; render(); } });
+  document.addEventListener("mouseover", (e) => {
+    const el = e.target.closest("[data-id]"); const id = el ? el.dataset.id : null;
+    if (id !== hovered) { hovered = id; render(); }
+  });
+  render();
+</script>
+</body>
+</html>

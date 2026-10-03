@@ -30,6 +30,7 @@ const DateTimePicker = ({
   visible,
   date,
   datePickerRef,
+  openCount = 0,
   ...rest
 }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -103,53 +104,34 @@ const DateTimePicker = ({
     });
   };
 
-  // selection
+  // selection: changing the day keeps the chosen time; with no time yet it starts at the end of the day.
+  const withDay = (year, month, day) => {
+    const newDate = new Date(year, month, day, 23, 59, 59);
+    if (selectedDate != null) {
+      newDate.setHours(selectedDate.getHours(), selectedDate.getMinutes(), selectedDate.getSeconds(), 0);
+    }
+    setAttachEndMode(newDate.getHours() === 23 && newDate.getMinutes() === 59);
+    setSelectedDate(newDate);
+    return newDate;
+  };
+
   const selectToday = () => {
     const today = new Date();
-    today.setHours(23);
-    today.setMinutes(59);
-    today.setSeconds(59);
-    setAttachEndMode(true);
-    setSelectedDate(today);
-    setWatchingMonth(today);
+    setWatchingMonth(withDay(today.getFullYear(), today.getMonth(), today.getDate()));
   };
 
   const selectDate = (date) => {
-    const newDate = new Date(selectedDate);
-    newDate.setFullYear(watchingMonth.getFullYear());
-    newDate.setMonth(watchingMonth.getMonth());
-    newDate.setDate(date);
-
-    newDate.setHours(23);
-    newDate.setMinutes(59);
-    newDate.setSeconds(59);
-    setAttachEndMode(true);
-
-    setSelectedDate(newDate);
+    withDay(watchingMonth.getFullYear(), watchingMonth.getMonth(), date);
   };
 
   const selectPrevMonthDate = (date) => {
-    const newDate = new Date(selectedDate);
-    newDate.setFullYear(watchingMonth.getFullYear());
-    newDate.setMonth(watchingMonth.getMonth() - 1);
-    newDate.setDate(date);
-    newDate.setMinutes(floorMinutesByStep(newDate.getMinutes(), 5));
-    newDate.setSeconds(0);
+    withDay(watchingMonth.getFullYear(), watchingMonth.getMonth() - 1, date);
     goToPrevMonth();
-    setAttachEndMode(false);
-    setSelectedDate(newDate);
   };
 
   const selectNextMonthDate = (date) => {
-    const newDate = new Date(selectedDate);
-    newDate.setFullYear(watchingMonth.getFullYear());
-    newDate.setMonth(watchingMonth.getMonth() + 1);
-    newDate.setDate(date);
-    newDate.setMinutes(floorMinutesByStep(newDate.getMinutes(), 5));
-    newDate.setSeconds(0);
+    withDay(watchingMonth.getFullYear(), watchingMonth.getMonth() + 1, date);
     goToNextMonth();
-    setAttachEndMode(false);
-    setSelectedDate(newDate);
   };
 
   const onDaytimeSelect = (val) => {
@@ -199,15 +181,18 @@ const DateTimePicker = ({
   };
 
   const closeHandler = (e) => {
-    onSelect(selectedDate);
+    // "취소" (nothing picked) must not save an empty value as a date.
+    if (selectedDate != null) onSelect(selectedDate);
     closer(e);
   };
 
+  // Every open starts from the saved value, so a cancelled edit doesn't come back.
   useEffect(() => {
-    setSelectedDate(date);
-    const d = new Date(date);
-    setAttachEndMode(d.getMinutes() === 59);
-  }, [date]);
+    const saved = date ? new Date(date) : null;
+    setSelectedDate(saved);
+    setAttachEndMode(saved != null && saved.getMinutes() === 59);
+    setWatchingMonth(saved ?? new Date());
+  }, [date, openCount]);
 
   // useEffect(() => {
   //   console.log("selectedDate", selectedDate, selectedMinute);

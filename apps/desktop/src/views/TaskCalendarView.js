@@ -1,7 +1,7 @@
 import moment from "moment";
 import { useSelector } from "react-redux";
 import { prefsSelector } from "store/prefsSlice";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { IoPlay, IoPlayBack, IoPlayForward } from "react-icons/io5";
 import { fastInterval, fromRelativeTime } from "utils/Common";
 import JsxUtil from "utils/JsxUtil";
@@ -66,6 +66,18 @@ const TaskCalendarView = ({
     }, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  // At midnight a selection that was "today" follows to the new day (and its month).
+  const todayKey = currentMoment.format("YYYY-M-D");
+  const lastTodayKey = useRef(todayKey);
+  useEffect(() => {
+    const previous = lastTodayKey.current;
+    if (previous === todayKey) return;
+    lastTodayKey.current = todayKey;
+    if (selectedDate !== previous) return;
+    setSelectedDate(todayKey);
+    if (moment(watchingMonth).isSame(moment(previous, "YYYY-M-D"), "month")) setWatchingMonth(new Date());
+  }, [todayKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onPrevYear = () => {
     setWatchingMonth(
