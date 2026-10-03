@@ -487,3 +487,74 @@ test("locking during preparation cannot persist a late signed draft",async t=>{
  const f=await fixture(t);const id=f.replica.enqueue(changes);const pending=f.replica.prepare(id,f.context);f.store.close();
  await assert.rejects(pending,/LOCKED/);const reopened=f.reopen();assert.equal(reopened.pending()[0].value.status,"draft");
 });
+
+// Task 94: automatic conflict rebase.
+const row=(fields,extra={})=>({entityType:"task",entityId:"t",operation:"patch",...extra,fields});
+const object=(version,value,deleted=false)=>({objectId:"task",version,deleted,fields:deleted?[]:[{slot:0,value}]});
+test("rebase keeps both sides' different fields and the server value for the same field",()=>{
+ const {rebaseChange}=require("../public/electron/e2ee/rebase");
+ const base=object("1",row({title:"a",memo:"",done:false,updated_at:10}));
+ const local={objectId:"task",baseVersion:"1",deleted:false,fields:[{slot:0,value:row({title:"mine",memo:"note",done:false,updated_at:30})}]};
+ const current=object("2",row({title:"theirs",memo:"",done:true,updated_at:20}));
+ const next=rebaseChange(base,local,current);
+ assert.equal(next.baseVersion,"2");assert.equal(next.deleted,false);
+ assert.deepEqual(next.fields[0].value.fields,{title:"theirs",memo:"note",done:true,updated_at:30});
+ assert.equal(rebaseChange(base,{...local,fields:[{slot:0,value:row({title:"theirs",memo:"",done:true,updated_at:5})}]},current),null);
+});
+test("rebase keeps deletions: a remote delete drops the edit and a local delete is re-applied",()=>{
+ const {rebaseChange}=require("../public/electron/e2ee/rebase");
+ const base=object("1",row({title:"a"})),edit={objectId:"task",baseVersion:"1",deleted:false,fields:[{slot:0,value:row({title:"b"})}]};
+ assert.equal(rebaseChange(base,edit,object("2",null,true)),null);
+ assert.deepEqual(rebaseChange(base,{objectId:"task",baseVersion:"1",deleted:true,fields:[]},object("2",row({title:"x"}))),
+  {objectId:"task",baseVersion:"2",deleted:true,fields:[]});
+ assert.equal(rebaseChange(base,{objectId:"task",baseVersion:"1",deleted:true,fields:[]},object("2",null,true)),null);
+ // A create that collides with an existing object keeps the existing values.
+ assert.equal(rebaseChange(null,{objectId:"task",baseVersion:"0",deleted:false,fields:[{slot:0,value:row({title:"new"})}]},object("1",row({title:"other"}))),null);
+});
+test("replica rebase re-queues a rejected draft and later edits in order against the latest version",async t=>{
+ const f=await fixture(t);
+ f.store.put("confirmed","task",object("1",row({title:"a",memo:"",updated_at:1})));
+ f.store.put("visible","task",{...object("1",row({title:"a",memo:"",updated_at:1})),pending:false});
+ const first=f.replica.enqueue([{objectId:"task",baseVersion:"1",deleted:false,fields:[{slot:0,value:row({title:"first",memo:"",updated_at:2})}]}]);
+ const second=f.replica.enqueue([{objectId:"task",baseVersion:"2",deleted:false,fields:[{slot:0,value:row({title:"second",memo:"",updated_at:3})}]}]);
+ const other=f.replica.enqueue([{objectId:"other",baseVersion:"0",deleted:false,fields:[{slot:0,value:row({title:"o"},{entityId:"o"})}]}]);
+ f.store.put("confirmed","task",object("2",row({title:"a",memo:"remote",updated_at:5})));
+ const result=f.replica.rebase(first);
+ assert.equal(result.rebased,2);assert.equal(result.queued.length,2);
+ const pending=f.replica.pending();
+ assert.deepEqual(pending.map(item=>item.id).slice(0,1),[other]);
+ assert.deepEqual(pending.slice(1).map(item=>item.value.changes[0].baseVersion),["2","3"]);
+ assert.deepEqual(f.store.get("visible","task").fields[0].value.fields,{title:"second",memo:"remote",updated_at:5});
+ assert.equal(f.store.get("outbox",first),null);assert.equal(f.store.get("outbox",second),null);
+});
+test("sync rebases an OBJECT_CONFLICT automatically and keeps both devices' edits",async t=>{
+ const f=await engineFixture(t),push=f.transport.push;let conflicts=0;
+ f.store.put("confirmed","task",object("1",row({title:"a",memo:"",updated_at:1})));
+ f.store.put("visible","task",{...object("1",row({title:"a",memo:"",updated_at:1})),pending:false});
+ const id=f.replica.enqueue([{objectId:"task",baseVersion:"1",deleted:false,fields:[{slot:0,value:row({title:"mine",memo:"",updated_at:2})}]}]);
+ f.transport.push=async record=>{
+  if(record.body.mutationId===id){conflicts++;f.store.put("confirmed","task",object("2",row({title:"a",memo:"remote",updated_at:3})));throw Error("OBJECT_CONFLICT");}
+  return push(record);
+ };
+ assert.deepEqual(await f.engine.run(),{cursor:"1",pending:0,conflicts:0});
+ assert.equal(conflicts,1);
+ const confirmed=f.store.get("confirmed","task");
+ assert.equal(confirmed.version,"3");assert.deepEqual(confirmed.fields[0].value.fields,{title:"mine",memo:"remote",updated_at:3});
+});
+test("held OBJECT_CONFLICT drafts are rebased on the next sync; unsafe ones stay for review",async t=>{
+ const f=await engineFixture(t);
+ f.store.put("confirmed","task",object("1",row({title:"a"})));
+ const id=f.replica.enqueue([{objectId:"task",baseVersion:"1",deleted:false,fields:[{slot:0,value:row({title:"mine"})}]}]);
+ f.store.put("confirmed","task",object("2",row({title:"a",memo:"remote"})));
+ f.replica.preserveConflict(id);
+ assert.deepEqual(await f.engine.run(),{cursor:"1",pending:0,conflicts:0});
+ assert.deepEqual(f.store.get("confirmed","task").fields[0].value.fields,{title:"mine",memo:"remote"});
+ const g=await engineFixture(t);
+ g.store.put("confirmed","task",object("1",row({title:"a"})));
+ const legacy=g.replica.enqueue([{objectId:"task",baseVersion:"1",deleted:false,fields:[{slot:0,value:row({title:"mine"})}]}]);
+ const {bases,...withoutBases}=g.store.get("outbox",legacy);g.store.put("outbox",legacy,withoutBases);
+ g.store.put("confirmed","task",object("2",row({title:"a",memo:"remote"})));
+ g.replica.preserveConflict(legacy);
+ assert.deepEqual(await g.engine.run(),{cursor:"0",pending:1,conflicts:1});
+ assert.equal(g.store.get("outbox",legacy).autoRebaseFailed,true);
+});

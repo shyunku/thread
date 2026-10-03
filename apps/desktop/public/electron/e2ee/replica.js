@@ -64,6 +64,36 @@ class EncryptedReplica {
   if(draft.status==="conflict")return;
   db.put("recovery",id,draft);db.put("outbox",id,{...draft,status:"conflict",reviewReason:reason});
  });}
+ // Re-queues a rejected draft (OBJECT_CONFLICT / LOCAL_BASE_CONFLICT) against the latest
+ // version, together with later drafts on the same objects so their order is kept.
+ // Only unsigned later drafts may be rewritten; the rejected one was not accepted.
+ rebase(id){return this.store.transaction(db=>{
+  const {rebaseChange}=require("./rebase"),pending=this.pending(),index=pending.findIndex(row=>row.id===id);
+  if(index<0)throw Error("DRAFT_UNAVAILABLE");
+  const objects=new Set(pending[index].value.changes.map(c=>c.objectId)),chain=[pending[index]];
+  for(const row of pending.slice(index+1))if(row.value.changes.some(c=>objects.has(c.objectId))){
+   if(row.value.record||row.value.status==="conflict")throw Error("REBASE_DEPENDENT_SIGNED");
+   chain.push(row);for(const c of row.value.changes)objects.add(c.objectId);
+  }
+  for(const row of chain)if(!Array.isArray(row.value.bases))throw Error("REBASE_BASE_MISSING");
+  const ids=new Set(chain.map(row=>row.id)),rest=pending.filter(row=>!ids.has(row.id));
+  for(const row of chain)db.delete("outbox",row.id);
+  for(const objectId of objects){
+   const latest=rest.flatMap(row=>row.value.changes).filter(c=>c.objectId===objectId).at(-1),confirmed=db.get("confirmed",objectId);
+   if(latest)db.put("visible",objectId,overlay(latest));else if(confirmed)db.put("visible",objectId,{...confirmed,pending:false});else db.delete("visible",objectId);
+  }
+  const queued=[];
+  for(const row of chain){
+   const changes=[];
+   for(const change of row.value.changes){
+    const base=row.value.bases.find(entry=>entry.objectId===change.objectId)?.value??null;
+    const next=rebaseChange(base,change,db.get("visible",change.objectId)||db.get("confirmed",change.objectId)||null);
+    if(next)changes.push(next);
+   }
+   if(changes.length)queued.push(this.enqueue(changes));
+  }
+  return {rebased:chain.length,queued};
+ });}
  async acknowledgeSnapshot({record,result},context){
   sync.verifyReceipt(record,result);
   if(context.state.vaultId!==this.scope.vaultId||context.epoch!==this.scope.epoch)throw Error("REPLICA_SCOPE_MISMATCH");

@@ -1,6 +1,7 @@
 const p=require("./protocol"),sync=require("./syncProtocol");
 const {createReadRequest,fromWire}=require("./readProtocol");
 function check(value){if(!value)throw Error("INVALID_SYNC_RESPONSE");}
+const MAX_REBASE_PASSES=3;
 // One main-process session per unlocked vault. No keys or plaintext leave this
 // object except through the encrypted replica; closing cancels late responses.
 class EncryptedSynchronizer {
@@ -109,7 +110,20 @@ class EncryptedSynchronizer {
   return {phase:"APPLIED"};
  }
  async runOnce(){
-  await this.refreshMembership();await this.pull();
+  await this.refreshMembership();
+  // Each automatic rebase restarts from a fresh pull; repeated conflicts wait for the next run.
+  for(let pass=0;;pass++){
+   await this.pull();
+   if(!await this.pushPending(pass<MAX_REBASE_PASSES))return this.replica.status();
+  }
+ }
+ // Returns true when a draft was rebased and the caller should pull and push again.
+ async pushPending(canRebase){
+  if(canRebase){
+   const held=this.replica.pending().filter(row=>row.value.status==="conflict"&&row.value.reviewReason==="OBJECT_CONFLICT"&&!row.value.autoRebaseFailed);
+   for(const row of held)this.rebaseOrHold(row.id,true);
+   if(held.length)return true;
+  }
   for(const item of this.replica.pending()){
    this.ready();
    if(item.value.status==="conflict")continue;
@@ -117,7 +131,7 @@ class EncryptedSynchronizer {
    try{record=await this.replica.prepare(item.id,await this.context());}
    catch(error){
     if(error.message==="WAITING_FOR_PREVIOUS_EDIT")continue;
-    if(error.message==="LOCAL_BASE_CONFLICT"){this.replica.preserveConflict(item.id);continue;}
+    if(error.message==="LOCAL_BASE_CONFLICT"){if(!canRebase)return false;this.rebaseOrHold(item.id);return true;}
     throw error;
    }
    this.ready();
@@ -125,7 +139,9 @@ class EncryptedSynchronizer {
    try{receipt=await this.transport.push(record,this.abort.signal);this.ready();}
    catch(error){
     this.ready();
-    if(error.message==="OBJECT_CONFLICT"){this.replica.preserveConflict(item.id);continue;}
+    // The server checks the mutation ID before object versions, so OBJECT_CONFLICT means
+    // this request was not accepted and a rebased request cannot duplicate it.
+    if(error.message==="OBJECT_CONFLICT"){if(!canRebase)return false;this.rebaseOrHold(item.id);return true;}
     // Retry exact bytes first: an accepted old request returns its original receipt.
     // A stale rejection is NOT proof of non-acceptance; retain it for review.
     if(error.message==="SYNC_CHECKPOINT_CONFLICT"&&record.body.epoch===this.epoch&&
@@ -137,7 +153,15 @@ class EncryptedSynchronizer {
    }
    await this.settle(record,receipt);
   }
-  return this.replica.status();
+  return false;
+ }
+ // Falls back to manual review only when the draft cannot be rebased safely.
+ rebaseOrHold(id,held=false){
+  try{this.replica.rebase(id);}
+  catch{
+   if(held)this.replica.store.transaction(db=>{const draft=db.get("outbox",id);if(draft)db.put("outbox",id,{...draft,autoRebaseFailed:true});});
+   else this.replica.preserveConflict(id);
+  }
  }
 }
 module.exports={EncryptedSynchronizer};
