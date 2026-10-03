@@ -15,6 +15,9 @@ test("update indicator appears beside version and opens the notice",()=>{
  act(()=>listeners["release-alert/available"]({success:true,data:{version:"2.0.0",status:"available"}}));
  const button=screen.getByRole("button",{name:/업데이트 다운로드 가능/});
  expect(button.nextElementSibling).toHaveClass("build-label");
+ expect(button).toHaveTextContent("업데이트");
+ act(()=>listeners["release-alert/available"]({success:true,data:{version:"2.0.0",status:"ready"}}));
+ expect(screen.getByRole("button",{name:/설치 준비 완료/})).toHaveTextContent("업데이트 설치");
  fireEvent.click(button);expect(open).toHaveBeenCalledTimes(1);
  view.unmount();window.removeEventListener("thread:open-update",open);
 });

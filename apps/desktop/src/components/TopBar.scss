@@ -80,13 +80,31 @@
     letter-spacing: 1px;
     color: var(--muted);
   }
-  .update-indicator + .build-label { margin-left: 4px; }
-  .update-indicator { -webkit-app-region: no-drag; display: grid; place-items: center; flex: 0 0 28px; width: 28px; height: 28px; margin-left: auto; border: 1px solid #44c98b55; border-radius: 7px; background: #44c98b18; color: #44c98b; cursor: pointer; }
-  .update-indicator svg { width: 16px; height: 16px; }
-  .update-indicator:hover { background: #44c98b33; }
-  .update-indicator:focus-visible { outline: 2px solid #44c98b; outline-offset: 2px; }
-  .update-indicator--downloading { opacity: .65; }
-  .update-indicator--failed { color: #f18585; border-color: #f1858555; background: #f1858518; }
+  .update-indicator + .build-label { margin-left: 12px; }
+  .update-indicator {
+    -webkit-app-region: no-drag;
+    display: inline-flex; align-items: center; gap: 5px; flex: none;
+    height: 24px; margin-left: auto; padding: 0 10px 0 8px;
+    border: 0; border-radius: 12px;
+    background: #6294ff24; color: #9dbbff;
+    font: inherit; font-size: 12px; font-weight: 600; line-height: 1; white-space: nowrap;
+    cursor: pointer; transition: background .15s;
+  }
+  .update-indicator svg { width: 14px; height: 14px; flex: none; }
+  .update-indicator:hover { background: #6294ff3d; }
+  .update-indicator:focus-visible { outline: 2px solid #6294ff; outline-offset: 2px; }
+  .update-indicator--downloading { color: var(--secondary); background: #ffffff10; }
+  .update-indicator--downloading svg { animation: update-indicator-bob 1.2s ease-in-out infinite; }
+  .update-indicator--ready { background: #44c98b26; color: #6fdca8; }
+  .update-indicator--ready:hover { background: #44c98b40; }
+  .update-indicator--failed { background: #f1858520; color: #f49a9a; }
+  .update-indicator--failed:hover { background: #f1858536; }
+  @keyframes update-indicator-bob { 50% { transform: translateY(2px); } }
+  // Below this width the centered search box would meet the label; keep only the icon.
+  @media (max-width: 1100px) {
+    .update-indicator { padding: 0 7px; }
+    .update-indicator span { display: none; }
+  }
   .menu-section {
     display: flex;
     align-self: stretch;

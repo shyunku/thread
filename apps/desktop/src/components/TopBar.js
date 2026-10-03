@@ -11,6 +11,9 @@ import IpcSender from "utils/IpcSender";
 import PackageJson from "../../package.json";
 import "./TopBar.scss";
 
+// Short label on the title bar; the dialog has the details.
+const UPDATE_LABEL = { available: "업데이트", downloading: "다운로드 중", ready: "업데이트 설치", failed: "업데이트 실패" };
+
 const TopBar = ({ searchQuery = "", setSearchQuery }) => {
   const [maximized, setMaximized] = useState(false);
   const [update, setUpdate] = useState(null);
@@ -75,7 +78,7 @@ const TopBar = ({ searchQuery = "", setSearchQuery }) => {
           <kbd>Ctrl K</kbd>
         )}
       </div>
-      {update && <button type="button" className={`update-indicator update-indicator--${update.status}`} aria-label={`Thread ${update.version} 업데이트 ${update.status === "ready" ? "설치 준비 완료" : update.status === "downloading" ? "다운로드 중" : update.status === "failed" ? "다운로드 실패" : "다운로드 가능"}`} title={`Thread ${update.version} 업데이트`} onClick={() => window.dispatchEvent(new Event("thread:open-update"))}><VscArrowDown aria-hidden="true" /></button>}
+      {update && <button type="button" className={`update-indicator update-indicator--${update.status}`} aria-label={`Thread ${update.version} 업데이트 ${update.status === "ready" ? "설치 준비 완료" : update.status === "downloading" ? "다운로드 중" : update.status === "failed" ? "다운로드 실패" : "다운로드 가능"}`} title={`Thread ${update.version} 업데이트`} onClick={() => window.dispatchEvent(new Event("thread:open-update"))}><VscArrowDown aria-hidden="true" /><span>{UPDATE_LABEL[update.status] || "업데이트"}</span></button>}
       <div className="build-label">
         {process.env.NODE_ENV === "development"
           ? "DEV"
