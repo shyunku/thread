@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"thread_api/libs/crypto"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
+	"github.com/redis/go-redis/v9"
 )
 
 func useSessions(t *testing.T, store session.Store) {
@@ -287,5 +289,61 @@ func TestSessionsUnavailableFailClosed(t *testing.T) {
 	}
 	if _, err := issueSession(context.Background(), adminTokenSubject, true); err == nil {
 		t.Fatal("login without store must fail")
+	}
+}
+
+// The same HTTP flow on a real Redis: THREAD_TEST_REDIS_ADDR=127.0.0.1:6379
+func TestSessionFlowOnRedis(t *testing.T) {
+	addr := os.Getenv("THREAD_TEST_REDIS_ADDR")
+	if addr == "" {
+		t.Skip("THREAD_TEST_REDIS_ADDR not set")
+	}
+	sessionTestEnv(t)
+	client := redis.NewClient(&redis.Options{Addr: addr})
+	t.Cleanup(func() { _ = client.Close() })
+	useSessions(t, session.NewRedis(client))
+	r := sessionRouter()
+	ctx := context.Background()
+
+	access, raw := legacyTokens(t, adminTokenSubject)
+	if err := client.Set(ctx, raw, adminTokenSubject, time.Hour).Err(); err != nil {
+		t.Fatal(err)
+	}
+	if got := protected(t, r, access); got.status != http.StatusOK {
+		t.Fatalf("legacy access token rejected: %d", got.status)
+	}
+	converted := refresh(t, r, raw)
+	if converted.status != http.StatusOK || client.Exists(ctx, raw).Val() != 0 {
+		t.Fatalf("legacy conversion: %+v", converted)
+	}
+	next := refresh(t, r, converted.auth.RefreshToken.Token)
+	if next.status != http.StatusOK || protected(t, r, next.auth.AccessToken.Token).status != http.StatusOK {
+		t.Fatalf("rotation: %+v", next)
+	}
+
+	other := login(t)
+	headers := map[string]string{"Authorization": "Bearer " + next.auth.AccessToken.Token}
+	if got := call(t, r, http.MethodPost, "/v1/auth/sessions/revoke", headers, `{"keep_current":true}`); got.status != http.StatusNoContent {
+		t.Fatalf("revoke others: %+v", got)
+	}
+	if protected(t, r, other.AccessToken.Token).code != "SESSION_REVOKED" || protected(t, r, access).code != "SESSION_REVOKED" {
+		t.Fatal("other or legacy sessions survived")
+	}
+
+	defer func(previous func() time.Time) { sessionNow = previous }(sessionNow)
+	sessionNow = func() time.Time { return time.Now().Add(session.ReuseGrace + time.Second) }
+	if got := refresh(t, r, converted.auth.RefreshToken.Token); got.code != "REFRESH_TOKEN_REUSED" {
+		t.Fatalf("replay on Redis: %+v", got)
+	}
+	if protected(t, r, next.auth.AccessToken.Token).code != "SESSION_REVOKED" {
+		t.Fatal("replayed session still active")
+	}
+	if keys := client.Keys(ctx, "thread:session:rt:*").Val(); len(keys) == 0 {
+		t.Fatal("expected hashed refresh token keys")
+	}
+	for _, key := range client.Keys(ctx, "*").Val() {
+		if strings.Contains(key, ".") {
+			t.Fatalf("raw token stored as key: %s", key)
+		}
 	}
 }
