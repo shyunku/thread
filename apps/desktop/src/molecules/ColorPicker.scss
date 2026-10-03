@@ -1,8 +1,10 @@
 .color-picker {
   display: none;
+  // Opens under the button that owns it; centering on the pane pushed it out of view.
   position: absolute;
-  top: 50%;
-  left: 50%;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
   padding: 20px;
   background-color: rgba(0, 0, 0, 0.34);
   border: 1px solid rgba(255, 255, 255, 0.207);
