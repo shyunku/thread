@@ -147,6 +147,8 @@ class VaultWorkspaceService{
   entry.controller.use(store=>{if(store.get("recovery","$pending-rotation")?.phase==="COMMITTING")throw Error("ROTATION_RECONCILE_REQUIRED");});
   this.busy=true;
   try{
+   entry.syncing=true;
+   require("./applicationRouting").publishStatus(this,entry);
    if(!entry.sync){
     const result=await entry.controller.use(store=>require("./syncSession").openSyncSession({store,transport:this.transportFor(entry),signal:entry.abort.signal}));
     if(this.active!==entry||generation!==this.generation){result.close?.();throw Error("VAULT_SESSION_CHANGED");}
@@ -158,17 +160,20 @@ class VaultWorkspaceService{
    }
    const status=await entry.sync.engine.run();
    if(this.active!==entry||generation!==this.generation)throw Error("VAULT_SESSION_CHANGED");
-   entry.connected=true;entry.lastSyncedAt=Date.now();
+   entry.connected=true;entry.lastSyncedAt=Date.now();entry.syncing=false;
    entry.controller.use(store=>store.put("recovery","$last-sync-authority",{epoch:entry.sync.epoch,
     keyGeneration:entry.sync.engine.history.current.keyGeneration,head:entry.sync.engine.history.current.head,cursor:status.cursor}));
    require("./reencryption").advance(entry.sync.replica);
    require("./applicationRouting").publish(this,entry);
    return {phase:"ACTIVE",...status,...entry.sync.replica.status(),epoch:entry.sync.epoch};
   }catch(error){
-   entry.connected=false;
+   entry.connected=false;entry.syncing=false;
    if(this.active===entry&&entry.unlocked&&entry.applicationActive)require("./applicationRouting").publish(this,entry);
    throw error;
-  }finally{this.busy=false;}
+  }finally{
+   this.busy=false;
+   if(entry.syncing){entry.syncing=false;require("./applicationRouting").publishStatus(this,entry);}
+  }
  }
  async reconcileConflict(request){
   if(this.busy)throw Error("VAULT_BUSY");

@@ -74,36 +74,75 @@
     align-items: center;
     gap: 12px;
     padding: 12px 14px;
+
+    // Fixed widths around the bar so label changes don't make it jump between states.
+    .settings-badge { min-width: 72px; text-align: center; }
   }
 
   &__bar {
     display: flex;
     flex: 1;
-    gap: 3px;
     min-width: 60px;
     height: 8px;
+    position: relative;
+    transition: opacity .3s ease;
 
-    i { display: block; height: 100%; }
-    i:first-child { border-radius: 4px 2px 2px 4px; }
-    i:last-child { border-radius: 2px 4px 4px 2px; }
-    i:only-child { border-radius: 4px; }
+    i {
+      display: block;
+      flex-basis: 0;
+      min-width: 0;
+      height: 100%;
+      border-radius: 4px;
+      transition: flex-grow .45s ease, background-color .45s ease, opacity .45s ease, margin-left .45s ease;
+    }
+
+    // A light band sweeping over the bar; it fades in and out instead of replacing the bar.
+    &::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: 4px;
+      background: linear-gradient(90deg, transparent 0%, rgba(214, 255, 232, .75) 50%, transparent 100%) no-repeat;
+      background-size: 40% 100%;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .35s ease;
+      animation: sync-status-sweep 1.4s linear infinite;
+    }
+
+    &--syncing {
+      i { opacity: .45; }
+      &::after { opacity: 1; }
+    }
 
     &--offline { opacity: .35; }
   }
 
-  &__done { background: var(--success); }
-  &__pending { background: var(--pending); }
-  &__idle { background: #3a4250; }
+  &__done {
+    background: var(--success);
+
+    &--idle { background: #3a4250; }
+  }
+
+  &__pending {
+    margin-left: 3px;
+    background: var(--pending);
+
+    &--empty { margin-left: 0; opacity: 0; }
+  }
 
   &__meta {
+    min-width: 168px;
     color: var(--secondary);
     font-size: 12.5px;
+    text-align: right;
     white-space: nowrap;
 
     &--quiet { opacity: .5; }
   }
 
   &__pending-text { color: var(--pending); font-weight: 600; }
+  &__ok-text { color: var(--success); font-weight: 600; }
 
   &__refresh {
     display: grid;
@@ -130,4 +169,14 @@
     font-size: 12.5px;
     overflow-wrap: anywhere;
   }
+}
+
+@keyframes sync-status-sweep {
+  from { background-position: -70% 0; }
+  to { background-position: 170% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sync-status__bar::after { animation: none; background-position: 50% 0; }
+  .sync-status__bar i { transition: none; }
 }

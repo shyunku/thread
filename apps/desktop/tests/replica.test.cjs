@@ -102,6 +102,21 @@ test("application routing handles normal requests without legacy fallback and fa
  entry.applicationActive=false;assert.equal(await intercept(service,"task/addTask","old",[]),false);
 });
 
+test("sync status reports syncing and status-only publishing never throws",async t=>{
+ const f=await fixture(t),{intercept,publishStatus}=require("../public/electron/e2ee/applicationRouting"),events=[];
+ let locked=false;
+ const entry={uid:"fixture",applicationActive:true,connected:true,syncing:true,controller:{use:fn=>{if(locked)throw Error("VAULT_LOCKED");return fn(f.store);}}};
+ const service={active:entry,busy:false,runtime:()=>({getAccount:()=>"fixture"}),group:{ipcService:{sender:(...args)=>events.push(args)}},syncEncrypted:async()=>{}};
+ publishStatus(service,entry);
+ assert.equal(events.length,1);assert.equal(events[0][0],"sync-v2/status");assert.equal(events[0][3].syncing,true);
+ assert.ok(!events.some(event=>event[0]==="sync-v2/state"));
+ entry.syncing=false;await intercept(service,"sync-v2/getStatus","req",[]);
+ assert.equal(events.find(event=>event[1]==="req")[3].syncing,false);
+ locked=true;events.length=0;
+ assert.doesNotThrow(()=>publishStatus(service,entry));assert.equal(events.length,0);
+ locked=false;entry.applicationActive=false;publishStatus(service,entry);assert.equal(events.length,0);
+});
+
 test("recurring completion clones the completed occurrence and resets the next task atomically",async t=>{
  const f=await fixture(t),{ApplicationAdapter}=require("../public/electron/e2ee/applicationAdapter");
  const start=Date.parse("2025-01-31T00:00:00Z"),now=Date.parse("2025-02-01T00:00:00Z"),due=Date.parse("2025-03-03T00:00:00Z");

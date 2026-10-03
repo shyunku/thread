@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { useSelector } from "react-redux";
 import SettingData from "./Data.settings";
 import IpcSender from "../../utils/IpcSender";
+import { SYNCING_MIN_MS } from "./data/SyncStatus";
 
 jest.mock("react-redux", () => ({ useSelector: jest.fn() }));
 jest.mock("../../components/VaultWorkspace", () => () => <nav aria-label="데이터 관리 작업" />);
@@ -45,6 +46,41 @@ test("shows the last successful sync as relative time and conflicts needing revi
   emit({ connected: true, pending: 2, lastSyncedAt: Date.now() - 5 * 60000, recovery: 2, canSync: true });
   expect(syncRow()).toHaveTextContent("5분 전 동기화");
   expect(screen.getByText("충돌 검토가 필요한 변경: 2개")).toBeInTheDocument();
+});
+
+test("fills the bar green when everything is synced", () => {
+  render(<SettingData />);
+  emit({ connected: true, pending: 0, lastSyncedAt: Date.now(), canSync: true });
+  expect(syncRow()).toHaveTextContent("모두 동기화됨 · 방금");
+  expect(screen.getByRole("img", { name: "모두 동기화됨" })).toBeInTheDocument();
+  expect(document.querySelector(".sync-status__done--idle")).toBeNull();
+  emit({ connected: true, pending: 3, lastSyncedAt: Date.now(), canSync: true });
+  expect(syncRow()).toHaveTextContent("보낼 변경 3개 · 방금 동기화");
+  expect(syncRow()).not.toHaveTextContent("모두 동기화됨");
+});
+
+test("shows a short sync as one calm pulse instead of a flicker", () => {
+  jest.useFakeTimers();
+  try {
+    render(<SettingData />);
+    emit({ connected: true, pending: 0, lastSyncedAt: Date.now(), canSync: true, syncing: true });
+    expect(syncRow()).toHaveTextContent("동기화 중");
+    expect(document.querySelector(".sync-status__bar--syncing")).not.toBeNull();
+    emit({ connected: true, pending: 0, lastSyncedAt: Date.now(), canSync: true, syncing: false });
+    expect(syncRow()).toHaveTextContent("동기화 중");
+    act(() => { jest.advanceTimersByTime(SYNCING_MIN_MS); });
+    expect(syncRow()).toHaveTextContent("온라인");
+    expect(document.querySelector(".sync-status__bar--syncing")).toBeNull();
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
+test("does not show syncing while offline", () => {
+  render(<SettingData />);
+  emit({ connected: false, pending: 0, canSync: true, syncing: true });
+  expect(syncRow()).toHaveTextContent("오프라인");
+  expect(document.querySelector(".sync-status__bar--syncing")).toBeNull();
 });
 
 test("ignores other accounts and stale initial response after a live update", () => {

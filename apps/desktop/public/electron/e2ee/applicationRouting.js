@@ -29,13 +29,31 @@ async function intercept(service,topic,reqId,args){
    if(reads[topic])return adapter.lists()[reads[topic]];
    if(topic==="category/getCategoryTasks")return adapter.lists().relations.filter(row=>row.cid===args[0]);
    if(topic==="system/isDatabaseClear")return adapter.lists().tasks.length===0;
-   if(topic==="sync-v2/getStatus"){const status=replica.status();return {uid:entry.uid,protocolVersion:3,ready:true,connected:!!entry.connected,canSync:true,seq:status.cursor,pending:status.pending,recovery:status.conflicts,lastSyncedAt:entry.lastSyncedAt??null,error:null};}
+   if(topic==="sync-v2/getStatus")return statusOf(entry,replica.status());
    return true;
   });
   publish(service,entry);ipc.sender(topic,reqId,true,result);
   if(mutationTopics.has(topic))void service.syncEncrypted().catch(()=>{});
  }catch(error){ipc.sender(topic,reqId,false,{syncV2Ack:mutationTopics.has(topic),code:error.message});}
  return true;
+}
+function statusOf(entry,status){
+ return {uid:entry.uid,protocolVersion:3,ready:true,connected:!!entry.connected,syncing:!!entry.syncing,canSync:true,seq:status.cursor,pending:status.pending,recovery:status.conflicts,lastSyncedAt:entry.lastSyncedAt??null,error:null};
+}
+function replicaStatus(entry){
+ return entry.controller.use(store=>{
+  const {EncryptedReplica}=require("./replica"),meta=store.get("confirmed","$sync-state");
+  return meta?new EncryptedReplica(store,meta.scope,{initialize:false}).status():null;
+ });
+}
+// Status only (no task lists): sent when a sync starts and when it ends without new data.
+// Display-only, so a failure here must never break the sync that called it.
+function publishStatus(service,entry){
+ if(service.active!==entry||!entry.applicationActive||entry.uid!==service.runtime().getAccount())return;
+ try{
+  const status=replicaStatus(entry);
+  if(status)service.group?.ipcService.sender("sync-v2/status",null,true,statusOf(entry,status));
+ }catch{}
 }
 function publish(service,entry){
  if(service.active!==entry||entry.uid!==service.runtime().getAccount())return;
@@ -48,6 +66,6 @@ function publish(service,entry){
   const {EncryptedReplica}=require("./replica"),meta=store.get("confirmed","$sync-state");
   return new EncryptedReplica(store,meta.scope,{initialize:false}).status();
  });
- service.group?.ipcService.sender("sync-v2/status",null,true,{uid:entry.uid,protocolVersion:3,ready:true,connected:!!entry.connected,canSync:true,seq:status.cursor,pending:status.pending,recovery:status.conflicts,lastSyncedAt:entry.lastSyncedAt??null,error:null});
+ service.group?.ipcService.sender("sync-v2/status",null,true,statusOf(entry,status));
 }
-module.exports={intercept,publish};
+module.exports={intercept,publish,publishStatus};
