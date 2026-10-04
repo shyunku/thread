@@ -86,6 +86,11 @@ export class MobileWorkspace {
     }
   }
 
+  // Biometrics or the device PIN again, e.g. before opening a secret category (#88).
+  confirmUser(): Promise<boolean> {
+    return this.#reauthenticate();
+  }
+
   // --- First device of a new account ---
   prepareIdentity() {
     return this.#exclusive(store => identity.prepareOwner(store));
@@ -271,8 +276,8 @@ export class MobileWorkspace {
   }
 
   // Re-protects existing data with the new key after a rotation: `start` after one
-  // verified sync, then each sync advances it (SyncService).
-  reencryption(action: 'status' | 'start' | 'cancel') {
+  // verified sync, then each sync advances it (SyncService); `step` resumes a pause.
+  reencryption(action: 'status' | 'start' | 'step' | 'cancel') {
     if (this.#busy) throw Error('VAULT_BUSY');
     return this.#session.use(store => {
       const meta = store.get('confirmed', '$sync-state');

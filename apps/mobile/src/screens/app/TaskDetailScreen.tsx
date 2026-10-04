@@ -86,29 +86,29 @@ export default function TaskDetailScreen() {
         style={{
           flexDirection: 'row',
           alignItems: 'center',
-          paddingHorizontal: 8,
-          paddingTop: 8,
+          paddingHorizontal: 7,
+          paddingTop: 7,
         }}
       >
         <IconButton label="뒤로" onPress={() => navigation.goBack()}>
-          <ArrowLeft color={theme.secondary} size={22} />
+          <ArrowLeft color={theme.secondary} size={19.5} />
         </IconButton>
         <View style={{ flex: 1 }} />
         <IconButton label="삭제" onPress={remove}>
-          <Trash2 color={theme.secondary} size={20} />
+          <Trash2 color={theme.secondary} size={17.5} />
         </IconButton>
       </View>
       <ScrollView
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ paddingBottom: 40 }}
+        contentContainerStyle={{ paddingBottom: 35 }}
       >
         <View
           style={{
             flexDirection: 'row',
             alignItems: 'center',
-            gap: 12,
-            paddingHorizontal: 18,
-            marginBottom: 10,
+            gap: 10.5,
+            paddingHorizontal: 16,
+            marginBottom: 9,
           }}
         >
           <CheckCircle
@@ -127,7 +127,7 @@ export default function TaskDetailScreen() {
             style={{
               flex: 1,
               color: theme.text,
-              fontSize: 22,
+              fontSize: 19.5,
               fontWeight: '700',
               padding: 0,
             }}
@@ -166,18 +166,23 @@ export default function TaskDetailScreen() {
           style={{
             flexDirection: 'row',
             alignItems: 'center',
-            gap: 12,
-            paddingHorizontal: 18,
-            paddingVertical: 12,
+            gap: 10.5,
+            paddingHorizontal: 16,
+            paddingVertical: 10.5,
             borderBottomWidth: 1,
             borderColor: theme.border,
           }}
         >
-          <Text style={{ width: 70, color: theme.muted, fontSize: 13 }}>
+          <Text style={{ width: 61.5, color: theme.muted, fontSize: 11.5 }}>
             카테고리
           </Text>
           <View
-            style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}
+            style={{
+              flex: 1,
+              flexDirection: 'row',
+              flexWrap: 'wrap',
+              gap: 5.5,
+            }}
           >
             {task.categories.length === 0 && (
               <Text style={{ color: theme.muted }}>없음</Text>
@@ -186,16 +191,16 @@ export default function TaskDetailScreen() {
               <View
                 key={cid}
                 style={{
-                  paddingHorizontal: 8,
+                  paddingHorizontal: 7,
                   paddingVertical: 2,
-                  borderRadius: 6,
+                  borderRadius: 5.5,
                   backgroundColor: theme.selected,
                 }}
               >
                 <Text
                   style={{
                     color: theme.accent,
-                    fontSize: 12,
+                    fontSize: 10.5,
                     fontWeight: '600',
                   }}
                 >
@@ -204,7 +209,7 @@ export default function TaskDetailScreen() {
               </View>
             ))}
           </View>
-          <Plus color={theme.muted} size={18} />
+          <Plus color={theme.muted} size={16} />
         </Pressable>
 
         <SectionHeader
@@ -216,13 +221,13 @@ export default function TaskDetailScreen() {
             style={{
               flexDirection: 'row',
               alignItems: 'center',
-              gap: 10,
-              paddingHorizontal: 18,
-              paddingVertical: 8,
+              gap: 9,
+              paddingHorizontal: 16,
+              paddingVertical: 7,
             }}
           >
             <CheckCircle
-              size={20}
+              size={17.5}
               done={sub.done}
               onPress={() =>
                 mutate('task/updateSubtaskDone', [
@@ -237,7 +242,7 @@ export default function TaskDetailScreen() {
               style={{
                 flex: 1,
                 color: sub.done ? theme.muted : theme.text,
-                fontSize: 14,
+                fontSize: 12.5,
                 textDecorationLine: sub.done ? 'line-through' : 'none',
               }}
             >
@@ -247,7 +252,7 @@ export default function TaskDetailScreen() {
               label="하위 할 일 삭제"
               onPress={() => mutate('task/deleteSubtask', [tid, sub.sid])}
             >
-              <X color={theme.muted} size={16} />
+              <X color={theme.muted} size={14} />
             </IconButton>
           </View>
         ))}
@@ -255,12 +260,12 @@ export default function TaskDetailScreen() {
           style={{
             flexDirection: 'row',
             alignItems: 'center',
-            gap: 10,
-            paddingHorizontal: 18,
-            paddingVertical: 4,
+            gap: 9,
+            paddingHorizontal: 16,
+            paddingVertical: 3.5,
           }}
         >
-          <Plus color={theme.muted} size={18} />
+          <Plus color={theme.muted} size={16} />
           <TextInput
             placeholder="하위 할 일 추가"
             placeholderTextColor={theme.muted}
@@ -279,8 +284,8 @@ export default function TaskDetailScreen() {
             style={{
               flex: 1,
               color: theme.text,
-              fontSize: 14,
-              paddingVertical: 8,
+              fontSize: 12.5,
+              paddingVertical: 7,
             }}
           />
         </View>
@@ -294,15 +299,15 @@ export default function TaskDetailScreen() {
           placeholder="메모"
           placeholderTextColor={theme.muted}
           style={{
-            marginHorizontal: 18,
-            minHeight: 100,
-            padding: 12,
-            borderRadius: 12,
+            marginHorizontal: 16,
+            minHeight: 88,
+            padding: 10.5,
+            borderRadius: 10.5,
             borderWidth: 1,
             borderColor: theme.border,
             backgroundColor: theme.surface,
             color: theme.text,
-            fontSize: 14,
+            fontSize: 12.5,
             textAlignVertical: 'top',
           }}
         />
@@ -322,7 +327,7 @@ export default function TaskDetailScreen() {
               setSheet(null);
             }}
           >
-            <Text style={{ color: theme.text, fontSize: 15 }}>
+            <Text style={{ color: theme.text, fontSize: 13 }}>
               {period ? REPEAT_LABEL[period] : '반복 안 함'}
             </Text>
           </Row>
@@ -333,7 +338,7 @@ export default function TaskDetailScreen() {
         onClose={() => setSheet(null)}
         title="카테고리"
       >
-        <ScrollView style={{ maxHeight: 380 }}>
+        <ScrollView style={{ maxHeight: 334.5 }}>
           {model.categories.map(c => {
             const on = task.categories.includes(c.cid);
             return (
@@ -349,13 +354,13 @@ export default function TaskDetailScreen() {
               >
                 <View
                   style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: 5,
+                    width: 9,
+                    height: 9,
+                    borderRadius: 4.5,
                     backgroundColor: c.color || theme.accent,
                   }}
                 />
-                <Text style={{ flex: 1, color: theme.text, fontSize: 15 }}>
+                <Text style={{ flex: 1, color: theme.text, fontSize: 13 }}>
                   {c.title}
                 </Text>
                 {on && <Text style={{ color: theme.accent }}>✓</Text>}
@@ -363,7 +368,7 @@ export default function TaskDetailScreen() {
             );
           })}
           {model.categories.length === 0 && (
-            <Text style={{ color: theme.muted, marginHorizontal: 20 }}>
+            <Text style={{ color: theme.muted, marginHorizontal: 17.5 }}>
               카테고리가 없어요. 할 일 목록의 제목을 눌러 추가하세요.
             </Text>
           )}
@@ -398,21 +403,21 @@ function Prop({
       style={{
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
-        paddingHorizontal: 18,
-        paddingVertical: 12,
+        gap: 10.5,
+        paddingHorizontal: 16,
+        paddingVertical: 10.5,
         borderBottomWidth: 1,
         borderColor: theme.border,
       }}
     >
-      <Text style={{ width: 70, color: theme.muted, fontSize: 13 }}>
+      <Text style={{ width: 61.5, color: theme.muted, fontSize: 11.5 }}>
         {label}
       </Text>
       <Text
         style={{
           flex: 1,
           color: disabled ? theme.muted : theme.text,
-          fontSize: 15,
+          fontSize: 13,
         }}
       >
         {value}
@@ -421,7 +426,7 @@ function Prop({
         <Text
           style={{
             color: hintDanger ? theme.danger : theme.muted,
-            fontSize: 12,
+            fontSize: 10.5,
           }}
         >
           {hint}
@@ -429,7 +434,7 @@ function Prop({
       )}
       {onClear && (
         <IconButton label={`${label} 지우기`} onPress={onClear}>
-          <X color={theme.muted} size={16} />
+          <X color={theme.muted} size={14} />
         </IconButton>
       )}
     </Pressable>

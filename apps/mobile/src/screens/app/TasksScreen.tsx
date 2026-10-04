@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
   Pressable,
@@ -10,6 +10,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import {
   ChevronDown,
+  KeyRound,
   Layers,
   Plus,
   Search,
@@ -66,18 +67,23 @@ export default function TasksScreen() {
     ...(prefs.listDoneOpen ? done.map(t => ({ key: t.tid, tid: t.tid })) : []),
   ];
   const byId = new Map(tasks.map(t => [t.tid, t]));
+  const secret =
+    scope.kind === 'category' && !!model?.categoryMap.get(scope.cid)?.secret;
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.canvas }}>
       <AppBar
         onTitlePress={() => setPicking(true)}
         title={
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <View
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 5.5 }}
+          >
+            {secret && <KeyRound color={theme.warning} size={17} />}
             <Text
               numberOfLines={1}
               style={{
                 color: theme.text,
-                fontSize: 22,
+                fontSize: 19.5,
                 fontWeight: '700',
                 flexShrink: 1,
               }}
@@ -86,9 +92,9 @@ export default function TasksScreen() {
             </Text>
             <View
               style={{
-                paddingHorizontal: 8,
+                paddingHorizontal: 7,
                 paddingVertical: 1,
-                borderRadius: 7,
+                borderRadius: 6,
                 borderWidth: 1,
                 borderColor: theme.border,
                 backgroundColor: theme.surface,
@@ -97,14 +103,14 @@ export default function TasksScreen() {
               <Text
                 style={{
                   color: theme.secondary,
-                  fontSize: 13,
+                  fontSize: 11.5,
                   fontWeight: '600',
                 }}
               >
                 {todo.length}
               </Text>
             </View>
-            <ChevronDown color={theme.muted} size={16} />
+            <ChevronDown color={theme.muted} size={14} />
           </View>
         }
         right={
@@ -112,19 +118,35 @@ export default function TasksScreen() {
             label="검색"
             onPress={() => navigation.navigate('Search')}
           >
-            <Search color={theme.secondary} size={21} />
+            <Search color={theme.secondary} size={18.5} />
           </IconButton>
         }
       />
-      <SyncLine extra={`${tasks.length}개의 할 일 · ${done.length}개 완료`} />
+      {secret ? (
+        <Text
+          style={{
+            color: theme.muted,
+            fontSize: 10.5,
+            paddingHorizontal: 16,
+            paddingBottom: 9,
+          }}
+        >
+          비밀 카테고리 ·{' '}
+          {prefs.secretRelock === 'each'
+            ? '다른 보기로 나가면 다시 잠겨요'
+            : '앱을 닫거나 잠그면 다시 잠겨요'}
+        </Text>
+      ) : (
+        <SyncLine extra={`${tasks.length}개의 할 일 · ${done.length}개 완료`} />
+      )}
       <View>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{
-            gap: 6,
-            paddingHorizontal: 18,
-            paddingBottom: 6,
+            gap: 5.5,
+            paddingHorizontal: 16,
+            paddingBottom: 5.5,
           }}
         >
           {SORTS.map(([mode, label]) => (
@@ -140,7 +162,7 @@ export default function TasksScreen() {
       <FlatList
         data={items}
         keyExtractor={item => item.key}
-        contentContainerStyle={{ paddingBottom: 120 }}
+        contentContainerStyle={{ paddingBottom: 105.5 }}
         renderItem={({ item }) => {
           if (item.header === 'todo') {
             return (
@@ -179,7 +201,7 @@ export default function TasksScreen() {
             color: theme.muted,
             textAlign: 'center',
             position: 'absolute',
-            top: 220,
+            top: 193.5,
             left: 0,
             right: 0,
           }}
@@ -192,9 +214,8 @@ export default function TasksScreen() {
         visible={picking}
         onClose={() => setPicking(false)}
         scope={scope}
-        onSelect={next => {
-          setScope(next);
-          setPicking(false);
+        onSelect={async next => {
+          if (await setScope(next)) setPicking(false);
         }}
       />
       <AddTaskSheet
@@ -222,11 +243,11 @@ export function Fab({
       onPress={onPress}
       style={({ pressed }) => ({
         position: 'absolute',
-        right: 18,
-        bottom: 18,
-        width: 56,
-        height: 56,
-        borderRadius: 18,
+        right: 16,
+        bottom: 16,
+        width: 46,
+        height: 46,
+        borderRadius: 15,
         backgroundColor: theme.accent,
         alignItems: 'center',
         justifyContent: 'center',
@@ -234,7 +255,7 @@ export function Fab({
         opacity: disabled ? 0.5 : pressed ? 0.85 : 1,
       })}
     >
-      <Plus color={theme.accentText} size={28} />
+      <Plus color={theme.accentText} size={24.5} />
     </Pressable>
   );
 }
@@ -250,32 +271,41 @@ export function CategorySheet({
   scope: Scope;
   onSelect: (scope: Scope) => void;
 }) {
-  const { model } = useApp();
+  const { model, isSecretOpen } = useApp();
   const navigation = useNavigation<any>();
   const theme = useTheme();
   const count = (s: Scope) =>
     model ? visibleTasks(model, s).filter(t => !t.done).length : 0;
-  const rows: { scope: Scope; label: string; icon: React.ReactNode }[] = [
+  const rows: {
+    scope: Scope;
+    label: string;
+    icon: React.ReactNode;
+    locked?: boolean;
+  }[] = [
     {
       scope: { kind: 'all' },
       label: '모든 할 일',
-      icon: <Layers color={theme.secondary} size={18} />,
+      icon: <Layers color={theme.secondary} size={16} />,
     },
     {
       scope: { kind: 'today' },
       label: '오늘',
-      icon: <Sun color={theme.secondary} size={18} />,
+      icon: <Sun color={theme.secondary} size={16} />,
     },
     ...(model?.categories ?? []).map(c => ({
       scope: { kind: 'category', cid: c.cid } as Scope,
       label: c.title,
-      icon: (
+      // A secret category shows a key; its count stays hidden until it is opened.
+      locked: c.secret && !isSecretOpen(c.cid),
+      icon: c.secret ? (
+        <KeyRound color={theme.warning} size={14} />
+      ) : (
         <View
           style={{
-            width: 10,
-            height: 10,
-            borderRadius: 5,
-            marginHorizontal: 4,
+            width: 9,
+            height: 9,
+            borderRadius: 4.5,
+            marginHorizontal: 3.5,
             backgroundColor: c.color || theme.accent,
           }}
         />
@@ -287,7 +317,7 @@ export function CategorySheet({
     (a.kind !== 'category' || (b.kind === 'category' && a.cid === b.cid));
   return (
     <Sheet visible={visible} onClose={onClose} title="보기">
-      <ScrollView style={{ maxHeight: 420 }}>
+      <ScrollView style={{ maxHeight: 369.5 }}>
         {rows.map((row, index) => (
           <Row
             key={index}
@@ -295,11 +325,11 @@ export function CategorySheet({
             onPress={() => onSelect(row.scope)}
           >
             {row.icon}
-            <Text style={{ flex: 1, color: theme.text, fontSize: 15 }}>
+            <Text style={{ flex: 1, color: theme.text, fontSize: 13 }}>
               {row.label}
             </Text>
-            <Text style={{ color: theme.muted, fontSize: 13 }}>
-              {count(row.scope)}
+            <Text style={{ color: theme.muted, fontSize: 11.5 }}>
+              {row.locked ? '잠김' : count(row.scope)}
             </Text>
           </Row>
         ))}
@@ -308,8 +338,8 @@ export function CategorySheet({
         style={{
           height: 1,
           backgroundColor: theme.border,
-          marginHorizontal: 20,
-          marginVertical: 6,
+          marginHorizontal: 17.5,
+          marginVertical: 5.5,
         }}
       />
       <Row
@@ -318,8 +348,8 @@ export function CategorySheet({
           navigation.navigate('Categories');
         }}
       >
-        <Tag color={theme.secondary} size={18} />
-        <Text style={{ flex: 1, color: theme.text, fontSize: 15 }}>
+        <Tag color={theme.secondary} size={16} />
+        <Text style={{ flex: 1, color: theme.text, fontSize: 13 }}>
           카테고리 추가·관리
         </Text>
       </Row>
@@ -353,6 +383,12 @@ export function AddTaskSheet({
     setDue(defaultDue ?? (scope.kind === 'today' ? today() : null));
     setCategories(scope.kind === 'category' ? [scope.cid] : []);
   };
+  // The sheet stays mounted: take the current view's date and category each time
+  // it opens (the view may have changed since the last time).
+  useEffect(() => {
+    if (visible) reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
   const add = () => {
     if (!title.trim()) return;
     mutate('task/addTask', [
@@ -385,16 +421,16 @@ export function AddTaskSheet({
         onSubmitEditing={add}
         returnKeyType="done"
         style={{
-          marginHorizontal: 18,
-          marginBottom: 12,
-          paddingHorizontal: 14,
-          paddingVertical: 12,
-          borderRadius: 12,
+          marginHorizontal: 16,
+          marginBottom: 10.5,
+          paddingHorizontal: 12.5,
+          paddingVertical: 10.5,
+          borderRadius: 10.5,
           borderWidth: 1,
           borderColor: theme.border,
           backgroundColor: theme.surface,
           color: theme.text,
-          fontSize: 18,
+          fontSize: 16,
           fontWeight: '600',
         }}
       />
@@ -403,9 +439,9 @@ export function AddTaskSheet({
         keyboardShouldPersistTaps="handled"
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{
-          gap: 6,
-          paddingHorizontal: 18,
-          paddingBottom: 12,
+          gap: 5.5,
+          paddingHorizontal: 16,
+          paddingBottom: 10.5,
         }}
       >
         <Chip
@@ -457,7 +493,9 @@ export function AddTaskSheet({
         disabled={!title.trim()}
         onPress={add}
       />
-      <Text style={{ color: theme.muted, fontSize: 12, marginHorizontal: 20 }}>
+      <Text
+        style={{ color: theme.muted, fontSize: 10.5, marginHorizontal: 17.5 }}
+      >
         메모·하위 할 일·반복은 추가한 뒤 상세에서 넣을 수 있어요.
       </Text>
     </Sheet>

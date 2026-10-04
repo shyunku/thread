@@ -10,6 +10,8 @@ export type Prefs = {
   listTodoOpen: boolean;
   listDoneOpen: boolean;
   sort: 'due' | 'importance' | 'remaining' | 'created';
+  // When an opened secret category locks again (#88): app closed/locked, or each visit.
+  secretRelock: 'session' | 'each';
 };
 
 export const defaultPrefs: Prefs = Object.freeze({
@@ -20,6 +22,7 @@ export const defaultPrefs: Prefs = Object.freeze({
   listTodoOpen: true,
   listDoneOpen: false,
   sort: 'due',
+  secretRelock: 'session',
 });
 
 const valid: { [K in keyof Prefs]: (value: unknown) => boolean } = {
@@ -31,6 +34,7 @@ const valid: { [K in keyof Prefs]: (value: unknown) => boolean } = {
   listDoneOpen: v => typeof v === 'boolean',
   sort: v =>
     v === 'due' || v === 'importance' || v === 'remaining' || v === 'created',
+  secretRelock: v => v === 'session' || v === 'each',
 };
 
 export function sanitize(raw: unknown): Prefs {

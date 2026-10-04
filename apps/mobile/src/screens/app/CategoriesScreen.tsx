@@ -3,12 +3,13 @@ import {
   Alert,
   Pressable,
   ScrollView,
+  Switch,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { ArrowLeft, Trash2 } from 'lucide-react-native';
+import { ArrowLeft, KeyRound, Trash2 } from 'lucide-react-native';
 import { useApp } from '@/app/AppContext';
 import { Button, Field, IconButton } from '@/ui/kit';
 import { useTheme } from '@/ui/theme';
@@ -40,6 +41,7 @@ export default function CategoriesScreen() {
   const navigation = useNavigation<any>();
   const theme = useTheme();
   const [name, setName] = useState('');
+  const [secret, setSecret] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
 
   const add = () => {
@@ -47,11 +49,15 @@ export default function CategoriesScreen() {
     mutate('category/createCategory', [
       {
         title: name.trim(),
+        // Same entity as the desktop's Category: secret categories start locked.
+        secret,
+        locked: secret,
         color: COLORS[(model?.categories.length ?? 0) % COLORS.length],
         created_at: Date.now(),
       },
     ]);
     setName('');
+    setSecret(false);
   };
 
   return (
@@ -60,20 +66,20 @@ export default function CategoriesScreen() {
         style={{
           flexDirection: 'row',
           alignItems: 'center',
-          paddingHorizontal: 8,
-          paddingTop: 8,
+          paddingHorizontal: 7,
+          paddingTop: 7,
         }}
       >
         <IconButton label="뒤로" onPress={() => navigation.goBack()}>
-          <ArrowLeft color={theme.secondary} size={22} />
+          <ArrowLeft color={theme.secondary} size={19.5} />
         </IconButton>
-        <Text style={{ color: theme.text, fontSize: 19, fontWeight: '700' }}>
+        <Text style={{ color: theme.text, fontSize: 16.5, fontWeight: '700' }}>
           카테고리
         </Text>
       </View>
       <ScrollView
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ paddingVertical: 12 }}
+        contentContainerStyle={{ paddingVertical: 10.5 }}
       >
         <Field
           placeholder="새 카테고리 이름"
@@ -81,6 +87,32 @@ export default function CategoriesScreen() {
           onChangeText={setName}
           onSubmitEditing={add}
         />
+        <Pressable
+          onPress={() => setSecret(!secret)}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 10.5,
+            marginHorizontal: 17.5,
+            marginBottom: 10.5,
+          }}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: theme.text, fontSize: 13 }}>
+              비밀 카테고리로 만들기
+            </Text>
+            <Text style={{ color: theme.muted, fontSize: 10.5, marginTop: 2 }}>
+              다른 목록·검색·캘린더에 안 보이고, 열 때 지문·PIN을 물어요.
+            </Text>
+          </View>
+          <Switch
+            value={secret}
+            onValueChange={setSecret}
+            accessibilityLabel="비밀 카테고리로 만들기"
+            trackColor={{ true: theme.accent, false: theme.border }}
+            thumbColor="#fff"
+          />
+        </Pressable>
         <Button
           kind="primary"
           label="추가"
@@ -91,31 +123,35 @@ export default function CategoriesScreen() {
           <View
             key={c.cid}
             style={{
-              marginHorizontal: 12,
-              marginBottom: 8,
-              padding: 14,
-              borderRadius: 14,
+              marginHorizontal: 10.5,
+              marginBottom: 7,
+              padding: 12.5,
+              borderRadius: 12.5,
               borderWidth: 1,
               borderColor: theme.border,
               backgroundColor: theme.surface,
             }}
           >
             <View
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}
             >
-              <Pressable
-                onPress={() => setEditing(editing === c.cid ? null : c.cid)}
-                accessibilityLabel="색상 바꾸기"
-              >
-                <View
-                  style={{
-                    width: 22,
-                    height: 22,
-                    borderRadius: 11,
-                    backgroundColor: c.color || theme.accent,
-                  }}
-                />
-              </Pressable>
+              {c.secret ? (
+                <KeyRound color={theme.warning} size={17.5} />
+              ) : (
+                <Pressable
+                  onPress={() => setEditing(editing === c.cid ? null : c.cid)}
+                  accessibilityLabel="색상 바꾸기"
+                >
+                  <View
+                    style={{
+                      width: 19.5,
+                      height: 19.5,
+                      borderRadius: 9.5,
+                      backgroundColor: c.color || theme.accent,
+                    }}
+                  />
+                </Pressable>
+              )}
               <TextInput
                 defaultValue={c.title}
                 onEndEditing={e => {
@@ -123,7 +159,7 @@ export default function CategoriesScreen() {
                   if (title && title !== c.title)
                     mutate('category/updateCategoryTitle', [c.cid, title]);
                 }}
-                style={{ flex: 1, color: theme.text, fontSize: 15, padding: 0 }}
+                style={{ flex: 1, color: theme.text, fontSize: 13, padding: 0 }}
               />
               <IconButton
                 label="삭제"
@@ -153,7 +189,7 @@ export default function CategoriesScreen() {
                   )
                 }
               >
-                <Trash2 color={theme.muted} size={18} />
+                <Trash2 color={theme.muted} size={16} />
               </IconButton>
             </View>
             {editing === c.cid && (
@@ -161,8 +197,8 @@ export default function CategoriesScreen() {
                 style={{
                   flexDirection: 'row',
                   flexWrap: 'wrap',
-                  gap: 10,
-                  marginTop: 12,
+                  gap: 9,
+                  marginTop: 10.5,
                 }}
               >
                 {COLORS.map(color => (
@@ -174,9 +210,9 @@ export default function CategoriesScreen() {
                       setEditing(null);
                     }}
                     style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: 14,
+                      width: 24.5,
+                      height: 24.5,
+                      borderRadius: 12.5,
                       backgroundColor: color,
                       borderWidth: c.color === color ? 3 : 0,
                       borderColor: theme.text,

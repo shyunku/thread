@@ -57,23 +57,23 @@ export default function LoginScreen() {
       <View
         style={{
           alignItems: 'center',
-          paddingTop: 70,
-          paddingHorizontal: 24,
-          paddingBottom: 26,
+          paddingTop: 61.5,
+          paddingHorizontal: 21,
+          paddingBottom: 23,
         }}
       >
         <Logo />
         <Text
           style={{
             color: theme.text,
-            fontSize: 24,
+            fontSize: 21,
             fontWeight: '700',
-            marginTop: 14,
+            marginTop: 12.5,
           }}
         >
           Thread
         </Text>
-        <Body muted style={{ marginTop: 4 }}>
+        <Body muted style={{ marginTop: 3.5 }}>
           할 일과 일정을 모든 기기에서, 암호화해서.
         </Body>
       </View>
@@ -107,9 +107,9 @@ export default function LoginScreen() {
         icon={
           <View
             style={{
-              width: 18,
-              height: 18,
-              borderRadius: 9,
+              width: 16,
+              height: 16,
+              borderRadius: 8,
               backgroundColor: '#4285f4',
             }}
           />

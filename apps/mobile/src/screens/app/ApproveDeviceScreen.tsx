@@ -79,23 +79,23 @@ export default function ApproveDeviceScreen() {
         style={{
           flexDirection: 'row',
           alignItems: 'center',
-          paddingHorizontal: 8,
-          paddingTop: 8,
+          paddingHorizontal: 7,
+          paddingTop: 7,
         }}
       >
         <IconButton label="닫기" onPress={() => navigation.goBack()}>
-          <X color={theme.secondary} size={22} />
+          <X color={theme.secondary} size={19.5} />
         </IconButton>
-        <Text style={{ color: theme.text, fontSize: 19, fontWeight: '700' }}>
+        <Text style={{ color: theme.text, fontSize: 16.5, fontWeight: '700' }}>
           새 기기 추가
         </Text>
       </View>
       <Steps total={3} current={step} />
       {status.phase === 'DONE' ? (
-        <View style={{ alignItems: 'center', padding: 24 }}>
+        <View style={{ alignItems: 'center', padding: 21 }}>
           <Title>연결했어요</Title>
           <Body muted>새 기기에서 할 일을 내려받는 중이에요.</Body>
-          <View style={{ height: 16 }} />
+          <View style={{ height: 14 }} />
           <Button
             kind="primary"
             label="완료"
@@ -108,8 +108,8 @@ export default function ApproveDeviceScreen() {
           <View
             style={{
               alignItems: 'center',
-              paddingHorizontal: 24,
-              paddingTop: 10,
+              paddingHorizontal: 21,
+              paddingTop: 9,
             }}
           >
             <Body muted style={{ textAlign: 'center' }}>
@@ -118,7 +118,7 @@ export default function ApproveDeviceScreen() {
             <Code value={status.code} />
             <Body>두 기기의 숫자가 같나요?</Body>
           </View>
-          <View style={{ height: 16 }} />
+          <View style={{ height: 14 }} />
           <Button
             kind="primary"
             label="같아요, 연결 승인"
@@ -133,20 +133,20 @@ export default function ApproveDeviceScreen() {
           <Body
             muted
             small
-            style={{ textAlign: 'center', marginHorizontal: 24 }}
+            style={{ textAlign: 'center', marginHorizontal: 21 }}
           >
             승인하려면 지문·얼굴 또는 화면 잠금을 다시 확인합니다.
           </Body>
         </>
       ) : ['EXPIRED', 'CANCELLED'].includes(status.phase) ? (
-        <View style={{ padding: 24 }}>
+        <View style={{ padding: 21 }}>
           <Title>연결 시간이 지났어요</Title>
           <Body muted>새 기기 추가를 다시 눌러주세요.</Body>
         </View>
       ) : (
-        <View style={{ alignItems: 'center', padding: 24 }}>
+        <View style={{ alignItems: 'center', padding: 21 }}>
           <ActivityIndicator />
-          <Title style={{ marginTop: 16 }}>새 기기를 기다리는 중</Title>
+          <Title style={{ marginTop: 14 }}>새 기기를 기다리는 중</Title>
           <Body muted style={{ textAlign: 'center' }}>
             새 기기에서 로그인한 뒤{' '}
             <Text style={{ color: theme.text, fontWeight: '600' }}>

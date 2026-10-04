@@ -69,7 +69,8 @@ export function createFakeRuntime({ uid = 'u1' } = {}) {
       const workspace = new MobileWorkspace({
         session,
         transport,
-        reauthenticate: async () => true,
+        // Biometrics/PIN prompt: succeeds unless a test turns it off.
+        reauthenticate: async () => keys.state.authAllowed,
         activity,
         onKeysChanged: () => sync.reset(),
       });

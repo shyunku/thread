@@ -70,17 +70,17 @@ export default function TimelineScreen() {
         style={{
           flexDirection: 'row',
           alignItems: 'center',
-          paddingLeft: 18,
-          paddingRight: 8,
-          paddingTop: 8,
-          minHeight: 56,
+          paddingLeft: 16,
+          paddingRight: 7,
+          paddingTop: 7,
+          minHeight: 49.5,
         }}
       >
         <Text
           style={{
             flex: 1,
             color: theme.text,
-            fontSize: 20,
+            fontSize: 17.5,
             fontWeight: '700',
           }}
         >
@@ -91,18 +91,18 @@ export default function TimelineScreen() {
             : `${label(start)} ~`}
         </Text>
         <IconButton label="이전" onPress={() => setStart(start - span * DAY)}>
-          <ChevronLeft color={theme.secondary} size={22} />
+          <ChevronLeft color={theme.secondary} size={19.5} />
         </IconButton>
         <IconButton label="다음" onPress={() => setStart(start + span * DAY)}>
-          <ChevronRight color={theme.secondary} size={22} />
+          <ChevronRight color={theme.secondary} size={19.5} />
         </IconButton>
       </View>
       <View
         style={{
           flexDirection: 'row',
-          gap: 6,
-          paddingHorizontal: 18,
-          paddingBottom: 8,
+          gap: 5.5,
+          paddingHorizontal: 16,
+          paddingBottom: 7,
         }}
       >
         <Chip label="하루" selected={span === 1} onPress={() => setSpan(1)} />
@@ -110,7 +110,7 @@ export default function TimelineScreen() {
         <Chip label="한 주" selected={span === 7} onPress={() => setSpan(7)} />
       </View>
       {allDay.length > 0 && (
-        <View style={{ paddingHorizontal: 18, paddingBottom: 6, gap: 4 }}>
+        <View style={{ paddingHorizontal: 16, paddingBottom: 5.5, gap: 3.5 }}>
           {allDay.map(task => (
             <Pressable
               key={task.tid}
@@ -122,7 +122,7 @@ export default function TimelineScreen() {
                 numberOfLines={1}
                 style={{
                   color: task.done ? theme.muted : theme.text,
-                  fontSize: 13,
+                  fontSize: 11.5,
                   textDecorationLine: task.done ? 'line-through' : 'none',
                 }}
               >
@@ -135,10 +135,10 @@ export default function TimelineScreen() {
       )}
       <ScrollView
         contentOffset={{ x: 0, y: HOUR * 7 - 12 }}
-        contentContainerStyle={{ paddingBottom: 110 }}
+        contentContainerStyle={{ paddingBottom: 97 }}
       >
         <View style={{ flexDirection: 'row' }}>
-          <View style={{ width: 58, height: HOUR * 24 }}>
+          <View style={{ width: 51, height: HOUR * 24 }}>
             {Array.from({ length: 24 }, (_, h) => (
               <Text
                 key={h}
@@ -148,9 +148,9 @@ export default function TimelineScreen() {
                   left: 0,
                   right: 0,
                   color: theme.muted,
-                  fontSize: 11,
+                  fontSize: 9.5,
                   textAlign: 'right',
-                  paddingRight: 8,
+                  paddingRight: 7,
                 }}
               >
                 {h === 0 ? '' : hourLabel(h)}
@@ -206,12 +206,12 @@ export default function TimelineScreen() {
                       style={{
                         position: 'absolute',
                         top: ((task.dueDate! - day) / DAY) * HOUR * 24 - 14,
-                        left: 4,
+                        left: 3.5,
                         right: 2,
-                        minHeight: 28,
-                        paddingHorizontal: 8,
-                        paddingVertical: 4,
-                        borderRadius: 8,
+                        minHeight: 24.5,
+                        paddingHorizontal: 7,
+                        paddingVertical: 3.5,
+                        borderRadius: 7,
                         borderLeftWidth: 3,
                         borderColor: overdue ? theme.danger : theme.accent,
                         backgroundColor: theme.selected,
@@ -222,7 +222,7 @@ export default function TimelineScreen() {
                         numberOfLines={1}
                         style={{
                           color: theme.text,
-                          fontSize: 12,
+                          fontSize: 10.5,
                           textDecorationLine: task.done
                             ? 'line-through'
                             : 'none',

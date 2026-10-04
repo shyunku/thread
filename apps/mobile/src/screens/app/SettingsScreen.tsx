@@ -27,7 +27,12 @@ type Choice<K extends keyof Prefs> = {
   options: [Prefs[K], string][];
 };
 const CHOICES: {
-  [K in 'startTab' | 'weekStart' | 'timeFormat' | 'theme']: Choice<K>;
+  [K in
+    | 'startTab'
+    | 'weekStart'
+    | 'timeFormat'
+    | 'theme'
+    | 'secretRelock']: Choice<K>;
 } = {
   startTab: {
     key: 'startTab',
@@ -63,6 +68,14 @@ const CHOICES: {
       ['light', '라이트'],
     ],
   },
+  secretRelock: {
+    key: 'secretRelock',
+    title: '비밀 카테고리 다시 잠금',
+    options: [
+      ['session', '앱을 닫거나 잠글 때'],
+      ['each', '열 때마다'],
+    ],
+  },
 };
 
 export default function SettingsScreen() {
@@ -78,37 +91,37 @@ export default function SettingsScreen() {
       <Text
         style={{
           color: theme.text,
-          fontSize: 22,
+          fontSize: 19.5,
           fontWeight: '700',
-          paddingHorizontal: 18,
-          paddingTop: 16,
-          paddingBottom: 12,
+          paddingHorizontal: 16,
+          paddingTop: 14,
+          paddingBottom: 10.5,
         }}
       >
         설정
       </Text>
-      <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 35 }}>
         <View
           style={{
             flexDirection: 'row',
             alignItems: 'center',
-            gap: 12,
-            marginHorizontal: 12,
-            padding: 14,
-            borderRadius: 14,
+            gap: 10.5,
+            marginHorizontal: 10.5,
+            padding: 12.5,
+            borderRadius: 12.5,
             borderWidth: 1,
             borderColor: theme.border,
             backgroundColor: theme.surface,
           }}
         >
-          <Logo size={44} />
+          <Logo size={38.5} />
           <View style={{ flex: 1 }}>
             <Text
-              style={{ color: theme.text, fontWeight: '700', fontSize: 15 }}
+              style={{ color: theme.text, fontWeight: '700', fontSize: 13 }}
             >
               {user?.username ?? user?.authId ?? '계정'}
             </Text>
-            <Text style={{ color: theme.muted, fontSize: 12 }}>
+            <Text style={{ color: theme.muted, fontSize: 10.5 }}>
               {user?.googleEmail
                 ? `Google 연결됨 · ${user.googleEmail}`
                 : user?.authId ?? ''}
@@ -136,6 +149,11 @@ export default function SettingsScreen() {
             title="테마"
             value={label('theme')}
             onPress={() => setChoice('theme')}
+          />
+          <Item
+            title="비밀 카테고리 다시 잠금"
+            value={label('secretRelock')}
+            onPress={() => setChoice('secretRelock')}
             last
           />
         </Group>
@@ -143,21 +161,21 @@ export default function SettingsScreen() {
         <Group title="데이터">
           <Pressable
             onPress={() => navigation.navigate('DataSettings')}
-            style={{ paddingTop: 12 }}
+            style={{ paddingTop: 10.5 }}
           >
             <View
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
-                paddingHorizontal: 14,
+                paddingHorizontal: 12.5,
               }}
             >
-              <Text style={{ flex: 1, color: theme.text, fontSize: 15 }}>
+              <Text style={{ flex: 1, color: theme.text, fontSize: 13 }}>
                 동기화 · 기기 · 복구
               </Text>
-              <ChevronRight color={theme.muted} size={18} />
+              <ChevronRight color={theme.muted} size={16} />
             </View>
-            <View style={{ marginTop: 6, marginLeft: -4 }}>
+            <View style={{ marginTop: 5.5, marginLeft: -3.5 }}>
               <SyncLine />
             </View>
           </Pressable>
@@ -245,7 +263,7 @@ export default function SettingsScreen() {
                 setChoice(null);
               }}
             >
-              <Text style={{ color: theme.text, fontSize: 15 }}>{text}</Text>
+              <Text style={{ color: theme.text, fontSize: 13 }}>{text}</Text>
             </Row>
           ))}
         </Sheet>
@@ -267,19 +285,19 @@ export function Group({
       <Text
         style={{
           color: theme.muted,
-          fontSize: 12,
+          fontSize: 10.5,
           fontWeight: '600',
-          paddingHorizontal: 18,
-          paddingTop: 18,
-          paddingBottom: 6,
+          paddingHorizontal: 16,
+          paddingTop: 16,
+          paddingBottom: 5.5,
         }}
       >
         {title}
       </Text>
       <View
         style={{
-          marginHorizontal: 12,
-          borderRadius: 14,
+          marginHorizontal: 10.5,
+          borderRadius: 12.5,
           borderWidth: 1,
           borderColor: theme.border,
           backgroundColor: theme.surface,
@@ -315,9 +333,9 @@ export function Item({
       style={({ pressed }) => ({
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
-        paddingHorizontal: 14,
-        paddingVertical: 13,
+        gap: 7,
+        paddingHorizontal: 12.5,
+        paddingVertical: 11.5,
         borderBottomWidth: last ? 0 : 1,
         borderColor: theme.border,
         backgroundColor: pressed ? theme.hover : 'transparent',
@@ -325,20 +343,20 @@ export function Item({
     >
       <View style={{ flex: 1 }}>
         <Text
-          style={{ color: danger ? theme.danger : theme.text, fontSize: 15 }}
+          style={{ color: danger ? theme.danger : theme.text, fontSize: 13 }}
         >
           {title}
         </Text>
         {!!detail && (
-          <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
+          <Text style={{ color: theme.muted, fontSize: 10.5, marginTop: 2 }}>
             {detail}
           </Text>
         )}
       </View>
       {!!value && (
-        <Text style={{ color: theme.muted, fontSize: 13 }}>{value}</Text>
+        <Text style={{ color: theme.muted, fontSize: 11.5 }}>{value}</Text>
       )}
-      {onPress && <ChevronRight color={theme.muted} size={16} />}
+      {onPress && <ChevronRight color={theme.muted} size={14} />}
     </Pressable>
   );
 }

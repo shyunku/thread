@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { AppState } from 'react-native';
 import type { AccountUser } from '@/core/auth/api';
 import type { AccountRuntime } from '@/core/app/runtime';
 import {
@@ -66,8 +67,10 @@ type AppValue = {
   setupDone(): void;
   reloadSetup(): void;
   // Which list the task and calendar tabs show (모든 할 일 · 오늘 · a category).
+  // A secret category asks for biometrics/PIN first; false when not confirmed.
   scope: Scope;
-  setScope(scope: Scope): void;
+  setScope(scope: Scope): Promise<boolean>;
+  isSecretOpen(cid: string): boolean;
 };
 
 const AppContext = createContext<AppValue | null>(null);
@@ -94,6 +97,8 @@ export function AppProvider({
     }
   });
   const refresh = useCallback(() => setVersion(value => value + 1), []);
+  // Secret categories opened with biometrics/PIN in this app session (#88).
+  const [openSecrets, setOpenSecrets] = useState<string[]>([]);
 
   useEffect(() => {
     runtime.account.onChange(setUser);
@@ -165,6 +170,28 @@ export function AppProvider({
     }
   }, [account, phase, version]);
 
+  // Secret categories lock again when the app leaves the foreground or the vault locks;
+  // a secret view that is no longer open falls back to all tasks.
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', state => {
+      if (state === 'background') setOpenSecrets([]);
+    });
+    return () => subscription.remove();
+  }, []);
+  useEffect(() => {
+    if (phase !== 'UNLOCKED') setOpenSecrets([]);
+  }, [phase]);
+  const scopeSecret =
+    scope.kind === 'category' && !!model?.categoryMap.get(scope.cid)?.secret;
+  useEffect(() => {
+    if (
+      scopeSecret &&
+      scope.kind === 'category' &&
+      !openSecrets.includes(scope.cid)
+    )
+      setScope({ kind: 'all' });
+  }, [scopeSecret, scope, openSecrets]);
+
   const value: AppValue = {
     runtime,
     ready,
@@ -186,7 +213,37 @@ export function AppProvider({
     },
     refresh,
     scope,
-    setScope,
+    async setScope(next) {
+      const leaving =
+        scope.kind === 'category' && scopeSecret ? scope.cid : null;
+      const secret =
+        next.kind === 'category' && !!model?.categoryMap.get(next.cid)?.secret;
+      if (
+        secret &&
+        next.kind === 'category' &&
+        !openSecrets.includes(next.cid)
+      ) {
+        const confirmed = await account?.workspace
+          .confirmUser()
+          .catch(() => false);
+        if (!confirmed) return false;
+      }
+      setOpenSecrets(current => {
+        let list = current;
+        if (
+          prefs.secretRelock === 'each' &&
+          leaving &&
+          leaving !== (next.kind === 'category' ? next.cid : null)
+        )
+          list = list.filter(cid => cid !== leaving);
+        if (secret && next.kind === 'category' && !list.includes(next.cid))
+          list = [...list, next.cid];
+        return list;
+      });
+      setScope(next);
+      return true;
+    },
+    isSecretOpen: cid => openSecrets.includes(cid),
     // Local edits go to the encrypted outbox right away and sync in the background.
     mutate(topic, args) {
       if (!account) throw Error('AUTH_REQUIRED');

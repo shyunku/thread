@@ -225,20 +225,34 @@ export class SyncService {
   }
 
   // Devices in the verified membership (after the first sync of this session).
+  // addedAt is approximate like the desktop list: a signed add record carries the
+  // pairing request's expiry (request time + 10 minutes); other devices have none.
   devices(): {
     id: string;
     role: string;
     canAuthorizeDevices: boolean;
     self: boolean;
+    addedAt: number | null;
   }[] {
     const history = this.#sync?.engine.history;
     if (!history) return [];
     const self = this.#sync.engine.deviceId;
+    const added = new Map<string, number>();
+    for (const record of history.records.values()) {
+      const body = record?.body;
+      if (
+        body?.operation === 'add' &&
+        typeof body.device?.id === 'string' &&
+        Number.isSafeInteger(body.expiresAt)
+      )
+        added.set(body.device.id, body.expiresAt - 600000);
+    }
     return [...history.current.devices.values()].map((device: any) => ({
       id: device.id,
       role: device.role,
       canAuthorizeDevices: !!device.canAuthorizeDevices,
       self: device.id === self,
+      addedAt: added.get(device.id) ?? null,
     }));
   }
 

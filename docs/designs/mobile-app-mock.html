@@ -170,6 +170,10 @@
   .toggle.off { background: var(--border); } .toggle.off::after { right: auto; left: 3px; }
   .bar { height: 8px; border-radius: 4px; background: var(--success); flex: 1; }
   .lock-ic { width: 84px; height: 84px; border-radius: 26px; display: grid; place-items: center; background: var(--surface); border: 1px solid var(--border); font-size: 38px; }
+  /* Size check (user feedback 2026-10-05): everything about 12% smaller, buttons a bit more. */
+  .phone.compact > :not(.status):not(.gesture) { zoom: .88; }
+  .phone.compact .btn { padding: 11px 14px; border-radius: 12px; font-size: 14px; }
+  .phone.compact .fab { width: 50px; height: 50px; font-size: 24px; border-radius: 16px; }
 </style>
 </head>
 <body>
@@ -178,6 +182,10 @@
   <div class="line" data-group="app"><strong>앱</strong></div>
   <div class="line">
     <strong>정할 것</strong>
+    <span class="muted small" style="color:#8792a4">크기</span>
+    <button data-k="size" data-v="normal">지금 크기</button>
+    <button data-k="size" data-v="compact">12% 작게(버튼 더 작게)</button>
+    <span class="sep"></span>
     <span class="muted small" style="color:#8792a4">테마</span>
     <button data-k="theme" data-v="dark">A 다크</button>
     <button data-k="theme" data-v="light">B 라이트</button>
@@ -197,7 +205,7 @@
   <section class="notes" data-notes></section>
 </div>
 <script>
-const s = { screen: 'tasks', theme: 'dark', add: 'fab', cat: 'sheet', todoOpen: true, doneOpen: false, tab: 'tasks', overlay: null };
+const s = { screen: 'tasks', theme: 'dark', size: 'compact', add: 'fab', cat: 'sheet', todoOpen: true, doneOpen: false, tab: 'tasks', overlay: null };
 const SCREENS = [
   ['start', 'login', '로그인'], ['start', 'link', 'Google 연결'], ['start', 'lockmethod', '잠금 방법'],
   ['start', 'choose', '데이터 연결 선택'], ['start', 'pair', '기존 기기와 연결'], ['start', 'pairCode', '6자리 확인'],
@@ -449,7 +457,7 @@ const NOTES = `
 function render() {
   const theme = s.theme === 'dark' ? 'dark' : 'light';
   const phone = document.querySelector('[data-phone]');
-  phone.className = 'phone theme-' + theme;
+  phone.className = 'phone theme-' + theme + (s.size === 'compact' ? ' compact' : '');
   const body = (RENDER[s.screen] || tasksScreen)();
   let overlay = '';
   if (s.screen === 'catsheet' || s.overlay === 'catsheet' || s.overlay === 'drawer') overlay = catSheet();

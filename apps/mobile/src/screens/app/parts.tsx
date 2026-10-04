@@ -37,11 +37,11 @@ export function AppBar({
       style={{
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
+        gap: 5.5,
         paddingLeft: left ? 8 : 18,
-        paddingRight: 10,
-        paddingTop: 8,
-        minHeight: 56,
+        paddingRight: 9,
+        paddingTop: 7,
+        minHeight: 49.5,
       }}
     >
       {left}
@@ -52,7 +52,9 @@ export function AppBar({
         style={{ flex: 1 }}
       >
         {typeof title === 'string' ? (
-          <Text style={{ color: theme.text, fontSize: 22, fontWeight: '700' }}>
+          <Text
+            style={{ color: theme.text, fontSize: 19.5, fontWeight: '700' }}
+          >
             {title}
           </Text>
         ) : (
@@ -127,12 +129,12 @@ export function TaskItem({
       style={({ pressed }) => ({
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
-        marginHorizontal: 12,
-        marginBottom: 8,
-        paddingHorizontal: 14,
-        paddingVertical: 13,
-        borderRadius: 14,
+        gap: 10.5,
+        marginHorizontal: 10.5,
+        marginBottom: 7,
+        paddingHorizontal: 12.5,
+        paddingVertical: 11.5,
+        borderRadius: 12.5,
         borderWidth: 1,
         borderColor: theme.border,
         backgroundColor: pressed ? theme.hover : theme.surface,
@@ -145,7 +147,7 @@ export function TaskItem({
           numberOfLines={1}
           style={{
             color: task.done ? theme.muted : theme.text,
-            fontSize: 15,
+            fontSize: 13,
             fontWeight: '600',
             textDecorationLine: task.done ? 'line-through' : 'none',
           }}
@@ -156,16 +158,16 @@ export function TaskItem({
           style={{
             flexDirection: 'row',
             alignItems: 'center',
-            gap: 8,
-            marginTop: 3,
+            gap: 7,
+            marginTop: 2.5,
           }}
         >
           {color && (
             <View
               style={{
-                width: 8,
-                height: 8,
-                borderRadius: 4,
+                width: 7,
+                height: 7,
+                borderRadius: 3.5,
                 backgroundColor: color,
               }}
             />
@@ -177,7 +179,7 @@ export function TaskItem({
             <View
               style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}
             >
-              <Repeat color={theme.muted} size={12} />
+              <Repeat color={theme.muted} size={10.5} />
               <Meta>{REPEAT_LABEL[task.repeatPeriod]}</Meta>
             </View>
           )}
@@ -195,7 +197,9 @@ export function TaskItem({
 function Meta({ children, danger }: { children: ReactNode; danger?: boolean }) {
   const theme = useTheme();
   return (
-    <Text style={{ color: danger ? theme.danger : theme.muted, fontSize: 12 }}>
+    <Text
+      style={{ color: danger ? theme.danger : theme.muted, fontSize: 10.5 }}
+    >
       {children}
     </Text>
   );
@@ -234,15 +238,20 @@ export function SyncLine({ extra }: { extra?: string }) {
       style={{
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
-        paddingHorizontal: 18,
-        paddingBottom: 10,
+        gap: 5.5,
+        paddingHorizontal: 16,
+        paddingBottom: 9,
       }}
     >
       <View
-        style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: color }}
+        style={{
+          width: 5.5,
+          height: 5.5,
+          borderRadius: 2.5,
+          backgroundColor: color,
+        }}
       />
-      <Text style={{ color: theme.muted, fontSize: 12 }}>
+      <Text style={{ color: theme.muted, fontSize: 10.5 }}>
         {text}
         {extra ? ` · ${extra}` : ''}
       </Text>
@@ -269,10 +278,10 @@ export function SectionHeader({
       style={{
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
-        paddingHorizontal: 18,
-        paddingTop: 14,
-        paddingBottom: 8,
+        gap: 7,
+        paddingHorizontal: 16,
+        paddingTop: 12.5,
+        paddingBottom: 7,
       }}
     >
       {onPress && (
@@ -285,7 +294,9 @@ export function SectionHeader({
           ▾
         </Text>
       )}
-      <Text style={{ color: theme.secondary, fontSize: 13, fontWeight: '600' }}>
+      <Text
+        style={{ color: theme.secondary, fontSize: 11.5, fontWeight: '600' }}
+      >
         {label}
       </Text>
     </Pressable>

@@ -31,6 +31,7 @@ import SearchScreen from '@/screens/app/SearchScreen';
 import CategoriesScreen from '@/screens/app/CategoriesScreen';
 import DataSettingsScreen from '@/screens/app/DataSettingsScreen';
 import ApproveDeviceScreen from '@/screens/app/ApproveDeviceScreen';
+import KeyChangeScreen from '@/screens/app/KeyChangeScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -48,13 +49,13 @@ function TabIcon({
   return (
     <View
       style={{
-        paddingHorizontal: 16,
+        paddingHorizontal: 14,
         paddingVertical: 2,
-        borderRadius: 12,
+        borderRadius: 10.5,
         backgroundColor: focused ? theme.selected : 'transparent',
       }}
     >
-      <Icon color={focused ? theme.accent : color} size={20} />
+      <Icon color={focused ? theme.accent : color} size={17.5} />
     </View>
   );
 }
@@ -85,10 +86,10 @@ function Tabs() {
         tabBarStyle: {
           backgroundColor: theme.panel,
           borderTopColor: theme.border,
-          height: 62 + insets.bottom,
-          paddingTop: 6,
+          height: 55 + insets.bottom,
+          paddingTop: 5.5,
         },
-        tabBarLabelStyle: { fontSize: 11 },
+        tabBarLabelStyle: { fontSize: 9.5 },
         sceneStyle: { backgroundColor: theme.canvas, paddingTop: insets.top },
       }}
     >
@@ -188,6 +189,11 @@ function Root() {
             name="ApproveDevice"
             component={ApproveDeviceScreen}
             options={{ animation: 'slide_from_bottom' }}
+          />
+          <Stack.Screen
+            name="KeyChange"
+            component={KeyChangeScreen}
+            options={{ animation: 'slide_from_bottom', gestureEnabled: false }}
           />
         </>
       )}
