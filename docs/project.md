@@ -23,7 +23,7 @@ Desktop 개발 실행은 Thread Dev 및 kr.threadapp.desktop.dev로 구분하고
 | 경로 | 역할 | 배포 형태 |
 | --- | --- | --- |
 | `apps/desktop/` | Electron + React 데스크톱 클라이언트 | 네이티브 패키지 |
-| `apps/mobile/` | React Native 모바일 클라이언트 | iOS/Android 앱 |
+| `apps/mobile/` | React Native 모바일 클라이언트(2.0, RN 0.87·TypeScript, #81에서 새로 생성) | Android 먼저, iOS는 #93 |
 | `apps/web/site/` | React 공개 웹사이트 | Docker/Nginx 지원 |
 | `apps/web/admin/` | React 관리자 대시보드 | Docker/Nginx 지원 |
 | `services/api/` | Go/Gin 인증 및 상태 동기화 서버 | Docker 지원 |
@@ -31,7 +31,7 @@ Desktop 개발 실행은 Thread Dev 및 kr.threadapp.desktop.dev로 구분하고
 
 ## 데이터 흐름
 
-1. 데스크톱에서 할 일, 하위 할 일, 카테고리를 변경한다. 모바일은 조회 전용이다.
+1. 데스크톱에서 할 일, 하위 할 일, 카테고리를 변경한다. 모바일 2.0(#81~#93)은 데스크톱과 같은 v3 데이터로 조회·편집을 목표로 한다.
 2. 클라이언트는 변경을 트랜잭션으로 만들고 로컬 상태에 반영한다.
 3. 인증된 WebSocket 연결을 통해 애플리케이션 서버에 트랜잭션을 제출한다.
 4. 서버는 사용자별 상태와 블록을 계산해 MySQL에 저장하고 연결된 클라이언트에 전파한다.
@@ -67,7 +67,7 @@ API schema11은 signed batch를 `encrypted_records`에 vault별 SHA-256 digest�
 
 2026-09-10 일반 데스크톱 진입에 계정별 v2/E2EE 저장소 선택과 잠금 화면을 연결했다. 암호화 보관함으로 확인된 계정은 재시작·오프라인에서도 암호화 저장소를 유지하며 평문 저장소로 자동 전환하지 않는다. production 코드에도 포함하지만 실제 DB 이관·운영 게이트 활성화·출시를 의미하지 않는다. 아래 초기 단계 기록의 앱 통합 미완료 범위 중 진입/잠금은 구현됐으며 이관 UI와 최종 사용자 검증은 남아 있다.
 
-사용자 승인(2026-09-09): 모바일 Android 최소 지원을 API 23(Android 6)으로 변경한다. Android 실기기로 보안 키 저장소를 검증하며, 모바일 편집 UI는 범위에 추가하지 않는다. 최신 구현 및 미완료 경계는 [2026-09-09 체크포인트](reports/2026-09-09-e2ee-checkpoint.md)를 참조한다.
+사용자 승인(2026-09-09): 모바일 Android 최소 지원을 API 23(Android 6)으로 변경한다. 이후 모바일 2.0(2026-10-04, #81)은 최신 React Native 0.87을 쓰므로 최소 지원이 API 24(Android 7.0)로 올라갔다. Android 실기기로 보안 키 저장소를 검증하며, 모바일 편집 UI는 범위에 추가하지 않는다. 최신 구현 및 미완료 경계는 [2026-09-09 체크포인트](reports/2026-09-09-e2ee-checkpoint.md)를 참조한다.
 
 Desktop의 최소 macOS 버전은 사용자 승인으로 12 이상이다. 2026-09-08 사용자 승인으로 E2EE 개발 브랜치의 Windows 배포는 x64 전용으로 전환한다. 기존 appId·사용자 데이터 경로는 보존하고 ia32→x64 설치 덮어쓰기는 별도 검증한다. #46~48의 TUF·암호 포맷·암호화 저장소 실험 구현은 [체크포인트](reports/2026-09-08-e2ee-checkpoint.md)를 참조한다. 기존 앱 통합은 미완료이며 E2EE 활성화로 표시하지 않는다.
 

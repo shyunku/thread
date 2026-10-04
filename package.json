@@ -13,6 +13,7 @@
     "dev:desktop": "pnpm --dir apps/desktop win-all",
     "dev:desktop:secure": "set THREAD_SECURE_LOGS=1&& pnpm dev:desktop",
     "dev:mobile": "pnpm --dir apps/mobile android",
+    "dev:mobile:secure": "set SECURE_LOGS=1&& pnpm --dir apps/mobile start --reset-cache",
     "dev:site": "pnpm --dir apps/web/site start",
     "dev:admin": "pnpm --dir apps/web/admin start",
     "build:web": "pnpm --dir apps/web/site build && pnpm --dir apps/web/admin build",
@@ -21,6 +22,7 @@
     "cert:desktop:renew": "node apps/desktop/scripts/updateTrustRoot.cjs renew",
     "cert:desktop:passphrase": "node apps/desktop/scripts/generatePassphrase.cjs",
     "db:backup": "sh scripts/db-backup.sh",
-    "lint:mobile": "pnpm --dir apps/mobile lint"
+    "lint:mobile": "pnpm --dir apps/mobile lint",
+    "test:mobile": "pnpm --dir apps/mobile test"
   }
 }

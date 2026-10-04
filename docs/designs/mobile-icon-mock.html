@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thread 모바일 아이콘 시안</title>
+<style>
+  :root { --border: #2b303b; --text: #edf1f7; --secondary: #a0aaba; --muted: #8792a4; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0b0d10; color: var(--text); font: 14px/1.5 Pretendard, "Malgun Gothic", "Segoe UI", sans-serif; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  .toolbar { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 10px 16px; background: #0b0d10ee; border-bottom: 1px solid var(--border); }
+  .toolbar strong { margin: 0 2px 0 6px; font-size: 12px; color: var(--muted); }
+  .toolbar button { padding: 5px 10px; border: 1px solid var(--border); border-radius: 7px; background: #15181e; font-size: 12px; color: var(--secondary); }
+  .toolbar button.on { background: #253858; border-color: #3a5486; color: var(--text); }
+  .toolbar .sep { width: 1px; height: 20px; margin: 0 6px; background: var(--border); }
+  main { display: flex; flex-wrap: wrap; gap: 28px; justify-content: center; padding: 28px 16px 64px; }
+  .phone { width: 360px; height: 760px; padding: 48px 22px; border: 10px solid #222730; border-radius: 42px; background-size: cover; position: relative; overflow: hidden; }
+  .phone.wall-dark { background: linear-gradient(160deg, #1b2a4a, #0d1018 60%); }
+  .phone.wall-light { background: linear-gradient(160deg, #dfe7f5, #f7f3ee 60%); }
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 26px 10px; }
+  .app { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 11px; }
+  .wall-dark .app { color: #eef2f8; } .wall-light .app { color: #20242c; }
+  .icon { width: 56px; height: 56px; display: grid; place-items: center; overflow: hidden; }
+  .icon img { width: 66%; height: 66%; object-fit: contain; }
+  .shape-circle .icon { border-radius: 50%; }
+  .shape-squircle .icon { border-radius: 30%; }
+  .bg-dark .icon.thread { background: #101216; }
+  .bg-white .icon.thread { background: #ffffff; }
+  .bg-tint .icon.thread { background: #e9efff; }
+  .icon.other { background: #c9ced8; opacity: .55; }
+  .label { font-size: 12px; color: var(--muted); text-align: center; margin-top: 10px; }
+  .big { display: flex; gap: 24px; align-items: center; justify-content: center; margin-top: 60px; }
+  .big .icon { width: 120px; height: 120px; }
+  .notes { width: 760px; max-width: 100%; padding: 16px 18px; border: 1px dashed #3a4252; border-radius: 12px; color: var(--secondary); font-size: 13px; }
+  .notes h3 { margin: 12px 0 6px; color: var(--text); font-size: 13px; } .notes h3:first-child { margin-top: 0; }
+  .notes ul { margin: 0; padding-left: 18px; } .notes .q { color: #edbc72; }
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <strong>배경</strong>
+  <button data-k="bg" data-v="dark" class="on">A 앱 색(어두운 남색)</button>
+  <button data-k="bg" data-v="white">B 흰색</button>
+  <button data-k="bg" data-v="tint">C 연한 파랑</button>
+  <span class="sep"></span>
+  <strong>런처 모양(기기마다 다름)</strong>
+  <button data-k="shape" data-v="circle" class="on">원</button>
+  <button data-k="shape" data-v="squircle">둥근 사각</button>
+  <span class="sep"></span>
+  <strong>배경화면</strong>
+  <button data-k="wall" data-v="dark" class="on">어두운</button>
+  <button data-k="wall" data-v="light">밝은</button>
+</div>
+<main>
+  <div class="phone" data-phone>
+    <div class="grid" data-grid></div>
+    <div class="big" data-big></div>
+  </div>
+  <section class="notes">
+    <h3>바뀌는 것</h3>
+    <ul>
+      <li>모바일 앱 아이콘을 데스크톱과 같은 Thread 로고(T)로 바꿉니다. 지금은 React Native 기본 아이콘입니다.</li>
+      <li>Android는 아이콘 모양(원·둥근 사각 등)을 기기가 정합니다. 그래서 로고 뒤에 깔 배경색만 정하면 됩니다.</li>
+    </ul>
+    <h3>그대로인 것</h3>
+    <ul><li>로고 그림 자체, 앱 이름 "Thread".</li></ul>
+    <h3 class="q">정해 줘야 할 것</h3>
+    <ul><li class="q">배경을 A(앱 색), B(흰색), C(연한 파랑) 중 무엇으로 할지.</li></ul>
+  </section>
+</main>
+<script>
+  const s = { bg: "dark", shape: "circle", wall: "dark" };
+  const logo = "../../apps/desktop/public/logo512.png";
+  function render() {
+    const phone = document.querySelector("[data-phone]");
+    phone.className = `phone wall-${s.wall} bg-${s.bg} shape-${s.shape}`;
+    const names = ["메시지", "카메라", "캘린더", "Thread", "지도", "설정", "사진", "시계"];
+    document.querySelector("[data-grid]").innerHTML = names.map((n) => n === "Thread"
+      ? `<div class="app"><div class="icon thread"><img src="${logo}" alt=""></div>${n}</div>`
+      : `<div class="app"><div class="icon other"></div>${n}</div>`).join("");
+    document.querySelector("[data-big]").innerHTML = `<div class="icon thread"><img src="${logo}" alt=""></div>`;
+    document.querySelectorAll("[data-k]").forEach((b) => b.classList.toggle("on", s[b.dataset.k] === b.dataset.v));
+  }
+  document.addEventListener("click", (e) => { const b = e.target.closest("[data-k]"); if (b) { s[b.dataset.k] = b.dataset.v; render(); } });
+  render();
+</script>
+</body>
+</html>
