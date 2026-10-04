@@ -5,6 +5,7 @@ import { installE2eePlatform } from '@/core/e2ee/platform';
 import { LocalVault } from '@/core/vault/localVault';
 import { deviceVaultDeps } from '@/core/vault/native';
 import { VaultSession, VaultPhase } from '@/core/vault/session';
+import { createRuntime, environment } from '@/core/app/runtime';
 
 // Development-only controls to exercise the vault on a device until the real
 // lock screen is designed (#87). Uses a synthetic scope, never account data.
@@ -22,6 +23,17 @@ export default function VaultHarness() {
   }, []);
   const [phase, setPhase] = useState<VaultPhase | null>(null);
   const [note, setNote] = useState('');
+  const [account, setAccount] = useState('…');
+
+  useEffect(() => {
+    // Loads the account runtime (Keystore account entry, auth and sync modules).
+    createRuntime()
+      .account.restore()
+      .then(user =>
+        setAccount(`${environment} · ${user ? user.uid : '로그인 안 됨'}`),
+      )
+      .catch(error => setAccount(error.message));
+  }, []);
 
   useEffect(() => {
     session.onChange(setPhase);
@@ -54,6 +66,7 @@ export default function VaultHarness() {
 
   return (
     <View style={styles.box}>
+      <Text style={styles.title}>개발용 계정 · {account}</Text>
       <Text style={styles.title}>개발용 보관함 · {phase ?? '…'}</Text>
       <View style={styles.row}>
         <Button

@@ -19,6 +19,9 @@ dependencies:
   '@op-engineering/op-sqlite':
     specifier: 18.2.5
     version: 18.2.5(react-native@0.87.1)(react@19.2.3)
+  '@react-native-google-signin/google-signin':
+    specifier: 16.1.5
+    version: 16.1.5(react-native@0.87.1)(react@19.2.3)
   '@react-navigation/native':
     specifier: 7.5.0
     version: 7.5.0(react-native@0.87.1)(react@19.2.3)
@@ -1978,6 +1981,20 @@ packages:
       - supports-color
       - typescript
       - utf-8-validate
+
+  /@react-native-google-signin/google-signin@16.1.5(react-native@0.87.1)(react@19.2.3):
+    resolution: {integrity: sha512-9rmMwACzHK9Cbd0Yp7efg5uWgiYoLwmNAJh4gRCuMcSQH+qplpK7E4d1Q4tbsD8M9jvvVtRX2Z0AP9wwBKmPrQ==}
+    peerDependencies:
+      expo: '>=52.0.40'
+      react: '*'
+      react-native: '*'
+    peerDependenciesMeta:
+      expo:
+        optional: true
+    dependencies:
+      react: 19.2.3
+      react-native: 0.87.1(@babel/core@7.29.7)(@react-native-community/cli@20.2.0)(@react-native/metro-config@0.87.1)(@types/react@19.3.0)(react@19.2.3)
+    dev: false
 
   /@react-native/asset-utils@0.87.1:
     resolution: {integrity: sha512-FeFnbn9ENPs7IVBzZt1bBWfiRGvT4q+CsWwXGFyKVW/1ol3ylBRuTtXBGHIAmcNN4fUR60nSXsCN19pzNHkPgA==}
