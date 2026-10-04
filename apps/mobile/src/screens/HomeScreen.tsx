@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { colors } from '@/app/theme';
 import { runE2eeSelfTest } from '@/core/e2ee/selfTest';
+import VaultHarness from './dev/VaultHarness';
 
 // Placeholder until the real screens land (#87 design, #88 tasks).
 export default function HomeScreen() {
@@ -25,6 +26,7 @@ export default function HomeScreen() {
       <Text style={styles.title}>Thread</Text>
       <Text style={styles.subtitle}>모바일 2.0 준비 중</Text>
       {selfTest && <Text style={styles.devNote}>{selfTest}</Text>}
+      {__DEV__ && <VaultHarness />}
     </View>
   );
 }

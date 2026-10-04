@@ -16,6 +16,9 @@ dependencies:
   '@noble/hashes':
     specifier: 2.4.0
     version: 2.4.0
+  '@op-engineering/op-sqlite':
+    specifier: 18.2.5
+    version: 18.2.5(react-native@0.87.1)(react@19.2.3)
   '@react-navigation/native':
     specifier: 7.5.0
     version: 7.5.0(react-native@0.87.1)(react@19.2.3)
@@ -40,6 +43,9 @@ dependencies:
   react-native:
     specifier: 0.87.1
     version: 0.87.1(@babel/core@7.29.7)(@react-native-community/cli@20.2.0)(@react-native/metro-config@0.87.1)(@types/react@19.3.0)(react@19.2.3)
+  react-native-keychain:
+    specifier: 10.0.0
+    version: 10.0.0
   react-native-libsodium:
     specifier: 1.7.0
     version: 1.7.0(patch_hash=qer3pyhb5mpegp64vvwoncm6p4)(react-native@0.87.1)(react@19.2.3)
@@ -106,6 +112,9 @@ devDependencies:
     specifier: ^29.6.3
     version: 29.7.0
   libsodium-wrappers:
+    specifier: 0.8.4
+    version: 0.8.4
+  libsodium-wrappers-sumo:
     specifier: 0.8.4
     version: 0.8.4
   prettier:
@@ -1812,6 +1821,20 @@ packages:
     dependencies:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.20.3
+
+  /@op-engineering/op-sqlite@18.2.5(react-native@0.87.1)(react@19.2.3):
+    resolution: {integrity: sha512-OLmcM0SQLapP1p5Q6Ck5P+V3N6RsAhBozIG07PbQr+8wgB0gYoFgFjuWZK0JvNBY+UYgYPxkOQDd4rk4naWNGw==}
+    peerDependencies:
+      '@sqlite.org/sqlite-wasm': '*'
+      react: '*'
+      react-native: '*'
+    peerDependenciesMeta:
+      '@sqlite.org/sqlite-wasm':
+        optional: true
+    dependencies:
+      react: 19.2.3
+      react-native: 0.87.1(@babel/core@7.29.7)(@react-native-community/cli@20.2.0)(@react-native/metro-config@0.87.1)(@types/react@19.3.0)(react@19.2.3)
+    dev: false
 
   /@react-native-community/cli-clean@20.2.0:
     resolution: {integrity: sha512-krqbhFiwHN8l5wZ2XTcrNq9N+DqDWHxW8RK0bIcrK0O+fMvjYi9e/1Pnx2W0CTotOVcZpHzUbgZ4TQVF231Skw==}
@@ -5206,13 +5229,11 @@ packages:
 
   /libsodium-sumo@0.8.4:
     resolution: {integrity: sha512-TMtHShQfVVsaxDygyapvUC3o7YsPgXa/hRWeIgzyFz6w5k/1hirGptCxp1U7XwW3rCskaTTYKgV10v86UiGgNw==}
-    dev: false
 
   /libsodium-wrappers-sumo@0.8.4:
     resolution: {integrity: sha512-ql7hcgulKZ3ekfa2DGAogcCKsWU0diA/0nArz1CFzh93WQdb46/Kj18ka/Hifq6uA3Ush34Pc6vU/6HXeRwUkg==}
     dependencies:
       libsodium-sumo: 0.8.4
-    dev: false
 
   /libsodium-wrappers@0.8.4:
     resolution: {integrity: sha512-mu8aAWucZjTB5O/BtGXtW4e1agy7uHxNYG7zPthmmD1jU43LCDmSWZLN4JhflbdPXj3yDO4lxM1O9hLDgIOXDw==}
@@ -6048,6 +6069,11 @@ packages:
     dependencies:
       dotenv: 18.0.5
     dev: true
+
+  /react-native-keychain@10.0.0:
+    resolution: {integrity: sha512-YzPKSAnSzGEJ12IK6CctNLU79T1W15WDrElRQ+1/FsOazGX9ucFPTQwgYe8Dy8jiSEDJKM4wkVa3g4lD2Z+Pnw==}
+    engines: {node: '>=16'}
+    dev: false
 
   /react-native-libsodium@1.7.0(patch_hash=qer3pyhb5mpegp64vvwoncm6p4)(react-native@0.87.1)(react@19.2.3):
     resolution: {integrity: sha512-0I2FcCeyR2HUiUOIvoukteZFMY2WIhPCQ6OOOYy33nQiyGFpwW6I4ky/f18SdSN84n/GLvgC9DOF0fJaKTYYJg==}

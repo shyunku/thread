@@ -6,6 +6,7 @@ import ReactTestRenderer from 'react-test-renderer';
 import App from '../App';
 
 // The dev-only E2EE self-test runs real crypto; not part of this render check.
+jest.mock('@/screens/dev/VaultHarness', () => () => null);
 jest.mock('@/core/e2ee/selfTest', () => ({
   runE2eeSelfTest: () => Promise.resolve([]),
 }));
