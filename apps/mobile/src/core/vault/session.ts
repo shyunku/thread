@@ -11,14 +11,20 @@ export class VaultSession {
   #store: EncryptedStore | null = null;
   #pending = false;
   #generation = 0;
-  #listener: ((phase: VaultPhase) => void) | null = null;
+  #listeners = new Set<(phase: VaultPhase) => void>();
 
   constructor(vault: LocalVault) {
     this.#vault = vault;
   }
 
+  // Replaces every listener (simple single-owner use); see subscribe for more.
   onChange(listener: ((phase: VaultPhase) => void) | null) {
-    this.#listener = listener;
+    this.#listeners.clear();
+    if (listener) this.#listeners.add(listener);
+  }
+  subscribe(listener: (phase: VaultPhase) => void): () => void {
+    this.#listeners.add(listener);
+    return () => this.#listeners.delete(listener);
   }
 
   phase(): VaultPhase {
@@ -27,7 +33,7 @@ export class VaultSession {
   }
 
   #emit() {
-    this.#listener?.(this.phase());
+    for (const listener of [...this.#listeners]) listener(this.phase());
   }
 
   async #open(opener: () => Promise<EncryptedStore | null>) {
@@ -52,6 +58,11 @@ export class VaultSession {
   }
 
   start() {
+    // Already open: keep the store. Reopening would close the one sync holds.
+    if (this.#store) {
+      this.#emit();
+      return Promise.resolve(true);
+    }
     return this.#open(() => this.#vault.resume());
   }
   create(options: { password?: string } = {}) {

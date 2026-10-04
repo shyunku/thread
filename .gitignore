@@ -9,6 +9,7 @@
 /apps/desktop/public/resources/native/
 /.local/
 /apps/desktop/.local/
+/apps/mobile/.local/
 /.tmp/
 /.monorepo-build/
 /pkg/

@@ -208,6 +208,11 @@ test('session: silent start in the same boot, manual lock, lock wins over a pend
   await session.create();
   expect(session.phase()).toBe('UNLOCKED');
   session.use((store: EncryptedStore) => store.put('recovery', 'n', 1));
+  // Starting an open session keeps its store (sync holds on to it).
+  const open = session.use((store: EncryptedStore) => store);
+  expect(await session.start()).toBe(true);
+  expect(session.use((store: EncryptedStore) => store)).toBe(open);
+  expect(open.get('recovery', 'n')).toBe(1);
 
   const restarted = new VaultSession(vault);
   expect(await restarted.start()).toBe(true);

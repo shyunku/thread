@@ -45,7 +45,7 @@ export class SyncService {
     lastSyncedAt: null,
     error: null,
   };
-  #listener: ((status: SyncStatus) => void) | null = null;
+  #listeners = new Set<(status: SyncStatus) => void>();
   #poller: ReturnType<typeof setInterval> | null = null;
   #events: { done: Promise<void> } | null = null;
   #eventsAbort: AbortController | null = null;
@@ -67,15 +67,21 @@ export class SyncService {
     this.requestSync = syncScheduler(() => this.syncNow());
   }
 
+  // Replaces every listener (simple single-owner use); see subscribe for more.
   onChange(listener: ((status: SyncStatus) => void) | null) {
-    this.#listener = listener;
+    this.#listeners.clear();
+    if (listener) this.#listeners.add(listener);
+  }
+  subscribe(listener: (status: SyncStatus) => void): () => void {
+    this.#listeners.add(listener);
+    return () => this.#listeners.delete(listener);
   }
   status() {
     return this.#status;
   }
   #set(patch: Partial<SyncStatus>) {
     this.#status = { ...this.#status, ...patch };
-    this.#listener?.(this.#status);
+    for (const listener of [...this.#listeners]) listener(this.#status);
   }
 
   #counts() {
@@ -196,6 +202,24 @@ export class SyncService {
     this.#sync?.close();
     this.#sync = null;
     this.#set({ phase: 'LOCKED', connected: false, syncing: false });
+  }
+
+  // Devices in the verified membership (after the first sync of this session).
+  devices(): {
+    id: string;
+    role: string;
+    canAuthorizeDevices: boolean;
+    self: boolean;
+  }[] {
+    const history = this.#sync?.engine.history;
+    if (!history) return [];
+    const self = this.#sync.engine.deviceId;
+    return [...history.current.devices.values()].map((device: any) => ({
+      id: device.id,
+      role: device.role,
+      canAuthorizeDevices: !!device.canAuthorizeDevices,
+      self: device.id === self,
+    }));
   }
 
   // For the application layer (#88): the shared replica of the open vault.

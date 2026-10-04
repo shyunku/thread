@@ -1,18 +1,28 @@
 import { useState } from 'react';
-import { StatusBar } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { Provider } from 'react-redux';
-import { createStore } from '@/store';
+import { createRuntime } from '@/core/app/runtime';
+import { ThemeProvider } from '@/ui/theme';
+import { AppProvider, useApp, type AppRuntime } from './AppContext';
 import Navigation from './navigation';
 
-export default function App() {
-  const [store] = useState(createStore);
+function Themed() {
+  const { prefs } = useApp();
   return (
-    <Provider store={store}>
-      <SafeAreaProvider>
-        <StatusBar barStyle="light-content" />
-        <Navigation />
-      </SafeAreaProvider>
-    </Provider>
+    <ThemeProvider mode={prefs.theme}>
+      <Navigation />
+    </ThemeProvider>
+  );
+}
+
+export default function App({ runtime: injected }: { runtime?: AppRuntime }) {
+  const [runtime] = useState<AppRuntime>(
+    () => injected ?? (createRuntime() as unknown as AppRuntime),
+  );
+  return (
+    <SafeAreaProvider>
+      <AppProvider runtime={runtime}>
+        <Themed />
+      </AppProvider>
+    </SafeAreaProvider>
   );
 }

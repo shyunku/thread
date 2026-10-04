@@ -8,12 +8,14 @@ import { AccountSession } from '@/core/auth/account';
 import { accountStorage } from '@/core/auth/native';
 import { googleIdToken } from '@/core/auth/google';
 import { LocalVault } from '@/core/vault/localVault';
-import { deviceVaultDeps } from '@/core/vault/native';
+import { deviceVaultDeps, openDatabase } from '@/core/vault/native';
+import { createPrefsStore } from '@/core/prefs';
 import { VaultSession } from '@/core/vault/session';
 import {
   MobileWorkspace,
   VaultActivity,
   vaultIdFor,
+  type Transport,
 } from '@/core/workspace/workspace';
 import { SyncService } from '@/core/sync/syncService';
 
@@ -33,6 +35,7 @@ export type AccountRuntime = {
   session: VaultSession;
   workspace: MobileWorkspace;
   sync: SyncService;
+  transport(): Transport;
   dispose(): void;
 };
 
@@ -91,7 +94,7 @@ export function createRuntime() {
       } else if (state !== 'active') sync.stopForeground();
     };
     const subscription = AppState.addEventListener('change', foreground);
-    session.onChange(phase => {
+    const unsubscribe = session.subscribe(phase => {
       if (phase === 'UNLOCKED')
         foreground(AppState.currentState as AppStateStatus);
       else sync.close();
@@ -102,10 +105,11 @@ export function createRuntime() {
       session,
       workspace,
       sync,
+      transport,
       dispose() {
         subscription.remove();
         sync.close();
-        session.onChange(null);
+        unsubscribe();
         session.lock().catch(() => {});
       },
     };
@@ -115,6 +119,7 @@ export function createRuntime() {
   return {
     account,
     forAccount,
+    prefs: createPrefsStore(openDatabase),
     // Returns the user, or { linkToken, idToken } for the link/sign-up step.
     async signInWithGoogle() {
       const idToken = await googleIdToken();
