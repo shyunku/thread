@@ -1,0 +1,8 @@
+{
+  "name": "@thread/e2ee",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Thread end-to-end encryption and sync protocol shared by the desktop and mobile apps. Platform crypto is injected (see src/platform.js).",
+  "main": "src/index.js",
+  "license": "MIT"
+}

@@ -24,6 +24,7 @@ Desktop 개발 실행은 Thread Dev 및 kr.threadapp.desktop.dev로 구분하고
 | --- | --- | --- |
 | `apps/desktop/` | Electron + React 데스크톱 클라이언트 | 네이티브 패키지 |
 | `apps/mobile/` | React Native 모바일 클라이언트(2.0, RN 0.87·TypeScript, #81에서 새로 생성) | Android 먼저, iOS는 #93 |
+| `packages/e2ee/` | 데스크톱·모바일 공용 E2EE·동기화 프로토콜(#82). 각 앱이 `link:`로 연결하고 플랫폼 암호(libsodium·CBOR·SHA-256·HKDF·난수)를 주입 | 데스크톱 설치본에 포함, 모바일 번들에 포함 |
 | `apps/web/site/` | React 공개 웹사이트 | Docker/Nginx 지원 |
 | `apps/web/admin/` | React 관리자 대시보드 | Docker/Nginx 지원 |
 | `services/api/` | Go/Gin 인증 및 상태 동기화 서버 | Docker 지원 |

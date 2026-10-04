@@ -11,6 +11,9 @@ dependencies:
   '@reduxjs/toolkit':
     specifier: 1.9.2
     version: 1.9.2(react-redux@8.0.5)(react@18.3.1)
+  '@thread/e2ee':
+    specifier: link:../../packages/e2ee
+    version: link:../../packages/e2ee
   axios:
     specifier: 1.3.3
     version: 1.3.3

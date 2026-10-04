@@ -17,15 +17,19 @@ test("socket logging never serializes payloads and preserves callbacks, receiver
  assert.equal(socket.emit("PRIVATE_TOPIC",payload),true);assert.equal(sent[1],payload);
  assert.deepEqual(logs,["SOCKET_RECEIVED","SOCKET_SENT"]);
 });
-test("mobile auth, task and socket console calls accept only fixed diagnostic strings",()=>{
- const parser=require("@babel/parser");
- for(const name of ["pages/Login.tsx","pages/Home.tsx","hooks/websocket.tsx"]){
-  const source=fs.readFileSync(path.join(__dirname,"../../mobile/src",name),"utf8");
+test("mobile 2.0 logs only through the secure-aware logger",()=>{
+ const parser=require("@babel/parser"),root=path.join(__dirname,"../../mobile/src"),files=[];
+ const walk=dir=>{for(const entry of fs.readdirSync(dir,{withFileTypes:true})){const full=path.join(dir,entry.name);if(entry.isDirectory())walk(full);else if(/\.tsx?$/.test(entry.name)&&!entry.name.endsWith(".d.ts"))files.push(full);}};
+ walk(root);assert.ok(files.length>0);
+ for(const file of files){
+  const name=path.relative(root,file).replace(/\\/g,"/");
+  if(name==="core/log.ts")continue;
+  const source=fs.readFileSync(file,"utf8");
   const ast=parser.parse(source,{sourceType:"module",plugins:["typescript","jsx"]});
   const visit=node=>{
    if(!node||typeof node!=="object")return;
    if(node.type==="CallExpression"&&node.callee?.type==="MemberExpression"&&node.callee.object?.name==="console")
-    assert.ok(node.arguments.every(arg=>arg.type==="StringLiteral"),name+" has nonliteral console data");
+    assert.fail(name+" calls console directly; use core/log");
    for(const value of Object.values(node))if(Array.isArray(value))value.forEach(visit);else if(value&&typeof value==="object")visit(value);
   };
   visit(ast);

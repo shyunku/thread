@@ -12,6 +12,7 @@ Website: `https://threadapp.kr`
 | ----------------- | ------------------------------------------------ | -------------- |
 | `apps/desktop/`   | Electron and React desktop client                | No             |
 | `apps/mobile/`    | React Native mobile client                       | No             |
+| `packages/e2ee/`  | E2EE and sync protocol shared by desktop/mobile  | No             |
 | `apps/web/site/`  | React public site                                | Yes            |
 | `apps/web/admin/` | React administration site                        | Yes            |
 | `services/api/`   | Go and Gin authentication/synchronization server | Yes            |

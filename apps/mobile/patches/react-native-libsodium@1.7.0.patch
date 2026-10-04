@@ -1,0 +1,13 @@
+diff --git a/android/build.gradle b/android/build.gradle
+index 49282df744daa7ba04f3ae97d14731818a47e772..cff49b5fd14891d9b05483ac71f93c2a8df05a1d 100644
+--- a/android/build.gradle
++++ b/android/build.gradle
+@@ -45,7 +45,7 @@ static def findNodeModules(baseDir) {
+   throw new GradleException("react-native-libsodium: Failed to find node_modules path")
+ }
+ 
+-def nodeModules = findNodeModules(projectDir)
++def nodeModules = findNodeModules(projectDir).replace(File.separatorChar, '/' as char)
+ 
+ android {
+   ndkVersion getExtOrDefault("ndkVersion")
