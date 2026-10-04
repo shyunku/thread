@@ -1,0 +1,480 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thread 모바일 2.0 시안 (#87)</title>
+<style>
+  :root {
+    --page: #0b0d10; --frame: #222730;
+    --border-ui: #2b303b; --ui-text: #edf1f7; --ui-muted: #8792a4; --ui-panel: #15181e; --ui-selected: #253858;
+  }
+  /* App themes: dark = desktop tokens; light = proposed. */
+  .theme-dark {
+    --canvas: #101216; --panel: #15181e; --surface: #1c2028; --hover: #252b36; --border: #2b303b;
+    --text: #edf1f7; --secondary: #a0aaba; --muted: #8792a4; --accent: #6294ff; --accent-text: #fff;
+    --selected: #253858; --success: #70d5a0; --warning: #edbc72; --danger: #f0838b; --scrim: #000a;
+  }
+  .theme-light {
+    --canvas: #f5f6f8; --panel: #ffffff; --surface: #ffffff; --hover: #eef0f4; --border: #e2e5ea;
+    --text: #15181e; --secondary: #4f5868; --muted: #7b8494; --accent: #3d6ef0; --accent-text: #fff;
+    --selected: #e5ecff; --success: #239a62; --warning: #b9770e; --danger: #d64550; --scrim: #0006;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--ui-text); font: 14px/1.5 Pretendard, "Malgun Gothic", "Segoe UI", sans-serif; }
+  button, input, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+
+  .toolbar { position: sticky; top: 0; z-index: 50; display: flex; flex-direction: column; gap: 6px; padding: 10px 16px; background: #0b0d10ee; border-bottom: 1px solid var(--border-ui); backdrop-filter: blur(6px); }
+  .toolbar .line { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+  .toolbar strong { margin-right: 4px; font-size: 12px; color: var(--ui-muted); min-width: 52px; }
+  .toolbar button { padding: 4px 9px; border: 1px solid var(--border-ui); border-radius: 7px; background: var(--ui-panel); font-size: 12px; color: #a0aaba; }
+  .toolbar button.on { background: var(--ui-selected); border-color: #3a5486; color: var(--ui-text); }
+  .toolbar .sep { width: 1px; height: 18px; background: var(--border-ui); margin: 0 4px; }
+
+  .stage { display: flex; gap: 28px; align-items: flex-start; justify-content: center; padding: 28px 16px 64px; flex-wrap: wrap; }
+  .notes { width: 380px; padding: 16px 18px; border: 1px dashed #3a4252; border-radius: 12px; color: #a0aaba; font-size: 13px; }
+  .notes h3 { margin: 14px 0 6px; font-size: 13px; color: var(--ui-text); } .notes h3:first-child { margin-top: 0; }
+  .notes ul, .notes ol { margin: 0; padding-left: 18px; } .notes li { margin: 4px 0; }
+  .notes .q { color: #edbc72; }
+  .notes .now { padding: 8px 10px; border-radius: 8px; background: #161b24; color: #cfd6e2; margin-bottom: 10px; }
+
+  /* Phone: 390x844 (logical px), Android gesture navigation. */
+  .phone { position: relative; width: 390px; height: 844px; border-radius: 44px; border: 10px solid var(--frame); background: var(--canvas); color: var(--text); overflow: hidden; display: flex; flex-direction: column; }
+  .status { height: 36px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 22px; font-size: 12px; color: var(--secondary); }
+  .gesture { position: absolute; bottom: 6px; left: 50%; width: 110px; height: 4px; margin-left: -55px; border-radius: 4px; background: var(--muted); opacity: .6; z-index: 30; }
+  .content { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; position: relative; }
+  .content::-webkit-scrollbar { display: none; }
+
+  /* Common pieces */
+  .appbar { display: flex; align-items: center; gap: 8px; padding: 8px 12px 6px 18px; min-height: 52px; }
+  .appbar h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -.4px; display: flex; align-items: center; gap: 6px; }
+  .appbar .grow { flex: 1; }
+  .icon-btn { width: 40px; height: 40px; border: 0; border-radius: 12px; background: none; color: var(--secondary); display: grid; place-items: center; font-size: 18px; }
+  .icon-btn:active { background: var(--hover); }
+  .chev { font-size: 14px; color: var(--muted); }
+  .count { padding: 1px 8px; border-radius: 7px; background: var(--surface); border: 1px solid var(--border); color: var(--secondary); font-size: 13px; font-weight: 600; }
+  .sub { padding: 0 18px 10px; color: var(--muted); font-size: 12px; }
+  .chips { display: flex; gap: 6px; padding: 0 18px 12px; overflow-x: auto; scrollbar-width: none; }
+  .chip { flex: none; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--secondary); font-size: 13px; }
+  .chip.on { background: var(--selected); border-color: var(--accent); color: var(--text); }
+  .section { display: flex; align-items: center; gap: 8px; padding: 14px 18px 8px; color: var(--secondary); font-size: 13px; font-weight: 600; }
+  .section .arrow { display: inline-block; transition: transform .2s; }
+  .section.closed .arrow { transform: rotate(-90deg); }
+
+  .task { display: flex; align-items: center; gap: 12px; margin: 0 12px 8px; padding: 13px 14px; border-radius: 14px; background: var(--surface); border: 1px solid var(--border); }
+  .task.done { opacity: .6; }
+  .task.done .t { text-decoration: line-through; color: var(--muted); }
+  .check { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--muted); flex: none; display: grid; place-items: center; font-size: 13px; color: var(--accent-text); }
+  .task.done .check { background: var(--accent); border-color: var(--accent); }
+  .task .body { flex: 1; min-width: 0; }
+  .task .t { font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .task .meta { display: flex; gap: 8px; align-items: center; margin-top: 3px; color: var(--muted); font-size: 12px; }
+  .task .meta .over { color: var(--danger); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .tag { padding: 1px 7px; border-radius: 6px; background: var(--selected); color: var(--accent); font-size: 11px; font-weight: 600; }
+
+  .fab { position: absolute; right: 18px; bottom: 82px; width: 56px; height: 56px; border-radius: 18px; border: 0; background: var(--accent); color: var(--accent-text); font-size: 28px; box-shadow: 0 6px 18px #0006; z-index: 15; }
+  .quickadd { position: absolute; left: 12px; right: 12px; bottom: 80px; display: flex; gap: 8px; align-items: center; padding: 10px 12px; border-radius: 16px; background: var(--surface); border: 1px solid var(--border); box-shadow: 0 6px 18px #0005; z-index: 15; color: var(--muted); }
+
+  .tabbar { flex: none; display: flex; height: 70px; padding: 6px 6px 16px; background: var(--panel); border-top: 1px solid var(--border); }
+  .tabbar button { flex: 1; border: 0; background: none; display: flex; flex-direction: column; align-items: center; gap: 2px; color: var(--muted); font-size: 11px; }
+  .tabbar button .ic { font-size: 19px; line-height: 1.2; padding: 2px 16px; border-radius: 12px; }
+  .tabbar button.on { color: var(--text); }
+  .tabbar button.on .ic { background: var(--selected); color: var(--accent); }
+
+  .sync { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+  .sync .dot { width: 6px; height: 6px; background: var(--success); }
+
+  /* Sheets */
+  .scrim { position: absolute; inset: 0; background: var(--scrim); z-index: 40; }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 41; background: var(--panel); border-radius: 22px 22px 0 0; padding: 8px 0 26px; max-height: 88%; overflow-y: auto; scrollbar-width: none; }
+  .sheet .grab { width: 36px; height: 4px; border-radius: 4px; background: var(--border); margin: 4px auto 10px; }
+  .sheet h2 { margin: 0 20px 10px; font-size: 17px; }
+  .row { display: flex; align-items: center; gap: 12px; padding: 12px 20px; font-size: 15px; }
+  .row .grow { flex: 1; }
+  .row .hint { color: var(--muted); font-size: 13px; }
+  .row.on { background: var(--selected); }
+  .row .lead { width: 24px; text-align: center; color: var(--secondary); }
+  .divider { height: 1px; background: var(--border); margin: 6px 20px; }
+  .drawer { position: absolute; top: 0; bottom: 0; left: 0; width: 300px; z-index: 41; background: var(--panel); padding: 46px 0 20px; }
+
+  .field { margin: 0 18px 12px; padding: 13px 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); font-size: 15px; }
+  .field.big { font-size: 18px; color: var(--text); font-weight: 600; }
+  .btn { display: block; width: calc(100% - 36px); margin: 0 18px 10px; padding: 14px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 15px; font-weight: 600; text-align: center; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+  .btn.ghost { background: none; border-color: transparent; color: var(--secondary); font-weight: 500; }
+  .btn.google { display: flex; justify-content: center; align-items: center; gap: 10px; }
+  .g { width: 18px; height: 18px; border-radius: 50%; background: conic-gradient(#ea4335 0 25%, #fbbc05 0 50%, #34a853 0 75%, #4285f4 0); }
+  .center { display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .logo { width: 72px; height: 72px; border-radius: 20px; display: grid; place-items: center; background: linear-gradient(135deg, #2ec5ff, #6a4cff 70%, #b14cff); color: #fff; font-size: 38px; font-weight: 800; }
+  .title-xl { font-size: 24px; font-weight: 700; margin: 14px 0 4px; }
+  .muted { color: var(--muted); }
+  .small { font-size: 12px; }
+  .card { margin: 0 18px 12px; padding: 14px 16px; border-radius: 14px; background: var(--surface); border: 1px solid var(--border); }
+  .card h4 { margin: 0 0 4px; font-size: 15px; }
+  .steps { display: flex; gap: 6px; padding: 0 18px 14px; }
+  .steps i { flex: 1; height: 4px; border-radius: 4px; background: var(--border); }
+  .steps i.on { background: var(--accent); }
+  .code { font-family: ui-monospace, Consolas, monospace; letter-spacing: 1px; font-size: 13px; line-height: 1.8; padding: 12px 14px; border-radius: 12px; background: var(--canvas); border: 1px dashed var(--border); color: var(--text); word-break: break-all; }
+  .sas { display: flex; justify-content: center; gap: 8px; margin: 18px 0; }
+  .sas b { width: 42px; height: 56px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); display: grid; place-items: center; font-size: 28px; font-weight: 700; }
+  .spinner { width: 34px; height: 34px; border-radius: 50%; border: 3px solid var(--border); border-top-color: var(--accent); animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .option { display: flex; gap: 12px; align-items: flex-start; margin: 0 18px 10px; padding: 14px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); }
+  .option.on { border-color: var(--accent); background: var(--selected); }
+  .option .radio { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--muted); margin-top: 2px; flex: none; }
+  .option.on .radio { border-color: var(--accent); box-shadow: inset 0 0 0 4px var(--panel); background: var(--accent); }
+
+  /* Detail */
+  .detail-title { margin: 4px 18px 12px; font-size: 22px; font-weight: 700; }
+  .prop { display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-bottom: 1px solid var(--border); font-size: 15px; }
+  .prop .k { width: 70px; color: var(--muted); font-size: 13px; }
+  .prop .v { flex: 1; }
+  .subtask { display: flex; align-items: center; gap: 10px; padding: 9px 18px; font-size: 14px; }
+  .subtask .check { width: 20px; height: 20px; }
+  .memo { margin: 8px 18px; padding: 12px; min-height: 90px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); color: var(--secondary); font-size: 14px; }
+
+  /* Calendar */
+  .cal-head { display: flex; align-items: center; padding: 6px 12px 6px 18px; }
+  .cal-head h1 { flex: 1; margin: 0; font-size: 20px; }
+  .grid { display: grid; grid-template-columns: repeat(7, 1fr); padding: 0 8px; }
+  .grid .wd { text-align: center; font-size: 11px; color: var(--muted); padding: 4px 0; }
+  .grid .d { height: 52px; display: flex; flex-direction: column; align-items: center; gap: 3px; padding-top: 5px; font-size: 14px; border-radius: 12px; }
+  .grid .d.other { color: var(--muted); opacity: .45; }
+  .grid .d.today span { background: var(--accent); color: var(--accent-text); border-radius: 50%; width: 26px; height: 26px; display: grid; place-items: center; }
+  .grid .d.sel { background: var(--selected); }
+  .grid .d .marks { display: flex; gap: 3px; }
+  .grid .d .marks i { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+  .grid .d .marks i.done { background: var(--success); }
+  .grid .d.sun { color: var(--danger); } .grid .d.sat { color: var(--accent); }
+  .dayhead { padding: 14px 18px 6px; font-weight: 700; font-size: 15px; display: flex; }
+  .dayhead span { flex: 1; }
+
+  /* Timeline */
+  .tl { position: relative; margin: 6px 18px 0 60px; border-left: 1px solid var(--border); }
+  .tl .h { position: relative; height: 56px; }
+  .tl .h span { position: absolute; left: -48px; top: -8px; font-size: 11px; color: var(--muted); }
+  .tl .h::after { content: ""; position: absolute; left: 0; right: 0; top: 0; border-top: 1px dashed var(--border); }
+  .tl .ev { position: absolute; left: 8px; right: 0; padding: 6px 10px; border-radius: 10px; background: var(--selected); border-left: 3px solid var(--accent); font-size: 13px; }
+  .tl .now { position: absolute; left: -5px; right: 0; border-top: 2px solid var(--danger); }
+  .tl .now::before { content: ""; position: absolute; left: -1px; top: -6px; width: 10px; height: 10px; border-radius: 50%; background: var(--danger); }
+
+  /* Settings */
+  .group-title { padding: 18px 18px 6px; color: var(--muted); font-size: 12px; font-weight: 600; }
+  .list { margin: 0 12px; border-radius: 14px; background: var(--surface); border: 1px solid var(--border); overflow: hidden; }
+  .list .row { padding: 13px 14px; border-bottom: 1px solid var(--border); }
+  .list .row:last-child { border-bottom: 0; }
+  .toggle { width: 42px; height: 24px; border-radius: 12px; background: var(--accent); position: relative; }
+  .toggle::after { content: ""; position: absolute; right: 3px; top: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; }
+  .toggle.off { background: var(--border); } .toggle.off::after { right: auto; left: 3px; }
+  .bar { height: 8px; border-radius: 4px; background: var(--success); flex: 1; }
+  .lock-ic { width: 84px; height: 84px; border-radius: 26px; display: grid; place-items: center; background: var(--surface); border: 1px solid var(--border); font-size: 38px; }
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <div class="line" data-group="start"><strong>시작</strong></div>
+  <div class="line" data-group="app"><strong>앱</strong></div>
+  <div class="line">
+    <strong>정할 것</strong>
+    <span class="muted small" style="color:#8792a4">테마</span>
+    <button data-k="theme" data-v="dark">A 다크</button>
+    <button data-k="theme" data-v="light">B 라이트</button>
+    <button data-k="theme" data-v="system">C 시스템 따라감(라이트 보기)</button>
+    <span class="sep"></span>
+    <span class="muted small" style="color:#8792a4">할 일 추가</span>
+    <button data-k="add" data-v="fab">A + 버튼 → 시트</button>
+    <button data-k="add" data-v="bar">B 하단 입력줄</button>
+    <span class="sep"></span>
+    <span class="muted small" style="color:#8792a4">카테고리</span>
+    <button data-k="cat" data-v="sheet">A 제목 눌러 시트</button>
+    <button data-k="cat" data-v="drawer">B 왼쪽 서랍</button>
+  </div>
+</div>
+<div class="stage">
+  <div class="phone" data-phone></div>
+  <section class="notes" data-notes></section>
+</div>
+<script>
+const s = { screen: 'tasks', theme: 'dark', add: 'fab', cat: 'sheet', todoOpen: true, doneOpen: false, tab: 'tasks', overlay: null };
+const SCREENS = [
+  ['start', 'login', '로그인'], ['start', 'link', 'Google 연결'], ['start', 'lockmethod', '잠금 방법'],
+  ['start', 'choose', '데이터 연결 선택'], ['start', 'pair', '기존 기기와 연결'], ['start', 'pairCode', '6자리 확인'],
+  ['start', 'recoveryCode', '새 계정: 복구 코드'], ['start', 'recoveryConfirm', '새 계정: 복구 확인'], ['start', 'lock', '잠금 화면'],
+  ['app', 'tasks', '할 일'], ['app', 'catsheet', '카테고리 고르기'], ['app', 'addsheet', '할 일 추가'], ['app', 'detail', '할 일 상세'],
+  ['app', 'search', '검색'], ['app', 'calendar', '캘린더'], ['app', 'timeline', '일정'], ['app', 'settings', '설정'],
+  ['app', 'data', '설정 > 데이터'], ['app', 'approve', '새 기기 추가(승인)'],
+];
+const cats = [['업무', '#6294ff', 4], ['공부', '#b58cff', 2], ['생활', '#44c98b', 3]];
+const tasks = [
+  { t: '분기 회고 자료 정리', due: '오늘 18:00', left: '2시간 남음', cat: 0, sub: '2/3' },
+  { t: '주간 보고서 제출', due: '오늘 09:00', left: '3시간 지남', over: true, cat: 0 },
+  { t: '디자인 리뷰 피드백 반영', due: '내일', left: '1일 남음', cat: 0, sub: '0/2' },
+  { t: '토익 단어 50개', due: '금 23:59', left: '3일 남음', cat: 1, repeat: '매일' },
+];
+const doneTasks = [{ t: '릴리스 노트 작성', left: '10시간 지남', cat: 0 }];
+
+const statusBar = () => `<div class="status"><span>9:41</span><span>▂▄▆ ◔ ▮</span></div>`;
+const tabbar = () => {
+  const tabs = [['tasks', '☑', '할 일'], ['calendar', '▦', '캘린더'], ['timeline', '◷', '일정'], ['settings', '⚙', '설정']];
+  return `<nav class="tabbar">${tabs.map(([id, ic, label]) => `<button data-go="${id}" class="${s.tab === id ? 'on' : ''}"><span class="ic">${ic}</span>${label}</button>`).join('')}</nav>`;
+};
+const taskRow = (x, done) => `<div class="task${done ? ' done' : ''}" data-go="detail"><span class="check">${done ? '✓' : ''}</span>
+  <div class="body"><div class="t">${x.t}</div><div class="meta"><span class="dot" style="background:${cats[x.cat][1]}"></span>${x.sub ? `<span>${x.sub}</span>` : ''}${x.repeat ? `<span>↻ ${x.repeat}</span>` : ''}<span class="${x.over && !done ? 'over' : ''}">${x.left}</span></div></div></div>`;
+
+function tasksScreen() {
+  const title = `<h1 ${s.cat === 'sheet' ? 'data-ov="catsheet"' : ''}>업무 <span class="count">3</span>${s.cat === 'sheet' ? '<span class="chev">▾</span>' : ''}</h1>`;
+  return `<div class="content">
+    <div class="appbar">${s.cat === 'drawer' ? '<button class="icon-btn" data-ov="drawer">☰</button>' : ''}${title}<span class="grow"></span>
+      <button class="icon-btn" data-go="search">⌕</button><button class="icon-btn">⋯</button></div>
+    <div class="sub sync"><span class="dot"></span>모두 동기화됨 · 방금 · 4개의 할 일 · 1개 완료</div>
+    <div class="chips"><span class="chip on">기한 순</span><span class="chip">중요도 순</span><span class="chip">남은 기한 순</span><span class="chip">생성일 순</span></div>
+    <div class="section${s.todoOpen ? '' : ' closed'}" data-toggle="todoOpen"><span class="arrow">▾</span>해야할 일 (4)</div>
+    ${s.todoOpen ? tasks.map(x => taskRow(x)).join('') : ''}
+    <div class="section${s.doneOpen ? '' : ' closed'}" data-toggle="doneOpen"><span class="arrow">▾</span>완료됨 (1)</div>
+    ${s.doneOpen ? doneTasks.map(x => taskRow(x, true)).join('') : ''}
+    <div style="height:150px"></div>
+  </div>
+  ${s.add === 'fab' ? '<button class="fab" data-ov="addsheet">+</button>' : '<div class="quickadd" data-ov="addsheet"><span style="font-size:20px">+</span><span class="grow">할 일을 추가하세요…</span><span>▦</span></div>'}
+  ${tabbar()}`;
+}
+function catSheet() {
+  const items = [['☰', '모든 할 일', 7], ['☀', '오늘', 2], ...cats.map(([n, c, k]) => [`<span class="dot" style="background:${c}"></span>`, n, k])];
+  const inner = items.map(([lead, n, k], i) => `<div class="row${i === 2 ? ' on' : ''}"><span class="lead">${lead}</span><span class="grow">${n}</span><span class="hint">${k}</span></div>`).join('')
+    + `<div class="divider"></div><div class="row"><span class="lead">+</span><span class="grow">카테고리 추가</span></div><div class="row"><span class="lead">✎</span><span class="grow">카테고리 관리</span></div>`;
+  if (s.cat === 'drawer') return `<div class="scrim" data-close></div><div class="drawer"><div class="row" style="font-weight:700;font-size:17px">Thread</div><div class="divider"></div>${inner}</div>`;
+  return `<div class="scrim" data-close></div><div class="sheet"><div class="grab"></div><h2>보기</h2>${inner}</div>`;
+}
+function addSheet() {
+  return `<div class="scrim" data-close></div><div class="sheet"><div class="grab"></div>
+    <div class="field big">새 할 일 제목</div>
+    <div class="chips"><span class="chip on">▦ 오늘</span><span class="chip">내일</span><span class="chip">날짜·시간…</span><span class="chip">↻ 반복</span><span class="chip">업무 ✕</span></div>
+    <button class="btn primary">추가</button>
+    <p class="muted small" style="margin:0 20px">지금 보고 있는 카테고리가 자동으로 붙습니다. 메모·하위 할 일은 추가 후 상세에서.</p></div>`;
+}
+function detailScreen() {
+  return `<div class="content">
+    <div class="appbar"><button class="icon-btn" data-go="tasks">←</button><span class="grow"></span><button class="icon-btn">🗑</button></div>
+    <div style="display:flex;gap:12px;align-items:center;margin:0 18px"><span class="check"></span><div class="detail-title" style="margin:0">분기 회고 자료 정리</div></div>
+    <div style="height:10px"></div>
+    <div class="prop"><span class="k">기한</span><span class="v">10월 4일 (일) 오후 6:00</span><span class="muted small">2시간 남음</span></div>
+    <div class="prop"><span class="k">반복</span><span class="v muted">없음</span></div>
+    <div class="prop"><span class="k">카테고리</span><span class="v"><span class="tag">업무</span> <span class="muted">+</span></span></div>
+    <div class="section">하위 할 일 2/3</div>
+    <div class="subtask"><span class="check" style="background:var(--accent);border-color:var(--accent)">✓</span><span class="grow" style="text-decoration:line-through;color:var(--muted)">지난 분기 지표 모으기</span></div>
+    <div class="subtask"><span class="check" style="background:var(--accent);border-color:var(--accent)">✓</span><span class="grow" style="text-decoration:line-through;color:var(--muted)">팀 피드백 정리</span></div>
+    <div class="subtask"><span class="check"></span><span class="grow">슬라이드 초안</span><span class="muted small">내일</span></div>
+    <div class="subtask muted"><span style="width:20px;text-align:center">+</span>하위 할 일 추가</div>
+    <div class="section">메모</div>
+    <div class="memo">발표 15분. 지난 분기 대비 이슈 처리 속도 강조.</div>
+    <div style="height:40px"></div>
+  </div>`;
+}
+function searchScreen() {
+  return `<div class="content">
+    <div class="appbar"><button class="icon-btn" data-go="tasks">←</button><div class="field" style="flex:1;margin:0;padding:10px 12px;color:var(--text)">보고서</div></div>
+    <div class="section">할 일 2</div>
+    ${taskRow(tasks[1])}${taskRow({ t: '월간 보고서 초안', left: '5일 지남', cat: 0 }, true)}
+    <div class="section">카테고리 · 메모에서 1</div>
+    ${taskRow({ t: '분기 회고 자료 정리', left: '메모: "…보고서 첨부…"', cat: 0 })}
+  </div>`;
+}
+function calendarScreen() {
+  const days = [];
+  for (let i = 0; i < 4; i++) days.push(`<div class="d other">${27 + i}</div>`);
+  for (let d = 1; d <= 31; d++) {
+    const dow = (d + 3) % 7;
+    const marks = { 3: '<i class="done"></i>', 4: '<i></i><i></i><i class="done"></i>', 5: '<i></i>', 9: '<i></i>', 15: '<i></i><i></i>', 22: '<i></i>' }[d] || '';
+    days.push(`<div class="d${d === 4 ? ' today sel' : ''}${dow === 0 ? ' sun' : dow === 6 ? ' sat' : ''}"><span>${d}</span><div class="marks">${marks}</div></div>`);
+  }
+  for (let i = 1; i <= 7; i++) days.push(`<div class="d other">${i}</div>`);
+  return `<div class="content">
+    <div class="cal-head"><h1>2026년 10월</h1><button class="icon-btn">‹</button><button class="icon-btn" style="width:auto;padding:0 10px;font-size:14px">오늘</button><button class="icon-btn">›</button></div>
+    <div class="grid">${'일월화수목금토'.split('').map(w => `<div class="wd">${w}</div>`).join('')}${days.join('')}</div>
+    <div class="dayhead"><span>10월 4일 (일)</span><span class="muted small" style="flex:none">3개</span></div>
+    ${taskRow(tasks[0])}${taskRow(tasks[1])}${taskRow(doneTasks[0], true)}
+    <div style="height:150px"></div>
+  </div>${s.add === 'fab' ? '<button class="fab" data-ov="addsheet">+</button>' : '<div class="quickadd" data-ov="addsheet"><span style="font-size:20px">+</span><span class="grow">10월 4일에 추가…</span></div>'}${tabbar()}`;
+}
+function timelineScreen() {
+  const hours = Array.from({ length: 12 }, (_, i) => i + 8);
+  return `<div class="content">
+    <div class="cal-head"><h1>오늘 · 10월 4일</h1><button class="icon-btn">‹</button><button class="icon-btn">›</button></div>
+    <div class="chips"><span class="chip on">하루</span><span class="chip">3일</span><span class="chip">한 주</span></div>
+    <div class="tl">${hours.map(h => `<div class="h"><span>${h < 12 ? '오전' : '오후'} ${h > 12 ? h - 12 : h}시</span></div>`).join('')}
+      <div class="ev" style="top:56px;height:30px">주간 보고서 제출 · 9:00 <span style="color:var(--danger)">지남</span></div>
+      <div class="ev" style="top:560px;height:30px">분기 회고 자료 정리 · 18:00</div>
+      <div class="now" style="top:400px"></div></div>
+    <div style="height:90px"></div>
+  </div>${tabbar()}`;
+}
+function settingsScreen() {
+  return `<div class="content">
+    <div class="appbar"><h1>설정</h1></div>
+    <div class="card" style="display:flex;gap:12px;align-items:center"><div class="logo" style="width:44px;height:44px;border-radius:50%;font-size:20px">S</div><div><h4>shyunku</h4><div class="muted small">Google 연결됨 · shyunku@…</div></div></div>
+    <div class="group-title">일반</div>
+    <div class="list"><div class="row"><span class="grow">시작 화면</span><span class="hint">할 일 ›</span></div><div class="row"><span class="grow">주 시작 요일</span><span class="hint">일요일 ›</span></div><div class="row"><span class="grow">시간 표시</span><span class="hint">12시간 ›</span></div><div class="row"><span class="grow">테마</span><span class="hint">${s.theme === 'light' ? '라이트' : s.theme === 'system' ? '시스템' : '다크'} ›</span></div></div>
+    <div class="group-title">데이터</div>
+    <div class="list"><div class="row" data-go="data"><span class="grow">동기화 · 기기 · 복구</span><span class="hint sync"><span class="dot"></span>동기화됨 ›</span></div></div>
+    <div class="group-title">계정</div>
+    <div class="list"><div class="row"><span class="grow">잠그기</span><span class="hint">다음에 생체/PIN</span></div><div class="row"><span class="grow">다른 곳 모두 로그아웃</span></div><div class="row" style="color:var(--danger)"><span class="grow">로그아웃</span></div></div>
+    <div class="group-title">정보</div>
+    <div class="list"><div class="row"><span class="grow">버전</span><span class="hint">2.0.0</span></div><div class="row"><span class="grow">개인정보처리방침</span><span class="hint">›</span></div><div class="row"><span class="grow">문의</span><span class="hint">shyunku.support@gmail.com</span></div></div>
+    <div style="height:90px"></div>
+  </div>${tabbar()}`;
+}
+function dataScreen() {
+  return `<div class="content">
+    <div class="appbar"><button class="icon-btn" data-go="settings">←</button><h1 style="font-size:19px">데이터</h1></div>
+    <div class="card"><div style="display:flex;align-items:center;gap:10px"><span class="tag" style="background:#1d3a2b;color:var(--success)">온라인</span><div class="bar"></div><span class="small" style="color:var(--success);font-weight:600">모두 동기화됨</span></div>
+      <div class="muted small" style="margin-top:8px">방금 · 서버는 암호화된 내용만 봅니다</div></div>
+    <div class="group-title">연결된 기기</div>
+    <div class="list"><div class="row"><span class="lead">▭</span><span class="grow">이 휴대폰<br><span class="hint">Android · 소유 기기</span></span></div><div class="row"><span class="lead">▭</span><span class="grow">Windows PC<br><span class="hint">2.0.9 · 오늘 연결</span></span></div></div>
+    <button class="btn primary" style="margin-top:12px" data-go="approve">새 기기 추가</button>
+    <div class="group-title">보호</div>
+    <div class="list"><div class="row"><span class="grow">잠금 해제</span><span class="hint">생체·PIN + 비밀번호 ›</span></div><div class="row"><span class="grow">복구 자료</span><span class="hint">확인됨 ›</span></div><div class="row"><span class="grow">기기 분실 복구</span><span class="hint">›</span></div></div>
+    <div style="height:40px"></div>
+  </div>`;
+}
+function approveScreen() {
+  return `<div class="content">
+    <div class="appbar"><button class="icon-btn" data-go="data">✕</button><h1 style="font-size:19px">새 기기 추가</h1></div>
+    <div class="steps"><i class="on"></i><i class="on"></i><i></i></div>
+    <div class="center" style="padding:10px 24px">
+      <p class="muted">새 기기에서 로그인한 뒤 <b style="color:var(--text)">"쓰던 기기와 연결"</b>을 고르면 아래 숫자가 나타납니다.</p>
+      <div class="sas"><b>4</b><b>8</b><b>2</b><b>9</b><b>1</b><b>7</b></div>
+      <p>두 기기의 숫자가 같나요?</p>
+    </div>
+    <button class="btn primary">같아요, 연결 승인</button>
+    <button class="btn ghost">다르면 취소</button>
+    <p class="muted small" style="margin:0 24px;text-align:center">승인하려면 지문·얼굴 또는 화면 잠금을 다시 확인합니다.</p>
+  </div>`;
+}
+function loginScreen() {
+  return `<div class="content"><div class="center" style="padding:70px 24px 26px"><div class="logo">T</div><div class="title-xl">Thread</div><div class="muted">할 일과 일정을 모든 기기에서, 암호화해서.</div></div>
+    <div class="field">아이디</div><div class="field">비밀번호</div>
+    <button class="btn primary">로그인</button>
+    <button class="btn google"><span class="g"></span>Google로 계속하기</button>
+    <button class="btn ghost">처음이신가요? 가입하기</button></div>`;
+}
+function linkScreen() {
+  return `<div class="content"><div class="appbar"><button class="icon-btn" data-go="login">←</button></div>
+    <div style="padding:0 18px 8px"><div class="title-xl" style="margin-top:0">이 Google 계정은 처음이에요</div><p class="muted">jo@gmail.com을 Thread 계정에 연결합니다.</p></div>
+    <div class="option on"><span class="radio"></span><div><b>쓰던 계정에 연결</b><div class="muted small">아이디와 비밀번호를 한 번 확인합니다. 다음부터는 Google로 바로 로그인.</div></div></div>
+    <div class="field">아이디</div><div class="field">비밀번호</div>
+    <div class="option"><span class="radio"></span><div><b>새로 가입</b><div class="muted small">아이디·비밀번호도 함께 만듭니다.</div></div></div>
+    <button class="btn primary" style="margin-top:6px">연결하고 계속</button></div>`;
+}
+function lockMethodScreen() {
+  return `<div class="content"><div class="appbar"><span class="muted small">이 기기 보호 · 1/3</span></div>
+    <div class="steps"><i class="on"></i><i></i><i></i></div>
+    <div style="padding:0 18px 10px"><div class="title-xl" style="margin-top:0">이 휴대폰의 데이터 잠금</div><p class="muted">할 일은 이 휴대폰 안에서도 암호화됩니다. 휴대폰을 다시 켰거나 직접 잠근 뒤에 열 때 확인해요.</p></div>
+    <div class="option on"><span class="radio"></span><div><b>지문·얼굴 또는 화면 잠금</b><div class="muted small">추천. 휴대폰 잠금과 같은 방법.</div></div></div>
+    <div class="option"><span class="radio"></span><div><b>+ 비밀번호도 함께</b><div class="muted small">생체 인증이 안 될 때 쓸 12자 이상 비밀번호.</div></div></div>
+    <button class="btn primary" style="margin-top:16px">계속</button></div>`;
+}
+function chooseScreen() {
+  return `<div class="content"><div class="appbar"><span class="muted small">데이터 연결 · 2/3</span></div>
+    <div class="steps"><i class="on"></i><i class="on"></i><i></i></div>
+    <div style="padding:0 18px 10px"><div class="title-xl" style="margin-top:0">데이터를 어떻게 가져올까요?</div><p class="muted">shyunku 계정에 이미 데이터가 있어요.</p></div>
+    <div class="option on" data-go="pair"><span class="radio"></span><div><b>쓰던 기기와 연결</b><div class="muted small">PC나 다른 휴대폰에서 6자리 숫자를 비교합니다. 가장 쉬워요.</div></div></div>
+    <div class="option"><span class="radio"></span><div><b>QR 코드로 연결</b><div class="muted small">PC 화면의 QR을 카메라로 찍습니다.</div></div></div>
+    <div class="option"><span class="radio"></span><div><b>복구 코드로 연결</b><div class="muted small">다른 기기를 모두 잃어버렸을 때. 복구 파일과 코드가 필요해요.</div></div></div>
+    <p class="muted small" style="margin:6px 20px">새 계정이면 이 단계 대신 복구 자료 만들기로 넘어갑니다.</p></div>`;
+}
+function pairScreen() {
+  return `<div class="content"><div class="appbar"><button class="icon-btn" data-go="choose">←</button><span class="muted small">쓰던 기기와 연결</span></div>
+    <div class="center" style="padding:40px 24px"><div class="spinner"></div><div class="title-xl">쓰던 기기를 기다리는 중</div>
+      <p class="muted">PC: 설정 → 데이터 → <b style="color:var(--text)">새 기기 추가</b><br>휴대폰: 설정 → 데이터 → <b style="color:var(--text)">새 기기 추가</b></p></div>
+    <div class="card"><h4>연결은 이렇게 보호돼요</h4><div class="muted small">서버는 중계만 하고 내용은 볼 수 없어요. 두 화면의 숫자가 같을 때만 연결됩니다.</div></div>
+    <button class="btn ghost">취소</button></div>`;
+}
+function pairCodeScreen() {
+  return `<div class="content"><div class="appbar"><button class="icon-btn" data-go="pair">←</button><span class="muted small">쓰던 기기와 연결</span></div>
+    <div class="center" style="padding:30px 24px 0"><div class="title-xl">두 기기의 숫자가 같나요?</div><p class="muted">쓰던 기기 화면의 숫자와 비교하세요.</p>
+      <div class="sas"><b>4</b><b>8</b><b>2</b><b>9</b><b>1</b><b>7</b></div></div>
+    <button class="btn primary">같아요</button><button class="btn ghost">달라요</button>
+    <p class="muted small" style="margin:6px 24px;text-align:center">같다고 누른 뒤 쓰던 기기에서 승인하면 할 일이 내려받아집니다.</p></div>`;
+}
+function recoveryCodeScreen() {
+  return `<div class="content"><div class="appbar"><span class="muted small">복구 자료 · 3/3</span></div>
+    <div class="steps"><i class="on"></i><i class="on"></i><i class="on"></i></div>
+    <div style="padding:0 18px 8px"><div class="title-xl" style="margin-top:0">복구 자료를 따로 보관하세요</div><p class="muted">모든 기기를 잃어버렸을 때 데이터를 되찾는 유일한 방법이에요. 우리도 대신 찾아드릴 수 없어요.</p></div>
+    <div class="card"><h4>① 복구 코드</h4><div class="code">THREAD1-1B03FEFA-C68FAC59-E83F822C-CE0789DC-2D41E0D8-BE7C21DB-DA92C235-B76D655A-3A05FE5B</div>
+      <div style="display:flex;gap:8px;margin-top:10px"><button class="btn" style="margin:0;padding:9px">복사 (30초 뒤 지움)</button></div></div>
+    <div class="card"><h4>② 복구 파일 (.trec)</h4><div class="muted small">암호화된 파일. 코드와 함께 있어야 열려요. 다른 곳(드라이브, PC)에 저장하세요.</div>
+      <div style="display:flex;gap:8px;margin-top:10px"><button class="btn" style="margin:0;padding:9px;flex:1">파일로 저장</button><button class="btn" style="margin:0;padding:9px;flex:1">공유…</button></div></div>
+    <button class="btn primary" data-go="recoveryConfirm">보관했어요</button></div>`;
+}
+function recoveryConfirmScreen() {
+  return `<div class="content"><div class="appbar"><button class="icon-btn" data-go="recoveryCode">←</button><span class="muted small">복구 자료 확인</span></div>
+    <div style="padding:0 18px 8px"><div class="title-xl" style="margin-top:0">제대로 보관했는지 확인할게요</div><p class="muted">저장한 파일을 다시 열고 코드를 입력하세요.</p></div>
+    <div class="card" style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">📄</span><div class="grow" style="flex:1"><b>thread_recovery.trec</b><div class="muted small">다운로드 폴더에서 선택됨</div></div><span style="color:var(--success)">✓</span></div>
+    <div class="field">복구 코드 입력</div>
+    <button class="btn primary">확인하고 시작하기</button></div>`;
+}
+function lockScreen() {
+  return `<div class="content"><div class="center" style="padding:150px 24px 30px"><div class="lock-ic">🔒</div><div class="title-xl">Thread가 잠겨 있어요</div><p class="muted">휴대폰을 다시 켰거나 직접 잠갔어요.</p></div>
+    <button class="btn primary">지문·얼굴로 열기</button><button class="btn ghost">비밀번호로 열기</button>
+    <p class="muted small" style="text-align:center">shyunku · 로그아웃</p></div>`;
+}
+
+const RENDER = {
+  login: loginScreen, link: linkScreen, lockmethod: lockMethodScreen, choose: chooseScreen, pair: pairScreen, pairCode: pairCodeScreen,
+  recoveryCode: recoveryCodeScreen, recoveryConfirm: recoveryConfirmScreen, lock: lockScreen,
+  tasks: tasksScreen, catsheet: tasksScreen, addsheet: tasksScreen, detail: detailScreen, search: searchScreen,
+  calendar: calendarScreen, timeline: timelineScreen, settings: settingsScreen, data: dataScreen, approve: approveScreen,
+};
+const NOTES = `
+  <h3>화면 구조 (87.1)</h3>
+  <ul>
+    <li><b>시작:</b> 로그인 → (Google이 처음이면 연결) → 이 기기 잠금 방법 → 계정 상태에 따라 <b>쓰던 기기와 연결</b>(6자리) / QR / 복구 코드, 또는 새 계정이면 <b>복구 자료 만들기·확인</b>.</li>
+    <li><b>앱:</b> 하단 탭 4개 — 할 일 · 캘린더 · 일정 · 설정. 할 일 상세·검색·새 기기 추가는 탭 위로 쌓이는 화면.</li>
+    <li><b>잠금 화면:</b> 휴대폰 재부팅 후 또는 직접 잠근 뒤에만(#83 결정).</li>
+    <li>데스크톱과 같은 기능: 정렬 4가지, 해야할 일/완료됨 접기(기본 완료됨 접힘), 남은/지난 시간, 하위 할 일, 반복, 카테고리, 메모, 검색.</li>
+  </ul>
+  <h3>그대로 가져온 것</h3>
+  <ul><li>색·말투·용어는 데스크톱과 같음(다크 토큰 그대로). 6자리 연결·복구 자료 흐름도 데스크톱과 같은 단계.</li></ul>
+  <h3 class="q">정해 줘야 할 것</h3>
+  <ol>
+    <li class="q"><b>테마:</b> A 다크만(데스크톱과 같음) / B 라이트만 / C 휴대폰 설정 따라감(다크+라이트, 설정에서 고정 가능).</li>
+    <li class="q"><b>할 일 추가:</b> A 오른쪽 아래 + 버튼 → 아래 시트 / B 화면 아래 입력줄(데스크톱 입력칸과 비슷).</li>
+    <li class="q"><b>카테고리 고르기:</b> A 제목(업무 ▾)을 눌러 아래 시트 / B 왼쪽 위 ☰ 서랍(데스크톱 사이드바와 비슷).</li>
+    <li class="q"><b>하단 탭:</b> 지금 4개(할 일·캘린더·일정·설정). 일정(시간대 보기)을 캘린더 안 전환으로 넣고 3개로 줄일지.</li>
+    <li class="q">그 밖에 빠졌거나 바꿀 화면.</li>
+  </ol>
+  <p class="muted small">위 버튼으로 화면을 바꿔 보거나, 휴대폰 화면 안의 탭·항목·제목·+ 버튼·섹션 제목을 직접 눌러 보세요.</p>`;
+
+function render() {
+  const theme = s.theme === 'dark' ? 'dark' : 'light';
+  const phone = document.querySelector('[data-phone]');
+  phone.className = 'phone theme-' + theme;
+  const body = (RENDER[s.screen] || tasksScreen)();
+  let overlay = '';
+  if (s.screen === 'catsheet' || s.overlay === 'catsheet' || s.overlay === 'drawer') overlay = catSheet();
+  if (s.screen === 'addsheet' || s.overlay === 'addsheet') overlay = addSheet();
+  phone.innerHTML = statusBar() + body + overlay + '<div class="gesture"></div>';
+  for (const group of ['start', 'app']) {
+    const line = document.querySelector(`[data-group="${group}"]`);
+    line.innerHTML = `<strong>${group === 'start' ? '시작' : '앱'}</strong>` + SCREENS.filter(x => x[0] === group)
+      .map(([, id, label]) => `<button data-screen="${id}" class="${s.screen === id ? 'on' : ''}">${label}</button>`).join('');
+  }
+  document.querySelectorAll('[data-k]').forEach(b => b.classList.toggle('on', s[b.dataset.k] === b.dataset.v));
+  document.querySelector('[data-notes]').innerHTML = NOTES;
+}
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-screen],[data-k],[data-go],[data-ov],[data-close],[data-toggle]');
+  if (!t) return;
+  if (t.dataset.screen) { s.screen = t.dataset.screen; s.overlay = null; if (['tasks', 'calendar', 'timeline', 'settings'].includes(s.screen)) s.tab = s.screen; }
+  else if (t.dataset.k) s[t.dataset.k] = t.dataset.v;
+  else if (t.dataset.go) { s.screen = t.dataset.go; s.overlay = null; if (['tasks', 'calendar', 'timeline', 'settings'].includes(s.screen)) s.tab = s.screen; }
+  else if (t.dataset.ov) s.overlay = t.dataset.ov === 'catsheet' && s.cat === 'drawer' ? 'drawer' : t.dataset.ov;
+  else if (t.dataset.toggle) s[t.dataset.toggle] = !s[t.dataset.toggle];
+  else if ('close' in t.dataset) { s.overlay = null; if (s.screen === 'catsheet' || s.screen === 'addsheet') s.screen = 'tasks'; }
+  render();
+});
+render();
+</script>
+</body>
+</html>
