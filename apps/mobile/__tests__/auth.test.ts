@@ -163,10 +163,10 @@ test('sign out ends the server session; revoking others renews once on 401', asy
   await expect(account.tokens.current()).rejects.toThrow('AUTH_REQUIRED');
 });
 
-test('Google sign-in exchanges the ID token; a second account must sign out first', async () => {
+test('Google sign-in exchanges the ID token for a linked account', async () => {
   const { server, account } = setup();
   const user = await account.signInWithGoogle('google-id-token');
-  expect(user.googleEmail).toBe('jo@example.test');
+  expect('linkToken' in user ? null : user.googleEmail).toBe('jo@example.test');
   expect(server.calls.at(-1)?.body).toEqual({
     google_access_token: 'google-id-token',
   });
@@ -201,4 +201,73 @@ test('fetch adapter serves a buffered body through the reader and sends binary b
   const reader = response.body.getReader();
   expect([...(await reader.read()).value]).toEqual([1, 2, 3]);
   expect((await reader.read()).done).toBe(true);
+});
+
+test('an unlinked Google account asks to link with an existing id and password first', async () => {
+  const calls: { path: string; body: any }[] = [];
+  let linked = false;
+  const reply = (status: number, json?: unknown) => ({
+    status,
+    ok: status >= 200 && status < 300,
+    headers: {},
+    arrayBuffer: async () =>
+      new TextEncoder().encode(json === undefined ? '' : JSON.stringify(json))
+        .buffer,
+  });
+  const fetch = createFetch((async (url: string, init: any) => {
+    const path = new URL(url).pathname;
+    const body = JSON.parse(init.body);
+    calls.push({ path, body });
+    if (path === '/v1/google_auth/signup_mobile') {
+      return linked
+        ? reply(200, {
+            user: { uid: 'u1' },
+            auth: {
+              access_token: { token: 'a' },
+              refresh_token: { token: 'r' },
+            },
+          })
+        : reply(200, { linkToken: 'link-1' });
+    }
+    if (path === '/v1/google_auth/signup') {
+      if (body.encrypted_password !== hex(encryptedPassword('jo', 'secret pw')))
+        return reply(401);
+      linked = true;
+      return reply(200, {});
+    }
+    return reply(404);
+  }) as any);
+  const storage = memoryStorage();
+  const account = new AccountSession({
+    api: createAuthApi({ endpoint: ENDPOINT, fetch }),
+    storage,
+    endpoint: ENDPOINT,
+    fetch,
+  });
+  expect(await account.signInWithGoogle('id-token')).toEqual({
+    linkToken: 'link-1',
+  });
+  expect(storage.value).toBeNull();
+  await expect(
+    account.linkGoogle({
+      idToken: 'id-token',
+      linkToken: 'link-1',
+      authId: 'jo',
+      password: 'wrong',
+    }),
+  ).rejects.toThrow('INVALID_CREDENTIALS_OR_LINK_EXPIRED');
+  const user = await account.linkGoogle({
+    idToken: 'id-token',
+    linkToken: 'link-1',
+    authId: 'jo',
+    password: 'secret pw',
+  });
+  expect(user.uid).toBe('u1');
+  expect(
+    calls.filter(call => call.path === '/v1/google_auth/signup').at(-1)?.body,
+  ).toEqual({
+    auth_id: 'jo',
+    encrypted_password: hex(encryptedPassword('jo', 'secret pw')),
+    google_link_token: 'link-1',
+  });
 });

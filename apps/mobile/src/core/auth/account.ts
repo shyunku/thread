@@ -1,4 +1,10 @@
-import type { AccountUser, AuthApi, AuthResult, AuthTokens } from './api';
+import type {
+  AccountUser,
+  AuthApi,
+  AuthResult,
+  AuthTokens,
+  GoogleLinkRequired,
+} from './api';
 import { AuthError } from './api';
 
 const {
@@ -75,8 +81,27 @@ export class AccountSession {
   signUp(username: string, authId: string, password: string) {
     return this.#api.signup(username, authId, password);
   }
-  signInWithGoogle(idToken: string) {
-    return this.#api.google(idToken).then(result => this.#signIn(result));
+  // Signed in, or { linkToken } when this Google account is not linked to Thread yet.
+  async signInWithGoogle(
+    idToken: string,
+  ): Promise<AccountUser | GoogleLinkRequired> {
+    const result = await this.#api.google(idToken);
+    return 'linkToken' in result ? result : this.#signIn(result);
+  }
+
+  // Links (existing authId + password) or creates (with username) the account for the
+  // Google identity, then signs in with the same Google ID token.
+  async linkGoogle(input: {
+    idToken: string;
+    linkToken: string;
+    authId: string;
+    password: string;
+    username?: string;
+  }): Promise<AccountUser> {
+    await this.#api.googleLink(input);
+    const result = await this.signInWithGoogle(input.idToken);
+    if ('linkToken' in result) throw new AuthError('GOOGLE_LINK_FAILED');
+    return result;
   }
 
   // Token source for the shared transport: current() / renew(stale).

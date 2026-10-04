@@ -115,8 +115,11 @@ export function createRuntime() {
   return {
     account,
     forAccount,
+    // Returns the user, or { linkToken, idToken } for the link/sign-up step.
     async signInWithGoogle() {
-      return account.signInWithGoogle(await googleIdToken());
+      const idToken = await googleIdToken();
+      const result = await account.signInWithGoogle(idToken);
+      return 'linkToken' in result ? { ...result, idToken } : result;
     },
     async signOut() {
       current?.dispose();

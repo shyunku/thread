@@ -203,42 +203,33 @@ func SignupWithMobileGoogleAuth(c *gin.Context) {
 	}
 
 	// The signature alone proves Google issued the token, not that it was issued to Thread.
-	identity, username, err := googleIdTokenIdentity(claims, time.Now())
+	identity, _, err := googleIdTokenIdentity(claims, time.Now())
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"code": "GOOGLE_TOKEN_REJECTED"})
 		return
 	}
 	googleAuthId := identity.Id
-	googleEmail := identity.Email
-	googleProfileImageUrl := identity.Picture
 
 	var userEntity database2.UserEntity
 	result := database2.DB.QueryRowx("SELECT * FROM user_master WHERE google_auth_id = ?", googleAuthId)
 	err = result.StructScan(&userEntity)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			// create user
-			// case: user that Google login as first
-			uid := uuid.New().String()
-			mode, modeErr := signupMode("")
-			if modeErr != nil {
-				signupModeError(c, modeErr)
-				return
-			}
-			err = createSignupUser(c, uid, mode,
-				"INSERT INTO user_master (uid, username, google_auth_id, google_email, google_profile_image_url) VALUES (?, ?, ?, ?, ?)",
-				uid, username, googleAuthId, googleEmail, googleProfileImageUrl,
-			)
-			if err != nil {
-				log.Error(err)
-				c.AbortWithStatus(http.StatusInternalServerError)
-				return
-			}
-		} else {
-			log.Error(err)
+	if err == sql.ErrNoRows {
+		// Same as the desktop OAuth callback: an unlinked Google account gets a link token
+		// so the app can link an existing account (its password) or sign up, instead of
+		// silently creating a separate account.
+		linkToken, linkErr := createGoogleLinkToken(identity, time.Now())
+		if linkErr != nil {
+			log.Error(linkErr)
 			c.AbortWithStatus(http.StatusInternalServerError)
 			return
 		}
+		c.JSON(http.StatusOK, googleAuthResultDto{LinkToken: linkToken})
+		return
+	}
+	if err != nil {
+		log.Error(err)
+		c.AbortWithStatus(http.StatusInternalServerError)
+		return
 	}
 
 	// rescan user

@@ -24,6 +24,8 @@ export type AccountUser = {
 };
 export type AuthTokens = { accessToken: string; refreshToken: string };
 export type AuthResult = { user: AccountUser; tokens: AuthTokens };
+// An unlinked Google account: link an existing account (its password) or sign up.
+export type GoogleLinkRequired = { linkToken: string };
 
 export class AuthError extends Error {
   constructor(readonly code: string, readonly status: number | null = null) {
@@ -164,7 +166,7 @@ export function createAuthApi({
         );
     },
     // Google ID token from the Android sign-in SDK; the server checks issuer and audience.
-    async google(idToken: string): Promise<AuthResult> {
+    async google(idToken: string): Promise<AuthResult | GoogleLinkRequired> {
       const { status, ok, json } = await post('/v1/google_auth/signup_mobile', {
         google_access_token: idToken,
       });
@@ -173,7 +175,41 @@ export function createAuthApi({
           status === 401 ? 'GOOGLE_TOKEN_REJECTED' : 'GOOGLE_LOGIN_FAILED',
           status,
         );
+      if (typeof json?.linkToken === 'string' && json.linkToken && !json.auth) {
+        if (json.linkToken.length > 8192)
+          throw new AuthError('INVALID_AUTH_RESPONSE');
+        return { linkToken: json.linkToken };
+      }
       return parseAuthResult(json);
+    },
+    // Links the Google identity in linkToken to an existing account (authId + its
+    // password) or, with a username for a new authId, creates the account (desktop flow).
+    async googleLink({
+      linkToken,
+      authId,
+      password,
+      username,
+    }: {
+      linkToken: string;
+      authId: string;
+      password: string;
+      username?: string;
+    }): Promise<void> {
+      const { status, ok } = await post('/v1/google_auth/signup', {
+        ...(username ? { username } : {}),
+        auth_id: authId,
+        encrypted_password: sha256(encryptedPassword(authId, password)),
+        google_link_token: linkToken,
+      });
+      if (!ok) {
+        const code =
+          status === 401
+            ? 'INVALID_CREDENTIALS_OR_LINK_EXPIRED'
+            : status === 409
+            ? 'GOOGLE_ALREADY_LINKED'
+            : 'GOOGLE_LINK_FAILED';
+        throw new AuthError(code, status);
+      }
     },
     async refresh(tokens: AuthTokens): Promise<AuthTokens> {
       const { ok, json } = await post('/v1/auth/refreshToken', null, {
