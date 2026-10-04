@@ -88,6 +88,12 @@ export function createFakeThreadServer(vaultId: string) {
       events.push(event);
       return null;
     },
+    // Key change: device removal, new recovery key or lost-device recovery.
+    transition: async (record: any) => {
+      state = await m.applyTransition(state, record);
+      events.push(record);
+      return {};
+    },
     // Relay pairing: write-once steps, JSON with base64 bytes.
     pairingCreate: async ({ fingerprint, commitment }: any) => {
       session = {

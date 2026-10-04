@@ -7,6 +7,9 @@ const { registerOwner } = require('@thread/e2ee/src/ownerRegistration');
 const { activateEmpty } = require('@thread/e2ee/src/newAccountActivation');
 const { OwnerRelay, RecipientRelay } = require('@thread/e2ee/src/relayPairing');
 const lostRecovery = require('@thread/e2ee/src/lostRecovery');
+const rotation = require('@thread/e2ee/src/rotationCoordinator');
+const reencryption = require('@thread/e2ee/src/reencryption');
+const { EncryptedReplica } = require('@thread/e2ee/src/replica');
 const { createHash } = require('@thread/e2ee/src/platform');
 
 // Same vault id as the desktop (workspaceService.context): both devices of an
@@ -38,22 +41,26 @@ export class MobileWorkspace {
   #activity: VaultActivity;
   #relay: any = null;
   #relayBusy = false;
+  #onKeysChanged: () => void;
 
   constructor({
     session,
     transport,
     reauthenticate,
     activity = new VaultActivity(),
+    onKeysChanged = () => {},
   }: {
     session: VaultSession;
     transport: () => Transport;
     reauthenticate: () => Promise<boolean>;
     activity?: VaultActivity;
+    onKeysChanged?: () => void;
   }) {
     this.#activity = activity;
     this.#session = session;
     this.#transport = transport;
     this.#reauthenticate = reauthenticate;
+    this.#onKeysChanged = onKeysChanged;
   }
 
   get #busy() {
@@ -194,8 +201,10 @@ export class MobileWorkspace {
         ready();
       }
       const transport = this.#withSignal(signal);
-      if (action === 'commit')
+      if (action === 'commit') {
+        this.#onKeysChanged();
         return lostRecovery.commit({ store, transport, ready });
+      }
       if (!input.code || !Buffer.isBuffer(input.bytes))
         throw Error('RECOVERY_INPUT_REQUIRED');
       return lostRecovery[action]({
@@ -205,6 +214,73 @@ export class MobileWorkspace {
         bytes: input.bytes,
         ready,
       });
+    });
+  }
+
+  // --- Removing a device or making a new recovery key (first device only) ---
+  // Both are one key rotation (desktop rotationWorkspace): prepare -> keep the new
+  // recovery code and file -> confirm them -> commit -> re-protect existing data.
+  async rotation(
+    action: 'status' | 'prepare' | 'material' | 'confirm' | 'commit' | 'cancel',
+    input: {
+      remove?: string[];
+      code?: string;
+      bytes?: Buffer;
+      confirmed?: boolean;
+    } = {},
+    signal?: AbortSignal,
+  ) {
+    const actions = ['status', 'prepare', 'material', 'confirm', 'commit'];
+    if (![...actions, 'cancel'].includes(action))
+      throw Error('INVALID_ROTATION_ACTION');
+    return this.#exclusive(async store => {
+      const ready = () => {
+        if (signal?.aborted) throw Error('SYNC_CANCELLED');
+        store.scope();
+      };
+      if (action === 'status') return rotation.status(store);
+      if (action === 'material') return rotation.material(store);
+      if (action === 'cancel') return rotation.cancel(store);
+      if (action === 'prepare' || action === 'commit') {
+        if (input.confirmed !== true) throw Error('ROTATION_CONSENT_REQUIRED');
+        if (!(await this.#reauthenticate())) throw Error('AUTH_CANCELLED');
+        ready();
+      }
+      const transport = this.#withSignal(signal);
+      if (action === 'prepare')
+        return rotation.prepare({
+          store,
+          transport,
+          remove: input.remove ?? [],
+          ready,
+        });
+      if (action === 'commit') {
+        // The open sync session holds the old membership; it reopens after this.
+        this.#onKeysChanged();
+        return rotation.commit({ store, transport, ready });
+      }
+      if (!input.code || !Buffer.isBuffer(input.bytes))
+        throw Error('RECOVERY_INPUT_REQUIRED');
+      return rotation.confirm({
+        store,
+        code: input.code,
+        bytes: input.bytes,
+        ready,
+      });
+    });
+  }
+
+  // Re-protects existing data with the new key after a rotation: `start` after one
+  // verified sync, then each sync advances it (SyncService).
+  reencryption(action: 'status' | 'start' | 'cancel') {
+    if (this.#busy) throw Error('VAULT_BUSY');
+    return this.#session.use(store => {
+      const meta = store.get('confirmed', '$sync-state');
+      if (!meta) throw Error('SYNC_REQUIRED');
+      const replica = new EncryptedReplica(store, meta.scope, {
+        initialize: false,
+      });
+      return reencryption.execute(replica, action, { confirmed: true });
     });
   }
 }

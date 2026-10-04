@@ -71,6 +71,7 @@ export function createFakeRuntime({ uid = 'u1' } = {}) {
         transport,
         reauthenticate: async () => true,
         activity,
+        onKeysChanged: () => sync.reset(),
       });
       const sync = new SyncService({ session, transport, activity });
       const value = {

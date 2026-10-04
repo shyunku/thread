@@ -2,6 +2,7 @@ import type { VaultSession } from '@/core/vault/session';
 import { VaultActivity, type Transport } from '@/core/workspace/workspace';
 
 const { openSyncSession } = require('@thread/e2ee/src/syncSession');
+const reencryption = require('@thread/e2ee/src/reencryption');
 const {
   startSyncEvents,
   syncScheduler,
@@ -123,6 +124,18 @@ export class SyncService {
         this.#sync = result;
       }
       const status = await this.#sync.engine.run();
+      // The verified point re-encryption checks against, then one re-encryption step
+      // if a key change left data to re-protect (desktop workspaceService.sync).
+      const sync = this.#sync;
+      this.#session.use(store =>
+        store.put('recovery', '$last-sync-authority', {
+          epoch: sync.epoch,
+          keyGeneration: sync.engine.history.current.keyGeneration,
+          head: sync.engine.history.current.head,
+          cursor: status.cursor,
+        }),
+      );
+      reencryption.advance(sync.replica);
       const counts = this.#counts() ?? status;
       this.#set({
         phase: 'ACTIVE',
@@ -202,6 +215,13 @@ export class SyncService {
     this.#sync?.close();
     this.#sync = null;
     this.#set({ phase: 'LOCKED', connected: false, syncing: false });
+  }
+
+  // After a key change (device removal, new recovery key, lost-device recovery):
+  // drop the session holding the old membership; the next sync reopens it.
+  reset() {
+    this.#sync?.close();
+    this.#sync = null;
   }
 
   // Devices in the verified membership (after the first sync of this session).

@@ -54,6 +54,7 @@ async function device(server: ReturnType<typeof createFakeThreadServer>) {
     transport,
     reauthenticate: async () => true,
     activity,
+    onKeysChanged: () => sync.reset(),
   });
   const sync = new SyncService({ session, transport, activity });
   cleanups.push(() => sync.close());
@@ -149,6 +150,129 @@ test('new account on a phone, a second phone joins by the 6-digit relay, edits m
   await b.sync.syncNow();
   expect(visibleFields(a)).toEqual({ title: '폰 A 제목', memo: '폰 B 메모' });
   expect(visibleFields(b)).toEqual({ title: '폰 A 제목', memo: '폰 B 메모' });
+});
+
+// First phone of a new account with one synced task; returns its recovery kit.
+async function ownerWithTask(
+  server: ReturnType<typeof createFakeThreadServer>,
+) {
+  const a = await device(server);
+  await a.workspace.prepareIdentity();
+  const kit = a.workspace.recoveryMaterial();
+  await a.workspace.confirmRecovery(kit.code, kit.bytes);
+  await a.workspace.registerIdentity();
+  await a.workspace.activateEmpty();
+  await a.sync.syncNow();
+  a.sync.replica().enqueue([
+    {
+      objectId: 'task-1',
+      baseVersion: '0',
+      deleted: false,
+      fields: [{ slot: 0, value: task({ title: '처음', memo: '' }) }],
+    },
+  ]);
+  await a.sync.syncNow();
+  return { ...a, kit };
+}
+
+async function pair(
+  owner: Awaited<ReturnType<typeof device>>,
+  joining: Awaited<ReturnType<typeof device>>,
+) {
+  await joining.workspace.relay('recipientPoll');
+  await owner.workspace.relay('ownerStart');
+  await joining.workspace.relay('recipientPoll');
+  await owner.workspace.relay('ownerPoll');
+  await joining.workspace.relay('recipientPoll');
+  await owner.workspace.relay('ownerApprove');
+  await joining.workspace.relay('recipientConfirm');
+  expect((await joining.workspace.relay('recipientPoll')).phase).toBe('PAIRED');
+}
+
+test('the first phone removes a paired phone: new recovery key, data re-protected', async () => {
+  const server = createFakeThreadServer(scope.vaultId);
+  const a = await ownerWithTask(server);
+  const b = await device(server);
+  await pair(a, b);
+  expect((await b.sync.syncNow()).phase).toBe('ACTIVE');
+  await a.sync.syncNow();
+  const removed = a.sync.devices().find(d => !d.self)!.id;
+
+  // Consent and the new recovery kit come before anything reaches the server.
+  await expect(
+    a.workspace.rotation('prepare', { remove: [removed] }),
+  ).rejects.toThrow('ROTATION_CONSENT_REQUIRED');
+  await a.workspace.rotation('prepare', { remove: [removed], confirmed: true });
+  await expect(
+    a.workspace.rotation('commit', { confirmed: true }),
+  ).rejects.toThrow('RECOVERY_CONFIRMATION_REQUIRED');
+  const kit = await a.workspace.rotation('material');
+  expect(kit.code).not.toBe(a.kit.code);
+  await a.workspace.rotation('confirm', { code: kit.code, bytes: kit.bytes });
+  expect(
+    (await a.workspace.rotation('commit', { confirmed: true })).phase,
+  ).toBe('ACTIVE');
+
+  // A reopens its sync session on the new membership and re-protects its data.
+  expect((await a.sync.syncNow()).phase).toBe('ACTIVE');
+  expect(a.sync.devices().map(d => d.id)).not.toContain(removed);
+  const sent = server.accepted.length;
+  expect(a.workspace.reencryption('start').phase).toBe('READY');
+  for (let i = 0; i < 5; i++) {
+    if (a.workspace.reencryption('status').phase === 'DONE') break;
+    await a.sync.syncNow();
+  }
+  expect(a.workspace.reencryption('status')).toMatchObject({
+    phase: 'DONE',
+    count: 1,
+  });
+  const last = server.accepted[server.accepted.length - 1].record;
+  expect(server.accepted.length).toBe(sent + 1);
+  expect(
+    require('@thread/e2ee/src/protocol').decode(Buffer.from(last, 'base64'))
+      .body.keyGeneration,
+  ).toBe(2);
+  expect(visibleFields(a)).toEqual({ title: '처음', memo: '' });
+
+  // The removed phone can no longer send changes under the old key.
+  b.sync.replica().enqueue([
+    {
+      objectId: 'task-1',
+      baseVersion: '1',
+      deleted: false,
+      fields: [{ slot: 0, value: task({ title: '해제된 폰', memo: '' }) }],
+    },
+  ]);
+  await expect(b.sync.syncNow()).rejects.toThrow();
+  expect(visibleFields(a)).toEqual({ title: '처음', memo: '' });
+});
+
+test('all devices lost: a new phone joins with the recovery code and file', async () => {
+  const server = createFakeThreadServer(scope.vaultId);
+  const { kit } = await ownerWithTask(server);
+
+  const c = await device(server);
+  await expect(
+    c.workspace.recovery('prepare', { code: kit.code, bytes: kit.bytes }),
+  ).rejects.toThrow('RECOVERY_CONSENT_REQUIRED');
+  await c.workspace.recovery('prepare', {
+    code: kit.code,
+    bytes: kit.bytes,
+    confirmed: true,
+  });
+  // A new kit replaces the one that was used.
+  const next = await c.workspace.recovery('material');
+  expect(next.code).not.toBe(kit.code);
+  await c.workspace.recovery('confirm', { code: next.code, bytes: next.bytes });
+  expect(
+    (await c.workspace.recovery('commit', { confirmed: true })).phase,
+  ).toBe('ACTIVE');
+
+  expect((await c.sync.syncNow()).phase).toBe('ACTIVE');
+  expect(visibleFields(c)).toEqual({ title: '처음', memo: '' });
+  expect(c.sync.devices()).toEqual([
+    expect.objectContaining({ self: true, canAuthorizeDevices: true }),
+  ]);
 });
 
 test('only one vault action at a time; locking stops sync; recovery needs consent', async () => {

@@ -82,6 +82,7 @@ export function createRuntime() {
       transport,
       reauthenticate,
       activity,
+      onKeysChanged: () => sync.reset(),
     });
     const sync = new SyncService({ session, transport, activity });
     const foreground = (state: AppStateStatus) => {
