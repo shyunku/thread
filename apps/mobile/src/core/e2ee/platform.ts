@@ -5,6 +5,7 @@ import { xchacha20poly1305 } from '@noble/ciphers/chacha.js';
 import * as cbor from 'cborg';
 import { hkdf } from '@noble/hashes/hkdf.js';
 import { sha256 } from '@noble/hashes/sha2.js';
+import { sha1 } from '@noble/hashes/legacy.js';
 import * as sodium from 'react-native-libsodium';
 
 const shared = require('@thread/e2ee/src/platform');
@@ -95,8 +96,9 @@ const sodiumWithAead = new Proxy(
 );
 
 function createHash(algorithm: string) {
-  if (algorithm !== 'sha256') fail('UNSUPPORTED_HASH');
-  const state = sha256.create();
+  // sha1 only for name-based UUIDs (recurring occurrence ids), never for security.
+  if (algorithm !== 'sha256' && algorithm !== 'sha1') fail('UNSUPPORTED_HASH');
+  const state = (algorithm === 'sha1' ? sha1 : sha256).create();
   const hash = {
     update(data: Uint8Array | string) {
       state.update(typeof data === 'string' ? Buffer.from(data, 'utf8') : data);

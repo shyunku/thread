@@ -22,6 +22,9 @@ async function runConformance(){
   const h=platform.createHash("sha256");for(const part of fixtures.sha256.parts)h.update(part);
   expect("sha256 incremental",h.digest("hex")===fixtures.sha256.hex);
  });
+ await attempt("uuid v5",async()=>{
+  const u=fixtures.uuidV5;expect("uuid v5",require("../src/uuid").v5(u.name,u.namespace)===u.value);
+ });
  await attempt("aead vector",async()=>{
   const v=fixtures.aead,secret=Buffer.from(v.secretHex,"hex");
   expect("hkdf derive",hex(p.derive(secret,"field",v.context))===v.derivedKeyHex);

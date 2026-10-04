@@ -1,5 +1,6 @@
 // Writes desktop-produced conformance fixtures for other platforms (mobile).
-// Run from the repo root after `pnpm install:desktop`:  node packages/e2ee/test/generate-fixtures.cjs
+// Run from the repo root after `pnpm install:desktop`:
+//   NODE_PATH=apps/desktop/node_modules node packages/e2ee/test/generate-fixtures.cjs
 // Keys and values are synthetic and exist only for these tests.
 const fs=require("node:fs"),path=require("node:path");
 const desktop=path.resolve(__dirname,"../../../apps/desktop/public/electron/e2ee");
@@ -38,6 +39,7 @@ const vectors=path.resolve(__dirname,"../../../docs/initiatives/v3-encryption/pr
   genesisVector:require(path.join(vectors,"e2ee-genesis-vector.json")),
   signature:{secretKeyHex:owner.signing.privateKey.toString("hex"),publicKeyHex:owner.signing.publicKey.toString("hex"),purpose:signed.purpose,body:toJson(signed.body),
    signatureHex:(await p.sign(owner.signing.privateKey,signed.purpose,signed.body)).toString("hex")},
+  uuidV5:{name:'["acct","task","3","task"]',namespace:"6ba7b812-9dad-11d1-80b4-00c04fd430c8",value:require("uuid").v5('["acct","task","3","task"]',"6ba7b812-9dad-11d1-80b4-00c04fd430c8")},
   localPassword:{password,context:passwordContext,keyHex:passwordKey.toString("hex"),envelopeHex:passwordEnvelope.toString("hex")},
   vault:{fingerprint,genesisHex:p.encode(genesis).toString("hex"),membershipHex:p.encode(membership).toString("hex"),
    head:state.head,keyHex:key.toString("hex"),batchHex:p.encode(batch).toString("hex"),objects:toJson(objects)},
