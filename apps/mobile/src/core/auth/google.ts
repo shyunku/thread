@@ -4,6 +4,7 @@ import {
   isSuccessResponse,
   statusCodes,
 } from '@react-native-google-signin/google-signin';
+import { Platform } from 'react-native';
 import { config } from '@/core/config';
 import { AuthError } from './api';
 
@@ -12,7 +13,10 @@ import { AuthError } from './api';
 // client the desktop uses. Sign-in also needs an Android OAuth client registered in
 // Google Cloud for package kr.threadapp.mobile and the app's signing certificate.
 export async function googleIdToken(): Promise<string> {
-  if (!config.googleWebClientId) throw new AuthError('GOOGLE_NOT_CONFIGURED');
+  // iOS also needs its own OAuth client ID and URL scheme (#93); until then the
+  // button reports that Google sign-in is not set up.
+  if (!config.googleWebClientId || Platform.OS === 'ios')
+    throw new AuthError('GOOGLE_NOT_CONFIGURED');
   GoogleSignin.configure({
     webClientId: config.googleWebClientId,
     scopes: ['email', 'profile'],

@@ -1,0 +1,79 @@
+# Unsigned iOS build of the mobile app (#93). The .ipa is for personal testing:
+# sign and install it from Windows with Sideloadly (free Apple ID, 7 days).
+# App Store / TestFlight builds need an Apple Developer account and come later.
+name: Mobile iOS (unsigned)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - apps/mobile/**
+      - packages/e2ee/**
+      - .github/workflows/mobile-ios.yml
+
+concurrency:
+  group: mobile-ios
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 75
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install JS dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Production server; no secrets: Google sign-in is not set up on iOS yet.
+      - name: Phone env file
+        run: |
+          printf 'APP_SERVER_ENDPOINT=https://api.threadapp.kr\nSECURE_LOGS=1\n' > .env.phone
+
+      - name: Install pods
+        working-directory: apps/mobile/ios
+        run: pod install
+
+      - name: Build (Release, no signing)
+        env:
+          THREAD_ENV_FILE: .env.phone
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -workspace ios/Thread.xcworkspace \
+            -scheme Thread \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build 2>&1 | tail -n 300
+
+      - name: Package .ipa
+        run: |
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/Thread.app Payload/
+          zip -qry Thread-unsigned.ipa Payload
+          ls -lh Thread-unsigned.ipa
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Thread-ios-unsigned
+          path: apps/mobile/Thread-unsigned.ipa
+          retention-days: 14

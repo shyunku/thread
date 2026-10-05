@@ -6,6 +6,8 @@
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Thread 보관함을 열 때 Face ID로 확인합니다.</string>
 	<key>CFBundleDisplayName</key>
 	<string>Thread</string>
 	<key>CFBundleExecutable</key>
