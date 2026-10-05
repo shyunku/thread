@@ -21,6 +21,7 @@ type EncryptedSyncStore interface {
 	SignedPull(context.Context, string, []byte) (vault.Changes, error)
 	SignedSnapshot(context.Context, string, []byte) (vault.Snapshot, error)
 	SignedSnapshotPage(context.Context, string, []byte) (vault.SnapshotPage, error)
+	SignedStateDigest(context.Context, string, []byte) (vault.StateDigest, error)
 	SignedEnvelope(context.Context, string, []byte) (vault.Envelope, error)
 }
 
@@ -109,5 +110,8 @@ func RegisterSync(r *gin.Engine, s EncryptedSyncStore, secret []byte) {
 	}))
 	g.POST("/snapshot/page", handle(func(ctx context.Context, uid string, b []byte) (interface{}, error) {
 		return s.SignedSnapshotPage(ctx, uid, b)
+	}))
+	g.POST("/digest", handle(func(ctx context.Context, uid string, b []byte) (interface{}, error) {
+		return s.SignedStateDigest(ctx, uid, b)
 	}))
 }

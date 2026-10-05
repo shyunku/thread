@@ -1,6 +1,18 @@
 const p=require("./protocol"),sync=require("./syncProtocol");
 const {createReadRequest,fromWire}=require("./readProtocol");
 function check(value){if(!value)throw Error("INVALID_SYNC_RESPONSE");}
+// Hash of the confirmed objects in id order: canonical CBOR [objectId, version,
+// deleted], the same rows the server hashes for its state digest.
+function localStateDigest(store){
+ const hash=require("./platform").createHash("sha256");let count=0,after="";
+ for(let n=0;n<40000;n++){
+  const page=store.entries("confirmed",after,256);
+  for(const {id,value} of page){if(id.startsWith("$"))continue;hash.update(p.encode([id,value.version,!!value.deleted]));count++;}
+  if(page.length<256)return {digest:hash.digest("hex"),count};
+  after=page.at(-1).id;
+ }
+ throw Error("STATE_DIGEST_LIMIT");
+}
 const MAX_REBASE_PASSES=3;
 // One main-process session per unlocked vault. No keys or plaintext leave this
 // object except through the encrypted replica; closing cancels late responses.
@@ -68,6 +80,28 @@ class EncryptedSynchronizer {
    throw Error("SYNC_PAGE_LIMIT");
   })();
   await this.replica.installSnapshot({snapshot,history:this.history,keyForGeneration:this.keyForGeneration,pages,migrationJournal});this.ready();
+ }
+ // After pulling changes instead of a snapshot (#98): compare the confirmed local
+ // objects with the server's current object list. true = same, false = differ
+ // (the caller restores from a snapshot), null = could not compare this time
+ // (older server, membership moved, temporary error).
+ async verifyState(){
+  let digest;
+  try{digest=await this.read("digest",{});}
+  catch(error){
+   this.ready();
+   if(["DEVICE_FORBIDDEN","UNAUTHORIZED","AUTH_REQUIRED","UPDATE_REQUIRED","E2EE_NOT_ACTIVE"].includes(error.message))throw error;
+   return null;
+  }
+  this.ready();
+  check(digest&&digest.epoch===this.epoch&&/^[a-f0-9]{64}$/.test(digest.digest)&&Number.isSafeInteger(digest.count)&&digest.count>=0);
+  if(digest.membershipHead!==this.history.current.head)return null;
+  const cursor=sync.decimal(this.replica.status().cursor),seq=sync.decimal(digest.seq);
+  if(seq<cursor)return null;
+  if(seq>cursor){await this.pull(digest.seq);this.ready();}
+  if(sync.decimal(this.replica.status().cursor)!==seq)return null;
+  const local=localStateDigest(this.replica.store);
+  return local.count===digest.count&&local.digest===digest.digest;
  }
  async settle(record,receipt){
   sync.verifyReceipt(record,receipt);
@@ -164,4 +198,4 @@ class EncryptedSynchronizer {
   }
  }
 }
-module.exports={EncryptedSynchronizer};
+module.exports={EncryptedSynchronizer,localStateDigest};

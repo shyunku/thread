@@ -35,6 +35,8 @@ export function createFakeThreadServer(vaultId: string) {
   let session: any = null;
   const snapshots = new Map<string, any[]>();
   const listeners: (() => void)[] = [];
+  let digests = 0;
+  let snapshotsTaken = 0;
 
   const fail = (code: string) => {
     throw Error(code);
@@ -196,7 +198,23 @@ export function createFakeThreadServer(vaultId: string) {
         changes: accepted.slice(Number(after), Number(target)),
       };
     },
+    // Current object list for an already synced device (no snapshot created).
+    digest: async () => {
+      digests++;
+      const hash = createHash('sha256');
+      const list = [...objects.entries()].sort(([a], [b]) => (a < b ? -1 : 1));
+      for (const [objectId, o] of list)
+        hash.update(p.encode([objectId, o.version, o.deleted]));
+      return {
+        epoch,
+        seq: String(accepted.length),
+        membershipHead: state.head,
+        digest: hash.digest('hex'),
+        count: list.length,
+      };
+    },
     snapshot: async () => {
+      snapshotsTaken++;
       const list = [...objects.entries()].sort(([a], [b]) => (a < b ? -1 : 1));
       const hash = createHash('sha256');
       for (const [objectId, o] of list) {
@@ -253,6 +271,9 @@ export function createFakeThreadServer(vaultId: string) {
     },
     get accepted() {
       return accepted;
+    },
+    get counts() {
+      return { digests, snapshots: snapshotsTaken };
     },
     get modes() {
       return { accountMode, vaultMode };

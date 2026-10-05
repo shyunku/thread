@@ -208,7 +208,8 @@ func (s *Store) Snapshot(ctx context.Context, uid string) (Snapshot, error) {
 	}
 	digest := h.Sum(nil)
 	snapshotID := uuid.NewString()
-	expires := time.Now().Add(24 * time.Hour).Unix()
+	// Long enough to download the pages; up to four live snapshots per vault (#98).
+	expires := time.Now().Add(time.Hour).Unix()
 	_, e = tx.ExecContext(ctx, `INSERT INTO encrypted_snapshots(id,vault_id,epoch,seq,membership_head,manifest_digest,object_count,expires_at) VALUES(?,?,?,?,?,?,?,?)`, snapshotID, id, epoch, seq, head, digest, count, expires)
 	if e != nil {
 		return Snapshot{}, e
@@ -268,4 +269,77 @@ func (s *Store) SnapshotPage(ctx context.Context, uid, id, after string) (Snapsh
 		return SnapshotPage{}, e
 	}
 	return result, tx.Commit()
+}
+
+// StateDigest summarizes the vault's current objects without creating a snapshot,
+// so an already synced device can confirm its local state after pulling changes
+// (#98): sha256 over canonical CBOR [objectId, version, deleted] in object order.
+type StateDigest struct {
+	Epoch  string `json:"epoch"`
+	Seq    string `json:"seq"`
+	Head   string `json:"membershipHead"`
+	Digest string `json:"digest"`
+	Count  uint64 `json:"count"`
+}
+
+// The client hashes the same rows from its confirmed objects (packages/e2ee).
+func stateDigestRow(objectID string, version uint64, deleted bool) ([]byte, error) {
+	return Encode([]interface{}{objectID, strconv.FormatUint(version, 10), deleted})
+}
+
+func (s *Store) StateDigest(ctx context.Context, uid string) (StateDigest, error) {
+	if !validAccount(uid) {
+		return StateDigest{}, ErrForbidden
+	}
+	// One consistent read view for the vault row, the sequence and the objects.
+	tx, e := s.DB.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if e != nil {
+		return StateDigest{}, e
+	}
+	defer tx.Rollback()
+	var id, epoch, mode string
+	var head []byte
+	var seq uint64
+	e = tx.QueryRowContext(ctx, `SELECT vault_id,epoch,mode,membership_head FROM vaults WHERE account_id=?`, uid).Scan(&id, &epoch, &mode, &head)
+	if e == sql.ErrNoRows {
+		return StateDigest{}, ErrNotFound
+	}
+	if e != nil {
+		return StateDigest{}, e
+	}
+	if mode != readMode(ctx) {
+		return StateDigest{}, ErrInactive
+	}
+	if e = checkReadProof(ctx, tx, id); e != nil {
+		return StateDigest{}, e
+	}
+	e = tx.QueryRowContext(ctx, `SELECT last_seq FROM vault_sync WHERE vault_id=?`, id).Scan(&seq)
+	if e != nil && e != sql.ErrNoRows {
+		return StateDigest{}, e
+	}
+	rows, e := tx.QueryContext(ctx, `SELECT object_id,version,deleted FROM encrypted_objects WHERE vault_id=? ORDER BY object_id`, id)
+	if e != nil {
+		return StateDigest{}, e
+	}
+	defer rows.Close()
+	h := sha256.New()
+	count := uint64(0)
+	for rows.Next() {
+		var objectID string
+		var version uint64
+		var deleted bool
+		if e = rows.Scan(&objectID, &version, &deleted); e != nil {
+			return StateDigest{}, e
+		}
+		encoded, e := stateDigestRow(objectID, version, deleted)
+		if e != nil {
+			return StateDigest{}, e
+		}
+		h.Write(encoded)
+		count++
+	}
+	if e = rows.Err(); e != nil {
+		return StateDigest{}, e
+	}
+	return StateDigest{epoch, strconv.FormatUint(seq, 10), HeadString(head), HeadString(h.Sum(nil)), count}, nil
 }

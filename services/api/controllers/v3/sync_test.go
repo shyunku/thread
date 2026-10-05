@@ -35,6 +35,9 @@ func (s *syncFixture) SignedSnapshot(_ context.Context, u string, _ []byte) (vau
 func (s *syncFixture) SignedSnapshotPage(_ context.Context, u string, _ []byte) (vault.SnapshotPage, error) {
 	return vault.SnapshotPage{}, s.count(u)
 }
+func (s *syncFixture) SignedStateDigest(_ context.Context, u string, _ []byte) (vault.StateDigest, error) {
+	return vault.StateDigest{}, s.count(u)
+}
 func TestEncryptedSyncHTTPBoundary(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	secret := []byte(strings.Repeat("s", 32))

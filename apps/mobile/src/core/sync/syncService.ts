@@ -26,7 +26,8 @@ export type SyncStatus = {
 };
 
 // Encrypted sync for the open vault, the same engine as the desktop (packages/e2ee):
-// signed pull/push, snapshot on open, automatic conflict rebase (#94).
+// signed pull/push, a snapshot on the first open (later opens pull changes and check
+// the server state digest, #98), automatic conflict rebase (#94).
 // Triggers: local edits (requestSync), the server's change signals while the app is
 // in the foreground, returning to the foreground, and a 15-second fallback poll.
 // Edits made offline stay in the encrypted outbox and are sent on the next success.
@@ -113,10 +114,10 @@ export class SyncService {
     try {
       const transport = this.#transport();
       if (!this.#sync) {
-        // Opening a session downloads a server snapshot, and the server allows only
-        // a few per account at a time (SNAPSHOT_LIMIT). After a failed open, wait
-        // before trying again instead of on every trigger, and keep showing the
-        // error that started it.
+        // A first open (or a digest mismatch) downloads a server snapshot, and the
+        // server allows only a few per account at a time (SNAPSHOT_LIMIT). After a
+        // failed open, wait before trying again instead of on every trigger, and keep
+        // showing the error that started it.
         if (Date.now() < this.#openRetryAt)
           throw Error(this.#openError ?? 'SYNC_UNAVAILABLE');
         const store = this.#session.use(value => value);

@@ -31,7 +31,17 @@ async function openSyncSession({store,transport,signal,migrationJournalFor=null}
  signal?.addEventListener("abort",close,{once:true});
  try{
   const journal=migrationJournalFor?.(store)??null,migration=journal?.get();
-  ready();await engine.snapshot(migration&&migration.phase!=="CANCELLED"?journal:null);ready();
+  const migrating=migration&&migration.phase!=="CANCELLED";
+  // A replica that already synced pulls only the changes since its cursor and then
+  // compares its objects with the server's state digest; a first sync, a migration
+  // or a mismatch restores from a full snapshot (#98).
+  const meta=store.get("confirmed","$sync-state");
+  let restored=false;
+  if(!migrating&&meta&&meta.cursor!=="0"){
+   ready();await engine.refreshMembership();await engine.pull();ready();
+   restored=(await engine.verifyState())!==false;ready();
+  }
+  if(!restored){ready();await engine.snapshot(migrating?journal:null);ready();}
   const latest=await transport.accountStatus(signal);ready();
   if(latest.accountMode!=="e2ee"||latest.vaultMode!=="active"||latest.vaultId!==state.vaultId||latest.epoch!==state.epoch)throw Error("SYNC_STATE_CHANGED");
   return {phase:"ACTIVE",engine,replica,close,epoch:state.epoch};

@@ -67,6 +67,7 @@ function createTransport({endpoint,token,renewToken,fetch:send=globalThis.fetch,
   approve:(record,signal)=>request("/v3/vault/membership",record,signal),
   pull:(record,signal)=>request("/v3/sync/pull",record,signal),
   snapshot:(record,signal)=>request("/v3/sync/snapshot",record,signal),
-  snapshotPage:(record,signal)=>request("/v3/sync/snapshot/page",record,signal)};
+  snapshotPage:(record,signal)=>request("/v3/sync/snapshot/page",record,signal),
+  digest:(record,signal)=>request("/v3/sync/digest",record,signal)};
 }
 module.exports={createTransport};

@@ -207,3 +207,13 @@ func (s *Store) SignedSnapshotPage(ctx context.Context, uid string, raw []byte) 
 	}
 	return s.SnapshotPage(ctx, uid, id, after)
 }
+func (s *Store) SignedStateDigest(ctx context.Context, uid string, raw []byte) (StateDigest, error) {
+	ctx, p, err := s.authorizeRead(ctx, uid, raw, "digest")
+	if err != nil {
+		return StateDigest{}, err
+	}
+	if len(p.parameters) != 0 {
+		return StateDigest{}, ErrInvalid
+	}
+	return s.StateDigest(ctx, uid)
+}

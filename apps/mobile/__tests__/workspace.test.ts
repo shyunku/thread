@@ -289,17 +289,17 @@ test('only one vault action at a time; locking stops sync; recovery needs consen
   expect(a.sync.status().phase).toBe('LOCKED');
 });
 
-test('a failed sync open waits before asking the server for another snapshot', async () => {
+test('a failed sync open waits before asking the server again', async () => {
   const server = createFakeThreadServer(scope.vaultId);
   const a = await ownerWithTask(server);
-  // A new session on the same phone (as after a restart) whose snapshot fails.
+  // A new session on the same phone (as after a restart) whose first request fails.
   a.sync.reset();
-  const snapshot = server.transport.snapshot;
+  const pull = server.transport.pull;
   let calls = 0;
-  server.transport.snapshot = async (...args: any[]) => {
+  server.transport.pull = async (...args: any[]) => {
     calls++;
     if (calls === 1) throw Error('SYNC_RESPONSE_TOO_LARGE');
-    return (snapshot as any)(...args);
+    return (pull as any)(...args);
   };
   await expect(a.sync.syncNow()).rejects.toThrow('SYNC_RESPONSE_TOO_LARGE');
   // Retries right away keep the first error and do not reach the server.
@@ -307,4 +307,40 @@ test('a failed sync open waits before asking the server for another snapshot', a
   await expect(a.sync.syncNow()).rejects.toThrow('SYNC_RESPONSE_TOO_LARGE');
   expect(calls).toBe(1);
   expect(a.sync.status().error).toBe('SYNC_RESPONSE_TOO_LARGE');
+});
+
+test('reopening sync pulls changes and checks the state digest instead of a snapshot', async () => {
+  const server = createFakeThreadServer(scope.vaultId);
+  const a = await ownerWithTask(server);
+  expect(server.counts).toEqual({ digests: 0, snapshots: 1 });
+  for (let n = 0; n < 6; n++) {
+    a.sync.reset();
+    await a.sync.syncNow();
+  }
+  expect(server.counts).toEqual({ digests: 6, snapshots: 1 });
+  expect(a.sync.status().phase).toBe('ACTIVE');
+});
+
+test('a state digest mismatch restores from a snapshot', async () => {
+  const server = createFakeThreadServer(scope.vaultId);
+  const a = await ownerWithTask(server);
+  const digest = server.transport.digest;
+  server.transport.digest = async (...args: any[]) => ({
+    ...(await (digest as any)(...args)),
+    digest: '0'.repeat(64),
+  });
+  a.sync.reset();
+  await a.sync.syncNow();
+  expect(server.counts).toEqual({ digests: 1, snapshots: 2 });
+  expect(visibleFields(a)).toEqual({ title: '처음', memo: '' });
+});
+
+test('a server without the state digest still reopens from changes', async () => {
+  const server = createFakeThreadServer(scope.vaultId);
+  const a = await ownerWithTask(server);
+  delete (server.transport as any).digest;
+  a.sync.reset();
+  await a.sync.syncNow();
+  expect(server.counts.snapshots).toBe(1);
+  expect(a.sync.status().phase).toBe('ACTIVE');
 });

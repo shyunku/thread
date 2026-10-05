@@ -24,6 +24,7 @@ POST bodies are canonical CBOR, at most 1 MiB. The envelope is exactly `{body,si
 | POST /v3/sync/pull | Short-lived device-signed read proof, operation pull, parameters after/until (decimal strings). |
 | POST /v3/sync/snapshot | Signed read proof, operation snapshot, empty parameters. |
 | POST /v3/sync/snapshot/page | Signed read proof, operation snapshot-page, parameters snapshotId/after. |
+| POST /v3/sync/digest | Signed read proof, operation digest, empty parameters. Returns epoch, seq, membershipHead, count and a SHA-256 digest over canonical CBOR `[objectId, version (decimal string), deleted]` of every current object in objectId order. Creates no snapshot; an already synced client pulls changes and compares this with its confirmed objects (#98). |
 | POST /v3/sync/envelope | Signed read proof, operation envelope, parameter keyGeneration; only the requesting active recipient's record. |
 
 Read proof body has exactly schema=1, vaultId, deviceId, epoch, membershipRevision, keyGeneration, operation, parameters, requestId and expiresAt. Purpose is `request`; maximum future expiry is five minutes. Read replays within that window are allowed. Current device authorization is rechecked inside the database snapshot used to read ciphertext.
@@ -44,7 +45,7 @@ Transition body: schema=1, vaultId, revision, previous, operation, signer, keyGe
 
 ## Snapshot and resource contract
 
-Pull returns at most 32 changes / 4 MiB raw records. Snapshot pages return at most 32 objects / 4 MiB raw records. Snapshot contents are immutable copies including original signed batch and operation index; count/digest are computed over ordered object provenance. Identical epoch/seq/head requests reuse the existing snapshot. A vault may retain four unexpired snapshots, with a 24-hour TTL; creating a snapshot removes only that vault's expired snapshot copies, never live objects or receipts.
+Pull returns at most 32 changes / 4 MiB raw records. Snapshot pages return at most 32 objects / 4 MiB raw records. Snapshot contents are immutable copies including original signed batch and operation index; count/digest are computed over ordered object provenance. Identical epoch/seq/head requests reuse the existing snapshot. A vault may retain four unexpired snapshots, with a one-hour TTL (24 hours before 2026-10-06); creating a snapshot removes only that vault's expired snapshot copies, never live objects or receipts.
 
 The client verifies each original signature/AAD, the selected operation/version/deletion, sorted page boundaries, whole count/digest and minimum trusted cursor before committing staged data. The manifest digest is a checksum, not proof that a malicious server is honest. Withheld records, global forks, availability and historical plaintext copies remain documented threat-model limitations.
 
