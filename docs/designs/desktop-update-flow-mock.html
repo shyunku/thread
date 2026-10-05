@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thread PC 한 번에 업데이트 시안 (#100)</title>
+<style>
+  :root {
+    --page: #0b0d10; --border-ui: #2b303b; --ui-text: #edf1f7; --ui-muted: #8792a4; --ui-panel: #15181e; --ui-selected: #253858;
+    --canvas: #101216; --panel: #15181e; --surface: #1c2028; --hover: #252b36; --border: #2b303b;
+    --text: #edf1f7; --secondary: #a0aaba; --muted: #8792a4; --accent: #6294ff; --selected: #253858;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--ui-text); font: 14px/1.5 Pretendard, "Malgun Gothic", "Segoe UI", sans-serif; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  .toolbar { position: sticky; top: 0; z-index: 50; display: flex; flex-direction: column; gap: 6px; padding: 10px 16px; background: #0b0d10ee; border-bottom: 1px solid var(--border-ui); }
+  .toolbar .line { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+  .toolbar strong { margin-right: 4px; font-size: 12px; color: var(--ui-muted); min-width: 52px; }
+  .toolbar button { padding: 4px 9px; border: 1px solid var(--border-ui); border-radius: 7px; background: var(--ui-panel); font-size: 12px; color: #a0aaba; }
+  .toolbar button.on { background: var(--ui-selected); border-color: #3a5486; color: var(--ui-text); }
+  .toolbar .sep { width: 1px; height: 18px; background: var(--border-ui); margin: 0 4px; }
+  .stage { display: flex; gap: 28px; align-items: flex-start; justify-content: center; padding: 28px 16px 64px; flex-wrap: wrap; }
+  .notes { width: 420px; padding: 16px 18px; border: 1px dashed #3a4252; border-radius: 12px; color: #a0aaba; font-size: 13px; }
+  .notes h3 { margin: 14px 0 6px; font-size: 13px; color: var(--ui-text); } .notes h3:first-child { margin-top: 0; }
+  .notes ul { margin: 0; padding-left: 18px; } .notes li { margin: 4px 0; }
+  .notes .q { color: #edbc72; }
+  .notes .now { padding: 8px 10px; border-radius: 8px; background: #161b24; color: #cfd6e2; margin-bottom: 10px; }
+  .flow { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin: 6px 0; }
+  .flow span { padding: 2px 8px; border-radius: 6px; background: #161b24; color: #cfd6e2; font-size: 12px; }
+  .flow i { font-style: normal; color: var(--muted); }
+  .flow .click { background: #294570; }
+
+  /* Desktop main window 1440x960 (shown at 62%). */
+  .desk-wrap.fit { zoom: .62; }
+  .desk { position: relative; width: 1440px; height: 960px; border: 1px solid #2b303b; border-radius: 10px; overflow: hidden; background: var(--canvas); color: var(--text); }
+  .topbar { height: 42px; display: flex; align-items: center; gap: 10px; padding: 0 14px; background: #0f1115; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--secondary); }
+  .topbar b { color: var(--text); } .topbar .grow { flex: 1; }
+  .upd { display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 7px; background: #294570; color: #edf1f7; font-size: 12px; font-weight: 600; }
+  .desk-body { display: flex; height: calc(100% - 42px); }
+  .side { width: 240px; padding: 16px 10px; background: var(--panel); border-right: 1px solid var(--border); }
+  .side .it { height: 34px; display: flex; align-items: center; gap: 10px; padding: 0 10px; border-radius: 8px; color: var(--secondary); }
+  .side .it.on { background: var(--selected); color: var(--text); font-weight: 600; }
+  .main { flex: 1; padding: 22px 28px; }
+  .main h1 { margin: 0 0 14px; font-size: 22px; }
+  .drow { display: flex; align-items: center; gap: 12px; padding: 12px 14px; margin-bottom: 8px; border-radius: 10px; background: var(--surface); border: 1px solid var(--border); }
+  .drow .c { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--muted); }
+
+  /* ReleaseAlert.scss */
+  .back { position: absolute; inset: 42px 0 0; background: #080a10b3; display: grid; place-items: center; }
+  .ra { width: 420px; padding: 24px; border: 1px solid var(--border); border-radius: 14px; background: var(--panel); box-shadow: 0 22px 65px #0008; }
+  .ra-h { display: flex; align-items: center; gap: 14px; }
+  .sym { display: grid; place-items: center; width: 40px; height: 40px; border: 1px solid #6595ff55; border-radius: 11px; background: #29457055; color: #7da8ff; }
+  .eyebrow { color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: 1.4px; }
+  .ra h2 { font-size: 20px; line-height: 1.35; margin: 3px 0 0; }
+  .ver { margin-top: 22px; padding-bottom: 14px; border-bottom: 1px solid var(--border); color: var(--secondary); font-size: 13px; }
+  .ver strong { color: var(--text); font-size: 14px; }
+  .notice { margin: 10px 0 0; padding: 12px 14px; border-radius: 8px; background: #29457045; font-size: 14px; line-height: 1.7; }
+  .st { display: flex; gap: 10px; align-items: flex-start; margin-top: 18px; }
+  .st strong { display: block; font-size: 13px; }
+  .st p { margin: 4px 0 0; color: var(--secondary); font-size: 14px; line-height: 1.7; }
+  .dot { flex: 0 0 7px; height: 7px; margin-top: 8px; border-radius: 50%; background: #78a4ff; }
+  .dot.ready { background: #44c98b; } .dot.failed { background: #f18585; }
+  .bar { height: 4px; margin-top: 10px; border-radius: 4px; background: #2b3445; overflow: hidden; position: relative; }
+  .bar i { position: absolute; top: 0; bottom: 0; width: 35%; border-radius: 4px; background: #6294ff; left: 10%; animation: slide 1.4s ease-in-out infinite; }
+  @keyframes slide { from { left: -35%; } to { left: 100%; } }
+  .actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+  .actions button { background: #294570; padding: 10px 14px; border: 1px solid var(--border); border-radius: 7px; font-weight: 600; }
+  .actions button.sec { background: transparent; }
+  .actions button:disabled { opacity: .5; }
+  .chg { outline: 2px dashed #edbc72; outline-offset: 3px; }
+</style>
+</head>
+<body>
+<div class="toolbar" id="toolbar"></div>
+<div class="stage" id="stage"></div>
+<script>
+const svg = d => `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const ICON = {
+  down: svg('<path d="M12 5v14"/><path d="m19 12-7 7-7-7"/>'),
+  check: svg('<path d="M20 6 9 17l-5-5"/>'),
+  warn: svg('<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>'),
+  refresh: svg('<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>'),
+};
+// Dialog states per variant: [state id, label, symbol, title, status title, status text, dot, buttons, progress]
+const VARIANTS = {
+  now: { name: '지금', states: [
+    ['available', '알림', 'down', '다운로드 준비됨', '설치 파일은 다운로드 버튼을 누르면 받기 시작합니다.', '', [['나중에', 'sec'], ['다운로드']]],
+    ['downloading', '받는 중', 'down', '다운로드 중', '설치 파일을 안전하게 확인하며 받고 있어요.', '', [['나중에', 'sec'], ['다운로드 중…', 'off']]],
+    ['ready', '받음', 'check', '다운로드 완료', '작업을 저장한 뒤 설치 후 재시작을 눌러주세요.', 'ready', [['나중에', 'sec'], ['설치 후 재시작']]],
+    ['failed', '실패', 'warn', '다운로드 실패', '연결을 확인한 뒤 다시 시도해주세요.', 'failed', [['나중에', 'sec'], ['다시 다운로드']]],
+  ] },
+  a: { name: 'A. 누르면 받고 바로 설치', states: [
+    ['available', '알림', 'down', '업데이트할 수 있어요', '업데이트를 누르면 새 버전을 받아 설치하고 Thread를 다시 시작해요.', '', [['나중에', 'sec'], ['업데이트']]],
+    ['downloading', '받는 중', 'down', '새 버전을 받는 중', '다 받으면 설치하고 Thread를 다시 시작해요.', '', [['취소', 'sec'], ['업데이트 중…', 'off']], true],
+    ['installing', '설치 중', 'refresh', '설치하는 중', '잠시 후 Thread가 다시 열려요.', 'ready', [], true],
+    ['failed', '실패', 'warn', '업데이트하지 못했어요', '인터넷 연결을 확인한 뒤 다시 시도해 주세요.', 'failed', [['나중에', 'sec'], ['다시 시도']]],
+  ] },
+  b: { name: 'B. 미리 받아 두기', states: [
+    ['ready', '준비됨', 'check', '업데이트 준비 완료', '새 버전을 미리 받아 뒀어요. 다시 시작하면 바로 바뀌어요.', 'ready', [['나중에', 'sec'], ['다시 시작해서 업데이트']]],
+    ['downloading', '아직 받는 중', 'down', '새 버전을 받는 중', '다 받으면 바로 설치하고 Thread를 다시 시작해요.', '', [['나중에', 'sec'], ['다 받으면 업데이트']], true],
+    ['installing', '설치 중', 'refresh', '설치하는 중', '잠시 후 Thread가 다시 열려요.', 'ready', [], true],
+    ['failed', '실패', 'warn', '미리 받지 못했어요', '인터넷 연결을 확인한 뒤 다시 시도해 주세요.', 'failed', [['나중에', 'sec'], ['다시 시도']]],
+  ] },
+};
+const s = { variant: 'a', state: 'available', mandatory: false };
+
+function dialog() {
+  const v = VARIANTS[s.variant], st = v.states.find(x => x[0] === s.state) ?? v.states[0];
+  const [, , icon, title, text, dot, buttons, progress] = st;
+  const changed = s.variant !== 'now';
+  const btns = buttons.filter(([, k]) => !(s.mandatory && k === 'sec'))
+    .map(([label, kind]) => `<button class="${kind === 'sec' ? 'sec' : ''}" ${kind === 'off' ? 'disabled' : ''}>${label}</button>`).join('');
+  return `<div class="ra"><div class="ra-h"><span class="sym">${ICON[icon]}</span><div><span class="eyebrow">THREAD UPDATE</span><h2>${s.mandatory ? '필수 업데이트' : '새 버전이 있습니다'}</h2></div></div>
+    <div class="ver">Thread <strong>2.0.16</strong></div>
+    ${s.mandatory ? '<p class="notice">이 버전은 이전 버전과 호환되지 않습니다. 업데이트 후 계속 사용할 수 있어요.</p>' : ''}
+    <div class="st ${changed ? 'chg' : ''}"><span class="dot ${dot}"></span><div style="flex:1"><strong>${title}</strong><p>${text}</p>${progress ? '<div class="bar"><i></i></div>' : ''}</div></div>
+    ${btns ? `<div class="actions ${changed ? 'chg' : ''}">${btns}</div>` : ''}</div>`;
+}
+function frame() {
+  return `<div class="desk-wrap fit"><div class="desk">
+    <div class="topbar"><b>Thread</b><span>2.0.15</span><span class="grow"></span><span class="upd">${ICON.down.replace(/20/g, '14')}업데이트</span><span>모두 동기화됨 · 방금</span></div>
+    <div class="desk-body"><div class="side"><div class="it on">업무</div><div class="it">공부</div><div class="it">개인</div></div>
+      <div class="main"><h1>업무</h1>${['분기 회고 자료 정리', '주간 보고서 제출', '스탠드업 메모'].map(t => `<div class="drow"><span class="c"></span>${t}</div>`).join('')}</div></div>
+    <div class="back">${dialog()}</div></div></div>`;
+}
+function notes() {
+  const flows = {
+    now: '<span>알림</span><i>→</i><span class="click">다운로드</span><i>→</i><span>받는 중</span><i>→</i><span class="click">설치 후 재시작</span><i>→</i><span>설치·재시작</span>',
+    a: '<span>알림</span><i>→</i><span class="click">업데이트</span><i>→</i><span>받는 중</span><i>→</i><span>설치·재시작</span><i>→</i><span>업데이트 내역 창</span>',
+    b: '<span>새 버전 발견 → 몰래 받아 둠</span><i>→</i><span>알림</span><i>→</i><span class="click">다시 시작해서 업데이트</span><i>→</i><span>설치·재시작</span><i>→</i><span>업데이트 내역 창</span>',
+  };
+  return `<div class="notes"><div class="now">${VARIANTS[s.variant].name} · ${(VARIANTS[s.variant].states.find(x => x[0] === s.state) ?? VARIANTS[s.variant].states[0])[1]}${s.mandatory ? ' · 필수 업데이트' : ''}</div>
+    <h3>흐름 (파란 칸 = 누르는 곳)</h3><div class="flow">${flows[s.variant]}</div>
+    <h3>바뀌는 것 (노란 점선)</h3><ul>
+      <li><b>A</b>: 버튼 하나("업데이트")로 받기 → 설치 → 다시 시작까지 이어서 함. 누르는 횟수 2번 → 1번.</li>
+      <li><b>A</b>: 받는 중에는 진행 막대를 보여 주고 "취소"로 멈출 수 있음. 취소해도 받은 파일은 남겨 두어 다음엔 바로 설치.</li>
+      <li><b>B</b>: 새 버전을 찾으면 알아서 미리 받아 둠. 알림이 뜰 때는 이미 받아 둔 상태라 누르면 바로 다시 시작.</li>
+      <li>다시 시작한 뒤에는 #99의 업데이트 내역 창이 이어서 뜸.</li>
+    </ul>
+    <h3>그대로인 것</h3><ul>
+      <li>창 모양, 위쪽 "업데이트" 버튼·트레이 "업데이트 확인"·설정 > 정보 "업데이트 보기"로 이 창을 여는 것.</li>
+      <li>받은 파일의 서명 확인(위조 방지), 필수 업데이트에는 "나중에"·"취소" 없음.</li>
+      <li>설치는 지금처럼 Windows 설치 프로그램이 작은 진행 창을 띄웠다가 Thread를 다시 염. Mac은 아직 앱 안 업데이트 없음.</li>
+    </ul>
+    <h3 class="q">정할 것</h3><ul class="q">
+      <li><b>A(추천)</b>: 누를 때만 받음. 데이터·저장 공간을 원할 때만 씀. 받는 동안(수십 초) 기다려야 함.</li>
+      <li><b>B</b>: 누르면 바로 다시 시작. 대신 새 버전이 나올 때마다 설치 파일(약 100MB)을 자동으로 받음.</li>
+      <li>문구: "업데이트할 수 있어요" / "업데이트" 버튼 이름.</li>
+    </ul></div>`;
+}
+function toolbar() {
+  const b = (k, v, label) => `<button class="${s[k] === v ? 'on' : ''}" data-set="${k}:${v}">${label}</button>`;
+  return `<div class="line"><strong>방식</strong>${b('variant', 'now', '지금 (2단계)')}${b('variant', 'a', 'A. 누르면 받고 바로 설치')}${b('variant', 'b', 'B. 미리 받아 두기')}</div>
+    <div class="line"><strong>상태</strong>${VARIANTS[s.variant].states.map(x => b('state', x[0], x[1])).join('')}<span class="sep"></span>${b('mandatory', false, '일반')}${b('mandatory', true, '필수 업데이트')}</div>`;
+}
+function render() {
+  document.getElementById('toolbar').innerHTML = toolbar();
+  document.getElementById('stage').innerHTML = frame() + notes();
+}
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-set]'); if (!t) return;
+  const [k, v] = t.dataset.set.split(':');
+  s[k] = v === 'true' ? true : v === 'false' ? false : v;
+  if (k === 'variant') s.state = VARIANTS[v].states[0][0];
+  render();
+});
+render();
+</script>
+</body>
+</html>
