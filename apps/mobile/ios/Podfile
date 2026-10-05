@@ -18,6 +18,9 @@ target 'Thread' do
   config = use_native_modules!
 
   pod 'ThreadNative', :path => './ThreadNative'
+  # Google Sign-In's Swift pods (AppCheckCore) import these as modules.
+  pod 'GoogleUtilities', :modular_headers => true
+  pod 'RecaptchaInterop', :modular_headers => true
 
   use_react_native!(
     :path => config[:reactNativePath],
