@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thread 모바일 실기기 피드백 시안 (#96)</title>
+<style>
+  :root {
+    --page: #0b0d10; --frame: #222730;
+    --border-ui: #2b303b; --ui-text: #edf1f7; --ui-muted: #8792a4; --ui-panel: #15181e; --ui-selected: #253858;
+  }
+  /* App themes: dark = desktop tokens; light = proposed. */
+  .theme-dark {
+    --canvas: #101216; --panel: #15181e; --surface: #1c2028; --hover: #252b36; --border: #2b303b;
+    --text: #edf1f7; --secondary: #a0aaba; --muted: #8792a4; --accent: #6294ff; --accent-text: #fff;
+    --selected: #253858; --success: #70d5a0; --warning: #edbc72; --danger: #f0838b; --scrim: #000a;
+  }
+  .theme-light {
+    --canvas: #f5f6f8; --panel: #ffffff; --surface: #ffffff; --hover: #eef0f4; --border: #e2e5ea;
+    --text: #15181e; --secondary: #4f5868; --muted: #7b8494; --accent: #3d6ef0; --accent-text: #fff;
+    --selected: #e5ecff; --success: #239a62; --warning: #b9770e; --danger: #d64550; --scrim: #0006;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--ui-text); font: 14px/1.5 Pretendard, "Malgun Gothic", "Segoe UI", sans-serif; }
+  button, input, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+
+  .toolbar { position: sticky; top: 0; z-index: 50; display: flex; flex-direction: column; gap: 6px; padding: 10px 16px; background: #0b0d10ee; border-bottom: 1px solid var(--border-ui); backdrop-filter: blur(6px); }
+  .toolbar .line { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+  .toolbar strong { margin-right: 4px; font-size: 12px; color: var(--ui-muted); min-width: 52px; }
+  .toolbar button { padding: 4px 9px; border: 1px solid var(--border-ui); border-radius: 7px; background: var(--ui-panel); font-size: 12px; color: #a0aaba; }
+  .toolbar button.on { background: var(--ui-selected); border-color: #3a5486; color: var(--ui-text); }
+  .toolbar .sep { width: 1px; height: 18px; background: var(--border-ui); margin: 0 4px; }
+
+  .stage { display: flex; gap: 28px; align-items: flex-start; justify-content: center; padding: 28px 16px 64px; flex-wrap: wrap; }
+  .notes { width: 380px; padding: 16px 18px; border: 1px dashed #3a4252; border-radius: 12px; color: #a0aaba; font-size: 13px; }
+  .notes h3 { margin: 14px 0 6px; font-size: 13px; color: var(--ui-text); } .notes h3:first-child { margin-top: 0; }
+  .notes ul, .notes ol { margin: 0; padding-left: 18px; } .notes li { margin: 4px 0; }
+  .notes .q { color: #edbc72; }
+  .notes .now { padding: 8px 10px; border-radius: 8px; background: #161b24; color: #cfd6e2; margin-bottom: 10px; }
+
+  /* Phone: 390x844 (logical px), Android gesture navigation. */
+  .phone { position: relative; width: 390px; height: 844px; border-radius: 44px; border: 10px solid var(--frame); background: var(--canvas); color: var(--text); overflow: hidden; display: flex; flex-direction: column; }
+  .status { height: 36px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 22px; font-size: 12px; color: var(--secondary); }
+  .gesture { position: absolute; bottom: 6px; left: 50%; width: 110px; height: 4px; margin-left: -55px; border-radius: 4px; background: var(--muted); opacity: .6; z-index: 30; }
+  .content { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; position: relative; }
+  .content::-webkit-scrollbar { display: none; }
+
+  /* Common pieces */
+  .appbar { display: flex; align-items: center; gap: 8px; padding: 8px 12px 6px 18px; min-height: 52px; }
+  .appbar h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -.4px; display: flex; align-items: center; gap: 6px; }
+  .appbar .grow { flex: 1; }
+  .icon-btn { width: 40px; height: 40px; border: 0; border-radius: 12px; background: none; color: var(--secondary); display: grid; place-items: center; font-size: 18px; }
+  .icon-btn:active { background: var(--hover); }
+  .chev { font-size: 14px; color: var(--muted); }
+  .count { padding: 1px 8px; border-radius: 7px; background: var(--surface); border: 1px solid var(--border); color: var(--secondary); font-size: 13px; font-weight: 600; }
+  .sub { padding: 0 18px 10px; color: var(--muted); font-size: 12px; }
+  .chips { display: flex; gap: 6px; padding: 0 18px 12px; overflow-x: auto; scrollbar-width: none; }
+  .chip { flex: none; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--secondary); font-size: 13px; }
+  .chip.on { background: var(--selected); border-color: var(--accent); color: var(--text); }
+  .section { display: flex; align-items: center; gap: 8px; padding: 14px 18px 8px; color: var(--secondary); font-size: 13px; font-weight: 600; }
+  .section .arrow { display: inline-block; transition: transform .2s; }
+  .section.closed .arrow { transform: rotate(-90deg); }
+
+  .task { display: flex; align-items: center; gap: 12px; margin: 0 12px 8px; padding: 13px 14px; border-radius: 14px; background: var(--surface); border: 1px solid var(--border); }
+  .task.done { opacity: .6; }
+  .task.done .t { text-decoration: line-through; color: var(--muted); }
+  .check { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--muted); flex: none; display: grid; place-items: center; font-size: 13px; color: var(--accent-text); }
+  .task.done .check { background: var(--accent); border-color: var(--accent); }
+  .task .body { flex: 1; min-width: 0; }
+  .task .t { font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .task .meta { display: flex; gap: 8px; align-items: center; margin-top: 3px; color: var(--muted); font-size: 12px; }
+  .task .meta .over { color: var(--danger); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .tag { padding: 1px 7px; border-radius: 6px; background: var(--selected); color: var(--accent); font-size: 11px; font-weight: 600; }
+
+  .fab { position: absolute; right: 18px; bottom: 82px; width: 56px; height: 56px; border-radius: 18px; border: 0; background: var(--accent); color: var(--accent-text); font-size: 28px; box-shadow: 0 6px 18px #0006; z-index: 15; }
+  .quickadd { position: absolute; left: 12px; right: 12px; bottom: 80px; display: flex; gap: 8px; align-items: center; padding: 10px 12px; border-radius: 16px; background: var(--surface); border: 1px solid var(--border); box-shadow: 0 6px 18px #0005; z-index: 15; color: var(--muted); }
+
+  .tabbar { flex: none; display: flex; height: 70px; padding: 6px 6px 16px; background: var(--panel); border-top: 1px solid var(--border); }
+  .tabbar button { flex: 1; border: 0; background: none; display: flex; flex-direction: column; align-items: center; gap: 2px; color: var(--muted); font-size: 11px; }
+  .tabbar button .ic { font-size: 19px; line-height: 1.2; padding: 2px 16px; border-radius: 12px; }
+  .tabbar button.on { color: var(--text); }
+  .tabbar button.on .ic { background: var(--selected); color: var(--accent); }
+
+  .sync { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+  .sync .dot { width: 6px; height: 6px; background: var(--success); }
+
+  /* Sheets */
+  .scrim { position: absolute; inset: 0; background: var(--scrim); z-index: 40; }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 41; background: var(--panel); border-radius: 22px 22px 0 0; padding: 8px 0 26px; max-height: 88%; overflow-y: auto; scrollbar-width: none; }
+  .sheet .grab { width: 36px; height: 4px; border-radius: 4px; background: var(--border); margin: 4px auto 10px; }
+  .sheet h2 { margin: 0 20px 10px; font-size: 17px; }
+  .row { display: flex; align-items: center; gap: 12px; padding: 12px 20px; font-size: 15px; }
+  .row .grow { flex: 1; }
+  .row .hint { color: var(--muted); font-size: 13px; }
+  .row.on { background: var(--selected); }
+  .row .lead { width: 24px; text-align: center; color: var(--secondary); }
+  .divider { height: 1px; background: var(--border); margin: 6px 20px; }
+  .drawer { position: absolute; top: 0; bottom: 0; left: 0; width: 300px; z-index: 41; background: var(--panel); padding: 46px 0 20px; }
+
+  .field { margin: 0 18px 12px; padding: 13px 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); font-size: 15px; }
+  .field.big { font-size: 18px; color: var(--text); font-weight: 600; }
+  .btn { display: block; width: calc(100% - 36px); margin: 0 18px 10px; padding: 14px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 15px; font-weight: 600; text-align: center; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+  .btn.ghost { background: none; border-color: transparent; color: var(--secondary); font-weight: 500; }
+  .btn.google { display: flex; justify-content: center; align-items: center; gap: 10px; }
+  .g { width: 18px; height: 18px; border-radius: 50%; background: conic-gradient(#ea4335 0 25%, #fbbc05 0 50%, #34a853 0 75%, #4285f4 0); }
+  .center { display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .logo { width: 72px; height: 72px; border-radius: 20px; display: grid; place-items: center; background: linear-gradient(135deg, #2ec5ff, #6a4cff 70%, #b14cff); color: #fff; font-size: 38px; font-weight: 800; }
+  .title-xl { font-size: 24px; font-weight: 700; margin: 14px 0 4px; }
+  .muted { color: var(--muted); }
+  .small { font-size: 12px; }
+  .card { margin: 0 18px 12px; padding: 14px 16px; border-radius: 14px; background: var(--surface); border: 1px solid var(--border); }
+  .card h4 { margin: 0 0 4px; font-size: 15px; }
+  .steps { display: flex; gap: 6px; padding: 0 18px 14px; }
+  .steps i { flex: 1; height: 4px; border-radius: 4px; background: var(--border); }
+  .steps i.on { background: var(--accent); }
+  .code { font-family: ui-monospace, Consolas, monospace; letter-spacing: 1px; font-size: 13px; line-height: 1.8; padding: 12px 14px; border-radius: 12px; background: var(--canvas); border: 1px dashed var(--border); color: var(--text); word-break: break-all; }
+  .sas { display: flex; justify-content: center; gap: 8px; margin: 18px 0; }
+  .sas b { width: 42px; height: 56px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); display: grid; place-items: center; font-size: 28px; font-weight: 700; }
+  .spinner { width: 34px; height: 34px; border-radius: 50%; border: 3px solid var(--border); border-top-color: var(--accent); animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .option { display: flex; gap: 12px; align-items: flex-start; margin: 0 18px 10px; padding: 14px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); }
+  .option.on { border-color: var(--accent); background: var(--selected); }
+  .option .radio { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--muted); margin-top: 2px; flex: none; }
+  .option.on .radio { border-color: var(--accent); box-shadow: inset 0 0 0 4px var(--panel); background: var(--accent); }
+
+  /* Detail */
+  .detail-title { margin: 4px 18px 12px; font-size: 22px; font-weight: 700; }
+  .prop { display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-bottom: 1px solid var(--border); font-size: 15px; }
+  .prop .k { width: 70px; color: var(--muted); font-size: 13px; }
+  .prop .v { flex: 1; }
+  .subtask { display: flex; align-items: center; gap: 10px; padding: 9px 18px; font-size: 14px; }
+  .subtask .check { width: 20px; height: 20px; }
+  .memo { margin: 8px 18px; padding: 12px; min-height: 90px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); color: var(--secondary); font-size: 14px; }
+
+  /* Calendar */
+  .cal-head { display: flex; align-items: center; padding: 6px 12px 6px 18px; }
+  .cal-head h1 { flex: 1; margin: 0; font-size: 20px; }
+  .grid { display: grid; grid-template-columns: repeat(7, 1fr); padding: 0 8px; }
+  .grid .wd { text-align: center; font-size: 11px; color: var(--muted); padding: 4px 0; }
+  .grid .d { height: 52px; display: flex; flex-direction: column; align-items: center; gap: 3px; padding-top: 5px; font-size: 14px; border-radius: 12px; }
+  .grid .d.other { color: var(--muted); opacity: .45; }
+  .grid .d.today span { background: var(--accent); color: var(--accent-text); border-radius: 50%; width: 26px; height: 26px; display: grid; place-items: center; }
+  .grid .d.sel { background: var(--selected); }
+  .grid .d .marks { display: flex; gap: 3px; }
+  .grid .d .marks i { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+  .grid .d .marks i.done { background: var(--success); }
+  .grid .d.sun { color: var(--danger); } .grid .d.sat { color: var(--accent); }
+  .dayhead { padding: 14px 18px 6px; font-weight: 700; font-size: 15px; display: flex; }
+  .dayhead span { flex: 1; }
+
+  /* Timeline */
+  .tl { position: relative; margin: 6px 18px 0 60px; border-left: 1px solid var(--border); }
+  .tl .h { position: relative; height: 56px; }
+  .tl .h span { position: absolute; left: -48px; top: -8px; font-size: 11px; color: var(--muted); }
+  .tl .h::after { content: ""; position: absolute; left: 0; right: 0; top: 0; border-top: 1px dashed var(--border); }
+  .tl .ev { position: absolute; left: 8px; right: 0; padding: 6px 10px; border-radius: 10px; background: var(--selected); border-left: 3px solid var(--accent); font-size: 13px; }
+  .tl .now { position: absolute; left: -5px; right: 0; border-top: 2px solid var(--danger); }
+  .tl .now::before { content: ""; position: absolute; left: -1px; top: -6px; width: 10px; height: 10px; border-radius: 50%; background: var(--danger); }
+
+  /* Settings */
+  .group-title { padding: 18px 18px 6px; color: var(--muted); font-size: 12px; font-weight: 600; }
+  .list { margin: 0 12px; border-radius: 14px; background: var(--surface); border: 1px solid var(--border); overflow: hidden; }
+  .list .row { padding: 13px 14px; border-bottom: 1px solid var(--border); }
+  .list .row:last-child { border-bottom: 0; }
+  .toggle { width: 42px; height: 24px; border-radius: 12px; background: var(--accent); position: relative; }
+  .toggle::after { content: ""; position: absolute; right: 3px; top: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; }
+  .toggle.off { background: var(--border); } .toggle.off::after { right: auto; left: 3px; }
+  .bar { height: 8px; border-radius: 4px; background: var(--success); flex: 1; }
+  .lock-ic { width: 84px; height: 84px; border-radius: 26px; display: grid; place-items: center; background: var(--surface); border: 1px solid var(--border); font-size: 38px; }
+  /* Size check (user feedback 2026-10-05): everything about 12% smaller, buttons a bit more. */
+  .phone.compact > :not(.status):not(.gesture) { zoom: .88; }
+  .phone.compact .btn { padding: 11px 14px; border-radius: 12px; font-size: 14px; }
+  .phone.compact .fab { width: 50px; height: 50px; font-size: 24px; border-radius: 16px; }
+</style>
+</head>
+<body>
+<style>
+  /* Feedback mock extras */
+  .scrim.fade { opacity: 0; transition: opacity .25s ease; }
+  .scrim.fade.show { opacity: 1; }
+  .sheet.slide { transform: translateY(100%); transition: transform .28s cubic-bezier(.2,.8,.2,1); }
+  .sheet.slide.show { transform: none; }
+  .scrim.instant { opacity: 1; }
+  .chip .caret { margin-left: 3px; vertical-align: -2px; color: var(--muted); }
+  .grid .d .marks i.gray { background: var(--muted); opacity: .4; }
+  .tabbar.b button.on { color: var(--accent); font-weight: 700; }
+  .tabbar.b button.on .ic { background: none; color: var(--accent); }
+  .tabbar.b button { position: relative; }
+  .tabbar.b button.on::before { content: ""; position: absolute; top: -6px; left: 30%; right: 30%; height: 3px; border-radius: 0 0 3px 3px; background: var(--accent); }
+  .tabbar.c button { margin: 0 4px; border-radius: 14px; }
+  .tabbar.c button.on { background: var(--selected); color: var(--accent); font-weight: 700; }
+  .tabbar.c button.on .ic { background: none; color: var(--accent); }
+  .tabbar.d button.on { color: var(--text); font-weight: 700; }
+  .tabbar.d button.on .ic { background: var(--accent); color: var(--accent-text); }
+  .picker-grid { display: grid; grid-template-columns: repeat(7, 1fr); padding: 0 12px; text-align: center; font-size: 14px; }
+  .picker-grid .wd { color: var(--muted); font-size: 11px; padding: 4px 0; }
+  .picker-grid .d { height: 38px; display: grid; place-items: center; }
+  .picker-grid .d.other { color: var(--muted); opacity: .45; }
+  .picker-grid .d.sel span { background: var(--accent); color: var(--accent-text); border-radius: 50%; width: 32px; height: 32px; display: grid; place-items: center; }
+  .picker-grid .d.today { color: var(--accent); font-weight: 700; }
+  .wheel { display: flex; justify-content: center; gap: 6px; margin: 4px 18px 12px; padding: 6px 0; border-radius: 14px; background: var(--surface); border: 1px solid var(--border); position: relative; }
+  .wheel .col { width: 64px; text-align: center; font-size: 15px; line-height: 34px; color: var(--muted); font-variant-numeric: tabular-nums; position: relative; z-index: 1; }
+  .wheel .colon { width: 10px; text-align: center; font-size: 18px; font-weight: 700; line-height: 34px; color: var(--text); align-self: center; position: relative; z-index: 1; }
+  .wheel .col b { display: block; color: var(--text); font-size: 18px; }
+  .wheel::after { content: ""; position: absolute; left: 10px; right: 10px; top: 50%; height: 36px; margin-top: -18px; border-radius: 10px; background: var(--selected); pointer-events: none; z-index: 0; }
+  .timechips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 18px 12px; }
+</style>
+<div class="toolbar">
+  <div class="line" data-group="screens"><strong>화면</strong></div>
+  <div class="line">
+    <strong>정할 것</strong>
+    <span class="muted small" style="color:#8792a4">하단 탭 선택</span>
+    <button data-k="tab" data-v="a">A 지금(아이콘 뒤 알약)</button>
+    <button data-k="tab" data-v="b">B 위 막대 + 파란 글자</button>
+    <button data-k="tab" data-v="c">C 탭 전체 칸 강조</button>
+    <button data-k="tab" data-v="d">D 채운 아이콘 알약</button>
+    <span class="sep"></span>
+    <span class="muted small" style="color:#8792a4">시간 고르기</span>
+    <button data-k="time" data-v="end">하루 끝</button>
+    <button data-k="time" data-v="wheel">직접 입력(휠)</button>
+    <span class="sep"></span>
+    <span class="muted small" style="color:#8792a4">테마</span>
+    <button data-k="theme" data-v="dark">다크</button>
+    <button data-k="theme" data-v="light">라이트</button>
+  </div>
+</div>
+<div class="stage">
+  <div class="phone" data-phone></div>
+  <section class="notes" data-notes></section>
+</div>
+<script>
+const s = { screen: 'tasks', theme: 'dark', tab: 'b', time: 'wheel', sheetOpen: false };
+const SCREENS = [
+  ['tasks', '할 일 줄(정보 순서)'], ['add', '추가 시트(업무 보기)'], ['addAll', '추가 시트(모든 할 일)'], ['repeat', '추가 > 반복 ▼'], ['cats', '추가 > 카테고리 ▼'],
+  ['picker', '날짜·시간 고르기'], ['sheetAnim', '시트 배경 전환'], ['calendar', '캘린더 완료 점'], ['timeline', '일정 탭'],
+];
+const CARET = '<svg class="caret" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
+const statusBar = () => `<div class="status"><span>9:41</span><span>▂▄▆ ◔ ▮</span></div>`;
+const tabbar = on => `<nav class="tabbar ${s.tab}">${[['tasks', '☑', '할 일'], ['calendar', '▦', '캘린더'], ['timeline', '◷', '일정'], ['settings', '⚙', '설정']]
+  .map(([id, ic, l]) => `<button class="${on === id ? 'on' : ''}"><span class="ic">${ic}</span>${l}</button>`).join('')}</nav>`;
+const task = (t, color, left, repeat, sub, over) => `<div class="task"><span class="check"></span><div class="body"><div class="t">${t}</div>
+  <div class="meta"><span class="dot" style="background:${color}"></span><span class="${over ? 'over' : ''}">${left}</span>${repeat ? `<span>·</span><span>↻ ${repeat}</span>` : ''}${sub ? `<span>·</span><span>${sub}</span>` : ''}</div></div></div>`;
+function list() {
+  return `<div class="content"><div class="appbar"><h1>업무 <span class="count">4</span><span class="chev">▾</span></h1><span class="grow"></span><button class="icon-btn">⌕</button></div>
+    <div class="sub sync"><span class="dot"></span>모두 동기화됨 · 방금 · 5개의 할 일 · 1개 완료</div>
+    <div class="chips"><span class="chip on">기한 순</span><span class="chip">남은 기한 순</span><span class="chip">생성일 순</span></div>
+    <div class="section"><span class="arrow">▾</span>해야할 일 (4)</div>
+    ${task('분기 회고 자료 정리', '#6294ff', '2시간 남음', null, '2/3')}
+    ${task('주간 보고서 제출', '#6294ff', '3시간 지남', null, null, true)}
+    ${task('토익 단어 50개', '#b58cff', '3일 남음', '매일')}
+    ${task('스탠드업 메모', '#6294ff', '1일 남음', '평일', '0/2')}
+    <div class="section closed"><span class="arrow">▾</span>완료됨 (1)</div>
+  </div><button class="fab">+</button>${tabbar('tasks')}`;
+}
+const addSheet = (extra = '', all = false) => `<div class="scrim"></div><div class="sheet"><div class="grab"></div>
+  <div class="field big">새 할 일 제목</div>
+  <div class="chips"><span class="chip on">오늘</span><span class="chip">내일</span><span class="chip" data-go="picker">날짜·시간${CARET}</span><span class="chip" data-go="repeat">반복${CARET}</span><span class="chip" data-go="cats">${all ? '카테고리' : '업무'}${CARET}</span></div>
+  <button class="btn primary">추가</button>
+  <p class="muted small" style="margin:4px 20px 0">메모·하위 할 일은 추가한 뒤 상세에서 넣을 수 있어요.</p></div>${extra}`;
+const repeatSheet = () => `<div class="scrim" style="z-index:42"></div><div class="sheet" style="z-index:43"><div class="grab"></div><h2>반복</h2>
+  ${['안 함', '매일', '평일(월~금)', '매주', '매달', '매년'].map((x, i) => `<div class="row ${i === 1 ? 'on' : ''}"><span class="grow">${x}</span>${i === 1 ? '<span style="color:var(--accent)">✓</span>' : ''}</div>`).join('')}</div>`;
+const catSheet = () => `<div class="scrim" style="z-index:42"></div><div class="sheet" style="z-index:43"><div class="grab"></div><h2>카테고리</h2>
+  ${[['업무', '#6294ff', 1], ['공부', '#b58cff', 0], ['생활', '#44c98b', 0]].map(([n, c, on]) => `<div class="row"><span class="dot" style="background:${c}"></span><span class="grow">${n}</span><span style="color:var(--accent)">${on ? '✓' : ''}</span></div>`).join('')}
+  <p class="muted small" style="margin:6px 20px 10px">여러 개 고를 수 있어요. 지금 보는 카테고리는 처음부터 골라져 있어요.</p><button class="btn primary">완료</button></div>`;
+function picker() {
+  const days = []; for (let i = 0; i < 4; i++) days.push(27 + i);
+  const cells = ['27', '28', '29', '30', ...Array.from({ length: 31 }, (_, i) => String(i + 1))];
+  while (cells.length % 7) cells.push(String(cells.length - 34));
+  const custom = s.time !== 'end';
+  const time = `<div class="timechips"><span class="chip ${custom ? '' : 'on'}" data-k="time" data-v="end">하루 끝 (오후 11:59)</span><span class="chip ${custom ? 'on' : ''}" data-k="time" data-v="wheel">직접 입력</span></div>` +
+    (custom ? `<div class="wheel"><div class="col">&nbsp;<b>오후</b>&nbsp;</div><div class="col">5<b>6</b>7</div><div class="colon">:</div><div class="col">55<b>00</b>05</div></div>` : '');
+  return `<div class="scrim" style="z-index:42"></div><div class="sheet" style="z-index:43"><div class="grab"></div>
+    <div style="display:flex;align-items:center;padding:0 12px 4px 20px"><h2 style="margin:0;flex:1">2026년 10월</h2><button class="icon-btn">‹</button><button class="icon-btn">›</button></div>
+    <div class="chips" style="padding-bottom:8px"><span class="chip">오늘</span><span class="chip">내일</span><span class="chip">다음 주 월요일</span><span class="chip">기한 없음</span></div>
+    <div class="picker-grid">${'일월화수목금토'.split('').map(d => `<div class="wd">${d}</div>`).join('')}
+      ${cells.map((d, i) => `<div class="d ${i < 4 || i > 34 ? 'other' : ''} ${d === '8' && i > 4 && i < 35 ? 'sel' : ''} ${d === '4' && i > 4 && i < 35 ? 'today' : ''}"><span>${d}</span></div>`).join('')}</div>
+    <div class="group-title" style="padding-top:10px">시간</div>${time}
+    <div style="display:flex;gap:8px;padding:0 18px"><button class="btn ghost" style="margin:0;flex:1">취소</button><button class="btn primary" style="margin:0;flex:2">10월 8일 (목) ${s.time === 'end' ? '하루 끝' : '오후 6:00'}</button></div></div>`;
+}
+function sheetAnim() {
+  return list().replace(/<nav[\s\S]*<\/nav>/, tabbar('tasks')) +
+    `<div class="scrim fade ${s.sheetOpen ? 'show' : ''}" data-anim="close"></div>
+     <div class="sheet slide ${s.sheetOpen ? 'show' : ''}"><div class="grab"></div><h2>보기</h2>
+       <div class="row on"><span class="lead">☰</span><span class="grow">모든 할 일</span><span class="hint">7</span></div>
+       <div class="row"><span class="lead">☀</span><span class="grow">오늘</span><span class="hint">2</span></div>
+       <div class="row"><span class="lead"><span class="dot" style="background:#6294ff"></span></span><span class="grow">업무</span><span class="hint">4</span></div></div>
+     <button class="btn primary" data-anim="toggle" style="position:absolute;left:0;right:0;top:330px;z-index:50">${s.sheetOpen ? '시트 닫기 (배경 사라짐)' : '시트 열기 (배경 서서히)'}</button>`;
+}
+function calendar() {
+  const marks = { 3: ['t'], 4: ['t', 't', 'g'], 5: ['t'], 9: ['g'], 15: ['t', 'g'], 22: ['t'] };
+  let cells = '';
+  for (let i = 0; i < 35; i++) {
+    const d = i - 3; const other = d < 1 || d > 31;
+    const m = marks[d] || [];
+    cells += `<div class="d ${other ? 'other' : ''} ${d === 4 ? 'today sel' : ''}"><span>${other ? '' : d}</span><div class="marks">${m.map(x => `<i class="${x === 'g' ? 'gray' : ''}"></i>`).join('')}</div></div>`;
+  }
+  return `<div class="content"><div class="cal-head"><h1>2026년 10월</h1><button class="icon-btn">‹</button><span class="muted">오늘</span><button class="icon-btn">›</button></div>
+    <div class="grid">${'일월화수목금토'.split('').map(d => `<div class="wd">${d}</div>`).join('')}${cells}</div>
+    <div class="dayhead"><span>10월 4일 (일)</span><span class="muted small">3개</span></div>
+    ${task('분기 회고 자료 정리', '#6294ff', '2시간 남음')}${task('주간 보고서 제출', '#6294ff', '3시간 지남', null, null, true)}
+    <div class="task done"><span class="check">✓</span><div class="body"><div class="t">릴리스 노트 작성</div><div class="meta"><span class="dot" style="background:#6294ff"></span><span>10시간 지남</span></div></div></div>
+  </div><button class="fab">+</button>${tabbar('calendar')}`;
+}
+function timeline() {
+  const H = 39; let hours = '';
+  for (let h = 7; h < 24; h++) hours += `<div class="h" style="height:${H}px"><span>${h < 12 ? '오전' : '오후'} ${h % 12 || 12}시</span></div>`;
+  const at = h => (h - 7) * H;
+  return `<div class="content"><div class="appbar"><h1>오늘 · 10월 4일</h1><span class="grow"></span><button class="icon-btn">‹</button><button class="icon-btn">›</button></div>
+    <div class="chips"><span class="chip on">하루</span><span class="chip">3일</span><span class="chip">한 주</span></div>
+    <div class="tl" style="margin-bottom:12px">${hours}
+      <div class="ev" style="top:${at(9) - 12}px">주간 보고서 제출 · 오전 9:00 <span style="color:var(--danger)">지남</span></div>
+      <div class="now" style="top:${at(15.4)}px"></div>
+      <div class="ev" style="top:${at(18) - 12}px">분기 회고 자료 정리 · 오후 6:00</div></div>
+  </div>${tabbar('timeline')}`;
+}
+const RENDER = { tasks: list, add: () => list() + addSheet(), addAll: () => list().replace('업무 <span class="count">4</span>', '모든 할 일 <span class="count">7</span>') + addSheet('', true), repeat: () => list() + addSheet(repeatSheet()), cats: () => list() + addSheet(catSheet()), picker: () => list() + addSheet(picker()), sheetAnim, calendar, timeline };
+const NOTES = () => `
+  <div class="now">#96 실기기 피드백 시안. 크기는 #87 확정 크기(되돌림)로 그렸어요.</div>
+  <h3>바꾸는 것</h3><ul>
+    <li><b>할 일 줄</b>: (색) (남은 시간) · (반복) · (하위 할 일). 하위 할 일 개수는 맨 뒤로 옮겼어요.</li>
+    <li><b>추가 시트</b>: 오늘·내일은 그대로 토글, 날짜·시간 / 반복 / 카테고리는 눌러서 고르는 것(아래 화살표 아이콘). 카테고리 칩은 지금 보는 카테고리 이름(업무 보기면 "업무", 모든 할 일이면 "카테고리", 여러 개면 "업무 외 1"). 칩 줄이 넘치면 가로로 밀어서 봄. 반복은 추가 시트에서도 정할 수 있게 다시 넣음.</li>
+    <li><b>날짜·시간</b>: 시스템 기본 창 대신 앱 디자인 시트(달력 + 빠른 선택 + 시간). 시간은 "하루 끝" 또는 "직접 입력"(오전/오후 · 시 : 분 휠). 상세의 기한 바꾸기도 같은 시트. 앱 글꼴은 휴대폰 기본 글꼴이라 이 시안(Windows 맑은 고딕)과 다르게 보여요.</li>
+    <li><b>시트 배경</b>: 시트는 아래에서 올라오고, 뒤 어두운 배경은 그 자리에서 서서히 나타나고 사라짐("시트 배경 전환"에서 버튼으로 확인). 앱의 모든 아래 시트에 적용.</li>
+    <li><b>캘린더 점</b>: 해야 할 일은 파랑, 완료는 회색(불투명도 40%). PC 캘린더 점도 같은 규칙으로.</li>
+    <li><b>일정 탭</b>: 시간 칸 높이 56 → 39(70%), 아래 큰 여백(+ 버튼용으로 잘못 들어간 110) 제거.</li>
+    <li><b>하단 탭 선택</b>: 후보 A~D(위 "하단 탭 선택" 버튼).</li>
+  </ul>
+  <h3>그대로인 것</h3><ul><li>#87 화면 구조, 크기, 색 토큰. 정렬 칩은 #97에서 중요도 순을 빼는 것으로 따로 처리(시안에는 미리 빠진 모습).</li></ul>
+  <h3>정할 것</h3><ol>
+    <li>하단 탭 선택: B(위 막대 + 파란 글자)로 정함.</li>
+    <li>시간 고르기: 하루 끝 / 직접 입력(휠)로 정함.</li>
+  </ol>
+  <p class="muted small">위 "화면" 버튼으로 바꿔 보거나, 추가 시트의 ▼ 칩을 눌러 보세요.</p>`;
+function render() {
+  const phone = document.querySelector('[data-phone]');
+  phone.className = 'phone theme-' + s.theme;
+  phone.innerHTML = statusBar() + (RENDER[s.screen] || list)() + '<div class="gesture"></div>';
+  document.querySelector('[data-group="screens"]').innerHTML = '<strong>화면</strong>' +
+    SCREENS.map(([id, label]) => `<button data-screen="${id}" class="${s.screen === id ? 'on' : ''}">${label}</button>`).join('');
+  document.querySelectorAll('[data-k]').forEach(b => b.classList.toggle('on', s[b.dataset.k] === b.dataset.v));
+  document.querySelector('[data-notes]').innerHTML = NOTES();
+}
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-screen], [data-k], [data-go], [data-anim]');
+  if (!t) return;
+  if (t.dataset.anim) {
+    s.sheetOpen = !s.sheetOpen;
+    // Toggle classes in place so the CSS transition runs.
+    document.querySelector('.scrim.fade').classList.toggle('show', s.sheetOpen);
+    document.querySelector('.sheet.slide').classList.toggle('show', s.sheetOpen);
+    document.querySelector('[data-anim="toggle"]').textContent = s.sheetOpen ? '시트 닫기 (배경 사라짐)' : '시트 열기 (배경 서서히)';
+    return;
+  }
+  if (t.dataset.screen) { s.screen = t.dataset.screen; s.sheetOpen = false; }
+  else if (t.dataset.k) s[t.dataset.k] = t.dataset.v;
+  else s.screen = t.dataset.go;
+  render();
+});
+render();
+</script>
+</body>
+</html>
