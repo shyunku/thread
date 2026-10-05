@@ -1,4 +1,4 @@
-import { ActivityIndicator, StatusBar, View } from 'react-native';
+import { ActivityIndicator, StatusBar, Text, View } from 'react-native';
 import {
   DarkTheme,
   DefaultTheme,
@@ -46,19 +46,47 @@ function TabIcon({
   focused: boolean;
 }) {
   const theme = useTheme();
+  // Selected tab (user choice B, #96): a short bar on the top edge, accent icon and label.
   return (
-    <View
-      style={{
-        paddingHorizontal: 16,
-        paddingVertical: 2,
-        borderRadius: 12,
-        backgroundColor: focused ? theme.selected : 'transparent',
-      }}
-    >
-      <Icon color={focused ? theme.accent : color} size={20} />
+    <View style={{ alignItems: 'center', paddingTop: 2 }}>
+      {focused && (
+        <View
+          style={{
+            position: 'absolute',
+            top: -10,
+            width: 28,
+            height: 3,
+            borderBottomLeftRadius: 3,
+            borderBottomRightRadius: 3,
+            backgroundColor: theme.accent,
+          }}
+        />
+      )}
+      <Icon color={color} size={20} />
     </View>
   );
 }
+
+function TabLabel({
+  color,
+  focused,
+  children,
+}: {
+  color: string;
+  focused: boolean;
+  children: string;
+}) {
+  return (
+    <Text style={{ color, fontSize: 11, fontWeight: focused ? '700' : '500' }}>
+      {children}
+    </Text>
+  );
+}
+const label = (props: {
+  color: string;
+  focused: boolean;
+  children: string;
+}) => <TabLabel {...props} />;
 
 const icon =
   (Icon: typeof ListChecks) =>
@@ -81,7 +109,8 @@ function Tabs() {
       }
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: theme.text,
+        tabBarActiveTintColor: theme.accent,
+        tabBarLabel: label,
         tabBarInactiveTintColor: theme.muted,
         tabBarStyle: {
           backgroundColor: theme.panel,

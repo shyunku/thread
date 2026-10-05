@@ -8,7 +8,7 @@ import { Chip, IconButton } from '@/ui/kit';
 import { useTheme } from '@/ui/theme';
 import { useNow } from './parts';
 
-const HOUR = 56;
+const HOUR = 39; // 70% of the first design (#96)
 const DAY = 86400000;
 
 // Tasks placed at their due time over one day, three days or a week (desktop timeline).
@@ -135,7 +135,7 @@ export default function TimelineScreen() {
       )}
       <ScrollView
         contentOffset={{ x: 0, y: HOUR * 7 - 12 }}
-        contentContainerStyle={{ paddingBottom: 110 }}
+        contentContainerStyle={{ paddingBottom: 16 }}
       >
         <View style={{ flexDirection: 'row' }}>
           <View style={{ width: 58, height: HOUR * 24 }}>

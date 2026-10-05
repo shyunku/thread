@@ -25,9 +25,6 @@ dependencies:
   '@react-native-clipboard/clipboard':
     specifier: 1.16.3
     version: 1.16.3(react-native@0.87.1)(react@19.2.3)
-  '@react-native-community/datetimepicker':
-    specifier: 9.2.1
-    version: 9.2.1(react-native@0.87.1)(react@19.2.3)
   '@react-native-documents/picker':
     specifier: 12.0.2
     version: 12.0.2(react-native@0.87.1)(react@19.2.3)
@@ -2050,24 +2047,6 @@ packages:
       - supports-color
       - typescript
       - utf-8-validate
-
-  /@react-native-community/datetimepicker@9.2.1(react-native@0.87.1)(react@19.2.3):
-    resolution: {integrity: sha512-P2dir8EcPYuS6g7N/E4jImugB99h2+e1kzNX6Ihg+2T2v5IZ5dB+4afLisG6rdua4YZ1mADYCZ2iqI34sPjIKA==}
-    peerDependencies:
-      expo: '>=52.0.0'
-      react: '*'
-      react-native: '*'
-      react-native-windows: '*'
-    peerDependenciesMeta:
-      expo:
-        optional: true
-      react-native-windows:
-        optional: true
-    dependencies:
-      invariant: 2.2.4
-      react: 19.2.3
-      react-native: 0.87.1(@babel/core@7.29.7)(@react-native-community/cli@20.2.0)(@react-native/metro-config@0.87.1)(@types/react@19.3.0)(react@19.2.3)
-    dev: false
 
   /@react-native-documents/picker@12.0.2(react-native@0.87.1)(react@19.2.3):
     resolution: {integrity: sha512-tiaPQjSdsaCkKw/N8XB+DXfhOJ+KJ1OYDliBGoBHEqLI7AhUsSPhn8fRI/gHs7hpYzqOBKf+em9MUrPIA9mlWA==}

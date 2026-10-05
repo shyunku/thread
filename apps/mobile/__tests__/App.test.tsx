@@ -156,6 +156,10 @@ test('a secret category opens only after biometrics/PIN and hides its tasks else
   current.keys.state.authAllowed = true;
   await fireEvent.press(screen.getByText('일기'));
   await screen.findByText(/비밀 카테고리 · 앱을 닫거나 잠그면 다시 잠겨요/);
+  // Sheets stay mounted while they slide away.
+  await waitFor(() =>
+    expect(screen.queryByText('카테고리 추가·관리')).toBeNull(),
+  );
 
   // A task added here stays out of the other lists.
   await fireEvent.press(screen.getByLabelText('할 일 추가'));
@@ -165,6 +169,9 @@ test('a secret category opens only after biometrics/PIN and hides its tasks else
   );
   await fireEvent.press(screen.getByText('추가'));
   await screen.findByText('병원 결과 정리');
+  await waitFor(() =>
+    expect(screen.queryByPlaceholderText('새 할 일 제목')).toBeNull(),
+  );
   await fireEvent.press(screen.getByText('일기'));
   await fireEvent.press(await screen.findByText('모든 할 일'));
   await waitFor(() => expect(screen.queryByText('병원 결과 정리')).toBeNull());

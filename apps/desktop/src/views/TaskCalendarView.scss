@@ -224,8 +224,11 @@
     background: var(--accent);
     flex-shrink: 0;
   }
+  // Done reads as gray, not as another color (#96, same as mobile): 40% in the end,
+  // since the done row itself is at 50%.
   .done-dot {
-    background: var(--success);
+    background: var(--muted);
+    opacity: 0.8;
   }
   @media (max-width: 850px) {
     .day-cell {

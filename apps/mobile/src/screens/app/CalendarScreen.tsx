@@ -220,9 +220,11 @@ export default function CalendarScreen() {
                             width: 5,
                             height: 5,
                             borderRadius: 3,
+                            // Done reads as gray, not as another color (#96).
                             backgroundColor: t.done
-                              ? theme.success
+                              ? theme.muted
                               : theme.accent,
+                            opacity: t.done ? 0.4 : 1,
                           }}
                         />
                       ))}

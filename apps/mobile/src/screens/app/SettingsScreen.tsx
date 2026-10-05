@@ -63,7 +63,7 @@ const CHOICES: {
     key: 'theme',
     title: '테마',
     options: [
-      ['system', '휴대폰 설정 따라감'],
+      ['system', '시스템 기본값'],
       ['dark', '다크'],
       ['light', '라이트'],
     ],

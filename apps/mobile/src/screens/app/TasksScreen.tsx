@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import {
+  Check,
   ChevronDown,
   KeyRound,
   Layers,
@@ -26,8 +27,9 @@ import {
   type SortMode,
 } from '@/core/model/view';
 import { Button, Chip, IconButton, Row, Sheet } from '@/ui/kit';
-import { formatDue } from '@/core/model/view';
-import { pickDueDate, today, tomorrow } from '@/ui/dateTime';
+import { formatDue, REPEAT_LABEL } from '@/core/model/view';
+import { today, tomorrow } from '@/ui/dateTime';
+import { DateTimeSheet } from '@/ui/DateTimeSheet';
 import { useTheme } from '@/ui/theme';
 import { AppBar, SectionHeader, SyncLine, TaskItem, useNow } from './parts';
 
@@ -376,11 +378,25 @@ export function AddTaskSheet({
   const [categories, setCategories] = useState<string[]>(
     scope.kind === 'category' ? [scope.cid] : [],
   );
+  const [repeat, setRepeat] = useState('');
+  const [picker, setPicker] = useState<'date' | 'repeat' | 'category' | null>(
+    null,
+  );
   const reset = () => {
     setTitle('');
     setDue(defaultDue ?? (scope.kind === 'today' ? today() : null));
     setCategories(scope.kind === 'category' ? [scope.cid] : []);
+    setRepeat('');
+    setPicker(null);
   };
+  const chosen = categories
+    .map(cid => model?.categoryMap.get(cid)?.title)
+    .filter(Boolean) as string[];
+  const categoryLabel = !chosen.length
+    ? '카테고리'
+    : chosen.length === 1
+    ? chosen[0]
+    : `${chosen[0]} 외 ${chosen.length - 1}`;
   // The sheet stays mounted: take the current view's date and category each time
   // it opens (the view may have changed since the last time).
   useEffect(() => {
@@ -393,6 +409,7 @@ export function AddTaskSheet({
       {
         title: title.trim(),
         due_date: due ?? undefined,
+        repeat_period: repeat && due ? repeat : undefined,
         categories,
         created_at: Date.now(),
       },
@@ -456,34 +473,24 @@ export function AddTaskSheet({
           label={
             due && !isToday && !isTomorrow
               ? formatDue(due, prefs.timeFormat)
-              : '날짜·시간…'
+              : '날짜·시간'
           }
           selected={!!due && !isToday && !isTomorrow}
-          onPress={async () => {
-            const next = await pickDueDate(due, prefs.timeFormat === '24');
-            if (next !== undefined) setDue(next);
-          }}
+          dropdown
+          onPress={() => setPicker('date')}
         />
-        {/* Categories toggle on and off; a secret one only when it is the current view. */}
-        {(model?.categories ?? [])
-          .filter(c => !c.secret || categories.includes(c.cid))
-          .map(c => {
-            const on = categories.includes(c.cid);
-            return (
-              <Chip
-                key={c.cid}
-                label={c.title}
-                selected={on}
-                onPress={() =>
-                  setCategories(
-                    on
-                      ? categories.filter(id => id !== c.cid)
-                      : [...categories, c.cid],
-                  )
-                }
-              />
-            );
-          })}
+        <Chip
+          label={repeat ? REPEAT_LABEL[repeat] : '반복'}
+          selected={!!repeat}
+          dropdown
+          onPress={() => setPicker('repeat')}
+        />
+        <Chip
+          label={categoryLabel}
+          selected={categories.length > 0}
+          dropdown
+          onPress={() => setPicker('category')}
+        />
       </ScrollView>
       <Button
         kind="primary"
@@ -492,8 +499,103 @@ export function AddTaskSheet({
         onPress={add}
       />
       <Text style={{ color: theme.muted, fontSize: 12, marginHorizontal: 20 }}>
-        메모·하위 할 일·반복은 추가한 뒤 상세에서 넣을 수 있어요.
+        메모·하위 할 일은 추가한 뒤 상세에서 넣을 수 있어요.
       </Text>
+
+      <DateTimeSheet
+        visible={picker === 'date'}
+        value={due}
+        timeFormat={prefs.timeFormat}
+        onClose={() => setPicker(null)}
+        onPick={next => {
+          setDue(next || null);
+          if (!next) setRepeat('');
+        }}
+      />
+      <Sheet
+        visible={picker === 'repeat'}
+        onClose={() => setPicker(null)}
+        title="반복"
+      >
+        {(['', ...Object.keys(REPEAT_LABEL)] as string[]).map(period => (
+          <Row
+            key={period || 'none'}
+            selected={repeat === period}
+            onPress={() => {
+              setRepeat(period);
+              // A repeat needs a due date to count from: today's end by default.
+              if (period && !due) setDue(today());
+              setPicker(null);
+            }}
+          >
+            <Text style={{ flex: 1, color: theme.text, fontSize: 15 }}>
+              {period ? REPEAT_LABEL[period] : '안 함'}
+            </Text>
+            {repeat === period && <Check color={theme.accent} size={18} />}
+          </Row>
+        ))}
+      </Sheet>
+      <Sheet
+        visible={picker === 'category'}
+        onClose={() => setPicker(null)}
+        title="카테고리"
+      >
+        <ScrollView style={{ maxHeight: 360 }}>
+          {/* A secret category only when it is the current view. */}
+          {(model?.categories ?? [])
+            .filter(c => !c.secret || categories.includes(c.cid))
+            .map(c => {
+              const on = categories.includes(c.cid);
+              return (
+                <Row
+                  key={c.cid}
+                  onPress={() =>
+                    setCategories(
+                      on
+                        ? categories.filter(id => id !== c.cid)
+                        : [...categories, c.cid],
+                    )
+                  }
+                >
+                  {c.secret ? (
+                    <KeyRound color={theme.warning} size={16} />
+                  ) : (
+                    <View
+                      style={{
+                        width: 10,
+                        height: 10,
+                        borderRadius: 5,
+                        backgroundColor: c.color || theme.accent,
+                      }}
+                    />
+                  )}
+                  <Text style={{ flex: 1, color: theme.text, fontSize: 15 }}>
+                    {c.title}
+                  </Text>
+                  {on && <Check color={theme.accent} size={18} />}
+                </Row>
+              );
+            })}
+          {!model?.categories.length && (
+            <Text
+              style={{ color: theme.muted, fontSize: 13, marginHorizontal: 20 }}
+            >
+              카테고리가 없어요.
+            </Text>
+          )}
+        </ScrollView>
+        <Text
+          style={{
+            color: theme.muted,
+            fontSize: 12,
+            marginHorizontal: 20,
+            marginVertical: 8,
+          }}
+        >
+          여러 개 고를 수 있어요. 지금 보는 카테고리는 처음부터 골라져 있어요.
+        </Text>
+        <Button kind="primary" label="완료" onPress={() => setPicker(null)} />
+      </Sheet>
     </Sheet>
   );
 }

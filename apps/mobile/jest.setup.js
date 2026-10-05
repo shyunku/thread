@@ -38,9 +38,6 @@ jest.mock('@dr.pogodin/react-native-fs', () => ({
   writeFile: jest.fn(async () => {}),
   unlink: jest.fn(async () => {}),
 }));
-jest.mock('@react-native-community/datetimepicker', () => ({
-  DateTimePickerAndroid: { open: jest.fn() },
-}));
 jest.mock('@react-native-google-signin/google-signin', () => ({
   GoogleSignin: {
     configure: jest.fn(),

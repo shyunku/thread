@@ -11,7 +11,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { ArrowLeft, Plus, Trash2, X } from 'lucide-react-native';
 import { useApp } from '@/app/AppContext';
 import { REPEAT_LABEL, formatDue, remainingText } from '@/core/model/view';
-import { pickDueDate } from '@/ui/dateTime';
+import { DateTimeSheet } from '@/ui/DateTimeSheet';
 import { IconButton, Row, Sheet } from '@/ui/kit';
 import { useTheme } from '@/ui/theme';
 import { CheckCircle, SectionHeader, useNow } from './parts';
@@ -28,7 +28,9 @@ export default function TaskDetailScreen() {
   const [title, setTitle] = useState(task?.title ?? '');
   const [memo, setMemo] = useState(task?.memo ?? '');
   const [newSubtask, setNewSubtask] = useState('');
-  const [sheet, setSheet] = useState<'repeat' | 'category' | null>(null);
+  const [sheet, setSheet] = useState<'repeat' | 'category' | 'due' | null>(
+    null,
+  );
 
   useEffect(() => {
     if (task) {
@@ -140,14 +142,7 @@ export default function TaskDetailScreen() {
           }
           hint={remaining?.text}
           hintDanger={remaining?.overdue && !task.done}
-          onPress={async () => {
-            const next = await pickDueDate(
-              task.dueDate,
-              prefs.timeFormat === '24',
-            );
-            if (next !== undefined)
-              mutate('task/updateTaskDueDate', [tid, next]);
-          }}
+          onPress={() => setSheet('due')}
           onClear={
             task.dueDate
               ? () => mutate('task/updateTaskDueDate', [tid, 0])
@@ -308,6 +303,13 @@ export default function TaskDetailScreen() {
         />
       </ScrollView>
 
+      <DateTimeSheet
+        visible={sheet === 'due'}
+        value={task.dueDate}
+        timeFormat={prefs.timeFormat}
+        onClose={() => setSheet(null)}
+        onPick={next => mutate('task/updateTaskDueDate', [tid, next])}
+      />
       <Sheet
         visible={sheet === 'repeat'}
         onClose={() => setSheet(null)}

@@ -1,6 +1,8 @@
-import { useMemo, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
+  Animated,
+  Easing,
   KeyboardAvoidingView,
   Modal,
   Pressable,
@@ -14,6 +16,7 @@ import {
   type TextStyle,
   type ViewStyle,
 } from 'react-native';
+import { ChevronDown } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme, type Theme } from './theme';
 
@@ -331,14 +334,17 @@ export function Steps({ total, current }: { total: number; current: number }) {
   );
 }
 
+// dropdown adds a down chevron: the chip opens a choice instead of toggling (#96).
 export function Chip({
   label,
   selected,
   onPress,
+  dropdown,
 }: {
   label: string;
   selected?: boolean;
   onPress?: () => void;
+  dropdown?: boolean;
 }) {
   const theme = useTheme();
   return (
@@ -347,7 +353,11 @@ export function Chip({
       accessibilityState={{ selected: !!selected }}
       onPress={onPress}
       style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 3,
         paddingHorizontal: 12,
+        paddingRight: dropdown ? 9 : 12,
         paddingVertical: 6,
         borderRadius: 999,
         borderWidth: 1,
@@ -360,6 +370,7 @@ export function Chip({
       >
         {label}
       </Text>
+      {dropdown && <ChevronDown color={theme.muted} size={14} />}
     </Pressable>
   );
 }
@@ -386,7 +397,9 @@ export function IconButton({
   );
 }
 
-// Bottom sheet on a transparent Modal (slides up; tap outside or back to close).
+// Bottom sheet on a transparent Modal: the sheet slides up while the dim backdrop
+// fades in place (#96), and both reverse before the Modal closes. Tap outside or
+// back closes it.
 export function Sheet({
   visible,
   onClose,
@@ -400,58 +413,117 @@ export function Sheet({
 }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const [shown, setShown] = useState(visible);
+  const [height, setHeight] = useState(800);
+  const fade = useRef(new Animated.Value(0)).current;
+  const slide = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (visible) {
+      setShown(true);
+      Animated.parallel([
+        Animated.timing(fade, {
+          toValue: 1,
+          duration: 220,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slide, {
+          toValue: 0,
+          duration: 260,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(fade, {
+          toValue: 0,
+          duration: 180,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slide, {
+          toValue: 1,
+          duration: 200,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start(({ finished }) => finished && setShown(false));
+    }
+  }, [visible, fade, slide]);
+
   return (
     <Modal
-      visible={visible}
+      visible={shown}
       transparent
-      animationType="slide"
+      animationType="none"
       onRequestClose={onClose}
       statusBarTranslucent
     >
-      <Pressable
-        accessibilityLabel="닫기"
-        style={{ flex: 1, backgroundColor: theme.scrim }}
-        onPress={onClose}
-      />
+      <Animated.View
+        style={[
+          StyleSheet.absoluteFill,
+          { backgroundColor: theme.scrim, opacity: fade },
+        ]}
+      >
+        <Pressable
+          accessibilityLabel="닫기"
+          style={{ flex: 1 }}
+          onPress={onClose}
+        />
+      </Animated.View>
       <KeyboardAvoidingView
         behavior="padding"
-        style={{
-          backgroundColor: theme.panel,
-          borderTopLeftRadius: 22,
-          borderTopRightRadius: 22,
-        }}
+        pointerEvents="box-none"
+        style={{ flex: 1, justifyContent: 'flex-end' }}
       >
-        <View
+        <Animated.View
+          onLayout={event => setHeight(event.nativeEvent.layout.height)}
           style={{
-            paddingTop: 8,
-            paddingBottom: Math.max(insets.bottom, 16) + 8,
+            backgroundColor: theme.panel,
+            borderTopLeftRadius: 22,
+            borderTopRightRadius: 22,
+            transform: [
+              {
+                translateY: slide.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, height],
+                }),
+              },
+            ],
           }}
         >
           <View
             style={{
-              width: 36,
-              height: 4,
-              borderRadius: 4,
-              backgroundColor: theme.border,
-              alignSelf: 'center',
-              marginBottom: 12,
+              paddingTop: 8,
+              paddingBottom: Math.max(insets.bottom, 16) + 8,
             }}
-          />
-          {!!title && (
-            <Text
+          >
+            <View
               style={{
-                color: theme.text,
-                fontSize: 17,
-                fontWeight: '700',
-                marginHorizontal: 20,
-                marginBottom: 10,
+                width: 36,
+                height: 4,
+                borderRadius: 4,
+                backgroundColor: theme.border,
+                alignSelf: 'center',
+                marginBottom: 12,
               }}
-            >
-              {title}
-            </Text>
-          )}
-          {children}
-        </View>
+            />
+            {!!title && (
+              <Text
+                style={{
+                  color: theme.text,
+                  fontSize: 17,
+                  fontWeight: '700',
+                  marginHorizontal: 20,
+                  marginBottom: 10,
+                }}
+              >
+                {title}
+              </Text>
+            )}
+            {children}
+          </View>
+        </Animated.View>
       </KeyboardAvoidingView>
     </Modal>
   );

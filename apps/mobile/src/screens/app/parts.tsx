@@ -170,22 +170,30 @@ export function TaskItem({
               }}
             />
           )}
-          {task.subtasks.length > 0 && (
-            <Meta>{`${doneSubtasks}/${task.subtasks.length}`}</Meta>
-          )}
-          {!!task.repeatPeriod && (
-            <View
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}
-            >
-              <Repeat color={theme.muted} size={12} />
-              <Meta>{REPEAT_LABEL[task.repeatPeriod]}</Meta>
-            </View>
-          )}
-          {remaining && (
-            <Meta danger={remaining.overdue && !task.done}>
-              {remaining.text}
-            </Meta>
-          )}
+          {/* (color) (time left) · (repeat) · (subtasks) — user order, #96 */}
+          {[
+            remaining && (
+              <Meta key="left" danger={remaining.overdue && !task.done}>
+                {remaining.text}
+              </Meta>
+            ),
+            !!task.repeatPeriod && (
+              <View
+                key="repeat"
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}
+              >
+                <Repeat color={theme.muted} size={12} />
+                <Meta>{REPEAT_LABEL[task.repeatPeriod]}</Meta>
+              </View>
+            ),
+            task.subtasks.length > 0 && (
+              <Meta key="subtasks">{`${doneSubtasks}/${task.subtasks.length}`}</Meta>
+            ),
+          ]
+            .filter(Boolean)
+            .flatMap((part, index) =>
+              index ? [<Meta key={`dot${index}`}>·</Meta>, part] : [part],
+            )}
         </View>
       </View>
     </Pressable>
