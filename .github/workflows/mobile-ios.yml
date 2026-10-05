@@ -48,14 +48,13 @@ jobs:
 
       - name: Install pods
         working-directory: apps/mobile/ios
-        run: pod install
+        run: bash ../../../.github/scripts/logged.sh "pod install" pod install
 
       - name: Build (Release, no signing)
         env:
           THREAD_ENV_FILE: .env.phone
         run: |
-          set -o pipefail
-          xcodebuild \
+          bash ../../.github/scripts/logged.sh "xcodebuild" xcodebuild \
             -workspace ios/Thread.xcworkspace \
             -scheme Thread \
             -configuration Release \
@@ -63,7 +62,7 @@ jobs:
             -destination 'generic/platform=iOS' \
             -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
-            build 2>&1 | tail -n 300
+            build
 
       - name: Package .ipa
         run: |
