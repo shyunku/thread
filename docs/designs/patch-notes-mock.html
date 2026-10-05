@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thread 업데이트 내역 시안 (#99)</title>
+<style>
+  :root {
+    --page: #0b0d10; --frame: #222730;
+    --border-ui: #2b303b; --ui-text: #edf1f7; --ui-muted: #8792a4; --ui-panel: #15181e; --ui-selected: #253858;
+  }
+  /* App tokens: desktop = dark only; mobile dark/light from ui/theme.tsx. */
+  .theme-dark {
+    --canvas: #101216; --panel: #15181e; --surface: #1c2028; --hover: #252b36; --border: #2b303b;
+    --text: #edf1f7; --secondary: #a0aaba; --muted: #8792a4; --accent: #6294ff; --accent-text: #fff;
+    --selected: #253858; --success: #70d5a0; --warning: #edbc72; --danger: #f0838b; --violet: #a18aff; --scrim: rgba(0,0,0,.62);
+  }
+  .theme-light {
+    --canvas: #f5f6f8; --panel: #ffffff; --surface: #ffffff; --hover: #eef0f4; --border: #e2e5ea;
+    --text: #15181e; --secondary: #4f5868; --muted: #7b8494; --accent: #3d6ef0; --accent-text: #fff;
+    --selected: #e5ecff; --success: #239a62; --warning: #b9770e; --danger: #d64550; --violet: #7a5cf0; --scrim: rgba(0,0,0,.4);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--ui-text); font: 14px/1.5 Pretendard, "Malgun Gothic", "Segoe UI", sans-serif; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+
+  .toolbar { position: sticky; top: 0; z-index: 50; display: flex; flex-direction: column; gap: 6px; padding: 10px 16px; background: #0b0d10ee; border-bottom: 1px solid var(--border-ui); backdrop-filter: blur(6px); }
+  .toolbar .line { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+  .toolbar strong { margin-right: 4px; font-size: 12px; color: var(--ui-muted); min-width: 52px; }
+  .toolbar button { padding: 4px 9px; border: 1px solid var(--border-ui); border-radius: 7px; background: var(--ui-panel); font-size: 12px; color: #a0aaba; }
+  .toolbar button.on { background: var(--ui-selected); border-color: #3a5486; color: var(--ui-text); }
+  .toolbar .sep { width: 1px; height: 18px; background: var(--border-ui); margin: 0 4px; }
+
+  .stage { display: flex; gap: 28px; align-items: flex-start; justify-content: center; padding: 28px 16px 64px; flex-wrap: wrap; }
+  .notes { width: 400px; padding: 16px 18px; border: 1px dashed #3a4252; border-radius: 12px; color: #a0aaba; font-size: 13px; }
+  .notes h3 { margin: 14px 0 6px; font-size: 13px; color: var(--ui-text); } .notes h3:first-child { margin-top: 0; }
+  .notes ul, .notes ol { margin: 0; padding-left: 18px; } .notes li { margin: 4px 0; }
+  .notes .q { color: #edbc72; }
+  .notes .now { padding: 8px 10px; border-radius: 8px; background: #161b24; color: #cfd6e2; margin-bottom: 10px; }
+  .notes pre { margin: 6px 0 0; padding: 10px; border-radius: 8px; background: #11151c; color: #cfd6e2; font-size: 11.5px; line-height: 1.45; overflow-x: auto; }
+  .notes code { font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: #cfd6e2; }
+
+  /* Highlight of what this change adds. */
+  .mark .chg { outline: 2px dashed #edbc72; outline-offset: 2px; border-radius: 8px; }
+
+  /* ---------- Desktop (1440x960 main window, dark) ---------- */
+  .desk-wrap.fit { zoom: .62; }
+  .desk { position: relative; width: 1440px; height: 960px; border: 1px solid #2b303b; border-radius: 10px; overflow: hidden; background: var(--canvas); color: var(--text); }
+  .topbar { height: 42px; display: flex; align-items: center; gap: 10px; padding: 0 14px; background: #0f1115; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--secondary); }
+  .topbar b { color: var(--text); }
+  .topbar .grow { flex: 1; }
+  .desk-body { display: flex; height: calc(100% - 42px); }
+  .side { width: 240px; padding: 16px 10px; background: var(--panel); border-right: 1px solid var(--border); }
+  .side .it { height: 34px; display: flex; align-items: center; gap: 10px; padding: 0 10px; border-radius: 8px; color: var(--secondary); }
+  .side .it.on { background: var(--selected); color: var(--text); font-weight: 600; }
+  .side .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .main { flex: 1; padding: 22px 28px; }
+  .main h1 { margin: 0 0 14px; font-size: 22px; }
+  .drow { display: flex; align-items: center; gap: 12px; padding: 12px 14px; margin-bottom: 8px; border-radius: 10px; background: var(--surface); border: 1px solid var(--border); }
+  .drow .c { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--muted); }
+  .drow .m { margin-left: auto; color: var(--muted); font-size: 12px; }
+
+  /* Patch notes dialog (ReleaseAlert look) */
+  .back { position: absolute; inset: 42px 0 0; background: #080a10b3; z-index: 10; display: grid; place-items: center; }
+  .pn { width: 520px; max-height: 640px; display: flex; flex-direction: column; padding: 24px 24px 18px; border: 1px solid var(--border); border-radius: 14px; background: var(--panel); box-shadow: 0 22px 65px #0008; }
+  .pn-head { display: flex; gap: 14px; align-items: center; margin-bottom: 14px; }
+  .sym { width: 40px; height: 40px; flex: none; border-radius: 11px; display: grid; place-items: center; background: #29457055; border: 1px solid #6595ff55; color: #7da8ff; font-size: 18px; }
+  .eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 1.4px; color: var(--muted); }
+  .pn h2 { margin: 2px 0 0; font-size: 20px; }
+  .pn-body { overflow-y: auto; margin: 0 -24px; padding: 0 24px; flex: 1; min-height: 0; }
+  .ver { padding: 14px 0; border-top: 1px solid var(--border); }
+  .ver:first-child { border-top: 0; padding-top: 4px; }
+  .ver-h { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; }
+  .ver-h b { font-size: 15px; }
+  .ver-h span { color: var(--muted); font-size: 12px; }
+  .ver p.sum { margin: 0 0 10px; color: var(--secondary); font-size: 13px; }
+  .kind { display: inline-block; margin: 6px 0 4px; padding: 1px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; }
+  .kind.new { background: #29457055; color: #7da8ff; }
+  .kind.improved { background: #1d3a2b; color: var(--success); }
+  .kind.fixed { background: #3a2f1d; color: var(--warning); }
+  .theme-light .kind.new { background: #e5ecff; color: #3d6ef0; }
+  .theme-light .kind.improved { background: #dcf3e7; color: #239a62; }
+  .theme-light .kind.fixed { background: #fbefd9; color: #b9770e; }
+  .item { margin: 4px 0 8px 2px; }
+  .item b { display: block; font-size: 14px; font-weight: 600; }
+  .item span { display: block; color: var(--secondary); font-size: 12.5px; line-height: 1.5; }
+  .pn-foot { display: flex; align-items: center; gap: 10px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+  .chk { display: flex; align-items: center; gap: 8px; color: var(--secondary); font-size: 13px; cursor: pointer; user-select: none; }
+  .chk i { width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid var(--muted); display: grid; place-items: center; font-style: normal; font-size: 11px; }
+  .chk.on i { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .pn-foot .grow { flex: 1; }
+  .dbtn { padding: 9px 14px; border: 0; border-radius: 7px; background: #294570; font-weight: 600; color: #edf1f7; }
+  .dbtn.ghost { background: transparent; color: var(--secondary); font-weight: 500; }
+
+  /* Settings modal (Settings.modal.scss / SettingsUI.scss) */
+  .set { width: min(1080px, calc(100% - 80px)); height: calc(100% - 160px); display: flex; border: 1px solid #354051; border-radius: 14px; background: #151a23; overflow: hidden; position: relative; }
+  .set-nav { width: 196px; padding: 18px 10px; background: #12161d; border-right: 1px solid #262d39; }
+  .set-nav h4 { margin: 0 10px 12px; font-size: 15px; font-weight: 700; }
+  .mi { height: 34px; display: flex; align-items: center; gap: 10px; padding: 0 10px; border-radius: 8px; color: var(--secondary); font-size: 14px; }
+  .mi.on { background: var(--selected); color: var(--text); font-weight: 600; }
+  .set-x { position: absolute; top: 14px; right: 14px; width: 30px; height: 30px; border-radius: 7px; display: grid; place-items: center; color: var(--muted); }
+  .set-content { flex: 1; padding: 22px 28px 32px; overflow-y: auto; }
+  .set-content h2 { margin: 0 44px 2px 0; font-size: 19px; }
+  .set-content .pd { margin: 0 44px 18px 0; font-size: 13px; color: var(--secondary); }
+  .sec { margin-top: 20px; }
+  .sec h3 { margin: 0 0 8px; font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: .02em; }
+  .scard { border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+  .srow { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 10px 14px; }
+  .srow + .srow, .srow + .vbody + .srow { border-top: 1px solid var(--border); }
+  .srow .tx { flex: 1; min-width: 0; }
+  .srow .lb { font-size: 14px; font-weight: 600; line-height: 1.4; display: flex; align-items: center; gap: 8px; }
+  .srow .ds { font-size: 12.5px; color: var(--secondary); line-height: 1.5; }
+  .sbtn { height: 32px; padding: 0 12px; border: 1px solid #39414f; border-radius: 8px; background: #232a35; font-size: 13px; }
+  .tog { width: 38px; height: 22px; border-radius: 11px; background: #39414f; position: relative; border: 0; flex: none; }
+  .tog::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #c9d1dd; transition: left .15s; }
+  .tog.on { background: var(--accent); } .tog.on::after { left: 19px; background: #fff; }
+  .badge { padding: 0 7px; border-radius: 6px; background: var(--selected); color: var(--accent); font-size: 11px; font-weight: 700; }
+  .vrow { cursor: pointer; }
+  .vrow .arr { color: var(--muted); transition: transform .15s; }
+  .vrow.open .arr { transform: rotate(90deg); }
+  .vbody { padding: 0 14px 10px 14px; }
+
+  /* ---------- Mobile (390x844) ---------- */
+  .phone { position: relative; width: 390px; height: 844px; border-radius: 44px; border: 10px solid var(--frame); background: var(--canvas); color: var(--text); overflow: hidden; display: flex; flex-direction: column; }
+  .status { height: 36px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 22px; font-size: 12px; color: var(--secondary); }
+  .gesture { position: absolute; bottom: 6px; left: 50%; width: 110px; height: 4px; margin-left: -55px; border-radius: 4px; background: var(--muted); opacity: .6; z-index: 60; }
+  .content { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; position: relative; }
+  .content::-webkit-scrollbar { display: none; }
+  .appbar { display: flex; align-items: center; gap: 8px; padding: 8px 12px 6px 18px; min-height: 52px; }
+  .appbar h1 { margin: 0; font-size: 22px; font-weight: 700; }
+  .task { display: flex; align-items: center; gap: 12px; margin: 0 12px 8px; padding: 13px 14px; border-radius: 14px; background: var(--surface); border: 1px solid var(--border); }
+  .task .check { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--muted); flex: none; }
+  .task .t { font-weight: 600; font-size: 15px; }
+  .task .meta { color: var(--muted); font-size: 12px; }
+  .tabbar { flex: none; display: flex; height: 70px; padding: 6px 6px 16px; background: var(--panel); border-top: 1px solid var(--border); }
+  .tabbar button { flex: 1; border: 0; background: none; display: flex; flex-direction: column; align-items: center; gap: 2px; color: var(--muted); font-size: 11px; }
+  .tabbar button .ic { font-size: 19px; line-height: 1.2; padding: 2px 16px; border-radius: 12px; }
+  .tabbar button.on { color: var(--text); }
+  .tabbar button.on .ic { background: var(--selected); color: var(--accent); }
+  .scrim { position: absolute; inset: 0; background: var(--scrim); z-index: 40; }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 41; background: var(--panel); border-radius: 22px 22px 0 0; padding: 8px 0 26px; max-height: 86%; display: flex; flex-direction: column; }
+  .sheet .grab { width: 36px; height: 4px; border-radius: 4px; background: var(--border); margin: 4px auto 10px; flex: none; }
+  .sheet .sh-head { display: flex; gap: 12px; align-items: center; padding: 6px 20px 12px; flex: none; }
+  .sheet .sh-head h2 { margin: 2px 0 0; font-size: 18px; }
+  .sheet .sh-body { overflow-y: auto; padding: 0 20px; flex: 1; min-height: 0; scrollbar-width: none; }
+  .sheet .sh-foot { flex: none; padding: 12px 18px 0; border-top: 1px solid var(--border); }
+  .mbtn { display: block; width: 100%; min-height: 50px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); font-size: 15px; font-weight: 600; color: var(--text); }
+  .mbtn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+  .mbtn.ghost { background: none; border-color: transparent; color: var(--secondary); font-weight: 500; min-height: 42px; }
+  .theme-light .sym { background: #e5ecff; border-color: #c8d6ff; color: #3d6ef0; }
+  .group-t { padding: 18px 18px 6px; font-size: 12px; font-weight: 600; color: var(--muted); }
+  .group { margin: 0 12px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); overflow: hidden; }
+  .mi-row { display: flex; align-items: center; gap: 8px; padding: 13px 14px; border-bottom: 1px solid var(--border); }
+  .mi-row.last { border-bottom: 0; }
+  .mi-row .grow { flex: 1; min-width: 0; }
+  .mi-row .tt { font-size: 15px; display: flex; align-items: center; gap: 8px; }
+  .mi-row .dt { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .mi-row .val { font-size: 13px; color: var(--muted); }
+  .mi-row .chev { color: var(--muted); font-size: 16px; transition: transform .15s; }
+  .mi-row.open .chev { transform: rotate(90deg); }
+  .msw { width: 50px; height: 30px; border-radius: 15px; background: var(--border); position: relative; flex: none; border: 0; }
+  .msw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px #0004; transition: left .15s; }
+  .msw.on { background: var(--accent); } .msw.on::after { left: 23px; }
+  .mv-body { padding: 0 14px 10px; border-bottom: 1px solid var(--border); }
+  .mv-body.last { border-bottom: 0; }
+  .hdr { display: flex; align-items: center; gap: 6px; padding: 8px 12px 6px 8px; min-height: 52px; }
+  .hdr .back-btn { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; font-size: 22px; color: var(--secondary); }
+  .hdr h1 { margin: 0; font-size: 19px; font-weight: 700; }
+  .profile { display: flex; gap: 12px; align-items: center; margin: 0 12px; padding: 14px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); }
+  .profile .lg { width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, #2ec5ff, #6a4cff 70%, #b14cff); color: #fff; display: grid; place-items: center; font-weight: 800; font-size: 22px; }
+</style>
+</head>
+<body>
+<div class="toolbar" id="toolbar"></div>
+<div class="stage" id="stage"></div>
+<script>
+// Sample notes (placeholders; real text is written before each release).
+const NOTES = {
+  desktop: [
+    { version: '2.0.11', date: '2026-10-20', summary: '동기화가 가벼워지고 시작이 빨라졌어요.', sections: [
+      { kind: 'improved', items: [
+        { title: '다시 열 때 바뀐 것만 받아요', detail: '앱을 다시 열거나 잠금을 풀 때 전체를 새로 받지 않고 바뀐 내용만 받은 뒤, 서버와 내용이 같은지 확인해요.' },
+        { title: '할 일이 많아도 빨리 열려요', detail: '할 일 1,000개 기준으로 목록을 만드는 시간이 3분의 1로 줄었어요.' } ] },
+      { kind: 'fixed', items: [
+        { title: '"동기화 한도" 오류가 자주 뜨던 문제', detail: '여러 번 껐다 켜면 동기화가 멈추던 문제를 고쳤어요.' } ] } ] },
+    { version: '2.0.10', date: '2026-10-12', summary: '캘린더가 더 보기 편해졌어요.', sections: [
+      { kind: 'new', items: [ { title: '업데이트 내역', detail: '업데이트하면 바뀐 점을 이 창에서 알려 드려요. 설정 > 정보에서 다시 볼 수 있어요.' } ] },
+      { kind: 'improved', items: [ { title: '완료한 일 점을 흐리게', detail: '캘린더에서 완료한 일의 점이 회색으로 흐리게 보여요.' } ] } ] },
+  ],
+  mobile: [
+    { version: '2.0.2', date: '2026-10-20', summary: '날짜·시간 고르기가 새로워졌어요.', sections: [
+      { kind: 'new', items: [ { title: '날짜·시간 고르기', detail: '달력과 휠로 날짜와 시간을 고를 수 있어요. 자주 쓰는 \'하루 끝\'도 한 번에 골라요.' } ] },
+      { kind: 'improved', items: [
+        { title: '처음 켤 때 버벅임 줄임', detail: '할 일이 많을 때 하단 탭이 한동안 느리던 문제를 줄였어요.' },
+        { title: '다시 열 때 바뀐 것만 받아요', detail: '앱을 다시 열 때 바뀐 내용만 받아 동기화가 빨라졌어요.' } ] },
+      { kind: 'fixed', items: [ { title: '첫 동기화 "동기화 한도" 오류', detail: '첫 동기화에서 오류가 반복되던 문제를 고쳤어요.' } ] } ] },
+    { version: '2.0.1', date: '2026-10-12', summary: '업데이트 내역을 볼 수 있어요.', sections: [
+      { kind: 'new', items: [ { title: '업데이트 내역', detail: '업데이트하면 바뀐 점을 알려 드려요. 설정 > 정보 > 업데이트 내역에서 다시 볼 수 있어요.' } ] } ] },
+  ],
+};
+const KIND = { new: '새 기능', improved: '개선', fixed: '수정' };
+
+const s = { platform: 'desktop', dscreen: 'modal', mscreen: 'modal', skipped: false, theme: 'dark', mark: true, fit: true, show: true, dontShow: false, open: { desktop: '2.0.11', mobile: '2.0.2' } };
+
+const versionBlock = n => `<div class="ver"><div class="ver-h"><b>${n.version}</b><span>${n.date}</span></div><p class="sum">${n.summary}</p>${sections(n)}</div>`;
+const sections = n => n.sections.map(x => `<span class="kind ${x.kind}">${KIND[x.kind]}</span>${x.items.map(i => `<div class="item"><b>${i.title}</b><span>${i.detail}</span></div>`).join('')}`).join('');
+// Notes to show after an update: every version newer than the last one seen.
+const unseen = p => s.skipped ? NOTES[p] : NOTES[p].slice(0, 1);
+const current = p => NOTES[p][0].version;
+const headline = p => s.skipped ? `${current(p)}로 업데이트했어요` : `${current(p)} 업데이트`;
+const eyebrow = p => s.skipped ? `업데이트 내역 · ${NOTES[p].length}개 버전` : '업데이트 내역';
+const chk = () => `<label class="chk ${s.dontShow ? 'on' : ''}" data-act="dont"><i>${s.dontShow ? '✓' : ''}</i>다시 보지 않기</label>`;
+
+function desktopFrame(inner) {
+  return `<div class="desk-wrap ${s.fit ? 'fit' : ''}"><div class="desk theme-dark">
+    <div class="topbar"><b>Thread</b><span>${current('desktop')}</span><span class="grow"></span><span>모두 동기화됨 · 방금</span></div>
+    <div class="desk-body"><div class="side">
+      <div class="it on"><span class="dot" style="background:#6294ff"></span>업무</div><div class="it"><span class="dot" style="background:#a18aff"></span>공부</div><div class="it"><span class="dot" style="background:#70d5a0"></span>개인</div></div>
+      <div class="main"><h1>업무</h1>
+        ${['분기 회고 자료 정리|2시간 남음', '주간 보고서 제출|3시간 지남', '스탠드업 메모|1일 남음', '디자인 리뷰 준비|3일 남음'].map(x => { const [t, m] = x.split('|'); return `<div class="drow"><span class="c"></span>${t}<span class="m">${m}</span></div>`; }).join('')}
+      </div></div>
+    <div class="back">${inner}</div></div></div>`;
+}
+function desktopModal() {
+  return `<div class="pn chg"><div class="pn-head"><div class="sym">✦</div><div><div class="eyebrow">${eyebrow('desktop')}</div><h2>${headline('desktop')}</h2></div></div>
+    <div class="pn-body">${unseen('desktop').map(versionBlock).join('')}</div>
+    <div class="pn-foot">${chk()}<span class="grow"></span><button class="dbtn ghost" data-go="dsettings">전체 내역</button><button class="dbtn">확인</button></div></div>`;
+}
+function desktopSettings() {
+  const nav = ['일반', '데이터', '사용자 맞춤', '계정', '시스템', '정보'].map(x => `<div class="mi ${x === '정보' ? 'on' : ''}">${x}</div>`).join('');
+  const list = NOTES.desktop.map((n, i) => {
+    const open = s.open.desktop === n.version;
+    return `<div class="srow vrow ${open ? 'open' : ''}" data-ver="desktop:${n.version}"><div class="tx"><div class="lb">${n.version}${i === 0 ? '<span class="badge">현재</span>' : ''}</div><div class="ds">${n.date} · ${n.summary}</div></div><span class="arr">›</span></div>
+      ${open ? `<div class="vbody">${sections(n)}</div>` : ''}`;
+  }).join('');
+  return `<div class="set"><div class="set-nav"><h4>설정</h4>${nav}</div><div class="set-x">✕</div>
+    <div class="set-content"><h2>정보</h2><p class="pd">Thread 버전과 관련 정보입니다.</p>
+      <div class="scard">
+        <div class="srow"><div class="tx"><div class="lb">버전 ${current('desktop')}</div><div class="ds">최신 버전입니다 · 방금 확인</div></div><button class="sbtn">업데이트 확인</button></div>
+        <div class="srow"><div class="tx"><div class="lb">베타 버전 받기</div><div class="ds">정식 출시 전 버전을 먼저 받아요.</div></div><button class="tog"></button></div>
+        <div class="srow chg"><div class="tx"><div class="lb">업데이트 후 변경 내용 보기</div><div class="ds">새 버전으로 바뀐 뒤 처음 열 때 바뀐 점을 창으로 보여 줘요.</div></div><button class="tog ${s.show ? 'on' : ''}" data-act="show"></button></div>
+      </div>
+      <div class="sec chg"><h3>업데이트 내역</h3><div class="scard">${list}</div></div>
+      <div class="sec"><div class="scard">
+        <div class="srow"><div class="tx"><div class="lb">개인정보처리방침</div></div><button class="sbtn">열기</button></div>
+        <div class="srow"><div class="tx"><div class="lb">문의</div></div><button class="sbtn">메일 보내기</button></div>
+      </div></div>
+    </div></div>`;
+}
+
+const statusBar = () => `<div class="status"><span>9:41</span><span>▂▄▆ ◔ ▮</span></div>`;
+const tabbar = on => `<nav class="tabbar">${[['tasks', '☑', '할 일'], ['calendar', '▦', '캘린더'], ['timeline', '◷', '일정'], ['settings', '⚙', '설정']]
+  .map(([id, ic, l]) => `<button class="${on === id ? 'on' : ''}"><span class="ic">${ic}</span>${l}</button>`).join('')}</nav>`;
+function mobileTasks() {
+  return `<div class="content"><div class="appbar"><h1>업무</h1></div>
+    ${['분기 회고 자료 정리|2시간 남음', '주간 보고서 제출|3시간 지남', '토익 단어 50개|3일 남음 · ↻ 매일', '스탠드업 메모|1일 남음'].map(x => { const [t, m] = x.split('|'); return `<div class="task"><span class="check"></span><div><div class="t">${t}</div><div class="meta">${m}</div></div></div>`; }).join('')}
+  </div>${tabbar('tasks')}`;
+}
+function mobileModal() {
+  return mobileTasks() + `<div class="scrim"></div><div class="sheet chg"><div class="grab"></div>
+    <div class="sh-head"><div class="sym">✦</div><div><div class="eyebrow">${eyebrow('mobile')}</div><h2>${headline('mobile')}</h2></div></div>
+    <div class="sh-body">${unseen('mobile').map(versionBlock).join('')}</div>
+    <div class="sh-foot"><div style="display:flex;align-items:center;margin-bottom:12px">${chk()}<span style="flex:1"></span><button class="mbtn ghost" style="width:auto;padding:0 6px" data-go="mhistory">전체 내역</button></div>
+      <button class="mbtn primary">확인</button></div></div>`;
+}
+function mobileSettings() {
+  const item = (t, v, extra = '', cls = '') => `<div class="mi-row ${cls}"><div class="grow"><div class="tt">${t}</div></div>${v ? `<span class="val">${v}</span>` : ''}${extra}</div>`;
+  return `<div class="content"><div class="appbar" style="padding:18px 16px 12px"><h1>설정</h1></div>
+    <div class="profile"><span class="lg">T</span><div><div style="font-weight:700">user@example.com</div><div style="font-size:12px;color:var(--muted)">이 기기 · 연결됨</div></div></div>
+    <div class="group-t">일반</div><div class="group">${item('시작 화면', '할 일', '<span class="chev">›</span>')}${item('테마', '시스템', '<span class="chev">›</span>', 'last')}</div>
+    <div class="group-t">정보</div><div class="group">
+      ${item('버전', current('mobile'))}
+      <div class="mi-row chg" data-go="mhistory"><div class="grow"><div class="tt">업데이트 내역</div></div><span class="chev">›</span></div>
+      ${item('개인정보처리방침', '', '<span class="chev">›</span>')}${item('문의', 'support@threadapp.kr', '', 'last')}</div>
+  </div>${tabbar('settings')}`;
+}
+function mobileHistory() {
+  const rows = NOTES.mobile.map((n, i) => {
+    const open = s.open.mobile === n.version, last = i === NOTES.mobile.length - 1;
+    return `<div class="mi-row ${open ? 'open' : ''} ${last && !open ? 'last' : ''}" data-ver="mobile:${n.version}"><div class="grow"><div class="tt">${n.version}${i === 0 ? '<span class="badge">현재</span>' : ''}</div><div class="dt">${n.date} · ${n.summary}</div></div><span class="chev">›</span></div>
+      ${open ? `<div class="mv-body ${last ? 'last' : ''}">${sections(n)}</div>` : ''}`;
+  }).join('');
+  return `<div class="content chg"><div class="hdr"><span class="back-btn" data-go="msettings">←</span><h1>업데이트 내역</h1></div>
+    <div class="group" style="margin-top:6px"><div class="mi-row last"><div class="grow"><div class="tt">업데이트 후 변경 내용 보기</div><div class="dt">새 버전으로 바뀐 뒤 처음 열 때 바뀐 점을 보여 줘요.</div></div><button class="msw ${s.show ? 'on' : ''}" data-act="show"></button></div></div>
+    <div class="group-t">버전</div><div class="group">${rows}</div>
+    <div style="height:24px"></div></div>${tabbar('settings')}`;
+}
+function phone() {
+  const body = { modal: mobileModal, settings: mobileSettings, history: mobileHistory }[s.mscreen]();
+  return `<div class="phone theme-${s.theme}">${statusBar()}${body}<div class="gesture"></div></div>`;
+}
+
+const FILES = `docs/patchNotes/
+  desktop/win/2.0.11.json
+  desktop/mac/2.0.11.json
+  mobile/android/2.0.2.json
+  mobile/ios/2.0.2.json`;
+const JSON_SAMPLE = `{
+  "version": "2.0.11",
+  "date": "2026-10-20",
+  "summary": "동기화가 가벼워지고 시작이 빨라졌어요.",
+  "sections": [
+    { "kind": "improved",
+      "items": [{ "title": "다시 열 때 바뀐 것만 받아요",
+                  "detail": "앱을 다시 열거나 …" }] },
+    { "kind": "fixed", "items": [ … ] }
+  ]
+}`;
+function notes() {
+  const d = s.platform === 'desktop';
+  return `<div class="notes">
+    <div class="now">${d ? (s.dscreen === 'modal' ? 'PC · 업데이트 후 처음 열었을 때' : 'PC · 설정 > 정보') : ({ modal: '모바일 · 업데이트 후 처음 켰을 때', settings: '모바일 · 설정', history: '모바일 · 설정 > 업데이트 내역' })[s.mscreen]}
+      ${s.skipped ? '<br>· 두 버전을 건너뛰고 업데이트한 경우' : ''}</div>
+    <h3>바뀌는 것 (노란 점선)</h3><ul>
+      <li>업데이트 후 처음 열 때 한 번만 <b>업데이트 내역 창</b>을 띄움. ${d ? 'PC는 기존 "새 버전" 창과 같은 모양.' : '모바일은 다른 선택 창과 같은 아래 시트.'}</li>
+      <li>여러 버전을 건너뛰면 안 본 버전을 한 창에 최신 순으로 모두 보여 줌. 툴바 "두 버전 건너뜀"으로 확인.</li>
+      <li><b>다시 보지 않기</b>에 체크하고 닫으면 설정의 <b>업데이트 후 변경 내용 보기</b>가 꺼짐(같은 설정). 설정에서 다시 켤 수 있음.</li>
+      <li>설정에 <b>업데이트 내역</b> 추가: ${d ? '정보 페이지 아래에 버전 목록, 누르면 펼침.' : '설정 > 정보 > 업데이트 내역 화면. 맨 위에 창 보기 스위치, 아래 버전 목록.'}</li>
+      <li>"전체 내역"은 그 설정 화면으로 이동.</li>
+    </ul>
+    <h3>그대로인 것</h3><ul>
+      <li>새 버전 알림·설치 창(PC), 버전 표시, 업데이트 확인 버튼, 베타 토글.</li>
+      <li>처음 설치한 경우에는 창을 띄우지 않음(이전 버전이 없으므로). 목록은 설정에서 볼 수 있음.</li>
+      <li>내역 파일이 없는 과거 버전(PC 2.0.9 이하, 모바일 2.0.0)은 목록에 나오지 않음.</li>
+    </ul>
+    <h3>파일 구조 (출시 확정 뒤, 빌드 전에 작성)</h3>
+    <pre>${FILES}</pre><pre>${JSON_SAMPLE}</pre>
+    <ul style="margin-top:8px">
+      <li>kind: <code>new</code> 새 기능 · <code>improved</code> 개선 · <code>fixed</code> 수정.</li>
+      <li>내역은 빌드할 때 앱 안에 같이 넣음(서버에서 받지 않음, 오프라인에서도 보임). 현재 버전 파일이 없으면 빌드가 실패함.</li>
+    </ul>
+    <h3 class="q">정할 것</h3><ul class="q">
+      <li>설정 문구: "업데이트 후 변경 내용 보기"(시안) / "업데이트 창 보기". PC에는 이미 "새 버전 설치" 창이 있어서 헷갈리지 않게 시안 문구를 추천.</li>
+      <li>${d ? 'PC 내역 위치: 정보 페이지 안(시안) / 왼쪽 메뉴에 "업데이트 내역" 따로.' : '모바일 창 모양: 아래 시트(시안, 앱의 다른 창과 같음) / 화면 가운데 창.'}</li>
+      <li>샘플 문구는 자리 채움. 실제 내용은 출시 때마다 작성해서 확인받음.</li>
+    </ul></div>`;
+}
+
+function toolbar() {
+  const b = (group, value, label) => `<button class="${s[group] === value ? 'on' : ''}" data-set="${group}:${value}">${label}</button>`;
+  const lines = [`<div class="line"><strong>플랫폼</strong>${b('platform', 'desktop', 'PC (Windows·mac)')}${b('platform', 'mobile', '모바일 (Android·iOS)')}</div>`];
+  if (s.platform === 'desktop') lines.push(`<div class="line"><strong>화면</strong>${b('dscreen', 'modal', '업데이트 후 창')}${b('dscreen', 'settings', '설정 > 정보')}<span class="sep"></span><strong>크기</strong>${b('fit', true, '맞춤(62%)')}${b('fit', false, '실제 크기 1440×960')}</div>`);
+  else lines.push(`<div class="line"><strong>화면</strong>${b('mscreen', 'modal', '업데이트 후 창')}${b('mscreen', 'settings', '설정')}${b('mscreen', 'history', '설정 > 업데이트 내역')}<span class="sep"></span><strong>테마</strong>${b('theme', 'dark', '다크')}${b('theme', 'light', '라이트')}</div>`);
+  lines.push(`<div class="line"><strong>상태</strong>${b('skipped', false, '한 버전 올림')}${b('skipped', true, '두 버전 건너뜀')}<span class="sep"></span><strong>표시</strong>${b('mark', true, '바뀌는 부분 표시')}${b('mark', false, '표시 끔')}</div>`);
+  return lines.join('');
+}
+function render() {
+  document.getElementById('toolbar').innerHTML = toolbar();
+  const view = s.platform === 'desktop' ? desktopFrame(s.dscreen === 'modal' ? desktopModal() : desktopSettings()) : phone();
+  const stage = document.getElementById('stage');
+  stage.className = 'stage' + (s.mark ? ' mark' : '');
+  stage.innerHTML = view + notes();
+}
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-set],[data-go],[data-act],[data-ver]');
+  if (!t) return;
+  if (t.dataset.set) { const [k, v] = t.dataset.set.split(':'); s[k] = v === 'true' ? true : v === 'false' ? false : v; }
+  if (t.dataset.go === 'dsettings') s.dscreen = 'settings';
+  if (t.dataset.go === 'mhistory') s.mscreen = 'history';
+  if (t.dataset.go === 'msettings') s.mscreen = 'settings';
+  if (t.dataset.act === 'dont') { s.dontShow = !s.dontShow; s.show = !s.dontShow; }
+  if (t.dataset.act === 'show') { s.show = !s.show; s.dontShow = !s.show; }
+  if (t.dataset.ver) { const [p, v] = t.dataset.ver.split(':'); s.open[p] = s.open[p] === v ? null : v; }
+  render();
+});
+render();
+</script>
+</body>
+</html>
