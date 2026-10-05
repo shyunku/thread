@@ -12,6 +12,6 @@ if [ $status -eq 0 ]; then
 fi
 tail -n 200 "$log"
 # Keep the lines that explain the failure, then the tail.
-summary="$( (grep -E 'error|Error|ERROR|failed|\[!\]' "$log" | tail -n 40; echo '----'; tail -n 40 "$log") | sed 's/%/%25/g; s/\r//g' | awk '{printf "%s%%0A", $0}')"
+summary="$( (grep -E '(^|[^-W])error:|fatal error|BUILD FAILED|build commands failed|\[!\]' "$log" | cut -c1-400 | tail -n 40; echo '----'; tail -n 25 "$log" | cut -c1-400) | sed 's/%/%25/g; s/\r//g' | awk '{printf "%s%%0A", $0}')"
 echo "::error title=${title}::${summary}"
 exit $status
