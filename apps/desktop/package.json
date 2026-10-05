@@ -139,7 +139,7 @@
     },
     "mac": {
       "minimumSystemVersion": "12.0",
-      "x64ArchFiles": "Contents/Resources/app.asar.unpacked/node_modules/**/prebuilds/**",
+      "x64ArchFiles": "Contents/Resources/app.asar.unpacked/node_modules/**/{prebuilds,lib/binding}/**",
       "hardenedRuntime": true,
       "entitlements": "./build/entitlements.mac.plist",
       "extendInfo": {},
