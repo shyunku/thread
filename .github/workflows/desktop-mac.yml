@@ -1,5 +1,5 @@
 # Unsigned macOS build of the desktop app (#63) for testing on a Mac: open it
-# the first time with right-click -> Open. No in-app updates on macOS yet; signed
+# the first time with right-click -> Open (ad-hoc signed so Apple Silicon runs it). No in-app updates on macOS yet; signed
 # and notarized builds need the Apple Developer credentials and come later.
 name: Desktop macOS (unsigned)
 
@@ -54,7 +54,7 @@ jobs:
           bash ../../.github/scripts/logged.sh "electron-builder" pnpm exec electron-builder build \
             --mac --universal --publish never \
             -c.extraMetadata.main=build/electron/core/main.js \
-            -c.mac.identity=null
+            -c.mac.identity=-
           ls -lh dist
 
       - uses: actions/upload-artifact@v4
