@@ -1,7 +1,7 @@
 import { Buffer } from 'buffer';
 import type { SqlDatabase, SqlValue } from './sqlite';
 
-const { encode, decode } = require('@thread/e2ee/src/protocol');
+const { encode, decode, decodeStored } = require('@thread/e2ee/src/protocol');
 
 // Same record model and API as the desktop EncryptedStore
 // (apps/desktop/public/electron/e2ee/localStore.js), so the shared replica and
@@ -96,6 +96,16 @@ export class EncryptedStore {
     return this.#db;
   }
 
+  // Writes per bucket in this session: screens rebuild their view only when the
+  // bucket they read changed (a rolled-back write still counts, which is harmless).
+  #writes = new Map<string, number>();
+  revision(bucket: string): number {
+    return this.#writes.get(bucket) ?? 0;
+  }
+  #wrote(bucket: string) {
+    this.#writes.set(bucket, (this.#writes.get(bucket) ?? 0) + 1);
+  }
+
   put(bucket: string, id: string, value: unknown) {
     if (typeof id !== 'string' || !id || id.length > 256)
       throw Error('INVALID_RECORD_ID');
@@ -103,6 +113,7 @@ export class EncryptedStore {
       'INSERT INTO records VALUES(?,?,?) ON CONFLICT(bucket,id) DO UPDATE SET payload=excluded.payload',
       [bucket, id, encode(value)],
     );
+    this.#wrote(bucket);
   }
 
   scope(): StoreScope {
@@ -115,7 +126,7 @@ export class EncryptedStore {
       'SELECT payload FROM records WHERE bucket=? AND id=?',
       [bucket, id],
     ).rows[0];
-    return row ? decode(bytes(row.payload)) : null;
+    return row ? decodeStored(bytes(row.payload)) : null;
   }
 
   delete(bucket: string, id: string) {
@@ -123,6 +134,7 @@ export class EncryptedStore {
       'DELETE FROM records WHERE bucket=? AND id=?',
       [bucket, id],
     );
+    this.#wrote(bucket);
   }
 
   // Synchronous like better-sqlite3's transaction(); nested calls become savepoints.
@@ -167,7 +179,7 @@ export class EncryptedStore {
       )
       .rows.map(row => ({
         id: String(row.id),
-        value: decode(bytes(row.payload)),
+        value: decodeStored(bytes(row.payload)),
       }));
   }
 

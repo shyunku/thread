@@ -87,7 +87,7 @@ export function AppProvider({
   const [phase, setPhase] = useState<VaultPhase | null>(null);
   const [setup, setSetup] = useState<SetupState | null>(null);
   const [sync, setSync] = useState<SyncStatus | null>(null);
-  const [version, setVersion] = useState(0);
+  const [, setVersion] = useState(0);
   const [scope, setScope] = useState<Scope>({ kind: 'all' });
   const [prefs, setPrefsState] = useState<Prefs>(() => {
     try {
@@ -155,11 +155,23 @@ export function AppProvider({
     };
   }, [account, refresh]);
 
+  // The model is rebuilt only when the visible records changed (or the first sync
+  // installed the vault): reading every record is the expensive part (#98).
+  // `version` re-renders after syncs and edits so this key is read again.
+  let modelKey = 'none';
+  if (account && phase === 'UNLOCKED') {
+    try {
+      modelKey = account.session.use(
+        store =>
+          `${store.revision('visible')}:${!!store.get(
+            'confirmed',
+            '$sync-state',
+          )}`,
+      );
+    } catch {}
+  }
   const model = useMemo(() => {
-    // `version` is bumped by sync and mutations to rebuild the model.
-    // eslint-disable-next-line no-void
-    void version;
-    if (!account || phase !== 'UNLOCKED') return null;
+    if (!account || phase !== 'UNLOCKED' || modelKey === 'none') return null;
     try {
       return account.session.use(store => {
         const adapter = adapterFor(store);
@@ -168,7 +180,7 @@ export function AppProvider({
     } catch {
       return null;
     }
-  }, [account, phase, version]);
+  }, [account, phase, modelKey]);
 
   // Secret categories lock again when the app leaves the foreground or the vault locks;
   // a secret view that is no longer open falls back to all tasks.

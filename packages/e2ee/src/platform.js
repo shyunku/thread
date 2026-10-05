@@ -24,7 +24,9 @@ module.exports={
  installed:()=>impl!=null,
  sodium,
  // canonical CBOR (RFC 7049 length-first key order); decode rejects duplicate keys and deep nesting
- cbor:{encode:value=>Buffer.from(need().cbor.encode(value)),decode:bytes=>need().cbor.decode(bytes)},
+ // decodeLocal (optional): the same decoding for trusted local records, may skip pre-checks
+ cbor:{encode:value=>Buffer.from(need().cbor.encode(value)),decode:bytes=>need().cbor.decode(bytes),
+  decodeLocal:bytes=>(need().cbor.decodeLocal||need().cbor.decode)(bytes)},
  // HKDF-SHA256(secret, salt, info, length) -> Buffer
  hkdf:(secret,salt,info,length)=>Buffer.from(need().hkdf(secret,salt,info,length)),
  // Node-style incremental hash: createHash("sha256").update(x).digest(encoding?)

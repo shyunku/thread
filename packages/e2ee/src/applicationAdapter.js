@@ -26,14 +26,21 @@ class ApplicationAdapter{
  mutate(topic,args){
   if(!mutationTopics.has(topic))throw Error("UNSUPPORTED_APPLICATION_ACTION");
   return this.replica.store.transaction(db=>{
-   const objects=this.objects(),rows=new Map([...objects].map(([key,item])=>[key,clean(item.row)]));
-   const action=command(topic,args,{rows:[...rows.values()]});
+   const objects=this.objects(),probe=command(topic,args,{rows:[...objects.values()].map(item=>item.row)});
+   // A recurring completion edits rows in place, so it works on copies and compares
+   // every row. Other actions replace only the rows they change (model/optimistic),
+   // so unchanged rows are skipped by identity instead of re-encoding all of them.
+   const recurring=probe.operation==="completeRecurringTask";
+   const rows=new Map([...objects].map(([key,item])=>[key,recurring?clean(item.row):item.row]));
+   const action=recurring?command(topic,args,{rows:[...rows.values()]}):probe;
    const now=this.now();
-   if(action.operation==="completeRecurringTask")completeRecurring(rows,action,db.scope().accountId,now);
+   if(recurring)completeRecurring(rows,action,db.scope().accountId,now);
    else optimistic(rows,{...action,localTime:now});
    const changes=[];
    for(const [key,raw] of rows){
-    const row=clean(raw),old=objects.get(key);prepareSchedule(row);
+    const old=objects.get(key);
+    if(!recurring&&old&&raw===old.row&&!(raw.entityType==="task"&&raw.fields.repeat_period&&!raw.fields.repeat_start_at))continue;
+    const row=clean(raw);prepareSchedule(row);
     if(old&&p.encode(clean(old.row)).equals(p.encode(row)))continue;
     const mapKey="$application-object-"+createHash("sha256").update(key).digest("hex");
     const mapped=db.get("recovery",mapKey);

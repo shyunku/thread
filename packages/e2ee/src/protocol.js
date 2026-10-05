@@ -32,6 +32,13 @@ function decode(encoded) {
   check(encode(value).equals(encoded), "NON_CANONICAL_ENCODING");
   return value;
 }
+// Records this device wrote into its own encrypted database (SQLCipher pages are
+// authenticated): decode without the canonical re-encode check, which doubled the
+// cost of reading every record when building lists (#98). Never use for wire data.
+function decodeStored(encoded) {
+  check(Buffer.isBuffer(encoded) && encoded.length <= MAX_BYTES, "ENCODING_SIZE");
+  return cbor.decodeLocal(Buffer.from(encoded));
+}
 function derive(secret, purpose, context) {
   bytes(secret, 32);
   check(typeof purpose === "string" && purpose.length > 0 && purpose.length < 64, "INVALID_PURPOSE");
@@ -98,4 +105,4 @@ async function unseal(recipient, senderPublicKey, response, expectedRequest, now
   try { return decode(plain); } finally { plain.fill(0); }
 }
 function fingerprint(genesis) { return createHash("sha256").update(encode([SUITE, "genesis", genesis])).digest("hex"); }
-module.exports = { SUITE, MAX_BYTES, encode, decode, derive, encrypt, decrypt, sign, verify, createDevice, seal, unseal, fingerprint };
+module.exports = { SUITE, MAX_BYTES, encode, decode, decodeStored, derive, encrypt, decrypt, sign, verify, createDevice, seal, unseal, fingerprint };

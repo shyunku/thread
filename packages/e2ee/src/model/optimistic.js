@@ -125,11 +125,12 @@ function optimistic(rows, m) {
     if (m.anchorId && m.after) index++;
     // Local-only ranks can be rebalanced without changing the immutable request.
     const gap = 4294967296n;
+    // Rows already at their rank stay the same object, so callers can tell which
+    // rows this action really changed.
     list.forEach((c, i) => {
-      const updated = {
-        ...c,
-        fields: { ...c.fields, sort_rank: String(BigInt(i + 1) * gap) },
-      };
+      const rank = String(BigInt(i + 1) * gap);
+      if (c.fields.sort_rank === rank) return;
+      const updated = { ...c, fields: { ...c.fields, sort_rank: rank } };
       rows.set(identity(c), updated);
       list[i] = updated;
     });

@@ -116,7 +116,13 @@ export function installE2eePlatform() {
   if (shared.installed()) return shared;
   shared.install({
     sodium: sodiumWithAead,
-    cbor: { encode: (value: unknown) => cbor.encode(value), decode },
+    cbor: {
+      encode: (value: unknown) => cbor.encode(value),
+      decode,
+      // Own encrypted database: skip the bounding pre-pass (shared decodeStored).
+      decodeLocal: (bytes: Uint8Array) =>
+        normalize(cbor.decode(bytes, DECODE_OPTIONS)),
+    },
     hkdf: (
       secret: Uint8Array,
       salt: Uint8Array,

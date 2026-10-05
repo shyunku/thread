@@ -1,6 +1,6 @@
 const fs = require("node:fs");
 const Database = require("better-sqlite3-multiple-ciphers");
-const { encode, decode } = require("./protocol");
+const { encode, decode, decodeStored } = require("./protocol");
 const BUCKETS = new Set(["confirmed", "visible", "outbox", "recovery", "search"]);
 class EncryptedStore {
   #db;
@@ -45,7 +45,7 @@ class EncryptedStore {
   scope() { this.#ready("confirmed"); return decode(encode(this.#scope)); }
   get(bucket, id) {
     const row = this.#ready(bucket).prepare("SELECT payload FROM records WHERE bucket=? AND id=?").get(bucket,id);
-    return row ? decode(Buffer.from(row.payload)) : null;
+    return row ? decodeStored(Buffer.from(row.payload)) : null;
   }
   delete(bucket,id) { this.#ready(bucket).prepare("DELETE FROM records WHERE bucket=? AND id=?").run(bucket,id); }
   transaction(operation) {
@@ -59,7 +59,7 @@ class EncryptedStore {
   entries(bucket, after = "", limit = 100) {
     if (typeof after !== "string" || !Number.isInteger(limit) || limit < 1 || limit > 256) throw Error("INVALID_PAGE");
     return this.#ready(bucket).prepare("SELECT id,payload FROM records WHERE bucket=? AND id>? ORDER BY id LIMIT ?").all(bucket,after,limit)
-      .map(row=>({id:row.id,value:decode(Buffer.from(row.payload))}));
+      .map(row=>({id:row.id,value:decodeStored(Buffer.from(row.payload))}));
   }
   close() { const db = this.#db; this.#db = null; db?.close(); }
 }
