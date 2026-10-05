@@ -13,12 +13,12 @@
   .theme-dark {
     --canvas: #101216; --panel: #15181e; --surface: #1c2028; --hover: #252b36; --border: #2b303b;
     --text: #edf1f7; --secondary: #a0aaba; --muted: #8792a4; --accent: #6294ff; --accent-text: #fff;
-    --selected: #253858; --success: #70d5a0; --warning: #edbc72; --danger: #f0838b; --violet: #a18aff; --scrim: rgba(0,0,0,.62);
+    --selected: #253858; --success: #70d5a0; --warning: #edbc72; --danger: #f0838b; --scrim: rgba(0,0,0,.62);
   }
   .theme-light {
     --canvas: #f5f6f8; --panel: #ffffff; --surface: #ffffff; --hover: #eef0f4; --border: #e2e5ea;
     --text: #15181e; --secondary: #4f5868; --muted: #7b8494; --accent: #3d6ef0; --accent-text: #fff;
-    --selected: #e5ecff; --success: #239a62; --warning: #b9770e; --danger: #d64550; --violet: #7a5cf0; --scrim: rgba(0,0,0,.4);
+    --selected: #e5ecff; --success: #239a62; --warning: #b9770e; --danger: #d64550; --scrim: rgba(0,0,0,.4);
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--page); color: var(--ui-text); font: 14px/1.5 Pretendard, "Malgun Gothic", "Segoe UI", sans-serif; }
@@ -32,13 +32,14 @@
   .toolbar .sep { width: 1px; height: 18px; background: var(--border-ui); margin: 0 4px; }
 
   .stage { display: flex; gap: 28px; align-items: flex-start; justify-content: center; padding: 28px 16px 64px; flex-wrap: wrap; }
-  .notes { width: 400px; padding: 16px 18px; border: 1px dashed #3a4252; border-radius: 12px; color: #a0aaba; font-size: 13px; }
+  .notes { width: 420px; padding: 16px 18px; border: 1px dashed #3a4252; border-radius: 12px; color: #a0aaba; font-size: 13px; }
   .notes h3 { margin: 14px 0 6px; font-size: 13px; color: var(--ui-text); } .notes h3:first-child { margin-top: 0; }
-  .notes ul, .notes ol { margin: 0; padding-left: 18px; } .notes li { margin: 4px 0; }
+  .notes ul { margin: 0; padding-left: 18px; } .notes li { margin: 4px 0; }
   .notes .q { color: #edbc72; }
   .notes .now { padding: 8px 10px; border-radius: 8px; background: #161b24; color: #cfd6e2; margin-bottom: 10px; }
   .notes pre { margin: 6px 0 0; padding: 10px; border-radius: 8px; background: #11151c; color: #cfd6e2; font-size: 11.5px; line-height: 1.45; overflow-x: auto; }
   .notes code { font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: #cfd6e2; }
+  .notes .fix { color: #70d5a0; }
 
   /* Highlight of what this change adds. */
   .mark .chg { outline: 2px dashed #edbc72; outline-offset: 2px; border-radius: 8px; }
@@ -60,21 +61,24 @@
   .drow .c { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--muted); }
   .drow .m { margin-left: auto; color: var(--muted); font-size: 12px; }
 
-  /* Patch notes dialog (ReleaseAlert look) */
+  /* Patch notes window (ReleaseAlert look) */
   .back { position: absolute; inset: 42px 0 0; background: #080a10b3; z-index: 10; display: grid; place-items: center; }
+  .back.over { z-index: 20; }
   .pn { width: 520px; max-height: 640px; display: flex; flex-direction: column; padding: 24px 24px 18px; border: 1px solid var(--border); border-radius: 14px; background: var(--panel); box-shadow: 0 22px 65px #0008; }
   .pn-head { display: flex; gap: 14px; align-items: center; margin-bottom: 14px; }
-  .sym { width: 40px; height: 40px; flex: none; border-radius: 11px; display: grid; place-items: center; background: #29457055; border: 1px solid #6595ff55; color: #7da8ff; font-size: 18px; }
+  /* 120% of the update dialog symbol (40 -> 48). */
+  .sym { width: 48px; height: 48px; flex: none; border-radius: 13px; display: grid; place-items: center; background: #29457055; border: 1px solid #6595ff55; color: #7da8ff; font-size: 22px; }
+  .theme-light .sym { background: #e5ecff; border-color: #c8d6ff; color: #3d6ef0; }
   .eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 1.4px; color: var(--muted); }
   .pn h2 { margin: 2px 0 0; font-size: 20px; }
   .pn-body { overflow-y: auto; margin: 0 -24px; padding: 0 24px; flex: 1; min-height: 0; }
   .ver { padding: 14px 0; border-top: 1px solid var(--border); }
   .ver:first-child { border-top: 0; padding-top: 4px; }
-  .ver-h { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; }
+  .ver-h { display: flex; align-items: baseline; gap: 8px; margin-bottom: 2px; }
   .ver-h b { font-size: 15px; }
   .ver-h span { color: var(--muted); font-size: 12px; }
-  .ver p.sum { margin: 0 0 10px; color: var(--secondary); font-size: 13px; }
-  .kind { display: inline-block; margin: 6px 0 4px; padding: 1px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; }
+  .sum { margin: 0 0 6px; color: var(--secondary); font-size: 13px; }
+  .kind { display: inline-block; margin: 8px 0 4px; padding: 1px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; }
   .kind.new { background: #29457055; color: #7da8ff; }
   .kind.improved { background: #1d3a2b; color: var(--success); }
   .kind.fixed { background: #3a2f1d; color: var(--warning); }
@@ -83,7 +87,18 @@
   .theme-light .kind.fixed { background: #fbefd9; color: #b9770e; }
   .item { margin: 4px 0 8px 2px; }
   .item b { display: block; font-size: 14px; font-weight: 600; }
-  .item span { display: block; color: var(--secondary); font-size: 12.5px; line-height: 1.5; }
+  /* Details: a bit smaller and lower contrast than the title (both themes use muted). */
+  .item span { display: block; color: var(--muted); font-size: 12px; line-height: 1.55; }
+  /* Collapsed version cards (5+ versions, history). */
+  .vc { border: 1px solid var(--border); border-radius: 10px; background: var(--surface); margin-bottom: 8px; }
+  .vc-h { display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; }
+  .vc-h .grow { flex: 1; min-width: 0; }
+  .vc-h .sum { margin: 1px 0 0; }
+  .vc-h .ex { width: 28px; height: 28px; border-radius: 7px; display: grid; place-items: center; color: var(--muted); font-size: 14px; transition: transform .15s; flex: none; }
+  .vc-h:hover .ex { background: var(--hover); }
+  .vc.open .ex { transform: rotate(180deg); }
+  .vc-b { padding: 0 12px 8px; border-top: 1px solid var(--border); }
+  .badge { padding: 0 7px; border-radius: 6px; background: var(--selected); color: var(--accent); font-size: 11px; font-weight: 700; }
   .pn-foot { display: flex; align-items: center; gap: 10px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
   .chk { display: flex; align-items: center; gap: 8px; color: var(--secondary); font-size: 13px; cursor: pointer; user-select: none; }
   .chk i { width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid var(--muted); display: grid; place-items: center; font-style: normal; font-size: 11px; }
@@ -103,22 +118,20 @@
   .set-content h2 { margin: 0 44px 2px 0; font-size: 19px; }
   .set-content .pd { margin: 0 44px 18px 0; font-size: 13px; color: var(--secondary); }
   .sec { margin-top: 20px; }
-  .sec h3 { margin: 0 0 8px; font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: .02em; }
   .scard { border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
-  .srow { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 10px 14px; }
-  .srow + .srow, .srow + .vbody + .srow { border-top: 1px solid var(--border); }
+  .srow { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 10px 14px; border-top: 1px solid var(--border); }
+  .srow:first-child { border-top: 0; }
   .srow .tx { flex: 1; min-width: 0; }
   .srow .lb { font-size: 14px; font-weight: 600; line-height: 1.4; display: flex; align-items: center; gap: 8px; }
   .srow .ds { font-size: 12.5px; color: var(--secondary); line-height: 1.5; }
+  .srow.click { cursor: pointer; } .srow.click:hover { background: var(--hover); }
+  .srow .arr { color: var(--muted); transition: transform .15s; }
+  .srow.open .arr { transform: rotate(90deg); }
+  .inline-list { padding: 4px 14px 6px; border-top: 1px solid var(--border); }
   .sbtn { height: 32px; padding: 0 12px; border: 1px solid #39414f; border-radius: 8px; background: #232a35; font-size: 13px; }
   .tog { width: 38px; height: 22px; border-radius: 11px; background: #39414f; position: relative; border: 0; flex: none; }
   .tog::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #c9d1dd; transition: left .15s; }
   .tog.on { background: var(--accent); } .tog.on::after { left: 19px; background: #fff; }
-  .badge { padding: 0 7px; border-radius: 6px; background: var(--selected); color: var(--accent); font-size: 11px; font-weight: 700; }
-  .vrow { cursor: pointer; }
-  .vrow .arr { color: var(--muted); transition: transform .15s; }
-  .vrow.open .arr { transform: rotate(90deg); }
-  .vbody { padding: 0 14px 10px 14px; }
 
   /* ---------- Mobile (390x844) ---------- */
   .phone { position: relative; width: 390px; height: 844px; border-radius: 44px; border: 10px solid var(--frame); background: var(--canvas); color: var(--text); overflow: hidden; display: flex; flex-direction: column; }
@@ -147,7 +160,6 @@
   .mbtn { display: block; width: 100%; min-height: 50px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); font-size: 15px; font-weight: 600; color: var(--text); }
   .mbtn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
   .mbtn.ghost { background: none; border-color: transparent; color: var(--secondary); font-weight: 500; min-height: 42px; }
-  .theme-light .sym { background: #e5ecff; border-color: #c8d6ff; color: #3d6ef0; }
   .group-t { padding: 18px 18px 6px; font-size: 12px; font-weight: 600; color: var(--muted); }
   .group { margin: 0 12px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); overflow: hidden; }
   .mi-row { display: flex; align-items: center; gap: 8px; padding: 13px 14px; border-bottom: 1px solid var(--border); }
@@ -164,7 +176,7 @@
   .mv-body { padding: 0 14px 10px; border-bottom: 1px solid var(--border); }
   .mv-body.last { border-bottom: 0; }
   .hdr { display: flex; align-items: center; gap: 6px; padding: 8px 12px 6px 8px; min-height: 52px; }
-  .hdr .back-btn { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; font-size: 22px; color: var(--secondary); }
+  .hdr .back-btn { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; font-size: 22px; color: var(--secondary); cursor: pointer; }
   .hdr h1 { margin: 0; font-size: 19px; font-weight: 700; }
   .profile { display: flex; gap: 12px; align-items: center; margin: 0 12px; padding: 14px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); }
   .profile .lg { width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, #2ec5ff, #6a4cff 70%, #b14cff); color: #fff; display: grid; place-items: center; font-weight: 800; font-size: 22px; }
@@ -174,44 +186,62 @@
 <div class="toolbar" id="toolbar"></div>
 <div class="stage" id="stage"></div>
 <script>
-// Sample notes (placeholders; real text is written before each release).
+// Sample notes, newest first (placeholders; real text is written before each release).
+// Titles: one sentence about what the user notices. Details: optional, one sentence per line.
 const NOTES = {
   desktop: [
-    { version: '2.0.11', date: '2026-10-20', summary: '동기화가 가벼워지고 시작이 빨라졌어요.', sections: [
-      { kind: 'improved', items: [
-        { title: '다시 열 때 바뀐 것만 받아요', detail: '앱을 다시 열거나 잠금을 풀 때 전체를 새로 받지 않고 바뀐 내용만 받은 뒤, 서버와 내용이 같은지 확인해요.' },
-        { title: '할 일이 많아도 빨리 열려요', detail: '할 일 1,000개 기준으로 목록을 만드는 시간이 3분의 1로 줄었어요.' } ] },
-      { kind: 'fixed', items: [
-        { title: '"동기화 한도" 오류가 자주 뜨던 문제', detail: '여러 번 껐다 켜면 동기화가 멈추던 문제를 고쳤어요.' } ] } ] },
-    { version: '2.0.10', date: '2026-10-12', summary: '캘린더가 더 보기 편해졌어요.', sections: [
-      { kind: 'new', items: [ { title: '업데이트 내역', detail: '업데이트하면 바뀐 점을 이 창에서 알려 드려요. 설정 > 정보에서 다시 볼 수 있어요.' } ] },
-      { kind: 'improved', items: [ { title: '완료한 일 점을 흐리게', detail: '캘린더에서 완료한 일의 점이 회색으로 흐리게 보여요.' } ] } ] },
+    { version: '2.0.16', date: '2026-12-01', summary: '앱이 더 빠르고 안정적이에요.', sections: [
+      { kind: 'improved', items: [ { title: '앱 실행이 빨라졌어요.', detail: ['할 일이 많아도 처음 열 때 기다리는 시간이 크게 줄었어요.'] } ] },
+      { kind: 'fixed', items: [ { title: '동기화 오류를 고쳤어요.', detail: ['여러 번 껐다 켜면 동기화가 멈추던 문제를 고쳤어요.'] } ] } ] },
+    { version: '2.0.15', date: '2026-11-24', summary: '캘린더가 보기 편해졌어요.', sections: [
+      { kind: 'improved', items: [ { title: '캘린더가 보기 편해졌어요.', detail: ['완료한 일이 덜 돋보이게 바꿨어요.'] } ] } ] },
+    { version: '2.0.14', date: '2026-11-17', summary: '업데이트 내역을 볼 수 있어요.', sections: [
+      { kind: 'new', items: [ { title: '업데이트 내역을 볼 수 있어요.', detail: ['업데이트하면 바뀐 점을 이 창에서 알려 드려요.', '"다시 보지 않기"를 선택해도 설정에서 다시 켜거나 끌 수 있어요.'] } ] } ] },
+    { version: '2.0.13', date: '2026-11-10', summary: '쓰기 더 편해졌어요.', sections: [
+      { kind: 'improved', items: [ { title: '쓰기 더 편해졌어요.', detail: ['전체적인 화면 디자인을 다듬었어요.'] } ] } ] },
+    { version: '2.0.12', date: '2026-11-03', summary: '자잘한 문제를 고쳤어요.', sections: [
+      { kind: 'fixed', items: [ { title: '자잘한 문제를 고쳤어요.' } ] } ] },
+    { version: '2.0.11', date: '2026-10-27', summary: '로그인이 더 안정적이에요.', sections: [
+      { kind: 'fixed', items: [ { title: '로그인이 가끔 풀리던 문제를 고쳤어요.' } ] } ] },
+    { version: '2.0.10', date: '2026-10-20', summary: '알림이 더 정확해졌어요.', sections: [
+      { kind: 'fixed', items: [ { title: '반복 할 일 알림이 늦게 오던 문제를 고쳤어요.' } ] } ] },
   ],
   mobile: [
-    { version: '2.0.2', date: '2026-10-20', summary: '날짜·시간 고르기가 새로워졌어요.', sections: [
-      { kind: 'new', items: [ { title: '날짜·시간 고르기', detail: '달력과 휠로 날짜와 시간을 고를 수 있어요. 자주 쓰는 \'하루 끝\'도 한 번에 골라요.' } ] },
-      { kind: 'improved', items: [
-        { title: '처음 켤 때 버벅임 줄임', detail: '할 일이 많을 때 하단 탭이 한동안 느리던 문제를 줄였어요.' },
-        { title: '다시 열 때 바뀐 것만 받아요', detail: '앱을 다시 열 때 바뀐 내용만 받아 동기화가 빨라졌어요.' } ] },
-      { kind: 'fixed', items: [ { title: '첫 동기화 "동기화 한도" 오류', detail: '첫 동기화에서 오류가 반복되던 문제를 고쳤어요.' } ] } ] },
-    { version: '2.0.1', date: '2026-10-12', summary: '업데이트 내역을 볼 수 있어요.', sections: [
-      { kind: 'new', items: [ { title: '업데이트 내역', detail: '업데이트하면 바뀐 점을 알려 드려요. 설정 > 정보 > 업데이트 내역에서 다시 볼 수 있어요.' } ] } ] },
+    { version: '2.0.7', date: '2026-12-01', summary: '앱이 더 빠르고 안정적이에요.', sections: [
+      { kind: 'improved', items: [ { title: '앱 실행이 빨라졌어요.', detail: ['처음 켤 때 화면이 버벅이던 문제를 줄였어요.'] } ] },
+      { kind: 'fixed', items: [ { title: '동기화 오류를 고쳤어요.', detail: ['첫 동기화에서 오류가 반복되던 문제를 고쳤어요.'] } ] } ] },
+    { version: '2.0.6', date: '2026-11-24', summary: '날짜·시간 고르기가 새로워졌어요.', sections: [
+      { kind: 'new', items: [ { title: '날짜와 시간을 더 쉽게 고를 수 있어요.', detail: ['달력과 휠로 고를 수 있어요.', "'하루 끝'은 한 번에 골라요."] } ] } ] },
+    { version: '2.0.5', date: '2026-11-17', summary: '업데이트 내역을 볼 수 있어요.', sections: [
+      { kind: 'new', items: [ { title: '업데이트 내역을 볼 수 있어요.', detail: ['업데이트하면 바뀐 점을 알려 드려요.', '"다시 보지 않기"를 선택해도 설정에서 다시 켜거나 끌 수 있어요.'] } ] } ] },
+    { version: '2.0.4', date: '2026-11-10', summary: '쓰기 더 편해졌어요.', sections: [
+      { kind: 'improved', items: [ { title: '쓰기 더 편해졌어요.', detail: ['전체적인 화면 디자인을 다듬었어요.'] } ] } ] },
+    { version: '2.0.3', date: '2026-11-03', summary: '자잘한 문제를 고쳤어요.', sections: [
+      { kind: 'fixed', items: [ { title: '자잘한 문제를 고쳤어요.' } ] } ] },
+    { version: '2.0.2', date: '2026-10-27', summary: '로그인이 더 안정적이에요.', sections: [
+      { kind: 'fixed', items: [ { title: '로그인이 가끔 풀리던 문제를 고쳤어요.' } ] } ] },
+    { version: '2.0.1', date: '2026-10-20', summary: '알림이 더 정확해졌어요.', sections: [
+      { kind: 'fixed', items: [ { title: '반복 할 일 알림이 늦게 오던 문제를 고쳤어요.' } ] } ] },
   ],
 };
 const KIND = { new: '새 기능', improved: '개선', fixed: '수정' };
+const HISTORY_MAX = 12, COLLAPSE_AT = 5;
 
-const s = { platform: 'desktop', dscreen: 'modal', mscreen: 'modal', skipped: false, theme: 'dark', mark: true, fit: true, show: true, dontShow: false, open: { desktop: '2.0.11', mobile: '2.0.2' } };
+const s = { platform: 'desktop', dscreen: 'modal', mscreen: 'modal', behind: 1, theme: 'dark', mark: true, fit: true, show: true, dontShow: false, histMode: 'window', histOpen: false, exp: new Set() };
 
-const versionBlock = n => `<div class="ver"><div class="ver-h"><b>${n.version}</b><span>${n.date}</span></div><p class="sum">${n.summary}</p>${sections(n)}</div>`;
-const sections = n => n.sections.map(x => `<span class="kind ${x.kind}">${KIND[x.kind]}</span>${x.items.map(i => `<div class="item"><b>${i.title}</b><span>${i.detail}</span></div>`).join('')}`).join('');
-// Notes to show after an update: every version newer than the last one seen.
-const unseen = p => s.skipped ? NOTES[p] : NOTES[p].slice(0, 1);
+const sections = n => n.sections.map(x => `<span class="kind ${x.kind}">${KIND[x.kind]}</span>${x.items.map(i =>
+  `<div class="item"><b>${i.title}</b>${(i.detail ?? []).map(line => `<span>${line}</span>`).join('')}</div>`).join('')}`).join('');
+const full = n => `<div class="ver"><div class="ver-h"><b>${n.version}</b><span>${n.date}</span></div><p class="sum">${n.summary}</p>${sections(n)}</div>`;
+// Collapsed card: version + summary, expand icon on the right.
+const card = (ctx, n, i) => { const key = `${ctx}:${n.version}`, open = s.exp.has(key);
+  return `<div class="vc ${open ? 'open' : ''}"><div class="vc-h" data-exp="${key}"><div class="grow"><div class="ver-h" style="margin:0"><b>${n.version}</b>${i === 0 && ctx.endsWith('hist') ? '<span class="badge">현재</span>' : ''}<span>${n.date}</span></div><p class="sum">${n.summary}</p></div><span class="ex">⌄</span></div>${open ? `<div class="vc-b">${sections(n)}</div>` : ''}</div>`; };
+const list = (ctx, notes) => notes.length >= COLLAPSE_AT ? notes.map((n, i) => card(ctx, n, i)).join('') : notes.map(full).join('');
 const current = p => NOTES[p][0].version;
-const headline = p => s.skipped ? `${current(p)}로 업데이트했어요` : `${current(p)} 업데이트`;
-const eyebrow = p => s.skipped ? `업데이트 내역 · ${NOTES[p].length}개 버전` : '업데이트 내역';
+const unseen = p => NOTES[p].slice(0, s.behind);
+const eyebrow = p => s.behind > 1 ? `버전 ${current(p)} · 업데이트 ${s.behind}개` : `버전 ${current(p)}`;
 const chk = () => `<label class="chk ${s.dontShow ? 'on' : ''}" data-act="dont"><i>${s.dontShow ? '✓' : ''}</i>다시 보지 않기</label>`;
 
-function desktopFrame(inner) {
+function desktopFrame(inner, over = '') {
   return `<div class="desk-wrap ${s.fit ? 'fit' : ''}"><div class="desk theme-dark">
     <div class="topbar"><b>Thread</b><span>${current('desktop')}</span><span class="grow"></span><span>모두 동기화됨 · 방금</span></div>
     <div class="desk-body"><div class="side">
@@ -219,28 +249,32 @@ function desktopFrame(inner) {
       <div class="main"><h1>업무</h1>
         ${['분기 회고 자료 정리|2시간 남음', '주간 보고서 제출|3시간 지남', '스탠드업 메모|1일 남음', '디자인 리뷰 준비|3일 남음'].map(x => { const [t, m] = x.split('|'); return `<div class="drow"><span class="c"></span>${t}<span class="m">${m}</span></div>`; }).join('')}
       </div></div>
-    <div class="back">${inner}</div></div></div>`;
+    <div class="back">${inner}</div>${over ? `<div class="back over">${over}</div>` : ''}</div></div>`;
 }
 function desktopModal() {
-  return `<div class="pn chg"><div class="pn-head"><div class="sym">✦</div><div><div class="eyebrow">${eyebrow('desktop')}</div><h2>${headline('desktop')}</h2></div></div>
-    <div class="pn-body">${unseen('desktop').map(versionBlock).join('')}</div>
+  return `<div class="pn chg"><div class="pn-head"><div class="sym">✦</div><div><div class="eyebrow">${eyebrow('desktop')}</div><h2>업데이트를 완료했어요</h2></div></div>
+    <div class="pn-body">${list('dmodal', unseen('desktop'))}</div>
     <div class="pn-foot">${chk()}<span class="grow"></span><button class="dbtn ghost" data-go="dsettings">전체 내역</button><button class="dbtn">확인</button></div></div>`;
+}
+// History window opened from settings: same window, every version (up to 12).
+function desktopHistory() {
+  const notes = NOTES.desktop.slice(0, HISTORY_MAX);
+  return `<div class="pn chg"><div class="pn-head"><div class="sym">✦</div><div><div class="eyebrow">버전 ${current('desktop')}</div><h2>업데이트 내역</h2></div></div>
+    <div class="pn-body">${notes.map((n, i) => card('dhist', n, i)).join('')}</div>
+    <div class="pn-foot"><span class="grow"></span><button class="dbtn" data-act="histclose">닫기</button></div></div>`;
 }
 function desktopSettings() {
   const nav = ['일반', '데이터', '사용자 맞춤', '계정', '시스템', '정보'].map(x => `<div class="mi ${x === '정보' ? 'on' : ''}">${x}</div>`).join('');
-  const list = NOTES.desktop.map((n, i) => {
-    const open = s.open.desktop === n.version;
-    return `<div class="srow vrow ${open ? 'open' : ''}" data-ver="desktop:${n.version}"><div class="tx"><div class="lb">${n.version}${i === 0 ? '<span class="badge">현재</span>' : ''}</div><div class="ds">${n.date} · ${n.summary}</div></div><span class="arr">›</span></div>
-      ${open ? `<div class="vbody">${sections(n)}</div>` : ''}`;
-  }).join('');
+  const inline = s.histMode === 'inline' && s.histOpen;
   return `<div class="set"><div class="set-nav"><h4>설정</h4>${nav}</div><div class="set-x">✕</div>
     <div class="set-content"><h2>정보</h2><p class="pd">Thread 버전과 관련 정보입니다.</p>
       <div class="scard">
         <div class="srow"><div class="tx"><div class="lb">버전 ${current('desktop')}</div><div class="ds">최신 버전입니다 · 방금 확인</div></div><button class="sbtn">업데이트 확인</button></div>
         <div class="srow"><div class="tx"><div class="lb">베타 버전 받기</div><div class="ds">정식 출시 전 버전을 먼저 받아요.</div></div><button class="tog"></button></div>
         <div class="srow chg"><div class="tx"><div class="lb">업데이트 후 변경 내용 보기</div><div class="ds">새 버전으로 바뀐 뒤 처음 열 때 바뀐 점을 창으로 보여 줘요.</div></div><button class="tog ${s.show ? 'on' : ''}" data-act="show"></button></div>
+        <div class="srow click chg ${inline ? 'open' : ''}" data-act="hist"><div class="tx"><div class="lb">업데이트 내역</div><div class="ds">최근 업데이트 ${HISTORY_MAX}개까지 볼 수 있어요.</div></div><span class="arr">›</span></div>
+        ${inline ? `<div class="inline-list">${NOTES.desktop.slice(0, HISTORY_MAX).map((n, i) => card('dhist', n, i)).join('')}</div>` : ''}
       </div>
-      <div class="sec chg"><h3>업데이트 내역</h3><div class="scard">${list}</div></div>
       <div class="sec"><div class="scard">
         <div class="srow"><div class="tx"><div class="lb">개인정보처리방침</div></div><button class="sbtn">열기</button></div>
         <div class="srow"><div class="tx"><div class="lb">문의</div></div><button class="sbtn">메일 보내기</button></div>
@@ -258,8 +292,8 @@ function mobileTasks() {
 }
 function mobileModal() {
   return mobileTasks() + `<div class="scrim"></div><div class="sheet chg"><div class="grab"></div>
-    <div class="sh-head"><div class="sym">✦</div><div><div class="eyebrow">${eyebrow('mobile')}</div><h2>${headline('mobile')}</h2></div></div>
-    <div class="sh-body">${unseen('mobile').map(versionBlock).join('')}</div>
+    <div class="sh-head"><div class="sym">✦</div><div><div class="eyebrow">${eyebrow('mobile')}</div><h2>업데이트를 완료했어요</h2></div></div>
+    <div class="sh-body">${list('mmodal', unseen('mobile'))}</div>
     <div class="sh-foot"><div style="display:flex;align-items:center;margin-bottom:12px">${chk()}<span style="flex:1"></span><button class="mbtn ghost" style="width:auto;padding:0 6px" data-go="mhistory">전체 내역</button></div>
       <button class="mbtn primary">확인</button></div></div>`;
 }
@@ -270,19 +304,20 @@ function mobileSettings() {
     <div class="group-t">일반</div><div class="group">${item('시작 화면', '할 일', '<span class="chev">›</span>')}${item('테마', '시스템', '<span class="chev">›</span>', 'last')}</div>
     <div class="group-t">정보</div><div class="group">
       ${item('버전', current('mobile'))}
-      <div class="mi-row chg" data-go="mhistory"><div class="grow"><div class="tt">업데이트 내역</div></div><span class="chev">›</span></div>
+      <div class="mi-row chg" data-go="mhistory" style="cursor:pointer"><div class="grow"><div class="tt">업데이트 내역</div></div><span class="chev">›</span></div>
       ${item('개인정보처리방침', '', '<span class="chev">›</span>')}${item('문의', 'support@threadapp.kr', '', 'last')}</div>
   </div>${tabbar('settings')}`;
 }
 function mobileHistory() {
-  const rows = NOTES.mobile.map((n, i) => {
-    const open = s.open.mobile === n.version, last = i === NOTES.mobile.length - 1;
-    return `<div class="mi-row ${open ? 'open' : ''} ${last && !open ? 'last' : ''}" data-ver="mobile:${n.version}"><div class="grow"><div class="tt">${n.version}${i === 0 ? '<span class="badge">현재</span>' : ''}</div><div class="dt">${n.date} · ${n.summary}</div></div><span class="chev">›</span></div>
+  const notes = NOTES.mobile.slice(0, HISTORY_MAX);
+  const rows = notes.map((n, i) => {
+    const key = `mhist:${n.version}`, open = s.exp.has(key), last = i === notes.length - 1;
+    return `<div class="mi-row ${open ? 'open' : ''} ${last && !open ? 'last' : ''}" data-exp="${key}" style="cursor:pointer"><div class="grow"><div class="tt">${n.version}${i === 0 ? '<span class="badge">현재</span>' : ''}</div><div class="dt">${n.date} · ${n.summary}</div></div><span class="chev">›</span></div>
       ${open ? `<div class="mv-body ${last ? 'last' : ''}">${sections(n)}</div>` : ''}`;
   }).join('');
   return `<div class="content chg"><div class="hdr"><span class="back-btn" data-go="msettings">←</span><h1>업데이트 내역</h1></div>
     <div class="group" style="margin-top:6px"><div class="mi-row last"><div class="grow"><div class="tt">업데이트 후 변경 내용 보기</div><div class="dt">새 버전으로 바뀐 뒤 처음 열 때 바뀐 점을 보여 줘요.</div></div><button class="msw ${s.show ? 'on' : ''}" data-act="show"></button></div></div>
-    <div class="group-t">버전</div><div class="group">${rows}</div>
+    <div class="group-t">최근 업데이트 (최대 ${HISTORY_MAX}개)</div><div class="group">${rows}</div>
     <div style="height:24px"></div></div>${tabbar('settings')}`;
 }
 function phone() {
@@ -290,77 +325,77 @@ function phone() {
   return `<div class="phone theme-${s.theme}">${statusBar()}${body}<div class="gesture"></div></div>`;
 }
 
-const FILES = `docs/patchNotes/
-  desktop/win/2.0.11.json
-  desktop/mac/2.0.11.json
-  mobile/android/2.0.2.json
-  mobile/ios/2.0.2.json`;
-const JSON_SAMPLE = `{
-  "version": "2.0.11",
-  "date": "2026-10-20",
-  "summary": "동기화가 가벼워지고 시작이 빨라졌어요.",
+const JSON_SAMPLE = `docs/patchNotes/desktop/win/2.0.16.json
+{
+  "version": "2.0.16",
+  "date": "2026-12-01",
+  "summary": "앱이 더 빠르고 안정적이에요.",
   "sections": [
-    { "kind": "improved",
-      "items": [{ "title": "다시 열 때 바뀐 것만 받아요",
-                  "detail": "앱을 다시 열거나 …" }] },
-    { "kind": "fixed", "items": [ … ] }
+    { "kind": "improved", "items": [
+      { "title": "앱 실행이 빨라졌어요.",
+        "detail": ["할 일이 많아도 처음 열 때 …"] } ] },
+    { "kind": "fixed", "items": [
+      { "title": "자잘한 문제를 고쳤어요." } ] }
   ]
 }`;
 function notes() {
   const d = s.platform === 'desktop';
+  const where = d ? { modal: 'PC · 업데이트 후 처음 열었을 때', settings: 'PC · 설정 > 정보' }[s.dscreen] : { modal: '모바일 · 업데이트 후 처음 켰을 때', settings: '모바일 · 설정', history: '모바일 · 설정 > 업데이트 내역' }[s.mscreen];
   return `<div class="notes">
-    <div class="now">${d ? (s.dscreen === 'modal' ? 'PC · 업데이트 후 처음 열었을 때' : 'PC · 설정 > 정보') : ({ modal: '모바일 · 업데이트 후 처음 켰을 때', settings: '모바일 · 설정', history: '모바일 · 설정 > 업데이트 내역' })[s.mscreen]}
-      ${s.skipped ? '<br>· 두 버전을 건너뛰고 업데이트한 경우' : ''}</div>
-    <h3>바뀌는 것 (노란 점선)</h3><ul>
-      <li>업데이트 후 처음 열 때 한 번만 <b>업데이트 내역 창</b>을 띄움. ${d ? 'PC는 기존 "새 버전" 창과 같은 모양.' : '모바일은 다른 선택 창과 같은 아래 시트.'}</li>
-      <li>여러 버전을 건너뛰면 안 본 버전을 한 창에 최신 순으로 모두 보여 줌. 툴바 "두 버전 건너뜀"으로 확인.</li>
-      <li><b>다시 보지 않기</b>에 체크하고 닫으면 설정의 <b>업데이트 후 변경 내용 보기</b>가 꺼짐(같은 설정). 설정에서 다시 켤 수 있음.</li>
-      <li>설정에 <b>업데이트 내역</b> 추가: ${d ? '정보 페이지 아래에 버전 목록, 누르면 펼침.' : '설정 > 정보 > 업데이트 내역 화면. 맨 위에 창 보기 스위치, 아래 버전 목록.'}</li>
-      <li>"전체 내역"은 그 설정 화면으로 이동.</li>
+    <div class="now">${where}${(d ? s.dscreen : s.mscreen) === 'modal' ? `<br>· 밀린 업데이트 ${s.behind}개${s.behind >= COLLAPSE_AT ? ' → 접힌 카드' : ''}` : ''}</div>
+    <h3>이번 피드백 반영</h3><ul class="fix">
+      ${d ? `<li>설정 > 정보: 버전 목록 대신 <b>업데이트 내역</b> 카드 하나. 누르면 최근 ${HISTORY_MAX}개를 보여 줌(몇 개를 건너뛰었는지와 상관없음). 툴바 "내역 열기"로 두 방식 비교.</li>` : ''}
+      <li>문구를 사용자 입장으로 다시 씀: 제목은 체감하는 변화 한 문장, 세부 내용은 있을 때만, 한 줄에 한 문장.</li>
+      <li>밀린 업데이트가 ${COLLAPSE_AT}개 이상이면 같은 창에서 <b>버전 + 요약 카드</b>만 접어서 보여 줌. 오른쪽 ⌄로 펼침. 툴바 "밀린 업데이트 6개"로 확인.</li>
+      <li>아이콘 40 → 48px(120%), 제목 "업데이트를 완료했어요". 버전은 제목 위 작은 글씨로.</li>
+      <li>세부 내용 글자 12.5 → 12px, 색을 한 단계 흐리게(라이트 테마에서는 한 단계 밝게).</li>
     </ul>
     <h3>그대로인 것</h3><ul>
-      <li>새 버전 알림·설치 창(PC), 버전 표시, 업데이트 확인 버튼, 베타 토글.</li>
-      <li>처음 설치한 경우에는 창을 띄우지 않음(이전 버전이 없으므로). 목록은 설정에서 볼 수 있음.</li>
-      <li>내역 파일이 없는 과거 버전(PC 2.0.9 이하, 모바일 2.0.0)은 목록에 나오지 않음.</li>
+      <li>업데이트 후 처음 열 때 한 번만 창을 띄움. "다시 보지 않기" = 설정의 "업데이트 후 변경 내용 보기" 끄기.</li>
+      <li>${d ? '새 버전 알림·설치 창, 버전 표시, 업데이트 확인, 베타 토글.' : '모바일 설정 > 정보 > 업데이트 내역 화면 구조.'}</li>
+      <li>처음 설치한 경우에는 창을 띄우지 않음. 내역 파일이 없는 과거 버전은 나오지 않음.</li>
     </ul>
-    <h3>파일 구조 (출시 확정 뒤, 빌드 전에 작성)</h3>
-    <pre>${FILES}</pre><pre>${JSON_SAMPLE}</pre>
-    <ul style="margin-top:8px">
-      <li>kind: <code>new</code> 새 기능 · <code>improved</code> 개선 · <code>fixed</code> 수정.</li>
-      <li>내역은 빌드할 때 앱 안에 같이 넣음(서버에서 받지 않음, 오프라인에서도 보임). 현재 버전 파일이 없으면 빌드가 실패함.</li>
-    </ul>
+    <h3>파일 형식</h3><pre>${JSON_SAMPLE}</pre>
+    <ul style="margin-top:8px"><li><code>detail</code>은 빼도 됨. 문장마다 배열 한 칸(= 한 줄).</li>
+      <li>작성 규칙(출시 절차에 적어 둠): 사용자가 알아차리는 변화만. 내부 동작·수치·구현 설명은 쓰지 않음.</li></ul>
     <h3 class="q">정할 것</h3><ul class="q">
-      <li>설정 문구: "업데이트 후 변경 내용 보기"(시안) / "업데이트 창 보기". PC에는 이미 "새 버전 설치" 창이 있어서 헷갈리지 않게 시안 문구를 추천.</li>
-      <li>${d ? 'PC 내역 위치: 정보 페이지 안(시안) / 왼쪽 메뉴에 "업데이트 내역" 따로.' : '모바일 창 모양: 아래 시트(시안, 앱의 다른 창과 같음) / 화면 가운데 창.'}</li>
-      <li>샘플 문구는 자리 채움. 실제 내용은 출시 때마다 작성해서 확인받음.</li>
+      ${d ? `<li>PC 업데이트 내역 열기: <b>창으로</b>(업데이트 후 창과 같은 모양) / <b>카드 안에서 펼치기</b>.</li>` : ''}
+      <li>최대 ${HISTORY_MAX}개, 접히는 기준 ${COLLAPSE_AT}개 이상 — 이대로 괜찮은지.</li>
+      <li>종류 순서: 새 기능 → 개선 → 수정(시안 데이터는 파일에 쓴 순서대로 보여 줌).</li>
     </ul></div>`;
 }
 
 function toolbar() {
   const b = (group, value, label) => `<button class="${s[group] === value ? 'on' : ''}" data-set="${group}:${value}">${label}</button>`;
   const lines = [`<div class="line"><strong>플랫폼</strong>${b('platform', 'desktop', 'PC (Windows·mac)')}${b('platform', 'mobile', '모바일 (Android·iOS)')}</div>`];
-  if (s.platform === 'desktop') lines.push(`<div class="line"><strong>화면</strong>${b('dscreen', 'modal', '업데이트 후 창')}${b('dscreen', 'settings', '설정 > 정보')}<span class="sep"></span><strong>크기</strong>${b('fit', true, '맞춤(62%)')}${b('fit', false, '실제 크기 1440×960')}</div>`);
+  if (s.platform === 'desktop') lines.push(`<div class="line"><strong>화면</strong>${b('dscreen', 'modal', '업데이트 후 창')}${b('dscreen', 'settings', '설정 > 정보')}<span class="sep"></span><strong>내역 열기</strong>${b('histMode', 'window', '창으로')}${b('histMode', 'inline', '카드 안에서 펼치기')}<span class="sep"></span><strong>크기</strong>${b('fit', true, '맞춤(62%)')}${b('fit', false, '실제 크기 1440×960')}</div>`);
   else lines.push(`<div class="line"><strong>화면</strong>${b('mscreen', 'modal', '업데이트 후 창')}${b('mscreen', 'settings', '설정')}${b('mscreen', 'history', '설정 > 업데이트 내역')}<span class="sep"></span><strong>테마</strong>${b('theme', 'dark', '다크')}${b('theme', 'light', '라이트')}</div>`);
-  lines.push(`<div class="line"><strong>상태</strong>${b('skipped', false, '한 버전 올림')}${b('skipped', true, '두 버전 건너뜀')}<span class="sep"></span><strong>표시</strong>${b('mark', true, '바뀌는 부분 표시')}${b('mark', false, '표시 끔')}</div>`);
+  lines.push(`<div class="line"><strong>밀린 업데이트</strong>${b('behind', 1, '1개')}${b('behind', 2, '2개')}${b('behind', 6, '6개 (접힘)')}<span class="sep"></span><strong>표시</strong>${b('mark', true, '바뀌는 부분 표시')}${b('mark', false, '표시 끔')}</div>`);
   return lines.join('');
 }
 function render() {
   document.getElementById('toolbar').innerHTML = toolbar();
-  const view = s.platform === 'desktop' ? desktopFrame(s.dscreen === 'modal' ? desktopModal() : desktopSettings()) : phone();
+  let view;
+  if (s.platform === 'desktop') {
+    if (s.dscreen === 'modal') view = desktopFrame(desktopModal());
+    else view = desktopFrame(desktopSettings(), s.histMode === 'window' && s.histOpen ? desktopHistory() : '');
+  } else view = phone();
   const stage = document.getElementById('stage');
   stage.className = 'stage' + (s.mark ? ' mark' : '');
   stage.innerHTML = view + notes();
 }
 document.addEventListener('click', e => {
-  const t = e.target.closest('[data-set],[data-go],[data-act],[data-ver]');
+  const t = e.target.closest('[data-set],[data-go],[data-act],[data-exp]');
   if (!t) return;
-  if (t.dataset.set) { const [k, v] = t.dataset.set.split(':'); s[k] = v === 'true' ? true : v === 'false' ? false : v; }
-  if (t.dataset.go === 'dsettings') s.dscreen = 'settings';
+  if (t.dataset.set) { const [k, v] = t.dataset.set.split(':'); s[k] = v === 'true' ? true : v === 'false' ? false : /^\d+$/.test(v) ? Number(v) : v; if (k === 'histMode') s.histOpen = false; }
+  if (t.dataset.go === 'dsettings') { s.dscreen = 'settings'; s.histOpen = true; }
   if (t.dataset.go === 'mhistory') s.mscreen = 'history';
   if (t.dataset.go === 'msettings') s.mscreen = 'settings';
   if (t.dataset.act === 'dont') { s.dontShow = !s.dontShow; s.show = !s.dontShow; }
   if (t.dataset.act === 'show') { s.show = !s.show; s.dontShow = !s.show; }
-  if (t.dataset.ver) { const [p, v] = t.dataset.ver.split(':'); s.open[p] = s.open[p] === v ? null : v; }
+  if (t.dataset.act === 'hist') s.histOpen = !s.histOpen;
+  if (t.dataset.act === 'histclose') s.histOpen = false;
+  if (t.dataset.exp) { const k = t.dataset.exp; s.exp.has(k) ? s.exp.delete(k) : s.exp.add(k); }
   render();
 });
 render();
