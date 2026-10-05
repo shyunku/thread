@@ -12,6 +12,12 @@ module.exports = async function _notarize(context) {
     return;
   }
 
+  // Unsigned test builds (CI without Apple credentials) skip notarization.
+  if (!process.env.APPLE_ID) {
+    console.log("notarize: APPLE_ID not set, skipping");
+    return;
+  }
+
   const appName = context.packager.appInfo.productFilename;
 
   return await notarize({

@@ -54,7 +54,7 @@ jobs:
           bash ../../.github/scripts/logged.sh "electron-builder" pnpm exec electron-builder build \
             --mac --universal --publish never \
             -c.extraMetadata.main=build/electron/core/main.js \
-            -c.mac.identity=null -c.afterSign=null
+            -c.mac.identity=null
           ls -lh dist
 
       - uses: actions/upload-artifact@v4
