@@ -35,6 +35,9 @@ export class SyncService {
   #transport: () => Transport;
   #activity: VaultActivity;
   #sync: any = null;
+  #openFailures = 0;
+  #openRetryAt = 0;
+  #openError: string | null = null;
   #running: Promise<SyncStatus> | null = null;
   #abort = new AbortController();
   #status: SyncStatus = {
@@ -110,8 +113,31 @@ export class SyncService {
     try {
       const transport = this.#transport();
       if (!this.#sync) {
+        // Opening a session downloads a server snapshot, and the server allows only
+        // a few per account at a time (SNAPSHOT_LIMIT). After a failed open, wait
+        // before trying again instead of on every trigger, and keep showing the
+        // error that started it.
+        if (Date.now() < this.#openRetryAt)
+          throw Error(this.#openError ?? 'SYNC_UNAVAILABLE');
         const store = this.#session.use(value => value);
-        const result = await openSyncSession({ store, transport, signal });
+        let result;
+        try {
+          result = await openSyncSession({ store, transport, signal });
+        } catch (error: any) {
+          const code = error?.message ?? 'SYNC_UNAVAILABLE';
+          if (code !== 'SYNC_CANCELLED') {
+            this.#openFailures++;
+            this.#openRetryAt =
+              Date.now() +
+              Math.min(15 * 60000, 20000 * 2 ** (this.#openFailures - 1));
+            if (code !== 'SNAPSHOT_LIMIT' || !this.#openError)
+              this.#openError = code;
+          }
+          throw error;
+        }
+        this.#openFailures = 0;
+        this.#openRetryAt = 0;
+        this.#openError = null;
         if (result.phase !== 'ACTIVE') {
           this.#set({
             phase: result.phase,

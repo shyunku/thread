@@ -288,3 +288,23 @@ test('only one vault action at a time; locking stops sync; recovery needs consen
   await expect(a.sync.syncNow()).rejects.toThrow('VAULT_LOCKED');
   expect(a.sync.status().phase).toBe('LOCKED');
 });
+
+test('a failed sync open waits before asking the server for another snapshot', async () => {
+  const server = createFakeThreadServer(scope.vaultId);
+  const a = await ownerWithTask(server);
+  // A new session on the same phone (as after a restart) whose snapshot fails.
+  a.sync.reset();
+  const snapshot = server.transport.snapshot;
+  let calls = 0;
+  server.transport.snapshot = async (...args: any[]) => {
+    calls++;
+    if (calls === 1) throw Error('SYNC_RESPONSE_TOO_LARGE');
+    return (snapshot as any)(...args);
+  };
+  await expect(a.sync.syncNow()).rejects.toThrow('SYNC_RESPONSE_TOO_LARGE');
+  // Retries right away keep the first error and do not reach the server.
+  await expect(a.sync.syncNow()).rejects.toThrow('SYNC_RESPONSE_TOO_LARGE');
+  await expect(a.sync.syncNow()).rejects.toThrow('SYNC_RESPONSE_TOO_LARGE');
+  expect(calls).toBe(1);
+  expect(a.sync.status().error).toBe('SYNC_RESPONSE_TOO_LARGE');
+});

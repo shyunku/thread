@@ -29,6 +29,8 @@ const MESSAGES: Record<string, string> = {
   PAIRING_AUTHORITY_REQUIRED:
     '이 기기에서는 새 기기를 승인할 수 없어요. 처음 만든 기기에서 승인해주세요.',
   VAULT_BUSY: '다른 작업이 진행 중이에요. 잠시 후 다시 시도해주세요.',
+  SNAPSHOT_LIMIT:
+    '동기화 준비를 너무 자주 시도했어요. 잠시 뒤 자동으로 다시 시도해요.',
   UPDATE_REQUIRED: '앱을 최신 버전으로 업데이트해주세요.',
   DEVICE_FORBIDDEN: '이 기기는 더 이상 연결돼 있지 않아요.',
 };
