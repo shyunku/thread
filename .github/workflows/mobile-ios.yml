@@ -11,6 +11,7 @@ on:
       - apps/mobile/**
       - packages/e2ee/**
       - .github/workflows/mobile-ios.yml
+      - .github/scripts/**
 
 concurrency:
   group: mobile-ios
