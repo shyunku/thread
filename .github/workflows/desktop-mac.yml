@@ -3,14 +3,9 @@
 # and notarized builds need the Apple Developer credentials and come later.
 name: Desktop macOS (unsigned)
 
+# Manual only: run it from the Actions tab when a Mac build is wanted.
 on:
   workflow_dispatch:
-  push:
-    branches: [master]
-    paths:
-      - apps/desktop/**
-      - packages/e2ee/**
-      - .github/workflows/desktop-mac.yml
 
 concurrency:
   group: desktop-mac
