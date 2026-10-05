@@ -57,12 +57,12 @@ export default function GoogleLinkScreen() {
 
   return (
     <Screen>
-      <View style={{ paddingHorizontal: 7, paddingTop: 5.5 }}>
+      <View style={{ paddingHorizontal: 8, paddingTop: 6 }}>
         <IconButton label="뒤로" onPress={() => navigation.goBack()}>
-          <ArrowLeft color={theme.secondary} size={19.5} />
+          <ArrowLeft color={theme.secondary} size={22} />
         </IconButton>
       </View>
-      <View style={{ paddingHorizontal: 16, paddingBottom: 9 }}>
+      <View style={{ paddingHorizontal: 18, paddingBottom: 10 }}>
         <Title>이 Google 계정은 처음이에요</Title>
         <Body muted>
           Thread 계정에 연결하면 다음부터 Google로 바로 로그인해요.

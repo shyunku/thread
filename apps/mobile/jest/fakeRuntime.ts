@@ -14,10 +14,15 @@ import { createTestDatabases } from './testDatabases';
 import { fakeKeychain } from './fakeKeychain';
 import { createFakeThreadServer } from './fakeThreadServer';
 
-export function createFakeRuntime({ uid = 'u1' } = {}) {
+export function createFakeRuntime({
+  uid = 'u1',
+  server = createFakeThreadServer(vaultIdFor('development', uid)),
+}: {
+  uid?: string;
+  server?: ReturnType<typeof createFakeThreadServer>;
+} = {}) {
   const dbs = createTestDatabases();
   const keys = fakeKeychain();
-  const server = createFakeThreadServer(vaultIdFor('development', uid));
   let user: any = null;
   let listener: ((value: any) => void) | null = null;
   let prefs: Prefs = { ...defaultPrefs, theme: 'dark' };

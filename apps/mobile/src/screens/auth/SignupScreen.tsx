@@ -46,12 +46,12 @@ export default function SignupScreen() {
 
   return (
     <Screen>
-      <View style={{ paddingHorizontal: 7, paddingTop: 5.5 }}>
+      <View style={{ paddingHorizontal: 8, paddingTop: 6 }}>
         <IconButton label="뒤로" onPress={() => navigation.goBack()}>
-          <ArrowLeft color={theme.secondary} size={19.5} />
+          <ArrowLeft color={theme.secondary} size={22} />
         </IconButton>
       </View>
-      <View style={{ paddingHorizontal: 16, paddingBottom: 10.5 }}>
+      <View style={{ paddingHorizontal: 18, paddingBottom: 12 }}>
         <Title>가입하기</Title>
         <Body muted>할 일은 이 기기에서 암호화된 뒤 서버에 저장돼요.</Body>
       </View>

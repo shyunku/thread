@@ -7,7 +7,7 @@ export default function VaultProblemScreen() {
   const { runtime } = useApp();
   return (
     <Screen>
-      <View style={{ padding: 21, paddingTop: 105.5 }}>
+      <View style={{ padding: 24, paddingTop: 120 }}>
         <Title>이 휴대폰의 보관함을 열 수 없어요</Title>
         <Body muted>
           처음 설정이 끝나기 전에 앱이 멈췄어요. 데이터는 서버와 다른 기기에

@@ -28,14 +28,14 @@ export default function SearchScreen() {
         style={{
           flexDirection: 'row',
           alignItems: 'center',
-          gap: 3.5,
-          paddingHorizontal: 7,
-          paddingTop: 7,
-          paddingBottom: 7,
+          gap: 4,
+          paddingHorizontal: 8,
+          paddingTop: 8,
+          paddingBottom: 8,
         }}
       >
         <IconButton label="뒤로" onPress={() => navigation.goBack()}>
-          <ArrowLeft color={theme.secondary} size={19.5} />
+          <ArrowLeft color={theme.secondary} size={22} />
         </IconButton>
         <TextInput
           autoFocus
@@ -45,15 +45,15 @@ export default function SearchScreen() {
           onChangeText={setQuery}
           style={{
             flex: 1,
-            marginRight: 9,
-            paddingHorizontal: 10.5,
-            paddingVertical: 9,
-            borderRadius: 10.5,
+            marginRight: 10,
+            paddingHorizontal: 12,
+            paddingVertical: 10,
+            borderRadius: 12,
             borderWidth: 1,
             borderColor: theme.border,
             backgroundColor: theme.surface,
             color: theme.text,
-            fontSize: 13,
+            fontSize: 15,
           }}
         />
       </View>
@@ -71,7 +71,7 @@ export default function SearchScreen() {
         ListEmptyComponent={
           query.trim() ? (
             <Text
-              style={{ color: theme.muted, textAlign: 'center', marginTop: 35 }}
+              style={{ color: theme.muted, textAlign: 'center', marginTop: 40 }}
             >
               찾는 할 일이 없어요.
             </Text>

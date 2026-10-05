@@ -75,15 +75,13 @@ export default function TasksScreen() {
       <AppBar
         onTitlePress={() => setPicking(true)}
         title={
-          <View
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 5.5 }}
-          >
-            {secret && <KeyRound color={theme.warning} size={17} />}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            {secret && <KeyRound color={theme.warning} size={19.5} />}
             <Text
               numberOfLines={1}
               style={{
                 color: theme.text,
-                fontSize: 19.5,
+                fontSize: 22,
                 fontWeight: '700',
                 flexShrink: 1,
               }}
@@ -92,9 +90,9 @@ export default function TasksScreen() {
             </Text>
             <View
               style={{
-                paddingHorizontal: 7,
+                paddingHorizontal: 8,
                 paddingVertical: 1,
-                borderRadius: 6,
+                borderRadius: 7,
                 borderWidth: 1,
                 borderColor: theme.border,
                 backgroundColor: theme.surface,
@@ -103,14 +101,14 @@ export default function TasksScreen() {
               <Text
                 style={{
                   color: theme.secondary,
-                  fontSize: 11.5,
+                  fontSize: 13,
                   fontWeight: '600',
                 }}
               >
                 {todo.length}
               </Text>
             </View>
-            <ChevronDown color={theme.muted} size={14} />
+            <ChevronDown color={theme.muted} size={16} />
           </View>
         }
         right={
@@ -118,7 +116,7 @@ export default function TasksScreen() {
             label="검색"
             onPress={() => navigation.navigate('Search')}
           >
-            <Search color={theme.secondary} size={18.5} />
+            <Search color={theme.secondary} size={21} />
           </IconButton>
         }
       />
@@ -126,9 +124,9 @@ export default function TasksScreen() {
         <Text
           style={{
             color: theme.muted,
-            fontSize: 10.5,
-            paddingHorizontal: 16,
-            paddingBottom: 9,
+            fontSize: 12,
+            paddingHorizontal: 18,
+            paddingBottom: 10,
           }}
         >
           비밀 카테고리 ·{' '}
@@ -144,9 +142,9 @@ export default function TasksScreen() {
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{
-            gap: 5.5,
-            paddingHorizontal: 16,
-            paddingBottom: 5.5,
+            gap: 6,
+            paddingHorizontal: 18,
+            paddingBottom: 6,
           }}
         >
           {SORTS.map(([mode, label]) => (
@@ -162,7 +160,7 @@ export default function TasksScreen() {
       <FlatList
         data={items}
         keyExtractor={item => item.key}
-        contentContainerStyle={{ paddingBottom: 105.5 }}
+        contentContainerStyle={{ paddingBottom: 120 }}
         renderItem={({ item }) => {
           if (item.header === 'todo') {
             return (
@@ -201,7 +199,7 @@ export default function TasksScreen() {
             color: theme.muted,
             textAlign: 'center',
             position: 'absolute',
-            top: 193.5,
+            top: 220,
             left: 0,
             right: 0,
           }}
@@ -243,11 +241,11 @@ export function Fab({
       onPress={onPress}
       style={({ pressed }) => ({
         position: 'absolute',
-        right: 16,
-        bottom: 16,
-        width: 46,
-        height: 46,
-        borderRadius: 15,
+        right: 18,
+        bottom: 18,
+        width: 56,
+        height: 56,
+        borderRadius: 18,
         backgroundColor: theme.accent,
         alignItems: 'center',
         justifyContent: 'center',
@@ -255,7 +253,7 @@ export function Fab({
         opacity: disabled ? 0.5 : pressed ? 0.85 : 1,
       })}
     >
-      <Plus color={theme.accentText} size={24.5} />
+      <Plus color={theme.accentText} size={28} />
     </Pressable>
   );
 }
@@ -285,12 +283,12 @@ export function CategorySheet({
     {
       scope: { kind: 'all' },
       label: '모든 할 일',
-      icon: <Layers color={theme.secondary} size={16} />,
+      icon: <Layers color={theme.secondary} size={18} />,
     },
     {
       scope: { kind: 'today' },
       label: '오늘',
-      icon: <Sun color={theme.secondary} size={16} />,
+      icon: <Sun color={theme.secondary} size={18} />,
     },
     ...(model?.categories ?? []).map(c => ({
       scope: { kind: 'category', cid: c.cid } as Scope,
@@ -298,14 +296,14 @@ export function CategorySheet({
       // A secret category shows a key; its count stays hidden until it is opened.
       locked: c.secret && !isSecretOpen(c.cid),
       icon: c.secret ? (
-        <KeyRound color={theme.warning} size={14} />
+        <KeyRound color={theme.warning} size={16} />
       ) : (
         <View
           style={{
-            width: 9,
-            height: 9,
-            borderRadius: 4.5,
-            marginHorizontal: 3.5,
+            width: 10,
+            height: 10,
+            borderRadius: 5,
+            marginHorizontal: 4,
             backgroundColor: c.color || theme.accent,
           }}
         />
@@ -317,7 +315,7 @@ export function CategorySheet({
     (a.kind !== 'category' || (b.kind === 'category' && a.cid === b.cid));
   return (
     <Sheet visible={visible} onClose={onClose} title="보기">
-      <ScrollView style={{ maxHeight: 369.5 }}>
+      <ScrollView style={{ maxHeight: 420 }}>
         {rows.map((row, index) => (
           <Row
             key={index}
@@ -325,10 +323,10 @@ export function CategorySheet({
             onPress={() => onSelect(row.scope)}
           >
             {row.icon}
-            <Text style={{ flex: 1, color: theme.text, fontSize: 13 }}>
+            <Text style={{ flex: 1, color: theme.text, fontSize: 15 }}>
               {row.label}
             </Text>
-            <Text style={{ color: theme.muted, fontSize: 11.5 }}>
+            <Text style={{ color: theme.muted, fontSize: 13 }}>
               {row.locked ? '잠김' : count(row.scope)}
             </Text>
           </Row>
@@ -338,8 +336,8 @@ export function CategorySheet({
         style={{
           height: 1,
           backgroundColor: theme.border,
-          marginHorizontal: 17.5,
-          marginVertical: 5.5,
+          marginHorizontal: 20,
+          marginVertical: 6,
         }}
       />
       <Row
@@ -348,8 +346,8 @@ export function CategorySheet({
           navigation.navigate('Categories');
         }}
       >
-        <Tag color={theme.secondary} size={16} />
-        <Text style={{ flex: 1, color: theme.text, fontSize: 13 }}>
+        <Tag color={theme.secondary} size={18} />
+        <Text style={{ flex: 1, color: theme.text, fontSize: 15 }}>
           카테고리 추가·관리
         </Text>
       </Row>
@@ -421,16 +419,16 @@ export function AddTaskSheet({
         onSubmitEditing={add}
         returnKeyType="done"
         style={{
-          marginHorizontal: 16,
-          marginBottom: 10.5,
-          paddingHorizontal: 12.5,
-          paddingVertical: 10.5,
-          borderRadius: 10.5,
+          marginHorizontal: 18,
+          marginBottom: 12,
+          paddingHorizontal: 14,
+          paddingVertical: 12,
+          borderRadius: 12,
           borderWidth: 1,
           borderColor: theme.border,
           backgroundColor: theme.surface,
           color: theme.text,
-          fontSize: 16,
+          fontSize: 18,
           fontWeight: '600',
         }}
       />
@@ -439,9 +437,9 @@ export function AddTaskSheet({
         keyboardShouldPersistTaps="handled"
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{
-          gap: 5.5,
-          paddingHorizontal: 16,
-          paddingBottom: 10.5,
+          gap: 6,
+          paddingHorizontal: 18,
+          paddingBottom: 12,
         }}
       >
         <Chip
@@ -493,9 +491,7 @@ export function AddTaskSheet({
         disabled={!title.trim()}
         onPress={add}
       />
-      <Text
-        style={{ color: theme.muted, fontSize: 10.5, marginHorizontal: 17.5 }}
-      >
+      <Text style={{ color: theme.muted, fontSize: 12, marginHorizontal: 20 }}>
         메모·하위 할 일·반복은 추가한 뒤 상세에서 넣을 수 있어요.
       </Text>
     </Sheet>

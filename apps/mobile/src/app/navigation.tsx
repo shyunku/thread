@@ -49,13 +49,13 @@ function TabIcon({
   return (
     <View
       style={{
-        paddingHorizontal: 14,
+        paddingHorizontal: 16,
         paddingVertical: 2,
-        borderRadius: 10.5,
+        borderRadius: 12,
         backgroundColor: focused ? theme.selected : 'transparent',
       }}
     >
-      <Icon color={focused ? theme.accent : color} size={17.5} />
+      <Icon color={focused ? theme.accent : color} size={20} />
     </View>
   );
 }
@@ -86,10 +86,10 @@ function Tabs() {
         tabBarStyle: {
           backgroundColor: theme.panel,
           borderTopColor: theme.border,
-          height: 55 + insets.bottom,
-          paddingTop: 5.5,
+          height: 62 + insets.bottom,
+          paddingTop: 6,
         },
-        tabBarLabelStyle: { fontSize: 9.5 },
+        tabBarLabelStyle: { fontSize: 11 },
         sceneStyle: { backgroundColor: theme.canvas, paddingTop: insets.top },
       }}
     >

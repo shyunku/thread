@@ -49,16 +49,16 @@ export default function LockMethodScreen() {
       <Text
         style={{
           color: theme.muted,
-          fontSize: 11,
-          paddingHorizontal: 16,
-          paddingTop: 16,
-          paddingBottom: 7,
+          fontSize: 12.5,
+          paddingHorizontal: 18,
+          paddingTop: 18,
+          paddingBottom: 8,
         }}
       >
         이 기기 보호 · 1/3
       </Text>
       <Steps total={3} current={1} />
-      <View style={{ paddingHorizontal: 16, paddingBottom: 9 }}>
+      <View style={{ paddingHorizontal: 18, paddingBottom: 10 }}>
         <Title>이 휴대폰의 데이터 잠금</Title>
         <Body muted>
           할 일은 이 휴대폰 안에서도 암호화돼요. 휴대폰을 다시 켰거나 직접 잠근
@@ -99,7 +99,7 @@ export default function LockMethodScreen() {
         label="계속"
         busy={busy}
         onPress={create}
-        style={{ marginTop: 5.5 }}
+        style={{ marginTop: 6 }}
       />
     </Screen>
   );

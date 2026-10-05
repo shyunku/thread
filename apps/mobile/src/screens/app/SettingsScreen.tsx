@@ -70,7 +70,7 @@ const CHOICES: {
   },
   secretRelock: {
     key: 'secretRelock',
-    title: '비밀 카테고리 다시 잠금',
+    title: '비밀 카테고리 잠금',
     options: [
       ['session', '앱을 닫거나 잠글 때'],
       ['each', '열 때마다'],
@@ -91,37 +91,37 @@ export default function SettingsScreen() {
       <Text
         style={{
           color: theme.text,
-          fontSize: 19.5,
+          fontSize: 22,
           fontWeight: '700',
-          paddingHorizontal: 16,
-          paddingTop: 14,
-          paddingBottom: 10.5,
+          paddingHorizontal: 18,
+          paddingTop: 16,
+          paddingBottom: 12,
         }}
       >
         설정
       </Text>
-      <ScrollView contentContainerStyle={{ paddingBottom: 35 }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
         <View
           style={{
             flexDirection: 'row',
             alignItems: 'center',
-            gap: 10.5,
-            marginHorizontal: 10.5,
-            padding: 12.5,
-            borderRadius: 12.5,
+            gap: 12,
+            marginHorizontal: 12,
+            padding: 14,
+            borderRadius: 14,
             borderWidth: 1,
             borderColor: theme.border,
             backgroundColor: theme.surface,
           }}
         >
-          <Logo size={38.5} />
+          <Logo size={44} />
           <View style={{ flex: 1 }}>
             <Text
-              style={{ color: theme.text, fontWeight: '700', fontSize: 13 }}
+              style={{ color: theme.text, fontWeight: '700', fontSize: 15 }}
             >
               {user?.username ?? user?.authId ?? '계정'}
             </Text>
-            <Text style={{ color: theme.muted, fontSize: 10.5 }}>
+            <Text style={{ color: theme.muted, fontSize: 12 }}>
               {user?.googleEmail
                 ? `Google 연결됨 · ${user.googleEmail}`
                 : user?.authId ?? ''}
@@ -151,7 +151,7 @@ export default function SettingsScreen() {
             onPress={() => setChoice('theme')}
           />
           <Item
-            title="비밀 카테고리 다시 잠금"
+            title="비밀 카테고리 잠금"
             value={label('secretRelock')}
             onPress={() => setChoice('secretRelock')}
             last
@@ -161,21 +161,21 @@ export default function SettingsScreen() {
         <Group title="데이터">
           <Pressable
             onPress={() => navigation.navigate('DataSettings')}
-            style={{ paddingTop: 10.5 }}
+            style={{ paddingTop: 12 }}
           >
             <View
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
-                paddingHorizontal: 12.5,
+                paddingHorizontal: 14,
               }}
             >
-              <Text style={{ flex: 1, color: theme.text, fontSize: 13 }}>
+              <Text style={{ flex: 1, color: theme.text, fontSize: 15 }}>
                 동기화 · 기기 · 복구
               </Text>
-              <ChevronRight color={theme.muted} size={16} />
+              <ChevronRight color={theme.muted} size={18} />
             </View>
-            <View style={{ marginTop: 5.5, marginLeft: -3.5 }}>
+            <View style={{ marginTop: 6, marginLeft: -4 }}>
               <SyncLine />
             </View>
           </Pressable>
@@ -183,15 +183,15 @@ export default function SettingsScreen() {
 
         <Group title="계정">
           <Item
-            title="잠그기"
+            title="앱 잠금"
             value="다음에 생체/PIN"
             onPress={() => account?.session.lock()}
           />
           <Item
-            title="다른 곳 모두 로그아웃"
+            title="다른 기기 모두 로그아웃"
             onPress={() =>
               Alert.alert(
-                '다른 곳 모두 로그아웃',
+                '다른 기기 모두 로그아웃',
                 '이 휴대폰을 뺀 모든 기기에서 로그아웃돼요. 데이터와 기기 연결은 그대로예요.',
                 [
                   { text: '취소', style: 'cancel' },
@@ -263,7 +263,7 @@ export default function SettingsScreen() {
                 setChoice(null);
               }}
             >
-              <Text style={{ color: theme.text, fontSize: 13 }}>{text}</Text>
+              <Text style={{ color: theme.text, fontSize: 15 }}>{text}</Text>
             </Row>
           ))}
         </Sheet>
@@ -285,19 +285,19 @@ export function Group({
       <Text
         style={{
           color: theme.muted,
-          fontSize: 10.5,
+          fontSize: 12,
           fontWeight: '600',
-          paddingHorizontal: 16,
-          paddingTop: 16,
-          paddingBottom: 5.5,
+          paddingHorizontal: 18,
+          paddingTop: 18,
+          paddingBottom: 6,
         }}
       >
         {title}
       </Text>
       <View
         style={{
-          marginHorizontal: 10.5,
-          borderRadius: 12.5,
+          marginHorizontal: 12,
+          borderRadius: 14,
           borderWidth: 1,
           borderColor: theme.border,
           backgroundColor: theme.surface,
@@ -333,9 +333,9 @@ export function Item({
       style={({ pressed }) => ({
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 7,
-        paddingHorizontal: 12.5,
-        paddingVertical: 11.5,
+        gap: 8,
+        paddingHorizontal: 14,
+        paddingVertical: 13,
         borderBottomWidth: last ? 0 : 1,
         borderColor: theme.border,
         backgroundColor: pressed ? theme.hover : 'transparent',
@@ -343,20 +343,20 @@ export function Item({
     >
       <View style={{ flex: 1 }}>
         <Text
-          style={{ color: danger ? theme.danger : theme.text, fontSize: 13 }}
+          style={{ color: danger ? theme.danger : theme.text, fontSize: 15 }}
         >
           {title}
         </Text>
         {!!detail && (
-          <Text style={{ color: theme.muted, fontSize: 10.5, marginTop: 2 }}>
+          <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
             {detail}
           </Text>
         )}
       </View>
       {!!value && (
-        <Text style={{ color: theme.muted, fontSize: 11.5 }}>{value}</Text>
+        <Text style={{ color: theme.muted, fontSize: 13 }}>{value}</Text>
       )}
-      {onPress && <ChevronRight color={theme.muted} size={14} />}
+      {onPress && <ChevronRight color={theme.muted} size={16} />}
     </Pressable>
   );
 }

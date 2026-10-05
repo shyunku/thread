@@ -192,6 +192,19 @@ export function AppProvider({
       setScope({ kind: 'all' });
   }, [scopeSecret, scope, openSecrets]);
 
+  // Stable between renders: screens keep long-running work (pairing) keyed on these.
+  const reloadSetup = useCallback(() => {
+    if (!account || account.session.phase() !== 'UNLOCKED') return;
+    setSetup(account.session.use(store => setupState(store)));
+  }, [account]);
+  const setupDone = useCallback(() => {
+    if (!account) return;
+    account.session.use(store => markReady(store));
+    setSetup('READY');
+    account.sync.requestSync();
+    refresh();
+  }, [account, refresh]);
+
   const value: AppValue = {
     runtime,
     ready,
@@ -256,17 +269,8 @@ export function AppProvider({
       account.sync.requestSync();
       return id;
     },
-    reloadSetup() {
-      if (!account || account.session.phase() !== 'UNLOCKED') return;
-      setSetup(account.session.use(store => setupState(store)));
-    },
-    setupDone() {
-      if (!account) return;
-      account.session.use(store => markReady(store));
-      setSetup('READY');
-      account.sync.requestSync();
-      refresh();
-    },
+    reloadSetup,
+    setupDone,
   };
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

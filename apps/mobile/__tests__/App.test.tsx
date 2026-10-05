@@ -170,3 +170,105 @@ test('a secret category opens only after biometrics/PIN and hides its tasks else
   await waitFor(() => expect(screen.queryByText('병원 결과 정리')).toBeNull());
   await act(async () => {});
 });
+
+// An existing account: phone A (first device) already uses the vault.
+async function existingOwner(server: any) {
+  const { LocalVault } = require('@/core/vault/localVault');
+  const { VaultSession } = require('@/core/vault/session');
+  const {
+    MobileWorkspace,
+    VaultActivity,
+    vaultIdFor,
+  } = require('@/core/workspace/workspace');
+  const { SyncService } = require('@/core/sync/syncService');
+  const { createTestDatabases } = require('../jest/testDatabases');
+  const { fakeKeychain } = require('../jest/fakeKeychain');
+  const dbs = createTestDatabases();
+  const vault = new LocalVault(
+    {
+      environment: 'development',
+      accountId: 'u1',
+      vaultId: vaultIdFor('development', 'u1'),
+    },
+    {
+      openDatabase: dbs.openDatabase,
+      keychain: fakeKeychain().keychain,
+      bootId: () => 'count:1',
+    },
+  );
+  const session = new VaultSession(vault);
+  await session.create();
+  const activity = new VaultActivity();
+  const transport = () => server.transport;
+  const workspace = new MobileWorkspace({
+    session,
+    transport,
+    reauthenticate: async () => true,
+    activity,
+  });
+  const sync = new SyncService({ session, transport, activity });
+  await workspace.prepareIdentity();
+  const kit = workspace.recoveryMaterial();
+  await workspace.confirmRecovery(kit.code, kit.bytes);
+  await workspace.registerIdentity();
+  await workspace.activateEmpty();
+  await sync.syncNow();
+  return {
+    workspace,
+    cleanup() {
+      sync.close();
+      session.lock().catch(() => {});
+      dbs.cleanup();
+    },
+  };
+}
+
+test('joining an existing account: the 6-digit session survives app re-renders', async () => {
+  const { createFakeThreadServer } = require('../jest/fakeThreadServer');
+  const { vaultIdFor } = require('@/core/workspace/workspace');
+  const server = createFakeThreadServer(vaultIdFor('development', 'u1'));
+  const owner = await existingOwner(server);
+  current = createFakeRuntime({ server });
+  try {
+    await render(<App runtime={current.runtime} />);
+    await screen.findByText('로그인');
+    await fireEvent.changeText(screen.getByPlaceholderText('아이디'), 'jo');
+    await fireEvent.changeText(
+      screen.getByPlaceholderText('비밀번호'),
+      'secret pw',
+    );
+    await fireEvent.press(screen.getByText('로그인'));
+    await fireEvent.press(await screen.findByText('계속'));
+    await fireEvent.press(
+      await screen.findByText('쓰던 기기와 연결', {}, { timeout: 5000 }),
+    );
+    await screen.findByText('쓰던 기기를 기다리는 중');
+
+    // The PC opens a session; the phone joins it and both show the code.
+    await owner.workspace.relay('ownerStart');
+    // The PC reveals its part once the phone's request arrives.
+    await waitFor(
+      async () =>
+        expect((await owner.workspace.relay('ownerPoll')).phase).toBe(
+          'COMPARE',
+        ),
+      { timeout: 8000, interval: 500 },
+    );
+    await screen.findByText('두 기기의 숫자가 같나요?', {}, { timeout: 5000 });
+    // Sync status changes re-render the app; that must not cancel the session.
+    await act(async () => {
+      await current!
+        .account()
+        .sync.syncNow()
+        .catch(() => null);
+    });
+    // A cancelled session would show as expired on the PC.
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    expect((await owner.workspace.relay('ownerPoll')).phase).toBe('COMPARE');
+    await fireEvent.press(screen.getByText('같아요'));
+    await owner.workspace.relay('ownerApprove');
+    await screen.findByText('모든 할 일', {}, { timeout: 8000 });
+  } finally {
+    owner.cleanup();
+  }
+}, 30000);

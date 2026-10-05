@@ -42,25 +42,25 @@ export default function LockScreen() {
       <View
         style={{
           alignItems: 'center',
-          paddingTop: 123,
-          paddingHorizontal: 21,
-          paddingBottom: 26.5,
+          paddingTop: 140,
+          paddingHorizontal: 24,
+          paddingBottom: 30,
         }}
       >
         <View
           style={{
-            width: 74,
-            height: 74,
-            borderRadius: 23,
+            width: 84,
+            height: 84,
+            borderRadius: 26,
             borderWidth: 1,
             borderColor: theme.border,
             backgroundColor: theme.surface,
             alignItems: 'center',
             justifyContent: 'center',
-            marginBottom: 12.5,
+            marginBottom: 14,
           }}
         >
-          <Lock color={theme.warning} size={33.5} />
+          <Lock color={theme.warning} size={38} />
         </View>
         <Title>Thread가 잠겨 있어요</Title>
         <Body muted>휴대폰을 다시 켰거나 직접 잠갔어요.</Body>

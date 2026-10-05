@@ -95,33 +95,33 @@ export default function DataSettingsScreen() {
         style={{
           flexDirection: 'row',
           alignItems: 'center',
-          paddingHorizontal: 7,
-          paddingTop: 7,
+          paddingHorizontal: 8,
+          paddingTop: 8,
         }}
       >
         <IconButton label="뒤로" onPress={() => navigation.goBack()}>
-          <ArrowLeft color={theme.secondary} size={19.5} />
+          <ArrowLeft color={theme.secondary} size={22} />
         </IconButton>
-        <Text style={{ color: theme.text, fontSize: 16.5, fontWeight: '700' }}>
+        <Text style={{ color: theme.text, fontSize: 19, fontWeight: '700' }}>
           데이터
         </Text>
       </View>
-      <ScrollView contentContainerStyle={{ paddingBottom: 35, paddingTop: 7 }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 40, paddingTop: 8 }}>
         <View
           style={{
-            marginHorizontal: 10.5,
-            padding: 12.5,
-            borderRadius: 12.5,
+            marginHorizontal: 12,
+            padding: 14,
+            borderRadius: 14,
             borderWidth: 1,
             borderColor: theme.border,
             backgroundColor: theme.surface,
           }}
         >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <View
               style={{
-                paddingHorizontal: 9,
-                paddingVertical: 2.5,
+                paddingHorizontal: 10,
+                paddingVertical: 3,
                 borderRadius: 999,
                 backgroundColor: sync?.connected
                   ? theme.successSoft
@@ -131,7 +131,7 @@ export default function DataSettingsScreen() {
               <Text
                 style={{
                   color: sync?.connected ? theme.success : theme.secondary,
-                  fontSize: 10.5,
+                  fontSize: 12,
                   fontWeight: '600',
                 }}
               >
@@ -145,17 +145,17 @@ export default function DataSettingsScreen() {
             <View
               style={{
                 flex: 1,
-                height: 7,
-                borderRadius: 3.5,
+                height: 8,
+                borderRadius: 4,
                 flexDirection: 'row',
-                gap: 2.5,
+                gap: 3,
                 opacity: sync?.connected ? 1 : 0.4,
               }}
             >
               <View
                 style={{
                   flex: pending ? 82 : 1,
-                  borderRadius: 3.5,
+                  borderRadius: 4,
                   backgroundColor:
                     synced || pending ? theme.success : theme.border,
                 }}
@@ -164,7 +164,7 @@ export default function DataSettingsScreen() {
                 <View
                   style={{
                     flex: 18,
-                    borderRadius: 3.5,
+                    borderRadius: 4,
                     backgroundColor: theme.warning,
                   }}
                 />
@@ -177,7 +177,7 @@ export default function DataSettingsScreen() {
                   : pending
                   ? theme.warning
                   : theme.muted,
-                fontSize: 10.5,
+                fontSize: 12,
                 fontWeight: '600',
               }}
             >
@@ -188,20 +188,16 @@ export default function DataSettingsScreen() {
                 : '—'}
             </Text>
           </View>
-          <Text style={{ color: theme.muted, fontSize: 10.5, marginTop: 7 }}>
+          <Text style={{ color: theme.muted, fontSize: 12, marginTop: 8 }}>
             마지막 동기화 {when} · 서버는 암호화된 내용만 봅니다
           </Text>
           {!!sync?.error && (
-            <Text
-              style={{ color: theme.danger, fontSize: 10.5, marginTop: 3.5 }}
-            >
+            <Text style={{ color: theme.danger, fontSize: 12, marginTop: 4 }}>
               {messageFor(sync.error)}
             </Text>
           )}
           {(sync?.conflicts ?? 0) > 0 && (
-            <Text
-              style={{ color: theme.warning, fontSize: 10.5, marginTop: 3.5 }}
-            >
+            <Text style={{ color: theme.warning, fontSize: 12, marginTop: 4 }}>
               직접 확인이 필요한 변경 {sync!.conflicts}개 (PC에서 정리할 수
               있어요)
             </Text>
@@ -216,7 +212,7 @@ export default function DataSettingsScreen() {
                 .catch(() => null)
                 .finally(() => setSyncing(false));
             }}
-            style={{ marginHorizontal: 0, marginTop: 10.5, marginBottom: 0 }}
+            style={{ marginHorizontal: 0, marginTop: 12, marginBottom: 0 }}
           />
         </View>
 
@@ -230,24 +226,24 @@ export default function DataSettingsScreen() {
               style={({ pressed }) => ({
                 flexDirection: 'row',
                 alignItems: 'center',
-                gap: 10.5,
-                paddingHorizontal: 12.5,
-                paddingVertical: 10.5,
+                gap: 12,
+                paddingHorizontal: 14,
+                paddingVertical: 12,
                 borderBottomWidth: index === devices.length - 1 ? 0 : 1,
                 borderColor: theme.border,
                 backgroundColor: pressed ? theme.hover : 'transparent',
               })}
             >
               {device.self ? (
-                <Smartphone color={theme.secondary} size={17.5} />
+                <Smartphone color={theme.secondary} size={20} />
               ) : (
-                <MonitorSmartphone color={theme.secondary} size={17.5} />
+                <MonitorSmartphone color={theme.secondary} size={20} />
               )}
               <View style={{ flex: 1 }}>
-                <Text style={{ color: theme.text, fontSize: 13 }}>
+                <Text style={{ color: theme.text, fontSize: 15 }}>
                   {device.self ? '이 휴대폰' : deviceLabel(device.id)}
                 </Text>
-                <Text style={{ color: theme.muted, fontSize: 10.5 }}>
+                <Text style={{ color: theme.muted, fontSize: 12 }}>
                   {device.self
                     ? canChangeKeys
                       ? '처음 만든 기기'
@@ -255,7 +251,7 @@ export default function DataSettingsScreen() {
                     : addedLabel(device.addedAt) ?? roleLabel(device)}
                 </Text>
               </View>
-              {!device.self && <ChevronRight color={theme.muted} size={14} />}
+              {!device.self && <ChevronRight color={theme.muted} size={16} />}
             </Pressable>
           ))}
         </Group>
@@ -263,12 +259,12 @@ export default function DataSettingsScreen() {
           kind="primary"
           label="새 기기 추가"
           onPress={() => navigation.navigate('ApproveDevice')}
-          style={{ marginTop: 10.5 }}
+          style={{ marginTop: 12 }}
         />
 
         <Group title="보호">
           <Item
-            title="잠금 해제"
+            title="잠금 해제 방식"
             value={
               inspection.passwordAvailable ? '생체·PIN + 비밀번호' : '생체·PIN'
             }
@@ -315,9 +311,9 @@ export default function DataSettingsScreen() {
           <Text
             style={{
               color: theme.muted,
-              fontSize: 10.5,
-              marginHorizontal: 17.5,
-              marginTop: 7,
+              fontSize: 12,
+              marginHorizontal: 20,
+              marginTop: 8,
             }}
           >
             {note}
@@ -340,7 +336,7 @@ export default function DataSettingsScreen() {
           <Body
             muted
             small
-            style={{ marginHorizontal: 17.5, marginTop: 9, marginBottom: 10.5 }}
+            style={{ marginHorizontal: 20, marginTop: 10, marginBottom: 12 }}
           >
             {canChangeKeys
               ? '잃어버렸거나 더 안 쓰는 기기면 해제하세요. 해제하면 새 복구 키를 만들고 데이터를 새 키로 다시 잠가요.'

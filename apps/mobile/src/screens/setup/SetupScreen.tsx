@@ -73,7 +73,7 @@ export default function SetupScreen() {
       <Screen scroll={false}>
         <Centered>
           <ActivityIndicator />
-          <Body muted style={{ marginTop: 12.5 }}>
+          <Body muted style={{ marginTop: 14 }}>
             {view === 'finishing'
               ? '서버에 이 기기를 등록하는 중…'
               : '계정 상태를 확인하는 중…'}
@@ -120,7 +120,7 @@ function Centered({ children }: { children: React.ReactNode }) {
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        paddingHorizontal: 24.5,
+        paddingHorizontal: 28,
       }}
     >
       {children}
@@ -146,15 +146,15 @@ export function Header({
           alignItems: 'center',
           paddingHorizontal: onBack ? 8 : 18,
           paddingTop: onBack ? 6 : 18,
-          paddingBottom: 7,
+          paddingBottom: 8,
         }}
       >
         {onBack && (
           <IconButton label="뒤로" onPress={onBack}>
-            <ArrowLeft color={theme.secondary} size={19.5} />
+            <ArrowLeft color={theme.secondary} size={22} />
           </IconButton>
         )}
-        <Text style={{ color: theme.muted, fontSize: 11 }}>{label}</Text>
+        <Text style={{ color: theme.muted, fontSize: 12.5 }}>{label}</Text>
       </View>
       {step != null && <Steps total={3} current={step} />}
     </>
@@ -172,7 +172,7 @@ function ChooseView({
   return (
     <Screen>
       <Header step={2} label="데이터 연결 · 2/3" />
-      <View style={{ paddingHorizontal: 16, paddingBottom: 9 }}>
+      <View style={{ paddingHorizontal: 18, paddingBottom: 10 }}>
         <Title>데이터를 어떻게 가져올까요?</Title>
         <Body muted>
           {user?.username ?? user?.authId ?? '이'} 계정에 이미 데이터가 있어요.
@@ -201,33 +201,38 @@ function PairView({ onBack }: { onBack: () => void }) {
     code: null,
   });
   const [error, setError] = useState('');
-  const alive = useRef(true);
+  // The latest setupDone without restarting the relay: the app context hands out a
+  // new function on every render (each sync), and a restart cancels the session,
+  // which the other device then shows as expired.
+  const onPaired = useRef(setupDone);
+  onPaired.current = setupDone;
 
   useEffect(() => {
-    alive.current = true;
+    let active = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const tick = async () => {
-      if (!alive.current || !account) return;
+      if (!active || !account) return;
       try {
         const next = await account.workspace.relay('recipientPoll');
-        if (!alive.current) return;
-        if (next.phase === 'PAIRED') return setupDone();
+        if (!active) return;
+        if (next.phase === 'PAIRED') return onPaired.current();
         // A session that expired or was cancelled: start listening for a new one.
         if (['EXPIRED', 'CANCELLED'].includes(next.phase))
           await account.workspace.relay('cancel').catch(() => null);
         setStatus(next);
         setError('');
       } catch (e: any) {
-        if (alive.current && e?.message !== 'VAULT_BUSY')
-          setError(messageFor(e));
+        if (active && e?.message !== 'VAULT_BUSY') setError(messageFor(e));
       }
-      if (alive.current) setTimeout(tick, 1500);
+      if (active) timer = setTimeout(tick, 1500);
     };
     tick();
     return () => {
-      alive.current = false;
+      active = false;
+      clearTimeout(timer);
       account?.workspace.relay('cancel').catch(() => null);
     };
-  }, [account, setupDone]);
+  }, [account]);
 
   const answer = async (same: boolean) => {
     try {
@@ -249,8 +254,8 @@ function PairView({ onBack }: { onBack: () => void }) {
           <View
             style={{
               alignItems: 'center',
-              paddingHorizontal: 21,
-              paddingTop: 26.5,
+              paddingHorizontal: 24,
+              paddingTop: 30,
             }}
           >
             <Title>두 기기의 숫자가 같나요?</Title>
@@ -263,17 +268,17 @@ function PairView({ onBack }: { onBack: () => void }) {
       ) : status.phase === 'APPROVAL' ? (
         <Centered>
           <ActivityIndicator />
-          <Title style={{ marginTop: 12.5 }}>쓰던 기기에서 승인해주세요</Title>
+          <Title style={{ marginTop: 14 }}>쓰던 기기에서 승인해주세요</Title>
           <Body muted>승인하면 할 일이 내려받아집니다.</Body>
         </Centered>
       ) : status.phase === 'MISMATCH' ? (
-        <View style={{ padding: 21 }}>
+        <View style={{ padding: 24 }}>
           <Title>연결을 취소했어요</Title>
           <Body muted>
             숫자가 다르면 다른 사람이 끼어들었을 수 있어요. 처음부터 다시
             시도해주세요.
           </Body>
-          <View style={{ height: 14 }} />
+          <View style={{ height: 16 }} />
           <Button
             kind="primary"
             label="다시 시도"
@@ -286,13 +291,13 @@ function PairView({ onBack }: { onBack: () => void }) {
           <View
             style={{
               alignItems: 'center',
-              paddingHorizontal: 21,
-              paddingTop: 35,
-              paddingBottom: 21,
+              paddingHorizontal: 24,
+              paddingTop: 40,
+              paddingBottom: 24,
             }}
           >
             <ActivityIndicator />
-            <Title style={{ marginTop: 14 }}>쓰던 기기를 기다리는 중</Title>
+            <Title style={{ marginTop: 16 }}>쓰던 기기를 기다리는 중</Title>
             <Body muted style={{ textAlign: 'center' }}>
               PC나 휴대폰의 설정 → 데이터 →{' '}
               <Text style={{ color: theme.text, fontWeight: '600' }}>
@@ -306,7 +311,7 @@ function PairView({ onBack }: { onBack: () => void }) {
               style={{
                 color: theme.text,
                 fontWeight: '600',
-                marginBottom: 3.5,
+                marginBottom: 4,
               }}
             >
               연결은 이렇게 보호돼요
@@ -327,16 +332,16 @@ export function Code({ value }: { value: string }) {
   const theme = useTheme();
   return (
     <View
-      style={{ flexDirection: 'row', gap: 7, marginVertical: 17.5 }}
+      style={{ flexDirection: 'row', gap: 8, marginVertical: 20 }}
       accessibilityLabel={`숫자 ${value.split('').join(' ')}`}
     >
       {value.split('').map((digit, index) => (
         <View
           key={index}
           style={{
-            width: 37,
-            height: 49.5,
-            borderRadius: 10.5,
+            width: 42,
+            height: 56,
+            borderRadius: 12,
             borderWidth: 1,
             borderColor: theme.border,
             backgroundColor: theme.surface,
@@ -344,9 +349,7 @@ export function Code({ value }: { value: string }) {
             justifyContent: 'center',
           }}
         >
-          <Text
-            style={{ color: theme.text, fontSize: 24.5, fontWeight: '700' }}
-          >
+          <Text style={{ color: theme.text, fontSize: 28, fontWeight: '700' }}>
             {digit}
           </Text>
         </View>
@@ -373,7 +376,7 @@ export function RecoveryMaterial({
   return (
     <>
       <Card>
-        <Text style={{ color: theme.text, fontWeight: '600', marginBottom: 7 }}>
+        <Text style={{ color: theme.text, fontWeight: '600', marginBottom: 8 }}>
           ① 복구 코드
         </Text>
         <Text
@@ -381,11 +384,11 @@ export function RecoveryMaterial({
           style={{
             color: theme.text,
             fontFamily: 'monospace',
-            fontSize: 11.5,
+            fontSize: 13,
             fontWeight: '600',
-            lineHeight: 19.5,
-            padding: 10.5,
-            borderRadius: 9,
+            lineHeight: 22,
+            padding: 12,
+            borderRadius: 10,
             borderWidth: 1,
             borderStyle: 'dashed',
             borderColor: theme.border,
@@ -400,13 +403,11 @@ export function RecoveryMaterial({
             copySecret(code);
             setCopied(true);
           }}
-          style={{ marginHorizontal: 0, marginTop: 9, marginBottom: 0 }}
+          style={{ marginHorizontal: 0, marginTop: 10, marginBottom: 0 }}
         />
       </Card>
       <Card>
-        <Text
-          style={{ color: theme.text, fontWeight: '600', marginBottom: 3.5 }}
-        >
+        <Text style={{ color: theme.text, fontWeight: '600', marginBottom: 4 }}>
           ② 복구 파일 (.trec)
         </Text>
         <Body muted small>
@@ -426,7 +427,7 @@ export function RecoveryMaterial({
               setError(messageFor(e));
             }
           }}
-          style={{ marginHorizontal: 0, marginTop: 9, marginBottom: 0 }}
+          style={{ marginHorizontal: 0, marginTop: 10, marginBottom: 0 }}
         />
       </Card>
       <ErrorText>{error}</ErrorText>
@@ -440,7 +441,7 @@ function BackupView({ onDone }: { onDone: () => void }) {
   return (
     <Screen>
       <Header step={3} label="복구 자료 · 3/3" />
-      <View style={{ paddingHorizontal: 16, paddingBottom: 7 }}>
+      <View style={{ paddingHorizontal: 18, paddingBottom: 8 }}>
         <Title>복구 자료를 따로 보관하세요</Title>
         <Body muted>
           모든 기기를 잃어버렸을 때 데이터를 되찾는 유일한 방법이에요. 우리도
@@ -467,8 +468,8 @@ export function PickedFile({
   const theme = useTheme();
   return (
     <Pressable onPress={onPick} accessibilityRole="button">
-      <Card style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
-        <FileCheck color={name ? theme.success : theme.muted} size={19.5} />
+      <Card style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <FileCheck color={name ? theme.success : theme.muted} size={22} />
         <View style={{ flex: 1 }}>
           <Text style={{ color: theme.text, fontWeight: '600' }}>
             {name ?? '복구 파일 고르기'}
@@ -515,7 +516,7 @@ function ConfirmView({ onBack }: { onBack: () => void }) {
   return (
     <Screen>
       <Header label="복구 자료 확인" onBack={onBack} />
-      <View style={{ paddingHorizontal: 16, paddingBottom: 7 }}>
+      <View style={{ paddingHorizontal: 18, paddingBottom: 8 }}>
         <Title>제대로 보관했는지 확인할게요</Title>
         <Body muted>저장한 파일을 다시 열고 코드를 입력하세요.</Body>
       </View>
@@ -597,7 +598,7 @@ function RecoveryJoinView({ onBack }: { onBack: () => void }) {
     return (
       <Screen>
         <Header label="복구 코드로 연결 · 새 복구 자료" />
-        <View style={{ paddingHorizontal: 16, paddingBottom: 7 }}>
+        <View style={{ paddingHorizontal: 18, paddingBottom: 8 }}>
           <Title>새 복구 자료를 보관하세요</Title>
           <Body muted>
             복구하면 예전 코드와 파일은 더 이상 쓸 수 없어요. 새 자료를 따로
@@ -627,7 +628,7 @@ function RecoveryJoinView({ onBack }: { onBack: () => void }) {
         label={stage === 'old' ? '복구 코드로 연결' : '새 복구 자료 확인'}
         onBack={stage === 'old' ? onBack : () => setStage('new')}
       />
-      <View style={{ paddingHorizontal: 16, paddingBottom: 7 }}>
+      <View style={{ paddingHorizontal: 18, paddingBottom: 8 }}>
         <Title>
           {stage === 'old'
             ? '복구 파일과 코드를 준비하세요'

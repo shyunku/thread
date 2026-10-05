@@ -95,17 +95,17 @@ export default function CalendarScreen() {
         style={{
           flexDirection: 'row',
           alignItems: 'center',
-          paddingLeft: 16,
-          paddingRight: 7,
-          paddingTop: 7,
-          minHeight: 49.5,
+          paddingLeft: 18,
+          paddingRight: 8,
+          paddingTop: 8,
+          minHeight: 56,
         }}
       >
         <Text
           style={{
             flex: 1,
             color: theme.text,
-            fontSize: 17.5,
+            fontSize: 20,
             fontWeight: '700',
           }}
         >
@@ -117,7 +117,7 @@ export default function CalendarScreen() {
             setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))
           }
         >
-          <ChevronLeft color={theme.secondary} size={19.5} />
+          <ChevronLeft color={theme.secondary} size={22} />
         </IconButton>
         <Pressable
           accessibilityRole="button"
@@ -126,9 +126,9 @@ export default function CalendarScreen() {
             setMonth(new Date(today.getFullYear(), today.getMonth(), 1));
             setSelected(key(today));
           }}
-          style={{ paddingHorizontal: 9, paddingVertical: 7 }}
+          style={{ paddingHorizontal: 10, paddingVertical: 8 }}
         >
-          <Text style={{ color: theme.secondary, fontSize: 12.5 }}>오늘</Text>
+          <Text style={{ color: theme.secondary, fontSize: 14 }}>오늘</Text>
         </Pressable>
         <IconButton
           label="다음 달"
@@ -136,11 +136,11 @@ export default function CalendarScreen() {
             setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))
           }
         >
-          <ChevronRight color={theme.secondary} size={19.5} />
+          <ChevronRight color={theme.secondary} size={22} />
         </IconButton>
       </View>
-      <ScrollView contentContainerStyle={{ paddingBottom: 97 }}>
-        <View style={{ flexDirection: 'row', paddingHorizontal: 7 }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 110 }}>
+        <View style={{ flexDirection: 'row', paddingHorizontal: 8 }}>
           {weekdays.map(w => (
             <Text
               key={w}
@@ -148,15 +148,15 @@ export default function CalendarScreen() {
                 flex: 1,
                 textAlign: 'center',
                 color: theme.muted,
-                fontSize: 9.5,
-                paddingVertical: 3.5,
+                fontSize: 11,
+                paddingVertical: 4,
               }}
             >
               {w}
             </Text>
           ))}
         </View>
-        <View style={{ paddingHorizontal: 7 }}>
+        <View style={{ paddingHorizontal: 8 }}>
           {weeks.map(week => (
             <View key={key(week[0])} style={{ flexDirection: 'row' }}>
               {week.map(date => {
@@ -176,11 +176,11 @@ export default function CalendarScreen() {
                     onPress={() => setSelected(k)}
                     style={{
                       flex: 1,
-                      height: 47.5,
+                      height: 54,
                       alignItems: 'center',
-                      paddingTop: 4.5,
-                      gap: 2.5,
-                      borderRadius: 10.5,
+                      paddingTop: 5,
+                      gap: 3,
+                      borderRadius: 12,
                       backgroundColor: isSelected
                         ? theme.selected
                         : 'transparent',
@@ -189,9 +189,9 @@ export default function CalendarScreen() {
                   >
                     <View
                       style={{
-                        width: 23,
-                        height: 23,
-                        borderRadius: 11.5,
+                        width: 26,
+                        height: 26,
+                        borderRadius: 13,
                         alignItems: 'center',
                         justifyContent: 'center',
                         backgroundColor: isToday ? theme.accent : 'transparent',
@@ -199,7 +199,7 @@ export default function CalendarScreen() {
                     >
                       <Text
                         style={{
-                          fontSize: 12.5,
+                          fontSize: 14,
                           color: isToday
                             ? theme.accentText
                             : dow === 0
@@ -212,14 +212,14 @@ export default function CalendarScreen() {
                         {date.getDate()}
                       </Text>
                     </View>
-                    <View style={{ flexDirection: 'row', gap: 2.5 }}>
+                    <View style={{ flexDirection: 'row', gap: 3 }}>
                       {tasks.slice(0, 3).map(t => (
                         <View
                           key={t.tid}
                           style={{
-                            width: 4.5,
-                            height: 4.5,
-                            borderRadius: 2.5,
+                            width: 5,
+                            height: 5,
+                            borderRadius: 3,
                             backgroundColor: t.done
                               ? theme.success
                               : theme.accent,
@@ -236,9 +236,9 @@ export default function CalendarScreen() {
         <View
           style={{
             flexDirection: 'row',
-            paddingHorizontal: 16,
-            paddingTop: 12.5,
-            paddingBottom: 7,
+            paddingHorizontal: 18,
+            paddingTop: 14,
+            paddingBottom: 8,
           }}
         >
           <Text
@@ -246,23 +246,19 @@ export default function CalendarScreen() {
               flex: 1,
               color: theme.text,
               fontWeight: '700',
-              fontSize: 13,
+              fontSize: 15,
             }}
           >
             {selectedDate.getMonth() + 1}월 {selectedDate.getDate()}일 (
             {'일월화수목금토'[selectedDate.getDay()]})
           </Text>
-          <Text style={{ color: theme.muted, fontSize: 10.5 }}>
+          <Text style={{ color: theme.muted, fontSize: 12 }}>
             {dayTasks.length}개
           </Text>
         </View>
         {dayTasks.length === 0 && (
           <Text
-            style={{
-              color: theme.muted,
-              fontSize: 11.5,
-              paddingHorizontal: 16,
-            }}
+            style={{ color: theme.muted, fontSize: 13, paddingHorizontal: 18 }}
           >
             등록된 할 일이 없어요. 여유로운 하루를 계획해보세요.
           </Text>

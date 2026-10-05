@@ -66,20 +66,20 @@ export default function CategoriesScreen() {
         style={{
           flexDirection: 'row',
           alignItems: 'center',
-          paddingHorizontal: 7,
-          paddingTop: 7,
+          paddingHorizontal: 8,
+          paddingTop: 8,
         }}
       >
         <IconButton label="뒤로" onPress={() => navigation.goBack()}>
-          <ArrowLeft color={theme.secondary} size={19.5} />
+          <ArrowLeft color={theme.secondary} size={22} />
         </IconButton>
-        <Text style={{ color: theme.text, fontSize: 16.5, fontWeight: '700' }}>
+        <Text style={{ color: theme.text, fontSize: 19, fontWeight: '700' }}>
           카테고리
         </Text>
       </View>
       <ScrollView
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ paddingVertical: 10.5 }}
+        contentContainerStyle={{ paddingVertical: 12 }}
       >
         <Field
           placeholder="새 카테고리 이름"
@@ -92,16 +92,16 @@ export default function CategoriesScreen() {
           style={{
             flexDirection: 'row',
             alignItems: 'center',
-            gap: 10.5,
-            marginHorizontal: 17.5,
-            marginBottom: 10.5,
+            gap: 12,
+            marginHorizontal: 20,
+            marginBottom: 12,
           }}
         >
           <View style={{ flex: 1 }}>
-            <Text style={{ color: theme.text, fontSize: 13 }}>
+            <Text style={{ color: theme.text, fontSize: 15 }}>
               비밀 카테고리로 만들기
             </Text>
-            <Text style={{ color: theme.muted, fontSize: 10.5, marginTop: 2 }}>
+            <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
               다른 목록·검색·캘린더에 안 보이고, 열 때 지문·PIN을 물어요.
             </Text>
           </View>
@@ -123,20 +123,20 @@ export default function CategoriesScreen() {
           <View
             key={c.cid}
             style={{
-              marginHorizontal: 10.5,
-              marginBottom: 7,
-              padding: 12.5,
-              borderRadius: 12.5,
+              marginHorizontal: 12,
+              marginBottom: 8,
+              padding: 14,
+              borderRadius: 14,
               borderWidth: 1,
               borderColor: theme.border,
               backgroundColor: theme.surface,
             }}
           >
             <View
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}
             >
               {c.secret ? (
-                <KeyRound color={theme.warning} size={17.5} />
+                <KeyRound color={theme.warning} size={20} />
               ) : (
                 <Pressable
                   onPress={() => setEditing(editing === c.cid ? null : c.cid)}
@@ -144,9 +144,9 @@ export default function CategoriesScreen() {
                 >
                   <View
                     style={{
-                      width: 19.5,
-                      height: 19.5,
-                      borderRadius: 9.5,
+                      width: 22,
+                      height: 22,
+                      borderRadius: 11,
                       backgroundColor: c.color || theme.accent,
                     }}
                   />
@@ -159,7 +159,7 @@ export default function CategoriesScreen() {
                   if (title && title !== c.title)
                     mutate('category/updateCategoryTitle', [c.cid, title]);
                 }}
-                style={{ flex: 1, color: theme.text, fontSize: 13, padding: 0 }}
+                style={{ flex: 1, color: theme.text, fontSize: 15, padding: 0 }}
               />
               <IconButton
                 label="삭제"
@@ -189,7 +189,7 @@ export default function CategoriesScreen() {
                   )
                 }
               >
-                <Trash2 color={theme.muted} size={16} />
+                <Trash2 color={theme.muted} size={18} />
               </IconButton>
             </View>
             {editing === c.cid && (
@@ -197,8 +197,8 @@ export default function CategoriesScreen() {
                 style={{
                   flexDirection: 'row',
                   flexWrap: 'wrap',
-                  gap: 9,
-                  marginTop: 10.5,
+                  gap: 10,
+                  marginTop: 12,
                 }}
               >
                 {COLORS.map(color => (
@@ -210,9 +210,9 @@ export default function CategoriesScreen() {
                       setEditing(null);
                     }}
                     style={{
-                      width: 24.5,
-                      height: 24.5,
-                      borderRadius: 12.5,
+                      width: 28,
+                      height: 28,
+                      borderRadius: 14,
                       backgroundColor: color,
                       borderWidth: c.color === color ? 3 : 0,
                       borderColor: theme.text,

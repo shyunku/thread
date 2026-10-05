@@ -42,8 +42,8 @@ export function Screen({
     <ScrollView
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={[
-        { paddingBottom: 21 },
-        padded && { paddingTop: 7 },
+        { paddingBottom: 24 },
+        padded && { paddingTop: 8 },
       ]}
     >
       {children}
@@ -73,12 +73,7 @@ export function Title({
   return (
     <Text
       style={[
-        {
-          color: theme.text,
-          fontSize: 21,
-          fontWeight: '700',
-          marginBottom: 5.5,
-        },
+        { color: theme.text, fontSize: 24, fontWeight: '700', marginBottom: 6 },
         style,
       ]}
     >
@@ -143,11 +138,11 @@ export function Button({
       onPress={onPress}
       style={({ pressed }) => [
         {
-          minHeight: 40,
-          marginHorizontal: 16,
-          marginBottom: 9,
-          paddingHorizontal: 14,
-          borderRadius: 12.5,
+          minHeight: 50,
+          marginHorizontal: 18,
+          marginBottom: 10,
+          paddingHorizontal: 16,
+          borderRadius: 14,
           borderWidth: 1,
           borderColor: primary
             ? theme.accent
@@ -162,7 +157,7 @@ export function Button({
           alignItems: 'center',
           justifyContent: 'center',
           flexDirection: 'row',
-          gap: 9,
+          gap: 10,
           opacity: off ? 0.55 : pressed ? 0.85 : 1,
         },
         style,
@@ -184,7 +179,7 @@ export function Button({
             : kind === 'ghost'
             ? theme.secondary
             : theme.text,
-          fontSize: 13,
+          fontSize: 15,
           fontWeight: kind === 'ghost' ? '500' : '600',
         }}
       >
@@ -204,16 +199,16 @@ export function Field({
       placeholderTextColor={theme.muted}
       style={[
         {
-          marginHorizontal: 16,
-          marginBottom: 10.5,
-          paddingHorizontal: 12.5,
-          paddingVertical: 11.5,
-          borderRadius: 10.5,
+          marginHorizontal: 18,
+          marginBottom: 12,
+          paddingHorizontal: 14,
+          paddingVertical: 13,
+          borderRadius: 12,
           borderWidth: 1,
           borderColor: theme.border,
           backgroundColor: theme.surface,
           color: theme.text,
-          fontSize: 13,
+          fontSize: 15,
         },
         style,
       ]}
@@ -241,11 +236,11 @@ export function Option({
       onPress={onPress}
       style={{
         flexDirection: 'row',
-        gap: 10.5,
-        marginHorizontal: 16,
-        marginBottom: 9,
-        padding: 12.5,
-        borderRadius: 12.5,
+        gap: 12,
+        marginHorizontal: 18,
+        marginBottom: 10,
+        padding: 14,
+        borderRadius: 14,
         borderWidth: 1,
         borderColor: selected ? theme.accent : theme.border,
         backgroundColor: selected ? theme.selected : theme.surface,
@@ -253,25 +248,25 @@ export function Option({
     >
       <View
         style={{
-          width: 17.5,
-          height: 17.5,
+          width: 20,
+          height: 20,
           marginTop: 2,
-          borderRadius: 9,
+          borderRadius: 10,
           borderWidth: selected ? 6 : 2,
           borderColor: selected ? theme.accent : theme.muted,
         }}
       />
       <View style={{ flex: 1 }}>
-        <Text style={{ color: theme.text, fontSize: 13, fontWeight: '600' }}>
+        <Text style={{ color: theme.text, fontSize: 15, fontWeight: '600' }}>
           {title}
         </Text>
         {!!detail && (
           <Text
             style={{
               color: theme.muted,
-              fontSize: 11,
+              fontSize: 12.5,
               marginTop: 2,
-              lineHeight: 16,
+              lineHeight: 18,
             }}
           >
             {detail}
@@ -294,10 +289,10 @@ export function Card({
     <View
       style={[
         {
-          marginHorizontal: 16,
-          marginBottom: 10.5,
-          padding: 14,
-          borderRadius: 12.5,
+          marginHorizontal: 18,
+          marginBottom: 12,
+          padding: 16,
+          borderRadius: 14,
           borderWidth: 1,
           borderColor: theme.border,
           backgroundColor: theme.surface,
@@ -316,9 +311,9 @@ export function Steps({ total, current }: { total: number; current: number }) {
     <View
       style={{
         flexDirection: 'row',
-        gap: 5.5,
-        paddingHorizontal: 16,
-        paddingBottom: 12.5,
+        gap: 6,
+        paddingHorizontal: 18,
+        paddingBottom: 14,
       }}
     >
       {Array.from({ length: total }, (_, index) => (
@@ -326,8 +321,8 @@ export function Steps({ total, current }: { total: number; current: number }) {
           key={index}
           style={{
             flex: 1,
-            height: 3.5,
-            borderRadius: 3.5,
+            height: 4,
+            borderRadius: 4,
             backgroundColor: index < current ? theme.accent : theme.border,
           }}
         />
@@ -352,8 +347,8 @@ export function Chip({
       accessibilityState={{ selected: !!selected }}
       onPress={onPress}
       style={{
-        paddingHorizontal: 10.5,
-        paddingVertical: 5.5,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
         borderRadius: 999,
         borderWidth: 1,
         borderColor: selected ? theme.accent : theme.border,
@@ -361,10 +356,7 @@ export function Chip({
       }}
     >
       <Text
-        style={{
-          color: selected ? theme.text : theme.secondary,
-          fontSize: 11.5,
-        }}
+        style={{ color: selected ? theme.text : theme.secondary, fontSize: 13 }}
       >
         {label}
       </Text>
@@ -425,34 +417,34 @@ export function Sheet({
         behavior="padding"
         style={{
           backgroundColor: theme.panel,
-          borderTopLeftRadius: 19.5,
-          borderTopRightRadius: 19.5,
+          borderTopLeftRadius: 22,
+          borderTopRightRadius: 22,
         }}
       >
         <View
           style={{
-            paddingTop: 7,
+            paddingTop: 8,
             paddingBottom: Math.max(insets.bottom, 16) + 8,
           }}
         >
           <View
             style={{
-              width: 31.5,
-              height: 3.5,
-              borderRadius: 3.5,
+              width: 36,
+              height: 4,
+              borderRadius: 4,
               backgroundColor: theme.border,
               alignSelf: 'center',
-              marginBottom: 10.5,
+              marginBottom: 12,
             }}
           />
           {!!title && (
             <Text
               style={{
                 color: theme.text,
-                fontSize: 15,
+                fontSize: 17,
                 fontWeight: '700',
-                marginHorizontal: 17.5,
-                marginBottom: 9,
+                marginHorizontal: 20,
+                marginBottom: 10,
               }}
             >
               {title}
@@ -485,9 +477,9 @@ export function Row({
         {
           flexDirection: 'row',
           alignItems: 'center',
-          gap: 10.5,
-          paddingHorizontal: 17.5,
-          paddingVertical: 10.5,
+          gap: 12,
+          paddingHorizontal: 20,
+          paddingVertical: 12,
         },
         selected && { backgroundColor: theme.selected },
         pressed && { backgroundColor: theme.hover },
@@ -506,9 +498,9 @@ export function ErrorText({ children }: { children: ReactNode }) {
     <Text
       style={{
         color: theme.danger,
-        marginHorizontal: 17.5,
-        marginBottom: 9,
-        fontSize: 11.5,
+        marginHorizontal: 20,
+        marginBottom: 10,
+        fontSize: 13,
       }}
     >
       {children}
@@ -518,9 +510,9 @@ export function ErrorText({ children }: { children: ReactNode }) {
 
 const styles = StyleSheet.create({
   iconButton: {
-    width: 35,
-    height: 35,
-    borderRadius: 10.5,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },

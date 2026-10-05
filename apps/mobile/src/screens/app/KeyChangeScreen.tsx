@@ -158,19 +158,19 @@ export default function KeyChangeScreen() {
         style={{
           flexDirection: 'row',
           alignItems: 'center',
-          paddingHorizontal: 7,
-          paddingTop: 7,
+          paddingHorizontal: 8,
+          paddingTop: 8,
         }}
       >
         {step < 4 && (
           <IconButton label="닫기" onPress={cancel}>
-            <X color={theme.secondary} size={19.5} />
+            <X color={theme.secondary} size={22} />
           </IconButton>
         )}
         <Text
           style={{
             color: theme.muted,
-            fontSize: 11,
+            fontSize: 12.5,
             paddingLeft: step < 4 ? 0 : 9,
           }}
         >
@@ -185,7 +185,7 @@ export default function KeyChangeScreen() {
     return (
       <Screen>
         {header}
-        <View style={{ paddingHorizontal: 16, paddingBottom: 9 }}>
+        <View style={{ paddingHorizontal: 18, paddingBottom: 10 }}>
           <Title>
             {removing ? '이 기기를 해제할까요?' : '복구 키를 새로 만들까요?'}
           </Title>
@@ -205,7 +205,7 @@ export default function KeyChangeScreen() {
         )}
         <Card>
           <Text
-            style={{ color: theme.text, fontWeight: '600', marginBottom: 3.5 }}
+            style={{ color: theme.text, fontWeight: '600', marginBottom: 4 }}
           >
             이렇게 돼요
           </Text>
@@ -244,7 +244,7 @@ export default function KeyChangeScreen() {
     return (
       <Screen>
         {header}
-        <View style={{ paddingHorizontal: 16, paddingBottom: 7 }}>
+        <View style={{ paddingHorizontal: 18, paddingBottom: 8 }}>
           <Title>새 복구 자료를 따로 보관하세요</Title>
           <Body muted>
             적용하면 이전 복구 코드와 파일은 쓸 수 없어요. 새 것을 저장하세요.
@@ -276,7 +276,7 @@ export default function KeyChangeScreen() {
     return (
       <Screen>
         {header}
-        <View style={{ paddingHorizontal: 16, paddingBottom: 7 }}>
+        <View style={{ paddingHorizontal: 18, paddingBottom: 8 }}>
           <Title>제대로 보관했는지 확인할게요</Title>
           <Body muted>저장한 새 파일을 다시 열고 새 코드를 입력하세요.</Body>
         </View>
@@ -298,7 +298,7 @@ export default function KeyChangeScreen() {
           value={code}
           onChangeText={setCode}
         />
-        <Body muted small style={{ marginHorizontal: 17.5, marginBottom: 9 }}>
+        <Body muted small style={{ marginHorizontal: 20, marginBottom: 10 }}>
           적용하면 이전 복구 키는 쓸 수 없어요.
         </Body>
         <ErrorText>{error}</ErrorText>
@@ -316,21 +316,21 @@ export default function KeyChangeScreen() {
   return (
     <Screen>
       {header}
-      <View style={{ alignItems: 'center', padding: 21, paddingTop: 35 }}>
+      <View style={{ alignItems: 'center', padding: 24, paddingTop: 40 }}>
         <View
           style={{
-            width: 74,
-            height: 74,
-            borderRadius: 23,
+            width: 84,
+            height: 84,
+            borderRadius: 26,
             borderWidth: 1,
             borderColor: theme.border,
             backgroundColor: theme.surface,
             alignItems: 'center',
             justifyContent: 'center',
-            marginBottom: 12,
+            marginBottom: 13.5,
           }}
         >
-          <Check color={theme.success} size={33} />
+          <Check color={theme.success} size={37.5} />
         </View>
         <Title style={{ textAlign: 'center' }}>
           {removing ? '기기를 해제했어요' : '새 복구 키로 바꿨어요'}
