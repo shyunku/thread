@@ -6,7 +6,7 @@ settings:
 
 patchedDependencies:
   react-native-libsodium@1.7.0:
-    hash: qer3pyhb5mpegp64vvwoncm6p4
+    hash: 4zvl6ycm4op7hfqywoddrpgunu
     path: patches/react-native-libsodium@1.7.0.patch
 
 dependencies:
@@ -66,7 +66,7 @@ dependencies:
     version: 10.0.0
   react-native-libsodium:
     specifier: 1.7.0
-    version: 1.7.0(patch_hash=qer3pyhb5mpegp64vvwoncm6p4)(react-native@0.87.1)(react@19.2.3)
+    version: 1.7.0(patch_hash=4zvl6ycm4op7hfqywoddrpgunu)(react-native@0.87.1)(react@19.2.3)
   react-native-safe-area-context:
     specifier: ^5.5.2
     version: 5.10.1(react-native@0.87.1)(react@19.2.3)
@@ -6329,7 +6329,7 @@ packages:
     engines: {node: '>=16'}
     dev: false
 
-  /react-native-libsodium@1.7.0(patch_hash=qer3pyhb5mpegp64vvwoncm6p4)(react-native@0.87.1)(react@19.2.3):
+  /react-native-libsodium@1.7.0(patch_hash=4zvl6ycm4op7hfqywoddrpgunu)(react-native@0.87.1)(react@19.2.3):
     resolution: {integrity: sha512-0I2FcCeyR2HUiUOIvoukteZFMY2WIhPCQ6OOOYy33nQiyGFpwW6I4ky/f18SdSN84n/GLvgC9DOF0fJaKTYYJg==}
     engines: {node: '>= 20.20.0'}
     requiresBuild: true

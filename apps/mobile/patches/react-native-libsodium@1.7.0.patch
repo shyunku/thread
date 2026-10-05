@@ -11,3 +11,41 @@ index 49282df744daa7ba04f3ae97d14731818a47e772..cff49b5fd14891d9b05483ac71f93c2a
  
  android {
    ndkVersion getExtOrDefault("ndkVersion")
+diff --git a/ios/Libsodium.mm b/ios/Libsodium.mm
+index fbc745d..fe3cc34 100644
+--- a/ios/Libsodium.mm
++++ b/ios/Libsodium.mm
+@@ -4,6 +4,12 @@
+ #import <React/RCTLog.h>
+ #import "react-native-libsodium.h"
+ 
++// React Native 0.82+ is bridgeless: self.bridge is an RCTBridgeProxy, which
++// exposes the JSI runtime through -runtime (RCTCxxBridge no longer exists).
++@interface RCTBridge (LibsodiumRuntime)
++- (void *)runtime;
++@end
++
+ @implementation Libsodium
+ 
+ @synthesize bridge=_bridge;
+@@ -13,14 +19,15 @@ RCT_EXPORT_MODULE()
+ RCT_EXPORT_BLOCKING_SYNCHRONOUS_METHOD(install) {
+ 
+   RCTLogInfo(@"installing libsodium");
+-  RCTCxxBridge *cxxBridge = (RCTCxxBridge *)self.bridge;
+-  if (!cxxBridge.runtime) {
+-    RCTLogInfo(@"libsodium install failure: no cxx bridge runtime");
++  RCTBridge *bridge = self.bridge;
++  void *runtime = [bridge respondsToSelector:@selector(runtime)] ? [bridge runtime] : NULL;
++  if (!runtime) {
++    RCTLogInfo(@"libsodium install failure: no JS runtime");
+     return nil;
+   }
+ 
+-  RCTLogInfo(@"calling installLibsodium with cxx bridge runtime");
+-  ReactNativeLibsodium::installLibsodium(*(facebook::jsi::Runtime *)cxxBridge.runtime);
++  RCTLogInfo(@"calling installLibsodium with the JS runtime");
++  ReactNativeLibsodium::installLibsodium(*(facebook::jsi::Runtime *)runtime);
+   return nil;
+ }
+ 
