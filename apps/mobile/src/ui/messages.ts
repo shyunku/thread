@@ -1,3 +1,5 @@
+import { log } from '@/core/log';
+
 // User-facing text for error codes (same wording style as the desktop).
 const MESSAGES: Record<string, string> = {
   INVALID_CREDENTIALS: '아이디 또는 비밀번호가 맞지 않아요.',
@@ -31,7 +33,15 @@ const MESSAGES: Record<string, string> = {
   DEVICE_FORBIDDEN: '이 기기는 더 이상 연결돼 있지 않아요.',
 };
 
+// Each error shown to the user is also logged once (diagnostic test builds only;
+// the logger writes nothing otherwise). Screens may render the same error again.
+let lastLogged: unknown = null;
+
 export function messageFor(error: unknown): string {
+  if (error !== lastLogged) {
+    lastLogged = error;
+    log.error('SHOWN_ERROR', error);
+  }
   const code = (error as any)?.code ?? (error as any)?.message ?? String(error);
   return MESSAGES[code] ?? `문제가 생겼어요 (${code}).`;
 }

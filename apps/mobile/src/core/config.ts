@@ -2,6 +2,7 @@ import {
   APP_SERVER_ENDPOINT,
   GOOGLE_OAUTH_WEB_CLIENT_ID,
   SECURE_LOGS,
+  DIAGNOSTIC_LOGS,
 } from '@env';
 
 export const DEFAULT_SERVER_ENDPOINT = 'https://api.threadapp.kr';
@@ -10,6 +11,8 @@ export type AppConfig = {
   serverEndpoint: string;
   googleWebClientId: string | null;
   secureLogs: boolean;
+  // Test builds only (DIAGNOSTIC_LOGS=1): errors reduced to type, code and location.
+  diagnosticLogs: boolean;
 };
 
 // Only http(s) origins without credentials are accepted; anything else falls back.
@@ -34,6 +37,7 @@ export function readConfig(env: {
   APP_SERVER_ENDPOINT?: string;
   GOOGLE_OAUTH_WEB_CLIENT_ID?: string;
   SECURE_LOGS?: string;
+  DIAGNOSTIC_LOGS?: string;
   dev: boolean;
 }): AppConfig {
   const clientId = env.GOOGLE_OAUTH_WEB_CLIENT_ID?.trim();
@@ -43,6 +47,7 @@ export function readConfig(env: {
       clientId && !clientId.startsWith('replace-') ? clientId : null,
     // Release builds never log; development logs unless secure mode is on.
     secureLogs: !env.dev || env.SECURE_LOGS === '1',
+    diagnosticLogs: env.DIAGNOSTIC_LOGS === '1',
   };
 }
 
@@ -50,5 +55,6 @@ export const config = readConfig({
   APP_SERVER_ENDPOINT,
   GOOGLE_OAUTH_WEB_CLIENT_ID,
   SECURE_LOGS,
+  DIAGNOSTIC_LOGS,
   dev: __DEV__,
 });

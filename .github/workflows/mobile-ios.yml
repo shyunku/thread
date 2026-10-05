@@ -43,9 +43,11 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       # Production server; no secrets: Google sign-in is not set up on iOS yet.
+      # A test build: errors are logged as type, code and bundle location only
+      # (DIAGNOSTIC_LOGS, see AGENTS.md). Store builds never set it.
       - name: Phone env file
         run: |
-          printf 'APP_SERVER_ENDPOINT=https://api.threadapp.kr\nSECURE_LOGS=1\n' > .env.phone
+          printf 'APP_SERVER_ENDPOINT=https://api.threadapp.kr\nSECURE_LOGS=1\nDIAGNOSTIC_LOGS=1\n' > .env.phone
 
       - name: Install pods
         working-directory: apps/mobile/ios
@@ -54,6 +56,8 @@ jobs:
       - name: Build (Release, no signing)
         env:
           THREAD_ENV_FILE: .env.phone
+          # Maps logged bundle locations back to source files.
+          SOURCEMAP_FILE: ${{ github.workspace }}/apps/mobile/main.jsbundle.map
         run: |
           bash ../../.github/scripts/logged.sh "xcodebuild" xcodebuild \
             -workspace ios/Thread.xcworkspace \
@@ -75,5 +79,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: Thread-ios-unsigned
-          path: apps/mobile/Thread-unsigned.ipa
+          path: |
+            apps/mobile/Thread-unsigned.ipa
+            apps/mobile/main.jsbundle.map
           retention-days: 14

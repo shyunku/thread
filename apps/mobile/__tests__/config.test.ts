@@ -44,3 +44,33 @@ test('secure logger writes nothing', () => {
   createLogger(false, sink).info('hello');
   expect(sink.info).toHaveBeenCalledWith('[thread]', 'hello');
 });
+
+test('diagnostic test builds log only errors, reduced to type, code and location', () => {
+  expect(readConfig({ dev: false }).diagnosticLogs).toBe(false);
+  expect(readConfig({ dev: false, DIAGNOSTIC_LOGS: '1' }).diagnosticLogs).toBe(
+    true,
+  );
+  const sink = {
+    debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  };
+  const log = createLogger(true, sink, true);
+  log.info('task title: buy milk');
+  log.warn('token abc');
+  expect(sink.info).not.toHaveBeenCalled();
+  expect(sink.warn).not.toHaveBeenCalled();
+
+  const coded = Object.assign(Error('VAULT_LOCKED'), { code: 'VAULT_LOCKED' });
+  const engine = new TypeError('undefined is not a function');
+  const leaky = Error('could not parse "buy milk at 6pm"');
+  log.error('SHOWN_ERROR', coded, engine, leaky, 'free text with secret');
+  const written = sink.error.mock.calls[0].join(' ');
+  expect(written).toContain('SHOWN_ERROR');
+  expect(written).toContain('Error VAULT_LOCKED: VAULT_LOCKED');
+  expect(written).toContain('TypeError: undefined is not a function');
+  expect(written).not.toContain('buy milk');
+  expect(written).not.toContain('secret');
+  expect(written).toContain('[string]');
+});

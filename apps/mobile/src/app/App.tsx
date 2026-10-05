@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { createRuntime } from '@/core/app/runtime';
+import { installErrorLogging } from '@/core/log';
 import { ThemeProvider } from '@/ui/theme';
 import { AppProvider, useApp, type AppRuntime } from './AppContext';
 import Navigation from './navigation';
+
+installErrorLogging();
 
 function Themed() {
   const { prefs } = useApp();
