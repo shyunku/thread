@@ -61,7 +61,12 @@
   .row.two .body { flex: 1; min-width: 0; }
   .row.two .rmeta { display: flex; align-items: center; gap: 6px; margin-top: 2px; font-size: 12px; color: var(--muted); }
   .row.two .rmeta .over { color: var(--danger); }
-  .cbadge { font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 6px; }
+  .cbadge { flex: none; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 6px; }
+  .row.two .tline { display: flex; align-items: center; min-width: 0; }
+  .row.two .t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row.two .rmeta > span { flex: none; }
+  .menu, .srow { min-width: 0; }
+  .menu .label, .srow .label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .row.hovered { background: var(--hover); }
   .star { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 7px; border: 0; background: none; color: var(--muted); padding: 0; flex: none; }
   .star.on { color: var(--star); }
@@ -99,7 +104,7 @@
   .task { display: flex; align-items: center; gap: 12px; margin: 0 12px 8px; padding: 12px 8px 12px 14px; border-radius: 14px; background: var(--surface); border: 1px solid var(--border); }
   .task .check { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--muted); flex: none; }
   .task .body { flex: 1; min-width: 0; }
-  .task .t { font-weight: 600; font-size: 15px; }
+  .task .t { font-weight: 600; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .task .meta { display: flex; gap: 6px; align-items: center; margin-top: 3px; color: var(--muted); font-size: 12px; }
   .task .meta .over { color: var(--danger); }
   .task .mstar { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; color: var(--muted); flex: none; }
@@ -146,6 +151,8 @@ const TASKS = [
   { t: '디자인 리뷰 피드백 반영', cat: '업무', color: '#6294ff', rt: '16시간 남음', imp: true, sub: '0/2' },
   { t: '여행 숙소 알아보기', cat: null, color: null, rt: '1일 남음', imp: false },
   { t: '알고리즘 문제 2개 풀기', cat: '공부', color: '#b58cff', rt: '2일 남음', imp: false },
+  { t: '다음 주 월요일 회의 전까지 분기별 마케팅 성과 보고서 초안 작성해서 팀에 공유하기', cat: '업무', color: '#6294ff', rt: '3일 남음', imp: false, sub: '1/4' },
+  { t: '토익 단어 50개', cat: '자격증 및 어학 시험 준비 (2026 하반기)', color: '#f0838b', rt: '3일 남음', imp: false, repeat: '매일' },
   { t: '영어 회화 스터디 준비', cat: '공부', color: '#b58cff', rt: '4일 남음', imp: false },
   { t: '치과 예약', cat: '생활', color: '#44c98b', rt: '8일 남음', imp: true },
 ];
@@ -162,7 +169,7 @@ function desktop() {
     const badge = t.cat ? `<span class="cbadge chg" style="color:${t.color};background:${t.color}26">${t.cat}</span>` : '';
     const dot = t.cat ? `<span class="dot chg" style="background:${t.color}"></span>` : '';
     const meta = [s.catPos === 'meta' ? badge : s.catPos === 'dot' ? dot : '', `<span>${t.rt}</span>`, t.repeat ? `<span>·</span><span>↻ ${t.repeat}</span>` : '', t.sub ? `<span>·</span><span>${t.sub}</span>` : ''].join('');
-    const row = `<div class="row two ${!imp && n === 1 ? 'hovered' : ''}"><span class="chk"></span><div class="body"><div style="display:flex;align-items:center;gap:${s.catPos === 'before' ? 7 : 8}px">${s.catPos === 'before' ? badge : ''}<span class="t">${t.t}</span>${s.catPos === 'title' ? badge : ''}</div><div class="rmeta chg">${meta}</div></div>${starBtn}</div>`;
+    const row = `<div class="row two ${!imp && n === 1 ? 'hovered' : ''}"><span class="chk"></span><div class="body"><div class="tline" style="gap:${s.catPos === 'before' ? 7 : 8}px">${s.catPos === 'before' ? badge : ''}<span class="t">${t.t}</span>${s.catPos === 'title' ? badge : ''}</div><div class="rmeta chg">${meta}</div></div>${starBtn}</div>`;
     if (s.dscreen === 'expanded' && n === 0) return `<div class="exp">${row}<div class="body"><div class="head"><h2>${t.t}</h2>
       <span class="pill">${ICON.cal} 26년 10월 6일 (화) 오후 9시 36분</span><span class="pill icon">${ICON.repeat}</span></div>
       <div class="meta"><span class="cbadge chg" style="color:${t.color};background:${t.color}26">${t.cat}</span><span>+ 카테고리 태그 추가</span></div></div></div>`;
@@ -172,14 +179,14 @@ function desktop() {
     <div class="topbar"><b style="color:var(--text)">Thread</b><span class="search">⌕ 할 일, 메모, 카테고리 검색…</span></div>
     <div class="dbody"><div class="side"><div class="clock">2026년 10월 06일 (화요일)<b>오후 6:36:39</b></div>
       <h5>내 작업</h5>
-      <div class="menu ${s.dscreen !== 'important' ? 'on' : ''}" data-go="all"><span class="ic">${ICON.layers}</span>모든 할 일<span class="n">7</span></div>
+      <div class="menu ${s.dscreen !== 'important' ? 'on' : ''}" data-go="all"><span class="ic">${ICON.layers}</span>모든 할 일<span class="n">${TASKS.length}</span></div>
       <div class="menu"><span class="ic">${ICON.cal}</span>오늘<span class="n">2</span></div>
       <div class="menu chg ${imp ? 'on' : ''}" data-go="important"><span class="ic star-ic">${STAR(16, true)}</span>중요<span class="n">${count()}</span></div>
       <h5 style="margin-top:22px">카테고리</h5>
-      ${[['업무', '#6294ff', 2], ['공부', '#b58cff', 2], ['생활', '#44c98b', 3]].map(([n, c, k]) => `<div class="menu"><span class="ic"><span class="dot" style="background:${c}"></span></span>${n}<span class="n">${k}</span></div>`).join('')}
+      ${[['업무', '#6294ff', 3], ['공부', '#b58cff', 2], ['생활', '#44c98b', 3], ['자격증 및 어학 시험 준비 (2026 하반기)', '#f0838b', 1]].map(([n, c, k]) => `<div class="menu"><span class="ic"><span class="dot" style="background:${c}"></span></span><span class="label">${n}</span><span class="n">${k}</span></div>`).join('')}
     </div>
-    <div class="main"><h1>${imp ? `<span style="color:var(--star)">${STAR(24, true)}</span>중요` : '모든 할 일'} <span class="cnt">${imp ? count() : 7}</span></h1>
-      <div class="sub">${imp ? `${count()}개의 할 일 · 0개 완료` : '8개의 할 일 · 1개 완료'}</div>
+    <div class="main"><h1>${imp ? `<span style="color:var(--star)">${STAR(24, true)}</span>중요` : '모든 할 일'} <span class="cnt">${imp ? count() : TASKS.length}</span></h1>
+      <div class="sub">${imp ? `${count()}개의 할 일 · 0개 완료` : `${TASKS.length + 1}개의 할 일 · 1개 완료`}</div>
       <div class="btns"><span class="b on">리스트</span><span class="b">캘린더</span><span class="b">타임라인</span><span class="gap"></span>
         <span class="b on chg">기한 순</span><span class="b chg">남은 기한 순</span><span class="b chg">생성일 순</span></div>
       <div class="add ${imp ? 'chg' : ''}"><span style="font-size:20px">+</span>${imp ? '중요한 할 일을 추가하세요…' : '할 일을 추가하세요…'}</div>
@@ -193,7 +200,7 @@ const status = () => `<div class="status"><span>9:41</span><span>▂▄▆ ◔ �
 const tabbar = () => `<nav class="tabbar">${['할 일', '캘린더', '일정', '설정'].map((l, i) => `<button class="${i === 0 ? 'on' : ''}">${l}</button>`).join('')}</nav>`;
 function mobileList(imp) {
   const list = shown();
-  return `<div class="content"><div class="appbar"><h1>${imp ? `<span style="color:var(--star)">${STAR(20, true)}</span>중요` : '모든 할 일'} <span class="count">${imp ? count() : 6}</span><span style="color:var(--muted)">${ICON.chev}</span></h1></div>
+  return `<div class="content"><div class="appbar"><h1>${imp ? `<span style="color:var(--star)">${STAR(20, true)}</span>중요` : '모든 할 일'} <span class="count">${imp ? count() : TASKS.length}</span><span style="color:var(--muted)">${ICON.chev}</span></h1></div>
     <div class="msub"><span class="dot" style="background:var(--success)"></span> 모두 동기화됨 · 방금</div>
     <div class="chips chg"><span class="chip on">기한 순</span><span class="chip">남은 기한 순</span><span class="chip">생성일 순</span></div>
     <div class="msec">▾ 해야할 일 (${list.length})</div>
@@ -206,11 +213,11 @@ function phone() {
   if (s.mscreen === 'tasks') body = mobileList(false);
   else if (s.mscreen === 'important') body = mobileList(true);
   else if (s.mscreen === 'sheet') body = mobileList(false) + `<div class="scrim"></div><div class="sheet"><div class="grab"></div><h2>보기</h2>
-    <div class="srow on"><span class="lead">${ICON.layers}</span>모든 할 일<span class="n">6</span></div>
+    <div class="srow on"><span class="lead">${ICON.layers}</span>모든 할 일<span class="n">${TASKS.length}</span></div>
     <div class="srow"><span class="lead">${ICON.sun}</span>오늘<span class="n">2</span></div>
     <div class="srow chg"><span class="lead" style="color:var(--star)">${STAR(18, true)}</span>중요<span class="n">${count()}</span></div>
     <div style="height:1px;background:var(--border);margin:6px 20px"></div>
-    ${[['업무', '#6294ff', 2], ['공부', '#b58cff', 2], ['생활', '#44c98b', 2]].map(([n, c, k]) => `<div class="srow"><span class="lead"><span class="dot" style="background:${c}"></span></span>${n}<span class="n">${k}</span></div>`).join('')}
+    ${[['업무', '#6294ff', 3], ['공부', '#b58cff', 2], ['생활', '#44c98b', 2], ['자격증 및 어학 시험 준비 (2026 하반기)', '#f0838b', 1]].map(([n, c, k]) => `<div class="srow"><span class="lead"><span class="dot" style="background:${c}"></span></span><span class="label">${n}</span><span class="n">${k}</span></div>`).join('')}
     <div class="srow" style="color:var(--accent)"><span class="lead">+</span>카테고리 추가·관리</div></div>`;
   else body = `<div class="content"><div class="hdr"><span class="ib">${ICON.back}</span><span style="flex:1"></span>
       <span class="ib chg ${s.stars[0] ? 'on' : ''}" data-star="0">${STAR(22, s.stars[0])}</span><span class="ib">${ICON.trash}</span></div>
