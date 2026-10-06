@@ -11,8 +11,8 @@ function describe(alert) {
   if (alert.status === "downloading" || (alert.status === "available" && alert.autoInstall)) return alert.autoInstall
     ? { icon: <VscArrowDown />, title: "새 버전을 받는 중", text: "다 받으면 설치하고 Thread를 다시 시작해요.", progress: true, busy: true }
     : { icon: <VscArrowDown />, title: "새 버전을 받는 중", text: "업데이트를 누르면 다 받은 뒤 바로 설치해요.", progress: true, action: "업데이트" };
-  if (alert.status === "ready") return { icon: <VscCheck />, dot: "ready", title: "업데이트 준비 완료", text: "업데이트를 누르면 설치하고 Thread를 다시 시작해요.", action: "업데이트" };
-  return { icon: <VscArrowDown />, title: "업데이트할 수 있어요", text: "업데이트를 누르면 새 버전을 받아 설치하고 Thread를 다시 시작해요.", action: "업데이트" };
+  if (alert.status === "ready") return { icon: <VscCheck />, dot: "ready", title: "업데이트 준비 완료", text: "설치하고 Thread를 다시 시작해요.", action: "업데이트" };
+  return { icon: <VscArrowDown />, title: "업데이트할 수 있어요", text: "새 버전을 받아 설치하고 Thread를 다시 시작해요.", action: "업데이트" };
 }
 
 export default function ReleaseAlert() {
