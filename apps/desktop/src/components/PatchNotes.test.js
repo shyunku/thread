@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import PatchNotes, { OPEN_PATCH_NOTES } from "./PatchNotes";
 import IpcSender from "../utils/IpcSender";
-import { compareVersions, pendingNotes } from "../utils/patchNotes";
+import { compareVersions, pendingNotes, visibleNotes } from "../utils/patchNotes";
 
 const note = (version, extra = {}) => ({
   version, date: "2026-10-20", summary: `${version} 요약`,
@@ -41,6 +41,11 @@ test("versions compare numerically and pending notes stop at the running version
   expect(pendingNotes(notes, "2.0.9", "2.0.11").map((x) => x.version)).toEqual(["2.0.11", "2.0.10"]);
   expect(pendingNotes(notes, null, "2.0.11").map((x) => x.version)).toEqual(["2.0.11"]);
   expect(pendingNotes(notes, "2.0.11", "2.0.11")).toEqual([]);
+  // Official builds hide beta notes (the official notes include them) and future drafts.
+  const mixed = ["2.2.0", "2.1.0", "2.1.0-beta.2", "2.1.0-beta.1", "2.0.9"].map(note);
+  expect(visibleNotes(mixed, "2.1.0").map((x) => x.version)).toEqual(["2.1.0", "2.0.9"]);
+  expect(visibleNotes(mixed, "2.1.0-beta.2").map((x) => x.version)).toEqual(["2.1.0-beta.2", "2.1.0-beta.1", "2.0.9"]);
+  expect(pendingNotes(mixed, "2.1.0-beta.2", "2.1.0").map((x) => x.version)).toEqual(["2.1.0"]);
 });
 
 test("after an update the window lists unseen versions once; 다시 보지 않기 turns the setting off", () => {

@@ -8,6 +8,7 @@ import {
   compareVersions,
   pendingNotes,
   platformNotes,
+  visibleNotes,
   type PatchNote,
 } from '@/core/patchNotes';
 import { sanitize } from '@/core/prefs';
@@ -68,6 +69,26 @@ test('versions compare numerically and pending notes stop at the running version
     APP_VERSION,
   ]);
   expect(platformNotes({ android: [NOTES[0]], ios: [] }, 'ios')).toEqual([]);
+  const mixed = ['2.1.0', '2.0.1', '2.0.1-beta.2', '2.0.1-beta.1', '2.0.0'].map(
+    note,
+  );
+  expect(visibleNotes(mixed, '2.0.1').map(n => n.version)).toEqual([
+    '2.0.1',
+    '2.0.0',
+  ]);
+  expect(visibleNotes(mixed, '2.0.1-beta.2').map(n => n.version)).toEqual([
+    '2.0.1-beta.2',
+    '2.0.1-beta.1',
+    '2.0.0',
+  ]);
+  expect(
+    pendingNotes(mixed, '2.0.1-beta.2', '2.0.1').map(n => n.version),
+  ).toEqual(['2.0.1']);
+  // The last shown version survives saving and loading the prefs.
+  expect(sanitize({ patchNotesSeen: '2.0.0-beta.2' }).patchNotesSeen).toBe(
+    '2.0.0-beta.2',
+  );
+  expect(sanitize({ patchNotesSeen: '2.1.0' }).patchNotesSeen).toBe('2.1.0');
   expect(
     sanitize({ patchNotesSeen: '../x', showPatchNotes: 'no' }),
   ).toMatchObject({ patchNotesSeen: '', showPatchNotes: true });

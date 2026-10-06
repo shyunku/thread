@@ -33,12 +33,15 @@ docs/patchNotes/
 - `version` matches the file name. `date` is the release date (KST, `YYYY-MM-DD`).
 - `kind` is `new` (새 기능), `improved` (개선) or `fixed` (수정). The apps always show them in that order.
 - `detail` is optional. Each entry is one line.
+- Beta versions (`x.y.z-beta.N`) get their own notes for testers. Official builds never show beta notes, so the official version's notes must also cover everything its betas brought.
+- Notes for an upcoming release can be drafted early: an app never shows notes newer than itself. Set `date` to the actual release date when the release is built.
 
-After adding or changing a file, run `node scripts/patchNotes.cjs` and commit the generated files (`apps/desktop/src/generated/patchNotes.json`, `apps/mobile/src/generated/patchNotes.json`). Tests fail when they are out of date. The Windows release build (`pnpm build:desktop`) fails when the current desktop version has no `desktop/win` notes. The apps keep the newest 12 versions.
+After adding or changing a file, run `node scripts/patchNotes.cjs` and commit the generated files (`apps/desktop/src/generated/patchNotes.json`, `apps/mobile/src/generated/patchNotes.json`). Tests fail when they are out of date. The Windows release build (`pnpm build:desktop`) fails when the current desktop version has no `desktop/win` notes. The apps keep the newest 12 official versions, plus betas of the newest official line and later.
 
 ## Writing rules
 
 - Write only what users notice. No internal mechanisms, numbers or implementation details.
 - `summary` ends with a noun phrase, e.g. "캘린더 UI 개선", "앱 실행 최적화 및 버그 수정".
-- Each item `title` is one sentence ending in "~요.", e.g. "동기화 오류를 고쳤어요."
+- Each item `title` is one sentence ending in "~요.", e.g. "동기화가 멈추던 문제를 고쳤어요."
+- Write each platform's notes against what that platform's users had before. Describe the same change with the same words on every platform.
 - Use `detail` only when it helps, one sentence per line.

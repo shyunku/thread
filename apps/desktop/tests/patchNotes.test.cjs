@@ -61,3 +61,16 @@ test("a new install records the running version; an update without a record show
   fs.writeFileSync(state.stateFile(updated), JSON.stringify({ seen: "../../x" }));
   assert.deepEqual(state.readSeen(updated, "2.0.11"), { seen: null });
 });
+
+test("bundled notes keep 12 official versions and only betas newer than the newest official", (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "thread-notes-"));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const write = (version) => fs.writeFileSync(path.join(dir, version + ".json"), JSON.stringify({ ...valid, version }));
+  for (let i = 0; i < 14; i++) write(`2.0.${i}`);
+  for (const v of ["2.0.5-beta.1", "2.0.13-beta.1", "2.1.0-beta.1", "2.1.0-beta.2"]) write(v);
+  const out = notes.readDir(dir);
+  // 2.0.13-beta.1 stays: the official 2.0.13 notes may be a draft while its betas ship.
+  assert.deepEqual(out.map((n) => n.version).slice(0, 4), ["2.1.0-beta.2", "2.1.0-beta.1", "2.0.13", "2.0.13-beta.1"]);
+  assert.equal(out.filter((n) => !n.version.includes("-")).length, 12);
+  assert.ok(!out.some((n) => n.version === "2.0.5-beta.1"));
+});

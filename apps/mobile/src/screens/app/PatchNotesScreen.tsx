@@ -21,6 +21,7 @@ import {
   KIND_LABEL,
   pendingNotes,
   platformNotes,
+  visibleNotes,
   type PatchNote,
 } from '@/core/patchNotes';
 import { Button, IconButton, Sheet } from '@/ui/kit';
@@ -367,7 +368,7 @@ export function PatchNotesSheet({ notes: source }: { notes?: PatchNote[] }) {
 export default function PatchNotesScreen() {
   const theme = useTheme();
   const navigation = useNavigation<any>();
-  const notes = platformNotes();
+  const notes = visibleNotes(platformNotes(), APP_VERSION);
   return (
     <View style={{ flex: 1, backgroundColor: theme.canvas }}>
       <View

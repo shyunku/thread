@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { IoCheckmark, IoChevronDown, IoSparklesOutline } from "react-icons/io5";
 import PackageJson from "../../package.json";
 import IpcSender from "utils/IpcSender";
-import { COLLAPSE_AT, KIND_LABEL, pendingNotes, platformNotes } from "utils/patchNotes";
+import { COLLAPSE_AT, KIND_LABEL, pendingNotes, platformNotes, visibleNotes } from "utils/patchNotes";
 import "./PatchNotes.scss";
 
 export const OPEN_PATCH_NOTES = "thread:open-patch-notes";
@@ -58,7 +58,7 @@ export default function PatchNotes({ preview = null }) {
   const [dontShow, setDontShow] = useState(false);
   const [expanded, setExpanded] = useState(() => new Set());
   const dialog = useRef(null);
-  const all = preview ? preview.notes : platformNotes();
+  const all = visibleNotes(preview ? preview.notes : platformNotes(), current);
 
   useEffect(() => {
     if (preview) return;

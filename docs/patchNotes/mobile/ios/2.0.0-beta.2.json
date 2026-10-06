@@ -1,0 +1,15 @@
+{
+  "version": "2.0.0-beta.2",
+  "date": "2026-10-06",
+  "summary": "버그 수정",
+  "sections": [
+    {
+      "kind": "fixed",
+      "items": [
+        {
+          "title": "자잘한 문제를 고쳤어요."
+        }
+      ]
+    }
+  ]
+}

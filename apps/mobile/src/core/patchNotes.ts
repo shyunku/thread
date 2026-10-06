@@ -39,6 +39,17 @@ export function platformNotes(
   return (os === 'ios' ? source.ios : source.android) ?? [];
 }
 
+// Notes this build may show: none newer than itself (drafts for the next release are
+// bundled too), and no beta notes in an official build: its notes already include them.
+export function visibleNotes(notes: PatchNote[], current: string) {
+  const official = !current.includes('-');
+  return notes.filter(
+    note =>
+      compareVersions(note.version, current) <= 0 &&
+      !(official && note.version.includes('-')),
+  );
+}
+
 // Notes to show after an update: versions after the last shown one, up to the running
 // version. An empty seen means an update from a version that did not record it: show
 // only the running version.
@@ -47,10 +58,7 @@ export function pendingNotes(
   seen: string,
   current: string,
 ) {
-  if (!seen) return notes.filter(note => note.version === current);
-  return notes.filter(
-    note =>
-      compareVersions(note.version, seen) > 0 &&
-      compareVersions(note.version, current) <= 0,
-  );
+  const visible = visibleNotes(notes, current);
+  if (!seen) return visible.filter(note => note.version === current);
+  return visible.filter(note => compareVersions(note.version, seen) > 0);
 }

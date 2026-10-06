@@ -15,7 +15,10 @@ const APPS = {
   desktop: { platforms: ["win", "mac"], out: "apps/desktop/src/generated/patchNotes.json", pkg: "apps/desktop/package.json" },
   mobile: { platforms: ["android", "ios"], out: "apps/mobile/src/generated/patchNotes.json", pkg: "apps/mobile/package.json" },
 };
-// The apps show at most this many versions; older files stay in docs only.
+// The apps show at most this many official versions; older files stay in docs only.
+// Beta notes are kept only for the newest official line and later (the beta's x.y.z at
+// least the newest official x.y.z, whose notes may still be a draft): an official
+// release's notes include its betas, and official builds never show beta notes.
 const MAX_VERSIONS = 12;
 const KINDS = ["new", "improved", "fixed"];
 const VERSION = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$/;
@@ -30,6 +33,8 @@ function compareVersions(a, b) {
   if (!x[4] || !y[4]) return x[4] ? -1 : y[4] ? 1 : 0;
   return x[4] < y[4] ? -1 : x[4] > y[4] ? 1 : 0;
 }
+
+const isBeta = (version) => version.includes("-");
 
 const text = (value, where) => {
   if (typeof value !== "string" || !value.trim() || value !== value.trim() || /[\r\n]/.test(value))
@@ -76,7 +81,10 @@ function validate(raw, file) {
 }
 
 function readPlatform(app, platform) {
-  const dir = path.join(SOURCE, app, platform);
+  return readDir(path.join(SOURCE, app, platform));
+}
+
+function readDir(dir) {
   if (!fs.existsSync(dir)) return [];
   const notes = fs.readdirSync(dir)
     .filter((name) => name.endsWith(".json"))
@@ -91,7 +99,11 @@ function readPlatform(app, platform) {
       return validate(raw, path.relative(ROOT, file).replace(/\\/g, "/"));
     });
   notes.sort((a, b) => compareVersions(b.version, a.version));
-  return notes.slice(0, MAX_VERSIONS);
+  const official = notes.filter((note) => !isBeta(note.version)).slice(0, MAX_VERSIONS);
+  const betas = notes
+    .filter((note) => isBeta(note.version) && (!official.length || compareVersions(note.version.split("-")[0], official[0].version) >= 0))
+    .slice(0, MAX_VERSIONS);
+  return [...betas, ...official].sort((a, b) => compareVersions(b.version, a.version));
 }
 
 function build() {
@@ -139,4 +151,4 @@ if (require.main === module) {
     process.exit(1);
   }
 }
-module.exports = { validate, compareVersions, build, main, MAX_VERSIONS };
+module.exports = { validate, compareVersions, build, main, readDir, MAX_VERSIONS };

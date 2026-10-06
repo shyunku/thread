@@ -44,7 +44,7 @@ const valid: { [K in keyof Prefs]: (value: unknown) => boolean } = {
   showPatchNotes: v => typeof v === 'boolean',
   patchNotesSeen: v =>
     typeof v === 'string' &&
-    (v === '' || /^d+.d+.d+(-[0-9A-Za-z.-]+)?$/.test(v)),
+    (v === '' || /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(v)),
 };
 
 export function sanitize(raw: unknown): Prefs {
