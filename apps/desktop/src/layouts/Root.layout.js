@@ -1,6 +1,7 @@
 import TopBar from "components/TopBar";
 import SyncWarning from "components/SyncWarning";
 import ApplicationGate from "components/ApplicationGate";
+import PatchNotes from "components/PatchNotes";
 import Loading from "molecules/Loading";
 import Prompt from "molecules/Prompt";
 import Toast from "molecules/Toast";
@@ -537,6 +538,8 @@ const RootLayout = ({ applicationMode }) => {
     <div className="root-layout">
       <TopBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
       <SyncWarning status={syncV2} />
+      {/* Only over the main window once it is open, never the startup update checker (#99). */}
+      {databaseReady && <PatchNotes />}
       <div className="root-layout__content">
         {databaseReady ? (
           <Outlet context={{ localNonce, remoteNonce, addPromise, states, searchQuery }} />

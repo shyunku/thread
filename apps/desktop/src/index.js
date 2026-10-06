@@ -73,7 +73,6 @@ root.render(appPreview ? (
       <Loading.Loading />
       <MainRouter />
       <ReleaseAlert />
-      <PatchNotes />
       <AxiosMiddleware />
     </PersistGate>
   </Provider>

@@ -10,13 +10,15 @@ const note = (version, extra = {}) => ({
 });
 // The running version is package.json's; notes around it are synthetic.
 const CURRENT = require("../../package.json").version;
-const [major, minor, patch] = CURRENT.split(".").map(Number);
-const older = (n) => `${major}.${minor}.${patch - n}`;
+const [major, minor, patch] = CURRENT.split("-")[0].split(".").map(Number);
+// n versions before the running one; below x.y.0 continue at x.(y-1).9.
+const older = (n) => (patch - n >= 0 ? `${major}.${minor}.${patch - n}` : `${major}.${minor - 1}.${10 + patch - n}`);
 jest.mock("../generated/patchNotes.json", () => {
-  const [a, b, c] = require("../../package.json").version.split(".").map(Number);
+  const [a, b, c] = require("../../package.json").version.split("-")[0].split(".").map(Number);
+  const back = (n) => (c - n >= 0 ? `${a}.${b}.${c - n}` : `${a}.${b - 1}.${10 + c - n}`);
   const make = (v) => ({ version: v, date: "2026-10-20", summary: `${v} 요약`,
     sections: [{ kind: "fixed", items: [{ title: `${v} 문제를 고쳤어요.`, detail: ["한 줄.", "두 줄."] }] }] });
-  return { win: [0, 1, 2, 3, 4, 5, 6].map((n) => make(`${a}.${b}.${c + 1 - n}`)).filter((x) => !x.version.includes("-")).slice(1), mac: [] };
+  return { win: [0, 1, 2, 3, 4, 5, 6].map((n) => make(back(n))), mac: [] };
 });
 let mockState = { seen: null };
 let mockSettings = { showPatchNotes: true };
@@ -39,7 +41,8 @@ test("versions compare numerically and pending notes stop at the running version
   expect(compareVersions("2.1.0-beta.1", "2.1.0")).toBeLessThan(0);
   const notes = [note("2.0.12"), note("2.0.11"), note("2.0.10"), note("2.0.9")];
   expect(pendingNotes(notes, "2.0.9", "2.0.11").map((x) => x.version)).toEqual(["2.0.11", "2.0.10"]);
-  expect(pendingNotes(notes, null, "2.0.11").map((x) => x.version)).toEqual(["2.0.11"]);
+  // No record: everything after the last version without patch notes (2.0.9).
+  expect(pendingNotes(notes, null, "2.0.11").map((x) => x.version)).toEqual(["2.0.11", "2.0.10"]);
   expect(pendingNotes(notes, "2.0.11", "2.0.11")).toEqual([]);
   // Official builds hide beta notes (the official notes include them) and future drafts.
   const mixed = ["2.2.0", "2.1.0", "2.1.0-beta.2", "2.1.0-beta.1", "2.0.9"].map(note);

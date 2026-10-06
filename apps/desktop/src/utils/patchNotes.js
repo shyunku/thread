@@ -26,11 +26,13 @@ export function visibleNotes(notes, current) {
   return notes.filter((note) => compareVersions(note.version, current) <= 0 && !(official && note.version.includes("-")));
 }
 
+// The last version without patch notes. An install with data but no record (seen = null)
+// came from it or earlier, or closed the 2.1.0 window without recording it.
+export const BEFORE_PATCH_NOTES = "2.0.9";
+
 // Notes to show after an update: versions after the last shown one, up to the running
-// version. seen = null means an update from a version that did not record it: show only
-// the running version.
+// version.
 export function pendingNotes(notes, seen, current) {
-  const visible = visibleNotes(notes, current);
-  if (seen === null) return visible.filter((note) => note.version === current);
-  return visible.filter((note) => compareVersions(note.version, seen) > 0);
+  const after = seen === null ? BEFORE_PATCH_NOTES : seen;
+  return visibleNotes(notes, current).filter((note) => compareVersions(note.version, after) > 0);
 }

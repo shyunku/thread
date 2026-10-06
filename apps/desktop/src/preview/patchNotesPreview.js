@@ -16,9 +16,11 @@ const TEXT = [
 
 export function patchNotesPreview(params) {
   const [major, minor, patch] = PackageJson.version.split("-")[0].split(".").map(Number);
+  // Count down from the running version; below x.y.0 continue at x.(y-1).9.
+  const versionAt = (i) => (patch - i >= 0 ? `${major}.${minor}.${patch - i}` : `${major}.${minor - 1}.${10 + patch - i}`);
   const notes = TEXT.map(([summary, sections], i) => ({
-    version: `${major}.${minor}.${patch - i}`, date: `2026-10-${String(20 - i).padStart(2, "0")}`, summary, sections,
-  })).filter((note) => !/-/.test(note.version));
+    version: versionAt(i), date: `2026-10-${String(20 - i).padStart(2, "0")}`, summary, sections,
+  }));
   const count = Math.min(Number(params.get("count")) || 1, notes.length - 1);
   return { mode: params.get("patchNotes") === "history" ? "history" : "update", notes, seen: notes[count].version };
 }
