@@ -162,7 +162,7 @@ function desktop() {
     const badge = t.cat ? `<span class="cbadge chg" style="color:${t.color};background:${t.color}26">${t.cat}</span>` : '';
     const dot = t.cat ? `<span class="dot chg" style="background:${t.color}"></span>` : '';
     const meta = [s.catPos === 'meta' ? badge : s.catPos === 'dot' ? dot : '', `<span>${t.rt}</span>`, t.repeat ? `<span>·</span><span>↻ ${t.repeat}</span>` : '', t.sub ? `<span>·</span><span>${t.sub}</span>` : ''].join('');
-    const row = `<div class="row two ${!imp && n === 1 ? 'hovered' : ''}"><span class="chk"></span><div class="body"><div style="display:flex;align-items:center;gap:8px">${s.catPos === 'before' ? badge : ''}<span class="t">${t.t}</span>${s.catPos === 'title' ? badge : ''}</div><div class="rmeta chg">${meta}</div></div>${starBtn}</div>`;
+    const row = `<div class="row two ${!imp && n === 1 ? 'hovered' : ''}"><span class="chk"></span><div class="body"><div style="display:flex;align-items:center;gap:${s.catPos === 'before' ? 7 : 8}px">${s.catPos === 'before' ? badge : ''}<span class="t">${t.t}</span>${s.catPos === 'title' ? badge : ''}</div><div class="rmeta chg">${meta}</div></div>${starBtn}</div>`;
     if (s.dscreen === 'expanded' && n === 0) return `<div class="exp">${row}<div class="body"><div class="head"><h2>${t.t}</h2>
       <span class="pill">${ICON.cal} 26년 10월 6일 (화) 오후 9시 36분</span><span class="pill icon">${ICON.repeat}</span></div>
       <div class="meta"><span class="cbadge chg" style="color:${t.color};background:${t.color}26">${t.cat}</span><span>+ 카테고리 태그 추가</span></div></div></div>`;
