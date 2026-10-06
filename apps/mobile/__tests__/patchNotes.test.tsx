@@ -23,10 +23,12 @@ jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({ navigate: mockNavigate }),
 }));
 
-const [major, minor, patch] = APP_VERSION.split('.').map(Number);
+const [major, minor, patch] = APP_VERSION.split('-')[0].split('.').map(Number);
 // 0, 1: newer than the running version; 2: running; 3+: older (major - 1).
 const version = (back: number) =>
-  back <= 2
+  back === 2
+    ? APP_VERSION
+    : back < 2
     ? `${major}.${minor}.${patch + 2 - back}`
     : `${major - 1}.9.${12 - back}`;
 const note = (v: string): PatchNote => ({
