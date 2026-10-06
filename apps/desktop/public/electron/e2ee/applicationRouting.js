@@ -32,7 +32,12 @@ async function intercept(service,topic,reqId,args){
    if(topic==="sync-v2/getStatus")return statusOf(entry,replica.status());
    return true;
   });
-  publish(service,entry);ipc.sender(topic,reqId,true,result);
+  // Only a change (or the window asking for its state) sends the lists; reads already
+  // return their data, and sending the whole list after every request was most of the
+  // startup cost with many tasks (#98).
+  if(mutationTopics.has(topic))publish(service,entry);
+  else if(topic==="system/stateListenReady")publish(service,entry,{force:true});
+  ipc.sender(topic,reqId,true,result);
   if(mutationTopics.has(topic))void service.syncEncrypted().catch(()=>{});
  }catch(error){ipc.sender(topic,reqId,false,{syncV2Ack:mutationTopics.has(topic),code:error.message});}
  return true;
@@ -55,13 +60,20 @@ function publishStatus(service,entry){
   if(status)service.group?.ipcService.sender("sync-v2/status",null,true,statusOf(entry,status));
  }catch{}
 }
-function publish(service,entry){
+// Sends the lists only when the visible objects changed since the last send to this
+// window (store write counter), or when forced (the window (re)loaded and asks for them).
+function publish(service,entry,{force=false}={}){
  if(service.active!==entry||entry.uid!==service.runtime().getAccount())return;
- const lists=entry.controller.use(store=>{
+ const next=entry.controller.use(store=>{
+  const revision=typeof store.revision==="function"?store.revision("visible"):null;
+  if(!force&&revision!==null&&entry.published?.store===store&&entry.published.revision===revision)return null;
   const {EncryptedReplica}=require("./replica"),meta=store.get("confirmed","$sync-state");
-  return new ApplicationAdapter(new EncryptedReplica(store,meta.scope,{initialize:false})).lists();
+  return {store,revision,lists:new ApplicationAdapter(new EncryptedReplica(store,meta.scope,{initialize:false})).lists()};
  });
- service.group?.ipcService.sender("sync-v2/state",null,true,{uid:entry.uid,...lists});
+ if(next){
+  service.group?.ipcService.sender("sync-v2/state",null,true,{uid:entry.uid,...next.lists});
+  entry.published={store:next.store,revision:next.revision};
+ }
  const status=entry.controller.use(store=>{
   const {EncryptedReplica}=require("./replica"),meta=store.get("confirmed","$sync-state");
   return new EncryptedReplica(store,meta.scope,{initialize:false}).status();

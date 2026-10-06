@@ -4,14 +4,11 @@ function check(value){if(!value)throw Error("INVALID_SYNC_RESPONSE");}
 // Hash of the confirmed objects in id order: canonical CBOR [objectId, version,
 // deleted], the same rows the server hashes for its state digest.
 function localStateDigest(store){
- const hash=require("./platform").createHash("sha256");let count=0,after="";
- for(let n=0;n<40000;n++){
-  const page=store.entries("confirmed",after,256);
-  for(const {id,value} of page){if(id.startsWith("$"))continue;hash.update(p.encode([id,value.version,!!value.deleted]));count++;}
-  if(page.length<256)return {digest:hash.digest("hex"),count};
-  after=page.at(-1).id;
- }
- throw Error("STATE_DIGEST_LIMIT");
+ const hash=require("./platform").createHash("sha256");let count=0,rows;
+ try{rows=require("./bucketCache").bucketRows(store,"confirmed",{pages:40000});}
+ catch(error){if(error.message==="BUCKET_PAGE_LIMIT")throw Error("STATE_DIGEST_LIMIT");throw error;}
+ for(const {id,value} of rows){if(id.startsWith("$"))continue;hash.update(p.encode([id,value.version,!!value.deleted]));count++;}
+ return {digest:hash.digest("hex"),count};
 }
 const MAX_REBASE_PASSES=3;
 // One main-process session per unlocked vault. No keys or plaintext leave this
@@ -48,7 +45,7 @@ class EncryptedSynchronizer {
  async pull(until="0"){
   let target=until;
   for(let count=0;count<10000;count++){
-   const after=this.replica.status().cursor,page=await this.read("pull",{after,until:target});
+   const after=this.replica.cursor(),page=await this.read("pull",{after,until:target});
    check(Array.isArray(page.changes)&&page.changes.length<=32&&typeof page.more==="boolean");
    sync.decimal(page.until);sync.decimal(page.next);
    check(sync.decimal(page.until)>=sync.decimal(after));
@@ -61,7 +58,7 @@ class EncryptedSynchronizer {
     check(sync.decimal(change.result.seq)<=sync.decimal(target));
     await this.replica.applyChange({record,result:change.result},context);this.ready();
    }
-   check(page.next===this.replica.status().cursor);
+   check(page.next===this.replica.cursor());
    if(!page.more){check(page.next===target);return;}
    check(page.changes.length>0&&page.next!==after);
   }
@@ -96,16 +93,16 @@ class EncryptedSynchronizer {
   this.ready();
   check(digest&&digest.epoch===this.epoch&&/^[a-f0-9]{64}$/.test(digest.digest)&&Number.isSafeInteger(digest.count)&&digest.count>=0);
   if(digest.membershipHead!==this.history.current.head)return null;
-  const cursor=sync.decimal(this.replica.status().cursor),seq=sync.decimal(digest.seq);
+  const cursor=sync.decimal(this.replica.cursor()),seq=sync.decimal(digest.seq);
   if(seq<cursor)return null;
   if(seq>cursor){await this.pull(digest.seq);this.ready();}
-  if(sync.decimal(this.replica.status().cursor)!==seq)return null;
+  if(sync.decimal(this.replica.cursor())!==seq)return null;
   const local=localStateDigest(this.replica.store);
   return local.count===digest.count&&local.digest===digest.digest;
  }
  async settle(record,receipt){
   sync.verifyReceipt(record,receipt);
-  if(sync.decimal(receipt.seq)>sync.decimal(this.replica.status().cursor)){await this.pull(receipt.seq);return;}
+  if(sync.decimal(receipt.seq)>sync.decimal(this.replica.cursor())){await this.pull(receipt.seq);return;}
   // A restored snapshot can be ahead of an unknown ACK. Fetch and verify the
   // original accepted mutation, never remove an outbox item on JSON ACK alone.
   const page=await this.read("pull",{after:(sync.decimal(receipt.seq,true)-1n).toString(),until:receipt.seq});
@@ -158,14 +155,30 @@ class EncryptedSynchronizer {
    for(const row of held)this.rebaseOrHold(row.id,true);
    if(held.length)return true;
   }
+  // Accepted pushes are settled in groups (one pull for up to 32 receipts, one pull page)
+  // instead of a pull after every push (#98). A draft that touches an object of an
+  // unsettled push waits for the group: its base is that push's result. Anything left
+  // unsettled after an error is settled by the next run's pull (exact signed bytes).
+  const unsettled=[];
+  const flush=async()=>{
+   if(!unsettled.length)return;
+   const group=unsettled.splice(0);
+   const last=group.reduce((max,{receipt})=>sync.decimal(receipt.seq)>max?sync.decimal(receipt.seq):max,0n);
+   if(last>sync.decimal(this.replica.cursor()))await this.pull(last.toString());
+   for(const {record,receipt} of group)if(this.replica.store.get("outbox",record.body.mutationId))await this.settle(record,receipt);
+   this.ready();
+  };
+  const touches=item=>unsettled.some(({record})=>record.body.operations.some(op=>item.value.changes.some(c=>c.objectId===op.objectId)));
   for(const item of this.replica.pending()){
    this.ready();
    if(item.value.status==="conflict")continue;
+   if(!this.replica.store.get("outbox",item.id))continue;
+   if(unsettled.length>=32||touches(item))await flush();
    let record;
    try{record=await this.replica.prepare(item.id,await this.context());}
    catch(error){
     if(error.message==="WAITING_FOR_PREVIOUS_EDIT")continue;
-    if(error.message==="LOCAL_BASE_CONFLICT"){if(!canRebase)return false;this.rebaseOrHold(item.id);return true;}
+    if(error.message==="LOCAL_BASE_CONFLICT"){await flush();if(!canRebase)return false;this.rebaseOrHold(item.id);return true;}
     throw error;
    }
    this.ready();
@@ -175,7 +188,7 @@ class EncryptedSynchronizer {
     this.ready();
     // The server checks the mutation ID before object versions, so OBJECT_CONFLICT means
     // this request was not accepted and a rebased request cannot duplicate it.
-    if(error.message==="OBJECT_CONFLICT"){if(!canRebase)return false;this.rebaseOrHold(item.id);return true;}
+    if(error.message==="OBJECT_CONFLICT"){await flush();if(!canRebase)return false;this.rebaseOrHold(item.id);return true;}
     // Retry exact bytes first: an accepted old request returns its original receipt.
     // A stale rejection is NOT proof of non-acceptance; retain it for review.
     if(error.message==="SYNC_CHECKPOINT_CONFLICT"&&record.body.epoch===this.epoch&&
@@ -185,8 +198,10 @@ class EncryptedSynchronizer {
     // Unknown network/authority outcomes retain the exact signed bytes.
     throw error;
    }
-   await this.settle(record,receipt);
+   sync.verifyReceipt(record,receipt);
+   unsettled.push({record,receipt});
   }
+  await flush();
   return false;
  }
  // Falls back to manual review only when the draft cannot be rebased safely.

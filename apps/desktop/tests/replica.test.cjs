@@ -558,3 +558,24 @@ test("held OBJECT_CONFLICT drafts are rebased on the next sync; unsafe ones stay
  assert.deepEqual(await g.engine.run(),{cursor:"0",pending:1,conflicts:1});
  assert.equal(g.store.get("outbox",legacy).autoRebaseFailed,true);
 });
+
+test("lists go to the window only after a change or when it asks, not after every read",async t=>{
+ const f=await fixture(t),{intercept,publish}=require("../public/electron/e2ee/applicationRouting"),events=[];
+ const entry={uid:"fixture",applicationActive:true,controller:{use:fn=>fn(f.store)}};
+ const service={active:entry,busy:false,runtime:()=>({getAccount:()=>"fixture"}),group:{ipcService:{sender:(...args)=>events.push(args)}},syncEncrypted:async()=>{}};
+ const states=()=>events.filter(event=>event[0]==="sync-v2/state").length;
+ await intercept(service,"task/addTask","add",[{tid:"one",title:"One"}]);
+ assert.equal(states(),1);
+ for(const topic of ["task/getAllTaskList","task/getAllSubtaskList","category/getCategoryList","tasks_categories/getTasksCategoriesList","auth/isDatabaseReady","system/lastTxUpdateTime","sync-v2/getStatus"])
+  await intercept(service,topic,topic,topic==="auth/isDatabaseReady"?["fixture"]:[]);
+ assert.equal(states(),1);
+ assert.equal(events.find(event=>event[1]==="task/getAllTaskList")[3][0].title,"One");
+ // A sync run that changed nothing sends status only.
+ publish(service,entry);assert.equal(states(),1);
+ assert.ok(events.at(-1)[0]==="sync-v2/status");
+ // The window (re)loaded and asks for its state.
+ await intercept(service,"system/stateListenReady","ready",[true]);
+ assert.equal(states(),2);
+ await intercept(service,"task/updateTaskTitle","edit",["one","Two"]);
+ assert.equal(states(),3);assert.equal(events.filter(event=>event[0]==="sync-v2/state").at(-1)[3].tasks[0].title,"Two");
+});

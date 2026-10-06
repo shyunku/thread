@@ -2,24 +2,26 @@ const {randomBytes,createHash}=require("./platform"),p=require("./protocol");
 const {command,entityLists,mutationTopics}=require("./model/entities");
 const {optimistic,identity}=require("./model/optimistic");
 const {prepareSchedule,completeRecurring}=require("./recurrence");
+const {bucketRows}=require("./bucketCache");
 const clean=value=>JSON.parse(JSON.stringify(value));
 class ApplicationAdapter{
  constructor(replica,{now=()=>Date.now()}={}){this.replica=replica;this.now=now;}
+ // Visible objects come from the store's decoded-bucket cache: after the first read only
+ // rows written since are decoded again (#98). Cached values are shared and read-only;
+ // edits build new rows (model/optimistic) or work on copies (recurring completion).
  objects(){
-  const objects=new Map();let after="";
-  for(let n=0;n<4000;n++){
-   const page=this.replica.store.entries("visible",after,256);
-   for(const {value} of page){
-    if(value.deleted)continue;
-    if(value.fields?.length!==1||value.fields[0].slot!==0)throw Error("UNSUPPORTED_APPLICATION_OBJECT");
-    const row=value.fields[0].value;
-    if(!row||!["task","category","subtask","taskCategory"].includes(row.entityType)||typeof row.entityId!=="string"||!row.fields)throw Error("INVALID_APPLICATION_OBJECT");
-    const key=identity(row);if(objects.has(key))throw Error("CANONICAL_ID_COLLISION");
-    objects.set(key,{object:value,row:{...row,version:value.version}});
-   }
-   if(page.length<256)return objects;after=page.at(-1).id;
+  const objects=new Map();let all;
+  try{all=bucketRows(this.replica.store,"visible");}
+  catch(error){if(error.message==="BUCKET_PAGE_LIMIT")throw Error("APPLICATION_OBJECT_LIMIT");throw error;}
+  for(const {value} of all){
+   if(value.deleted)continue;
+   if(value.fields?.length!==1||value.fields[0].slot!==0)throw Error("UNSUPPORTED_APPLICATION_OBJECT");
+   const row=value.fields[0].value;
+   if(!row||!["task","category","subtask","taskCategory"].includes(row.entityType)||typeof row.entityId!=="string"||!row.fields)throw Error("INVALID_APPLICATION_OBJECT");
+   const key=identity(row);if(objects.has(key))throw Error("CANONICAL_ID_COLLISION");
+   objects.set(key,{object:value,row:{...row,version:value.version}});
   }
-  throw Error("APPLICATION_OBJECT_LIMIT");
+  return objects;
  }
  view(){return {rows:[...this.objects().values()].map(item=>item.row)};}
  lists(){return entityLists(this.view());}

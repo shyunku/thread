@@ -21,7 +21,6 @@ import Category from "objects/Category";
 import TaskCalendarView from "views/TaskCalendarView";
 import Toast from "molecules/Toast";
 import {
-  fastInterval,
   fromRelativeTime,
   printf,
   toRelativeTime,
@@ -84,7 +83,6 @@ const TodoContent = (callback, deps) => {
   const { taskMap, categories } = states;
 
   const [currentSortMode, setCurrentSortMode] = useState(SORT_MODE.DUE_DATE);
-  const [timer, setTimer] = useState(0);
   const [lastTxUpdateTime, setLastTxUpdateTime] = useState(null);
   const [colorPickerVisible, setColorPickerVisible] = useState(false);
   const [completionFilter, setCompletionFilter] = useState("all");
@@ -95,7 +93,7 @@ const TodoContent = (callback, deps) => {
     return (
       fromRelativeTime(diff, { showLayerCount: 1 }) + (diff > 0 ? " 전" : " 후")
     );
-  }, [lastTxUpdateTime, timer]);
+  }, [lastTxUpdateTime]);
 
   // main objects
   const [selectedTodoItemId, setSelectedTodoItemId] = useState(null);
@@ -559,10 +557,6 @@ const TodoContent = (callback, deps) => {
       applyUpdateCategoryColor({ addPromise, success, data });
     });
 
-    let timerThread = fastInterval(() => {
-      setTimer((timer) => timer + 1);
-    }, 1000);
-
     return () => {
       IpcSender.offAll("task/addTask");
       IpcSender.offAll("task/deleteTask");
@@ -581,7 +575,6 @@ const TodoContent = (callback, deps) => {
       IpcSender.offAll("task/deleteTaskCategory");
       IpcSender.offAll("category/updateCategoryColor");
 
-      clearInterval(timerThread);
     };
   }, [addPromise, taskMap, categories]);
 

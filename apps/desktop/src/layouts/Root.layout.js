@@ -79,39 +79,31 @@ const RootLayout = ({ applicationMode }) => {
     if (promiseLength === 0 || executing) return;
 
     setExecuting(true);
-    // pop first promise
-
-    setPromises(async (ps) => {
+    // Pop the oldest promise synchronously and run it outside the state updater. The
+    // updater used to be async, which stored a Promise as the queue and dropped newer
+    // entries in a burst (a newer list could be lost, #98).
+    const poppedPromiseKey = Object.keys(promises)[0];
+    const promise = promises[poppedPromiseKey];
+    setPromises((ps) => {
       const copied = { ...ps };
-      const poppedPromiseKey = Object.keys(copied)[0];
-
-      if (poppedPromiseKey == null) {
-        setExecuting(false);
-        return copied;
-      }
-
-      const promise = copied[poppedPromiseKey];
       delete copied[poppedPromiseKey];
-      // console.log(`<-- deleted promise ${poppedPromiseKey}`);
-
-      try {
-        const transition = await promise(states);
-        console.log(colorize.blue(`[Execute promise ${poppedPromiseKey}]`));
-        // console.log("<-- transition", transition, states);
-        setStates((prev) => {
-          if (transition == null) return emptyState;
-          const copied = { ...prev };
-          for (let key in transition) {
-            copied[key] = { ...transition[key] };
-          }
-          return copied;
-        });
-      } catch (err) {
-        console.error(err);
-      }
-
       return copied;
     });
+
+    try {
+      const transition = await promise(states);
+      console.log(colorize.blue(`[Execute promise ${poppedPromiseKey}]`));
+      setStates((prev) => {
+        if (transition == null) return emptyState;
+        const copied = { ...prev };
+        for (let key in transition) {
+          copied[key] = { ...transition[key] };
+        }
+        return copied;
+      });
+    } catch (err) {
+      console.error(err);
+    }
     setExecuting(false);
   }, [promises, executing, states, emptyState]);
 

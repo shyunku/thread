@@ -2,6 +2,7 @@ const {randomBytes}=require("./platform");
 const p=require("./protocol"),sync=require("./syncProtocol");
 const {SnapshotVerifier}=require("./readProtocol");
 const META="$sync-state";
+const {bucketRows}=require("./bucketCache");
 function rows(store,bucket){const all=[];let after="";for(;;){const page=store.entries(bucket,after,256);all.push(...page);if(page.length<256)return all;after=page[page.length-1].id;}}
 function overlay(change){return {...change,version:(sync.decimal(change.baseVersion)+1n).toString(),pending:true};}
 class EncryptedReplica {
@@ -11,8 +12,14 @@ class EncryptedReplica {
   this.scope=p.decode(p.encode(scope));
   store.transaction(db=>{const meta=db.get("confirmed",META);if(meta){if(!p.encode(meta.scope).equals(p.encode(scope)))throw Error("REPLICA_SCOPE_MISMATCH");}else if(initialize)db.put("confirmed",META,{scope:this.scope,cursor:"0",counter:"0",deviceCounters:[]});else if(["confirmed","visible","outbox"].some(bucket=>db.entries(bucket,"",1).length))throw Error("REPLICA_METADATA_MISSING");});
  }
- pending(){const all=rows(this.store,"outbox");if(all.length>10000)throw Error("OUTBOX_LIMIT");return all.sort((a,b)=>sync.decimal(a.value.counter)<sync.decimal(b.value.counter)?-1:1);}
- status(){const meta=this.store.get("confirmed",META),pending=this.pending();return {cursor:meta.cursor,pending:pending.length,conflicts:pending.filter(row=>row.value.status==="conflict").length};}
+ // The outbox in counter order. Rows come from the store's decoded-bucket cache (only
+ // rows written since the last read are decoded again, #98) and must not be modified.
+ pending(){
+  const all=bucketRows(this.store,"outbox");if(all.length>10000)throw Error("OUTBOX_LIMIT");
+  return [...all].sort((a,b)=>sync.decimal(a.value.counter)<sync.decimal(b.value.counter)?-1:1);
+ }
+ cursor(){return this.store.get("confirmed",META).cursor;}
+ status(){const pending=this.pending();return {cursor:this.cursor(),pending:pending.length,conflicts:pending.filter(row=>row.value.status==="conflict").length};}
  enqueue(changes){
   const id=randomBytes(16).toString("hex");this.store.transaction(db=>{
    if(!Array.isArray(changes)||changes.length<1||changes.length>100)throw Error("INVALID_DRAFT");

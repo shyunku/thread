@@ -37,6 +37,7 @@ export function createFakeThreadServer(vaultId: string) {
   const listeners: (() => void)[] = [];
   let digests = 0;
   let snapshotsTaken = 0;
+  let pulls = 0;
 
   const fail = (code: string) => {
     throw Error(code);
@@ -189,6 +190,7 @@ export function createFakeThreadServer(vaultId: string) {
       return result;
     },
     pull: async (proof: any) => {
+      pulls++;
       const { after, until } = proof.body.parameters;
       const target = until === '0' ? String(accepted.length) : until;
       return {
@@ -273,7 +275,7 @@ export function createFakeThreadServer(vaultId: string) {
       return accepted;
     },
     get counts() {
-      return { digests, snapshots: snapshotsTaken };
+      return { digests, snapshots: snapshotsTaken, pulls };
     },
     get modes() {
       return { accountMode, vaultMode };

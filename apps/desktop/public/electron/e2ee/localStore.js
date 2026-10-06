@@ -2,6 +2,7 @@ const fs = require("node:fs");
 const Database = require("better-sqlite3-multiple-ciphers");
 const { encode, decode, decodeStored } = require("./protocol");
 const BUCKETS = new Set(["confirmed", "visible", "outbox", "recovery", "search"]);
+const WRITE_LOG = 4096;
 class EncryptedStore {
   #db;
   #scope;
@@ -38,30 +39,65 @@ class EncryptedStore {
     if (!BUCKETS.has(bucket)) throw Error("INVALID_BUCKET");
     return this.#db;
   }
+  // Writes per bucket in this session, with a short log of written ids, for caches of
+  // decoded rows (packages/e2ee bucketCache, #98). A rolled-back transaction counts as a
+  // reset of every bucket, so nothing read inside it can be reused afterwards.
+  #writes = new Map();
+  #log = new Map();
+  revision(bucket) { return this.#writes.get(bucket) ?? 0; }
+  #wrote(bucket, id) {
+    const revision = this.revision(bucket) + 1;
+    this.#writes.set(bucket, revision);
+    let log = this.#log.get(bucket);
+    if (!log) this.#log.set(bucket, (log = []));
+    log.push({ revision, id });
+    if (log.length > WRITE_LOG) log.splice(0, log.length - WRITE_LOG);
+  }
+  // Ids written after `revision`, or null when unknown (log trimmed, rollback, other store).
+  changedSince(bucket, revision) {
+    const current = this.revision(bucket);
+    if (!Number.isInteger(revision) || revision > current) return null;
+    if (revision === current) return new Set();
+    const log = this.#log.get(bucket) || [];
+    if (!log.length || log[0].revision > revision + 1) return null;
+    const ids = new Set();
+    for (const entry of log) {
+      if (entry.revision <= revision) continue;
+      if (entry.id === null) return null;
+      ids.add(entry.id);
+    }
+    return ids;
+  }
   put(bucket, id, value) {
     if (typeof id !== "string" || !id || id.length > 256) throw Error("INVALID_RECORD_ID");
     this.#ready(bucket).prepare("INSERT INTO records VALUES(?,?,?) ON CONFLICT(bucket,id) DO UPDATE SET payload=excluded.payload").run(bucket,id,encode(value));
+    this.#wrote(bucket, id);
   }
   scope() { this.#ready("confirmed"); return decode(encode(this.#scope)); }
   get(bucket, id) {
     const row = this.#ready(bucket).prepare("SELECT payload FROM records WHERE bucket=? AND id=?").get(bucket,id);
     return row ? decodeStored(Buffer.from(row.payload)) : null;
   }
-  delete(bucket,id) { this.#ready(bucket).prepare("DELETE FROM records WHERE bucket=? AND id=?").run(bucket,id); }
+  delete(bucket,id) { this.#ready(bucket).prepare("DELETE FROM records WHERE bucket=? AND id=?").run(bucket,id); this.#wrote(bucket, id); }
   transaction(operation) {
     const db = this.#ready("visible");
-    return db.transaction(() => {
-      const result = operation(this);
-      if (result && typeof result.then === "function") throw Error("ASYNC_TRANSACTION_FORBIDDEN");
-      return result;
-    })();
+    try {
+      return db.transaction(() => {
+        const result = operation(this);
+        if (result && typeof result.then === "function") throw Error("ASYNC_TRANSACTION_FORBIDDEN");
+        return result;
+      })();
+    } catch (error) {
+      for (const bucket of BUCKETS) this.#wrote(bucket, null);
+      throw error;
+    }
   }
   entries(bucket, after = "", limit = 100) {
     if (typeof after !== "string" || !Number.isInteger(limit) || limit < 1 || limit > 256) throw Error("INVALID_PAGE");
     return this.#ready(bucket).prepare("SELECT id,payload FROM records WHERE bucket=? AND id>? ORDER BY id LIMIT ?").all(bucket,after,limit)
       .map(row=>({id:row.id,value:decodeStored(Buffer.from(row.payload))}));
   }
-  close() { const db = this.#db; this.#db = null; db?.close(); }
+  close() { const db = this.#db; this.#db = null; require("@thread/e2ee/src/bucketCache").forgetBucketRows(this); db?.close(); }
 }
 class VaultSession {
   #store = null;

@@ -13,6 +13,7 @@ const BUCKETS = new Set([
   'recovery',
   'search',
 ]);
+const WRITE_LOG = 4096;
 
 export type StoreScope = {
   environment: 'development' | 'production';
@@ -97,13 +98,37 @@ export class EncryptedStore {
   }
 
   // Writes per bucket in this session: screens rebuild their view only when the
-  // bucket they read changed (a rolled-back write still counts, which is harmless).
+  // bucket they read changed, and the shared replica reuses its decoded outbox. A
+  // rolled-back transaction counts as a write to every bucket, so nothing read inside
+  // it is reused afterwards.
   #writes = new Map<string, number>();
+  #log = new Map<string, { revision: number; id: string | null }[]>();
   revision(bucket: string): number {
     return this.#writes.get(bucket) ?? 0;
   }
-  #wrote(bucket: string) {
-    this.#writes.set(bucket, (this.#writes.get(bucket) ?? 0) + 1);
+  #wrote(bucket: string, id: string | null) {
+    const revision = this.revision(bucket) + 1;
+    this.#writes.set(bucket, revision);
+    let log = this.#log.get(bucket);
+    if (!log) this.#log.set(bucket, (log = []));
+    log.push({ revision, id });
+    if (log.length > WRITE_LOG) log.splice(0, log.length - WRITE_LOG);
+  }
+  // Ids written after `revision` (for the shared decoded-bucket cache, #98), or null
+  // when unknown: the log was trimmed or a transaction rolled back.
+  changedSince(bucket: string, revision: number): Set<string> | null {
+    const current = this.revision(bucket);
+    if (!Number.isInteger(revision) || revision > current) return null;
+    if (revision === current) return new Set();
+    const log = this.#log.get(bucket) ?? [];
+    if (!log.length || log[0].revision > revision + 1) return null;
+    const ids = new Set<string>();
+    for (const entry of log) {
+      if (entry.revision <= revision) continue;
+      if (entry.id === null) return null;
+      ids.add(entry.id);
+    }
+    return ids;
   }
 
   put(bucket: string, id: string, value: unknown) {
@@ -113,7 +138,7 @@ export class EncryptedStore {
       'INSERT INTO records VALUES(?,?,?) ON CONFLICT(bucket,id) DO UPDATE SET payload=excluded.payload',
       [bucket, id, encode(value)],
     );
-    this.#wrote(bucket);
+    this.#wrote(bucket, id);
   }
 
   scope(): StoreScope {
@@ -134,7 +159,7 @@ export class EncryptedStore {
       'DELETE FROM records WHERE bucket=? AND id=?',
       [bucket, id],
     );
-    this.#wrote(bucket);
+    this.#wrote(bucket, id);
   }
 
   // Synchronous like better-sqlite3's transaction(); nested calls become savepoints.
@@ -153,6 +178,7 @@ export class EncryptedStore {
       db.executeSync(this.#depth === 0 ? 'COMMIT' : `RELEASE ${savepoint}`);
       return result;
     } catch (error) {
+      for (const bucket of BUCKETS) this.#wrote(bucket, null);
       this.#depth--;
       if (this.#depth === 0) db.executeSync('ROLLBACK');
       else {
@@ -186,6 +212,8 @@ export class EncryptedStore {
   close() {
     const db = this.#db;
     this.#db = null;
+    // Decoded rows (plaintext) cached by the shared replica code go with the store.
+    require('@thread/e2ee/src/bucketCache').forgetBucketRows(this);
     db?.close();
   }
 }

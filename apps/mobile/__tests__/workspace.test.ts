@@ -312,12 +312,12 @@ test('a failed sync open waits before asking the server again', async () => {
 test('reopening sync pulls changes and checks the state digest instead of a snapshot', async () => {
   const server = createFakeThreadServer(scope.vaultId);
   const a = await ownerWithTask(server);
-  expect(server.counts).toEqual({ digests: 0, snapshots: 1 });
+  expect(server.counts).toMatchObject({ digests: 0, snapshots: 1 });
   for (let n = 0; n < 6; n++) {
     a.sync.reset();
     await a.sync.syncNow();
   }
-  expect(server.counts).toEqual({ digests: 6, snapshots: 1 });
+  expect(server.counts).toMatchObject({ digests: 6, snapshots: 1 });
   expect(a.sync.status().phase).toBe('ACTIVE');
 });
 
@@ -331,7 +331,7 @@ test('a state digest mismatch restores from a snapshot', async () => {
   });
   a.sync.reset();
   await a.sync.syncNow();
-  expect(server.counts).toEqual({ digests: 1, snapshots: 2 });
+  expect(server.counts).toMatchObject({ digests: 1, snapshots: 2 });
   expect(visibleFields(a)).toEqual({ title: '처음', memo: '' });
 });
 
@@ -343,4 +343,41 @@ test('a server without the state digest still reopens from changes', async () =>
   await a.sync.syncNow();
   expect(server.counts.snapshots).toBe(1);
   expect(a.sync.status().phase).toBe('ACTIVE');
+});
+
+test('queued offline edits are pushed in order with one pull per group of receipts', async () => {
+  const server = createFakeThreadServer(scope.vaultId);
+  const a = await ownerWithTask(server);
+  const replica = a.sync.replica();
+  const version = (id: string) =>
+    a.session.use(store => store.get('visible', id)?.version ?? '0');
+  // 40 new tasks, and the same task edited 5 times (each edit waits for the previous one).
+  for (let i = 0; i < 40; i++)
+    replica.enqueue([
+      {
+        objectId: `offline-${i}`,
+        baseVersion: '0',
+        deleted: false,
+        fields: [{ slot: 0, value: task({ title: `offline ${i}`, memo: '' }) }],
+      },
+    ]);
+  for (let i = 0; i < 5; i++)
+    replica.enqueue([
+      {
+        objectId: 'task-1',
+        baseVersion: version('task-1'),
+        deleted: false,
+        fields: [{ slot: 0, value: task({ title: `edit ${i}`, memo: '' }) }],
+      },
+    ]);
+  const before = {
+    accepted: server.accepted.length,
+    pulls: server.counts.pulls,
+  };
+  await a.sync.syncNow();
+  expect(server.accepted.length - before.accepted).toBe(45);
+  expect(a.sync.status().pending).toBe(0);
+  expect(visibleFields(a)).toEqual({ title: 'edit 4', memo: '' });
+  // Was one pull per push (45); now a pull per group plus one per dependent edit.
+  expect(server.counts.pulls - before.pulls).toBeLessThan(15);
 });
