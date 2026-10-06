@@ -149,7 +149,7 @@ const TASKS = [
   { t: '영어 회화 스터디 준비', cat: '공부', color: '#b58cff', rt: '4일 남음', imp: false },
   { t: '치과 예약', cat: '생활', color: '#44c98b', rt: '8일 남음', imp: true },
 ];
-const s = { platform: 'desktop', dscreen: 'all', mscreen: 'tasks', theme: 'dark', mark: true, fit: true, catPos: 'title', stars: TASKS.map(t => t.imp) };
+const s = { platform: 'desktop', dscreen: 'all', mscreen: 'tasks', theme: 'dark', mark: false, fit: false, catPos: 'title', stars: TASKS.map(t => t.imp) };
 const shown = () => (s.platform === 'desktop' ? s.dscreen : s.mscreen) === 'important' ? TASKS.map((t, i) => [t, i]).filter(([, i]) => s.stars[i]) : TASKS.map((t, i) => [t, i]);
 const count = () => s.stars.filter(Boolean).length;
 
