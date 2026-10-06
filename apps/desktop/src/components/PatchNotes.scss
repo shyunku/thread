@@ -1,0 +1,76 @@
+// Same look as the update dialog (ReleaseAlert.scss); above the settings modal, below it.
+.patch-notes-backdrop {
+  position: fixed;
+  inset: 42px 0 0;
+  z-index: 1400;
+  display: grid;
+  place-items: center;
+  background: #080a10b3;
+  .patch-notes {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    width: min(520px, calc(100% - 32px));
+    max-height: min(640px, calc(100% - 48px));
+    padding: 24px 24px 18px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--panel);
+    color: var(--text);
+    box-shadow: 0 22px 65px #0008;
+    overflow-wrap: anywhere;
+    outline: none;
+    &__heading { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+    // 120% of the update dialog symbol.
+    &__symbol { display: grid; place-items: center; flex: 0 0 48px; width: 48px; height: 48px; border: 1px solid #6595ff55; border-radius: 13px; background: #29457055; color: #7da8ff; font-size: 23px; }
+    &__eyebrow { color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: 1.4px; }
+    h2 { font-size: 20px; line-height: 1.35; margin: 2px 0 0; }
+    &__body { flex: 1; min-height: 0; overflow-y: auto; margin: 0 -24px; padding: 0 24px; }
+    &__empty { margin: 8px 0 12px; color: var(--secondary); font-size: 13px; }
+    &__version { padding: 14px 0; border-top: 1px solid var(--border); }
+    &__version:first-child { padding-top: 4px; border-top: 0; }
+    &__version-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 2px; }
+    &__version-head strong { font-size: 15px; }
+    &__version-head > span:not(.patch-notes__badge) { color: var(--muted); font-size: 12px; }
+    &__summary { display: block; margin: 0 0 6px; color: var(--secondary); font-size: 13px; line-height: 1.5; }
+    &__kind { display: inline-block; margin: 8px 0 4px; padding: 1px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; }
+    &__kind--new { background: #29457055; color: #7da8ff; }
+    &__kind--improved { background: #1d3a2b; color: var(--success); }
+    &__kind--fixed { background: #3a2f1d; color: var(--warning); }
+    &__item { margin: 4px 0 8px 2px; }
+    &__item strong { display: block; font-size: 14px; font-weight: 600; line-height: 1.5; }
+    // Details: smaller and lower contrast than the title.
+    &__item span { display: block; color: var(--muted); font-size: 12px; line-height: 1.55; }
+    &__card { margin-bottom: 8px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+    &__card-head { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; border: 0; border-radius: 10px; background: none; color: inherit; text-align: left; cursor: pointer; font: inherit; }
+    &__card-head:focus-visible { outline: 2px solid #83aaff; outline-offset: -2px; }
+    &__card-text { flex: 1; min-width: 0; }
+    &__card-text .patch-notes__version-head { margin: 0; }
+    &__card-text .patch-notes__summary { margin: 1px 0 0; }
+    &__expand { display: grid; place-items: center; flex: 0 0 28px; height: 28px; border-radius: 7px; color: var(--muted); font-size: 15px; transition: transform 0.15s; }
+    &__card-head:hover &__expand { background: var(--hover); }
+    &__card--open &__expand { transform: rotate(180deg); }
+    &__card-body { padding: 0 12px 8px; border-top: 1px solid var(--border); }
+    &__badge { padding: 0 7px; border-radius: 6px; background: var(--selected); color: var(--accent); font-size: 11px; font-weight: 700; }
+    &__foot { display: flex; align-items: center; gap: 10px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+    &__grow { flex: 1; }
+    &__check { position: relative; display: flex; align-items: center; gap: 8px; color: var(--secondary); font-size: 13px; cursor: pointer; user-select: none; }
+    &__check input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+    &__box { display: grid; place-items: center; width: 16px; height: 16px; border: 1.5px solid var(--muted); border-radius: 4px; font-size: 12px; }
+    &__check--on &__box { border-color: var(--accent); background: var(--accent); color: #fff; }
+    &__check input:focus-visible + &__box { outline: 2px solid #83aaff; outline-offset: 2px; }
+    button:not(.patch-notes__card-head) {
+      padding: 9px 14px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: #294570;
+      color: var(--text);
+      font-weight: 600;
+      cursor: pointer;
+      &:hover { background: #355c9e; }
+      &:focus-visible { outline: 2px solid #83aaff; outline-offset: 2px; }
+    }
+    button.patch-notes__secondary { border-color: transparent; background: transparent; color: var(--secondary); font-weight: 500; }
+    button.patch-notes__secondary:hover { background: var(--hover); }
+  }
+}

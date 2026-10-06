@@ -114,6 +114,7 @@ docker rm -f thread-restore-check
 - `apps/desktop/package.json`의 `version`을 올린다. 한 번 게시한 버전 번호는 다시 쓸 수 없다.
 - **beta 버전(`x.y.z-beta.N`)은 필수 업데이트로 지정할 수 없다.** 구버전 사용을 막아야 하면 정식 버전으로 낸다.
 - 필수(`mandatory: true`)로 게시한 버전은 이후 저장소에서도 필수로 유지된다. 그보다 낮은 버전의 앱은 그 버전 이상으로 올라가야 계속 쓸 수 있다.
+- **업데이트 내역(#99)**: 출시가 확정되면 빌드 전에 `docs/patchNotes/desktop/win/<버전>.json`(Mac도 내면 `desktop/mac`)을 쓰고 사용자 확인을 받은 뒤 `node scripts/patchNotes.cjs`로 앱에 넣을 파일을 만든다. 형식과 작성 규칙은 [docs/patchNotes/README.md](patchNotes/README.md). 현재 버전 파일이 없으면 `pnpm build:desktop`이 멈춘다. 모바일 출시도 같은 순서로 `mobile/android`, `mobile/ios`를 쓴다.
 
 ### 6.2 빌드 (키가 있는 Windows PC)
 1. `apps/desktop/public/resources/update-trust/root.json`이 현재 root와 같은지 확인한다. 다르거나 없으면 빌드가 중단된다.

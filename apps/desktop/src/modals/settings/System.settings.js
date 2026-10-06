@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import IpcSender from "../../utils/IpcSender";
 import { Badge, SettingsButton, SettingsCard, SettingsPage, SettingsRow, Skeleton, Toggle } from "./SettingsUI";
 
-const PREVIEW = { autoStart: true, closeToTray: true, hardwareAcceleration: true, betaUpdates: false, restartRequired: false };
+const PREVIEW = { autoStart: true, closeToTray: true, hardwareAcceleration: true, betaUpdates: false, showPatchNotes: true, restartRequired: false };
 
 // App-level preferences stored by main (app-settings.json).
 export function useAppSettings(preview = false) {

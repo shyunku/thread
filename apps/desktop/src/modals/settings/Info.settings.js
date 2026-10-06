@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { IoOpenOutline } from "react-icons/io5";
+import { IoChevronForward, IoOpenOutline } from "react-icons/io5";
+import { OPEN_PATCH_NOTES } from "../../components/PatchNotes";
 import PackageJson from "../../../package.json";
 import IpcSender from "../../utils/IpcSender";
 import { SettingsButton, SettingsCard, SettingsPage, SettingsRow, SettingsSection, Skeleton, Toggle } from "./SettingsUI";
@@ -38,6 +39,13 @@ const SettingInfo = ({ preview = false }) => {
           {settings ? <Toggle label="베타 버전 받기" checked={settings.betaUpdates} onChange={(value) => update({ betaUpdates: value })} />
             : <Skeleton width={38} height={22} />}
         </SettingsRow>
+        <button type="button" className="settings-row settings-row--link" onClick={() => window.dispatchEvent(new Event(OPEN_PATCH_NOTES))}>
+          <span className="settings-row__text">
+            <span className="settings-row__label">업데이트 내역</span>
+            <span className="settings-row__desc">최근 업데이트 12개까지 볼 수 있어요.</span>
+          </span>
+          <span className="settings-row__chevron" aria-hidden="true"><IoChevronForward /></span>
+        </button>
       </SettingsCard>
       <SettingsSection>
         <SettingsCard>

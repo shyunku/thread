@@ -24,6 +24,7 @@ import {
   type Scope,
 } from '@/core/model/view';
 import { defaultPrefs, type Prefs } from '@/core/prefs';
+import { APP_VERSION } from '@/core/patchNotes';
 import type { SyncStatus } from '@/core/sync/syncService';
 import type { VaultPhase } from '@/core/vault/session';
 
@@ -108,6 +109,24 @@ export function AppProvider({
       .finally(() => setReady(true));
     return () => runtime.account.onChange(null);
   }, [runtime]);
+
+  // Patch notes (#99): versions before 2.0.1 did not record the last shown version. An
+  // install with a signed-in account is an update (shows the running version's notes);
+  // otherwise it is a new install and shows nothing until the next update.
+  const bootChecked = useRef(false);
+  useEffect(() => {
+    if (!ready || bootChecked.current) return;
+    bootChecked.current = true;
+    if (!prefs.patchNotesSeen && !user) {
+      setPrefsState(current => {
+        const next = { ...current, patchNotesSeen: APP_VERSION };
+        try {
+          runtime.prefs.save(next);
+        } catch {}
+        return next;
+      });
+    }
+  }, [ready, user, prefs.patchNotesSeen, runtime]);
 
   const account = useMemo(
     () => (user ? runtime.forAccount(user.uid) : null),

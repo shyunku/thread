@@ -62,6 +62,22 @@
   &__label { color: var(--text); font-size: 14px; font-weight: 600; line-height: 1.4; }
   &__desc { color: var(--secondary); font-size: 12.5px; line-height: 1.5; overflow-wrap: anywhere; }
   &__control { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+
+  // A whole row that opens something (e.g. 업데이트 내역).
+  &--link {
+    width: 100%;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    &:last-child { border-radius: 0 0 var(--radius) var(--radius); }
+    &:hover { background: var(--hover); }
+    &:focus-visible { outline: 2px solid #83aaff; outline-offset: -2px; }
+    .settings-row__label, .settings-row__desc { display: block; }
+  }
+  &__chevron { display: grid; place-items: center; color: var(--muted); font-size: 16px; }
 }
 
 .settings-button {

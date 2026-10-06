@@ -120,6 +120,10 @@ const IpcSender = {
     get: (callback) => sender("settings/get", callback),
     set: (patch, callback) => sender("settings/set", callback, patch),
   },
+  patchNotes: {
+    state: (callback) => sender("patch-notes/state", callback),
+    seen: (callback) => sender("patch-notes/seen", callback),
+  },
   openExternal: (target, callback) => sender("system/openExternal", callback, target),
   syncV2: {
     getStatus: (callback) => sender("sync-v2/getStatus", callback),

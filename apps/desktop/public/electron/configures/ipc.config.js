@@ -158,6 +158,23 @@ module.exports = function (s) {
     }
   });
 
+  // Patch notes shown after an update (#99): the last shown version. Main window only.
+  const patchNotesState = require("../modules/patchNotesState");
+  const appVersion = () => require("../../../package.json").version;
+  s.register("patch-notes/state", (event, reqId) => {
+    if (event.sender !== s.windowService.mainWindow?.webContents) return s.sender("patch-notes/state", reqId, false, null);
+    s.sender("patch-notes/state", reqId, true, patchNotesState.readSeen(app.getPath("userData"), appVersion()));
+  });
+  s.register("patch-notes/seen", (event, reqId) => {
+    if (event.sender !== s.windowService.mainWindow?.webContents) return s.sender("patch-notes/seen", reqId, false, null);
+    try {
+      patchNotesState.markSeen(app.getPath("userData"), appVersion());
+      s.sender("patch-notes/seen", reqId, true, null);
+    } catch {
+      s.sender("patch-notes/seen", reqId, false, null);
+    }
+  });
+
   // External links: Thread's site over HTTPS and the contact address only.
   s.register("system/openExternal", (event, reqId, target) => {
     if (event.sender !== s.windowService.mainWindow?.webContents) return s.sender("system/openExternal", reqId, false, null);

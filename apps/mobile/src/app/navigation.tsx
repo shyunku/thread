@@ -30,6 +30,9 @@ import TaskDetailScreen from '@/screens/app/TaskDetailScreen';
 import SearchScreen from '@/screens/app/SearchScreen';
 import CategoriesScreen from '@/screens/app/CategoriesScreen';
 import DataSettingsScreen from '@/screens/app/DataSettingsScreen';
+import PatchNotesScreen, {
+  PatchNotesSheet,
+} from '@/screens/app/PatchNotesScreen';
 import ApproveDeviceScreen from '@/screens/app/ApproveDeviceScreen';
 import KeyChangeScreen from '@/screens/app/KeyChangeScreen';
 
@@ -99,50 +102,53 @@ function Tabs() {
   const { prefs } = useApp();
   const insets = useSafeAreaInsets();
   return (
-    <Tab.Navigator
-      initialRouteName={
-        prefs.startTab === 'calendar'
-          ? 'Calendar'
-          : prefs.startTab === 'timeline'
-          ? 'Timeline'
-          : 'Tasks'
-      }
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: theme.accent,
-        tabBarLabel: label,
-        tabBarInactiveTintColor: theme.muted,
-        tabBarStyle: {
-          backgroundColor: theme.panel,
-          borderTopColor: theme.border,
-          height: 62 + insets.bottom,
-          paddingTop: 6,
-        },
-        tabBarLabelStyle: { fontSize: 11 },
-        sceneStyle: { backgroundColor: theme.canvas, paddingTop: insets.top },
-      }}
-    >
-      <Tab.Screen
-        name="Tasks"
-        component={TasksScreen}
-        options={{ title: '할 일', tabBarIcon: icon(ListChecks) }}
-      />
-      <Tab.Screen
-        name="Calendar"
-        component={CalendarScreen}
-        options={{ title: '캘린더', tabBarIcon: icon(CalendarDays) }}
-      />
-      <Tab.Screen
-        name="Timeline"
-        component={TimelineScreen}
-        options={{ title: '일정', tabBarIcon: icon(Clock3) }}
-      />
-      <Tab.Screen
-        name="Settings"
-        component={SettingsScreen}
-        options={{ title: '설정', tabBarIcon: icon(Settings) }}
-      />
-    </Tab.Navigator>
+    <>
+      <Tab.Navigator
+        initialRouteName={
+          prefs.startTab === 'calendar'
+            ? 'Calendar'
+            : prefs.startTab === 'timeline'
+            ? 'Timeline'
+            : 'Tasks'
+        }
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: theme.accent,
+          tabBarLabel: label,
+          tabBarInactiveTintColor: theme.muted,
+          tabBarStyle: {
+            backgroundColor: theme.panel,
+            borderTopColor: theme.border,
+            height: 62 + insets.bottom,
+            paddingTop: 6,
+          },
+          tabBarLabelStyle: { fontSize: 11 },
+          sceneStyle: { backgroundColor: theme.canvas, paddingTop: insets.top },
+        }}
+      >
+        <Tab.Screen
+          name="Tasks"
+          component={TasksScreen}
+          options={{ title: '할 일', tabBarIcon: icon(ListChecks) }}
+        />
+        <Tab.Screen
+          name="Calendar"
+          component={CalendarScreen}
+          options={{ title: '캘린더', tabBarIcon: icon(CalendarDays) }}
+        />
+        <Tab.Screen
+          name="Timeline"
+          component={TimelineScreen}
+          options={{ title: '일정', tabBarIcon: icon(Clock3) }}
+        />
+        <Tab.Screen
+          name="Settings"
+          component={SettingsScreen}
+          options={{ title: '설정', tabBarIcon: icon(Settings) }}
+        />
+      </Tab.Navigator>
+      <PatchNotesSheet />
+    </>
   );
 }
 
@@ -212,6 +218,11 @@ function Root() {
           <Stack.Screen
             name="DataSettings"
             component={DataSettingsScreen}
+            options={padded}
+          />
+          <Stack.Screen
+            name="PatchNotes"
+            component={PatchNotesScreen}
             options={padded}
           />
           <Stack.Screen

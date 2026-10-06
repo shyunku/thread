@@ -21,6 +21,7 @@ import ModalRouter from "./routers/ModalRouter";
 import { isDevMode } from "./utils/Common";
 import "styles/surfaces.scss";
 import ReleaseAlert from "./components/ReleaseAlert";
+import PatchNotes from "./components/PatchNotes";
 import SettingsModal from "./modals/Settings.modal";
 
 if (isDevMode()) {
@@ -56,6 +57,7 @@ const AppPreview = appPreview ? require("./preview/appPreview").default : null;
 root.render(appPreview ? (
   <Provider store={store}>
     <AppPreview />
+    {previewParams.get("patchNotes") && <PatchNotes preview={require("./preview/patchNotesPreview").patchNotesPreview(previewParams)} />}
   </Provider>
 ) : settingsPreview ? (
   <Provider store={store}>
@@ -70,6 +72,7 @@ root.render(appPreview ? (
       <Loading.Loading />
       <MainRouter />
       <ReleaseAlert />
+      <PatchNotes />
       <AxiosMiddleware />
     </PersistGate>
   </Provider>

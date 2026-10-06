@@ -1,9 +1,11 @@
 import { useDispatch, useSelector } from "react-redux";
 import { prefsSelector, setPrefs } from "../../store/prefsSlice";
-import { Segmented, SettingsCard, SettingsPage, SettingsRow, Soon } from "./SettingsUI";
+import { Segmented, SettingsCard, SettingsPage, SettingsRow, Skeleton, Soon, Toggle } from "./SettingsUI";
+import { useAppSettings } from "./System.settings";
 
-const SettingCommon = () => {
+const SettingCommon = ({ preview = false }) => {
   const prefs = useSelector(prefsSelector);
+  const [settings, update] = useAppSettings(preview);
   const dispatch = useDispatch();
   const set = (patch) => dispatch(setPrefs(patch));
   return (
@@ -24,6 +26,10 @@ const SettingCommon = () => {
         <SettingsRow label={<>테마<Soon /></>} description="다크, 라이트, 시스템 설정 따르기">
           <Segmented label="테마" value="dark" disabled
             options={[{ value: "dark", label: "다크" }, { value: "light", label: "라이트" }, { value: "system", label: "시스템" }]} />
+        </SettingsRow>
+        <SettingsRow label="업데이트 후 변경 내용 보기" description="새 버전으로 바뀐 뒤 처음 열 때 바뀐 점을 창으로 보여 줘요.">
+          {settings ? <Toggle label="업데이트 후 변경 내용 보기" checked={settings.showPatchNotes !== false} onChange={(value) => update({ showPatchNotes: value })} />
+            : <Skeleton width={38} height={22} />}
         </SettingsRow>
       </SettingsCard>
     </SettingsPage>

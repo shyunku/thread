@@ -12,6 +12,10 @@ export type Prefs = {
   sort: 'due' | 'importance' | 'remaining' | 'created';
   // When an opened secret category locks again (#88): app closed/locked, or each visit.
   secretRelock: 'session' | 'each';
+  // Show the patch notes once after an update (#99), and the last version shown
+  // ('' = not recorded yet).
+  showPatchNotes: boolean;
+  patchNotesSeen: string;
 };
 
 export const defaultPrefs: Prefs = Object.freeze({
@@ -23,6 +27,8 @@ export const defaultPrefs: Prefs = Object.freeze({
   listDoneOpen: false,
   sort: 'due',
   secretRelock: 'session',
+  showPatchNotes: true,
+  patchNotesSeen: '',
 });
 
 const valid: { [K in keyof Prefs]: (value: unknown) => boolean } = {
@@ -35,6 +41,10 @@ const valid: { [K in keyof Prefs]: (value: unknown) => boolean } = {
   sort: v =>
     v === 'due' || v === 'importance' || v === 'remaining' || v === 'created',
   secretRelock: v => v === 'session' || v === 'each',
+  showPatchNotes: v => typeof v === 'boolean',
+  patchNotesSeen: v =>
+    typeof v === 'string' &&
+    (v === '' || /^d+.d+.d+(-[0-9A-Za-z.-]+)?$/.test(v)),
 };
 
 export function sanitize(raw: unknown): Prefs {

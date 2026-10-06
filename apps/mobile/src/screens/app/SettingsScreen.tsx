@@ -4,6 +4,7 @@ import {
   Linking,
   Pressable,
   ScrollView,
+  Switch,
   Text,
   View,
 } from 'react-native';
@@ -154,6 +155,12 @@ export default function SettingsScreen() {
             title="비밀 카테고리 잠금"
             value={label('secretRelock')}
             onPress={() => setChoice('secretRelock')}
+          />
+          <SwitchItem
+            title="업데이트 후 변경 내용 보기"
+            detail="새 버전으로 바뀐 뒤 처음 열 때 바뀐 점을 보여 줘요."
+            value={prefs.showPatchNotes}
+            onChange={showPatchNotes => setPrefs({ showPatchNotes })}
             last
           />
         </Group>
@@ -236,6 +243,10 @@ export default function SettingsScreen() {
         <Group title="정보">
           <Item title="버전" value={VERSION} />
           <Item
+            title="업데이트 내역"
+            onPress={() => navigation.navigate('PatchNotes')}
+          />
+          <Item
             title="개인정보처리방침"
             onPress={() => Linking.openURL(PRIVACY_URL)}
           />
@@ -307,6 +318,51 @@ export function Group({
         {children}
       </View>
     </>
+  );
+}
+
+function SwitchItem({
+  title,
+  detail,
+  value,
+  onChange,
+  last,
+}: {
+  title: string;
+  detail: string;
+  value: boolean;
+  onChange: (value: boolean) => void;
+  last?: boolean;
+}) {
+  const theme = useTheme();
+  return (
+    <Pressable
+      onPress={() => onChange(!value)}
+      style={({ pressed }) => ({
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        paddingHorizontal: 14,
+        paddingVertical: 12,
+        borderBottomWidth: last ? 0 : 1,
+        borderColor: theme.border,
+        backgroundColor: pressed ? theme.hover : 'transparent',
+      })}
+    >
+      <View style={{ flex: 1 }}>
+        <Text style={{ color: theme.text, fontSize: 15 }}>{title}</Text>
+        <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
+          {detail}
+        </Text>
+      </View>
+      <Switch
+        value={value}
+        onValueChange={onChange}
+        accessibilityLabel={title}
+        trackColor={{ true: theme.accent, false: theme.border }}
+        thumbColor="#fff"
+      />
+    </Pressable>
   );
 }
 

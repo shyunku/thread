@@ -8,6 +8,8 @@ const DEFAULTS = Object.freeze({
   closeToTray: true,
   hardwareAcceleration: true,
   betaUpdates: false,
+  // Show the patch notes window once after an update (#99).
+  showPatchNotes: true,
 });
 
 function settingsFile(app) {

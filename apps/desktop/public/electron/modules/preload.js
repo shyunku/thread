@@ -27,6 +27,8 @@ const REQUEST_TOPICS = Object.freeze([
   "system/openExternal",
   "settings/get",
   "settings/set",
+  "patch-notes/state",
+  "patch-notes/seen",
   "system/maximize_window",
   "system/minimize_window",
   "system/restore_window",
