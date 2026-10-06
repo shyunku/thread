@@ -106,7 +106,7 @@ module.exports = function (s) {
     const reply=await require("../e2ee/vaultIpcReply").vaultIpcReply(s,topic,action,args);
     event.sender.send(topic,reqId,reply);
   });
-  for (const action of ["get", "download", "install"]) {
+  for (const action of ["get", "download", "install", "update", "cancel"]) {
     const topic = "release-alert/" + action;
     s.register(topic, async (event, reqId) => {
       if (event.sender !== s.windowService.mainWindow?.webContents) {
@@ -117,6 +117,8 @@ module.exports = function (s) {
         if (action === "get") await s.releaseAlertService.check();
         if (action === "download") await s.releaseAlertService.download();
         if (action === "install") await s.releaseAlertService.install();
+        if (action === "update") await s.releaseAlertService.update();
+        if (action === "cancel") s.releaseAlertService.cancel();
         s.sender(topic, reqId, true, s.releaseAlertService.current);
       } catch { s.sender(topic, reqId, false, null); }
     });

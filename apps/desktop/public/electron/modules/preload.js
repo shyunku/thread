@@ -95,6 +95,8 @@ const REQUEST_TOPICS = Object.freeze([
   "release-alert/get",
   "release-alert/download",
   "release-alert/install",
+  "release-alert/update",
+  "release-alert/cancel",
   "update_check@continue"
 ]);
 const EVENT_TOPICS = Object.freeze([

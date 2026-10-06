@@ -100,9 +100,15 @@ class ReleaseAlertService {
     return this.checking;
   }
   async download() {
-    if (this.downloading) return this.downloading;
+    // A download started for a version that a newer check replaced still has to finish
+    // (the trusted update queue runs one at a time); then this one starts.
+    while (this.downloading) {
+      if (this.downloadingAlert === this.current) return this.downloading;
+      await this.downloading;
+    }
     const alert = this.current;
     if (!alert || alert.status === "ready") return this.current;
+    this.downloadingAlert = alert;
     this.downloading = (async () => {
       alert.status = "downloading";
       this.publish();
@@ -124,11 +130,51 @@ class ReleaseAlertService {
       return this.current;
     })().finally(() => {
       this.downloading = null;
+      this.downloadingAlert = null;
     });
     return this.downloading;
   }
+  // One-step update (#100): download when needed, then install and restart. Cancelling
+  // only stops waiting; a running download still finishes so the next update is instant.
+  async update() {
+    const alert = this.current;
+    if (!alert) throw Error("NO_UPDATE");
+    if (alert.status === "installing") return alert;
+    alert.autoInstall = true;
+    alert.installFailed = false;
+    this.publish();
+    if (alert.status !== "ready") await this.download();
+    if (this.current !== alert || !alert.autoInstall || alert.status === "installing") return this.current;
+    if (alert.status !== "ready") {
+      alert.autoInstall = false;
+      this.publish();
+      return this.current;
+    }
+    alert.status = "installing";
+    this.publish();
+    try {
+      await this.install();
+    } catch (error) {
+      if (this.current === alert) {
+        alert.status = "ready";
+        alert.autoInstall = false;
+        alert.installFailed = true;
+        this.publish();
+      }
+      throw error;
+    }
+    return this.current;
+  }
+  cancel() {
+    const alert = this.current;
+    if (alert && alert.status !== "installing" && alert.autoInstall) {
+      alert.autoInstall = false;
+      this.publish();
+    }
+    return this.current;
+  }
   async install() {
-    if (this.downloading || this.current?.status !== "ready" || !this.installerPath)
+    if (this.downloading || !["ready", "installing"].includes(this.current?.status) || !this.installerPath)
       throw Error("INSTALLER_NOT_READY");
     const installerPath = this.installerPath;
     const relaunch = await this.group.updaterService.installNewVersion(

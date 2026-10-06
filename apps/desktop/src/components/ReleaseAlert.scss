@@ -33,6 +33,10 @@
     &__status-dot { flex: 0 0 7px; height: 7px; margin-top: 8px; border-radius: 50%; background: #78a4ff; }
     &__status-dot--ready { background: #44c98b; }
     &__status-dot--failed { background: #f18585; }
+    &__status-text { flex: 1; min-width: 0; }
+    // Indeterminate: the download and install report no progress.
+    &__progress { position: relative; height: 4px; margin-top: 10px; overflow: hidden; border-radius: 4px; background: #2b3445; }
+    &__progress i { position: absolute; top: 0; bottom: 0; left: -35%; width: 35%; border-radius: 4px; background: #6294ff; animation: release-alert-progress 1.4s ease-in-out infinite; }
     &__error { color: #f3afb5; }
     p {
       font-size: 14px;
@@ -63,4 +67,6 @@
     }
   }
   @media (max-width: 420px) { .release-alert { padding: 18px; } }
+  @media (prefers-reduced-motion: reduce) { .release-alert__progress i { left: 0; width: 100%; opacity: .5; animation: none; } }
 }
+@keyframes release-alert-progress { from { left: -35%; } to { left: 100%; } }

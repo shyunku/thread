@@ -48,7 +48,7 @@ if (settingsPreview) {
 const appPreview = process.env.NODE_ENV === "development" &&
   window.location.hash.startsWith("#/__app-preview");
 if (appPreview) {
-  require("./preview/appPreview").installAppPreviewIpc(require("./utils/IpcSender").default);
+  require("./preview/appPreview").installAppPreviewIpc(require("./utils/IpcSender").default, previewParams);
   store.dispatch(require("./store/accountSlice").setAccount({ uid: "preview", username: "Thread", offlineMode: false }));
 }
 const persistor = settingsPreview || appPreview ? null : persistStore(store);
@@ -58,6 +58,7 @@ root.render(appPreview ? (
   <Provider store={store}>
     <AppPreview />
     {previewParams.get("patchNotes") && <PatchNotes preview={require("./preview/patchNotesPreview").patchNotesPreview(previewParams)} />}
+    {previewParams.get("update") && <ReleaseAlert />}
   </Provider>
 ) : settingsPreview ? (
   <Provider store={store}>

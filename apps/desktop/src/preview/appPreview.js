@@ -52,14 +52,18 @@ function previewView() {
   };
 }
 
-export function installAppPreviewIpc(IpcSender) {
+// update=<status> (available, downloading, installing, failed, ready) shows a synthetic
+// pending update in the title bar and the update dialog (#100 screenshots).
+export function installAppPreviewIpc(IpcSender, params = new URLSearchParams()) {
   const ok = (data) => (...args) => args.find((arg) => typeof arg === "function")?.({ success: true, data });
   IpcSender.req = new Proxy({}, { get: () => new Proxy({}, { get: () => ok([]) }) });
   IpcSender.onAll = (_topic, listener) => listener;
   IpcSender.offAll = () => {};
   IpcSender.off = () => {};
   IpcSender.system = new Proxy({}, { get: (_, name) => (name === "isMaximizable" ? ok(true) : () => {}) });
-  IpcSender.releaseAlerts = { get: ok(null) };
+  const status = params.get("update");
+  const update = status ? { version: "2.0.10", mandatory: params.get("mandatory") === "1", status, autoInstall: ["downloading", "installing"].includes(status) } : null;
+  IpcSender.releaseAlerts = { get: ok(update), update: () => {}, cancel: () => {} };
 }
 
 function PreviewRoot() {

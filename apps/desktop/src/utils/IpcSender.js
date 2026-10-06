@@ -115,6 +115,8 @@ const IpcSender = {
     get: callback => sender("release-alert/get", callback),
     download: callback => sender("release-alert/download", callback),
     install: callback => sender("release-alert/install", callback),
+    update: callback => sender("release-alert/update", callback),
+    cancel: callback => sender("release-alert/cancel", callback),
   },
   appSettings: {
     get: (callback) => sender("settings/get", callback),

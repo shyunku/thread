@@ -88,3 +88,66 @@ test("installation requires a downloaded installer and delegates byte verificati
  expect(install).toHaveBeenCalledWith("win","fixture","fixture/verified.exe");
  expect(require("electron").app.exit).toHaveBeenCalledTimes(1);
 });
+
+test("one-step update downloads, then installs and restarts unless cancelled", async () => {
+  latest.mockResolvedValue({ version: "2.0.10", mandatory: false });
+  let finish;
+  const download = jest.fn(() => new Promise((resolve) => { finish = resolve; }));
+  const install = jest.fn().mockResolvedValue(false);
+  const service = new ReleaseAlertService();
+  service.inject({ updaterService: { updateToNewVersion: download, latestTrustedRelease: latest, installNewVersion: install } });
+  await service.check();
+  // Cancelled while downloading: the download finishes but nothing installs.
+  let running = service.update();
+  await Promise.resolve();
+  expect(service.current).toMatchObject({ status: "downloading", autoInstall: true });
+  service.cancel();
+  expect(service.current.autoInstall).toBe(false);
+  finish("fixture/2.0.10.exe");
+  await running;
+  expect(service.current.status).toBe("ready");
+  expect(install).not.toHaveBeenCalled();
+  // Already downloaded: update installs right away and exits.
+  await service.update();
+  expect(install).toHaveBeenCalledWith("win", "fixture", "fixture/2.0.10.exe");
+  expect(require("electron").app.exit).toHaveBeenCalledTimes(1);
+});
+
+test("a failed install or download leaves a retryable state", async () => {
+  latest.mockResolvedValue({ version: "2.0.10", mandatory: true });
+  const download = jest.fn().mockRejectedValueOnce(Error("offline")).mockResolvedValue("fixture/2.0.10.exe");
+  const install = jest.fn().mockRejectedValueOnce(Error("UPDATE_VERIFY_FAILED")).mockResolvedValue(false);
+  const service = new ReleaseAlertService();
+  service.inject({ updaterService: { updateToNewVersion: download, latestTrustedRelease: latest, installNewVersion: install } });
+  await service.check();
+  await service.update();
+  expect(service.current).toMatchObject({ status: "failed", autoInstall: false });
+  await expect(service.update()).rejects.toThrow("UPDATE_VERIFY_FAILED");
+  expect(service.current).toMatchObject({ status: "ready", autoInstall: false, installFailed: true });
+  await service.update();
+  expect(install).toHaveBeenCalledTimes(2);
+  expect(require("electron").app.exit).toHaveBeenCalledTimes(1);
+});
+
+test("a newer version found while another downloads waits for it, then downloads itself", async () => {
+  let finishOld;
+  const download = jest.fn()
+    .mockImplementationOnce(() => new Promise((resolve) => { finishOld = resolve; }))
+    .mockResolvedValue("fixture/2.0.11.exe");
+  const install = jest.fn().mockResolvedValue(false);
+  const service = new ReleaseAlertService();
+  service.inject({ updaterService: { updateToNewVersion: download, latestTrustedRelease: latest, installNewVersion: install } });
+  latest.mockResolvedValue({ version: "2.0.10", mandatory: false });
+  await service.check();
+  const old = service.download();
+  latest.mockResolvedValue({ version: "2.0.11", mandatory: false });
+  await service.check();
+  const running = service.update();
+  await Promise.resolve();
+  expect(download).toHaveBeenCalledTimes(1);
+  finishOld("fixture/2.0.10.exe");
+  await old;
+  await running;
+  expect(download).toHaveBeenLastCalledWith("win", "fixture", "2.0.11");
+  expect(install).toHaveBeenCalledWith("win", "fixture", "fixture/2.0.11.exe");
+});

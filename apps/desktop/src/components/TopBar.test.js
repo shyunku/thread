@@ -18,7 +18,9 @@ test("update indicator opens the notice and the version sits beside the logo",()
  expect(screen.getByText(/^(DEV|Thread \d)/).closest(".brand")).not.toBeNull();
  expect(button).toHaveTextContent("업데이트");
  act(()=>listeners["release-alert/available"]({success:true,data:{version:"2.0.0",status:"ready"}}));
- expect(screen.getByRole("button",{name:/설치 준비 완료/})).toHaveTextContent("업데이트 설치");
+ expect(screen.getByRole("button",{name:/설치 준비 완료/})).toHaveTextContent("업데이트");
+ act(()=>listeners["release-alert/available"]({success:true,data:{version:"2.0.0",status:"ready",installFailed:true}}));
+ expect(screen.getByRole("button",{name:/실패/})).toHaveTextContent("업데이트 실패");
  fireEvent.click(button);expect(open).toHaveBeenCalledTimes(1);
  view.unmount();window.removeEventListener("thread:open-update",open);
 });
