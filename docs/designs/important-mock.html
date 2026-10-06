@@ -144,10 +144,10 @@ const TASKS = [
   { t: '분기 회고 자료 정리', cat: '업무', color: '#6294ff', rt: '2시간 남음', imp: true, sub: '2/3' },
   { t: '운동 30분', cat: '생활', color: '#44c98b', rt: '4시간 남음', imp: false, repeat: '매일' },
   { t: '디자인 리뷰 피드백 반영', cat: '업무', color: '#6294ff', rt: '16시간 남음', imp: true, sub: '0/2' },
+  { t: '여행 숙소 알아보기', cat: null, color: null, rt: '1일 남음', imp: false },
   { t: '알고리즘 문제 2개 풀기', cat: '공부', color: '#b58cff', rt: '2일 남음', imp: false },
   { t: '영어 회화 스터디 준비', cat: '공부', color: '#b58cff', rt: '4일 남음', imp: false },
   { t: '치과 예약', cat: '생활', color: '#44c98b', rt: '8일 남음', imp: true },
-  { t: '여행 숙소 알아보기', cat: null, color: null, rt: '12일 남음', imp: false },
 ];
 const s = { platform: 'desktop', dscreen: 'all', mscreen: 'tasks', theme: 'dark', mark: true, fit: true, catPos: 'title', stars: TASKS.map(t => t.imp) };
 const shown = () => (s.platform === 'desktop' ? s.dscreen : s.mscreen) === 'important' ? TASKS.map((t, i) => [t, i]).filter(([, i]) => s.stars[i]) : TASKS.map((t, i) => [t, i]);
@@ -232,7 +232,7 @@ function notes() {
     </ul>
     <h3>그대로인 것</h3><ul><li>할 일 줄의 나머지 정보, 펼친 할 일·상세의 나머지 항목, 카테고리 목록.</li>
       <li>옛 버전 앱(PC 2.1.1 이하, 지금 폰 테스트판)은 별을 안 보여 주지만, 그 앱에서 할 일을 고쳐도 별 표시는 지워지지 않음.</li></ul>
-    ${d ? '<h3 class="q">정할 것</h3><ul class="q"><li>카테고리: 제목 앞 / 제목 옆 / 아래 줄 맨 앞(이름) / 아래 줄 점(모바일과 같음). 툴바 "카테고리"로 비교. 맨 아래 "여행 숙소 알아보기"는 카테고리가 없는 할 일.</li></ul>' : ''}</div>`;
+    ${d ? '<h3 class="q">정할 것</h3><ul class="q"><li>카테고리: 제목 앞 / 제목 옆 / 아래 줄 맨 앞(이름) / 아래 줄 점(모바일과 같음). 툴바 "카테고리"로 비교. 가운데 "여행 숙소 알아보기"는 카테고리가 없는 할 일.</li></ul>' : ''}</div>`;
 }
 function toolbar() {
   const b = (k, v, l) => `<button class="${s[k] === v ? 'on' : ''}" data-set="${k}:${v}">${l}</button>`;
