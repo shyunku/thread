@@ -28,11 +28,6 @@ const SubTaskProgressBar = ({
     >
       {done && <IoCheckmark />}
     </button>
-    {total > 0 && (
-      <span className="subtask-fraction">
-        {fulfilled}/{total}
-      </span>
-    )}
   </div>
 );
 export default SubTaskProgressBar;

@@ -15,6 +15,7 @@ import {
   Layers,
   Plus,
   Search,
+  Star,
   Sun,
   Tag,
 } from 'lucide-react-native';
@@ -35,7 +36,6 @@ import { AppBar, SectionHeader, SyncLine, TaskItem, useNow } from './parts';
 
 const SORTS: [SortMode, string][] = [
   ['due', '기한 순'],
-  ['importance', '중요도 순'],
   ['remaining', '남은 기한 순'],
   ['created', '생성일 순'],
 ];
@@ -43,6 +43,7 @@ const SORTS: [SortMode, string][] = [
 export function scopeTitle(scope: Scope, model: Model | null) {
   if (scope.kind === 'all') return '모든 할 일';
   if (scope.kind === 'today') return '오늘';
+  if (scope.kind === 'important') return '중요';
   return model?.categoryMap.get(scope.cid)?.title || '카테고리';
 }
 
@@ -79,6 +80,9 @@ export default function TasksScreen() {
         title={
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             {secret && <KeyRound color={theme.warning} size={19.5} />}
+            {scope.kind === 'important' && (
+              <Star color={theme.star} fill={theme.star} size={20} />
+            )}
             <Text
               numberOfLines={1}
               style={{
@@ -292,6 +296,11 @@ export function CategorySheet({
       label: '오늘',
       icon: <Sun color={theme.secondary} size={18} />,
     },
+    {
+      scope: { kind: 'important' },
+      label: '중요',
+      icon: <Star color={theme.star} fill={theme.star} size={18} />,
+    },
     ...(model?.categories ?? []).map(c => ({
       scope: { kind: 'category', cid: c.cid } as Scope,
       label: c.title,
@@ -325,7 +334,10 @@ export function CategorySheet({
             onPress={() => onSelect(row.scope)}
           >
             {row.icon}
-            <Text style={{ flex: 1, color: theme.text, fontSize: 15 }}>
+            <Text
+              numberOfLines={1}
+              style={{ flex: 1, color: theme.text, fontSize: 15 }}
+            >
               {row.label}
             </Text>
             <Text style={{ color: theme.muted, fontSize: 13 }}>
@@ -411,6 +423,8 @@ export function AddTaskSheet({
         due_date: due ?? undefined,
         repeat_period: repeat && due ? repeat : undefined,
         categories,
+        // Added in the 중요 view: starred from the start (#97).
+        important: scope.kind === 'important' || undefined,
         created_at: Date.now(),
       },
     ]);

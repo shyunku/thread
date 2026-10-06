@@ -336,12 +336,17 @@ class SyncV2Service {
       ipc.sender(topic, reqId, true);
       return true;
     }
+    // The plaintext v2 server rejects unknown fields; the star (#97) is E2EE-only.
+    if (topic === "task/updateTaskImportant") {
+      ipc.sender(topic, reqId, false, { syncV2Ack: true, code: "UNSUPPORTED_V2_ACTION" });
+      return true;
+    }
     if (mutationTopics.has(topic)) {
       s.mutating = (s.mutating || 0) + 1;
       try {
-        const id = await s.replica.enqueue(
-          command(topic, args, await s.replica.view())
-        );
+        const change = command(topic, args, await s.replica.view());
+        if (topic === "task/addTask") delete change.changes.important;
+        const id = await s.replica.enqueue(change);
         ipc.sender(topic, reqId, true, { syncV2Ack: true, clientChangeId: id });
         await this.publish(s);
         void s.run?.();

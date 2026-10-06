@@ -2,7 +2,7 @@ import SubTaskProgressBar from "./SubTaskProgressBar";
 import "./TodoItem.scss";
 
 import moment from "moment/moment";
-import { IoAdd, IoCalendarOutline } from "react-icons/io5";
+import { IoAdd, IoCalendarOutline, IoStar, IoStarOutline } from "react-icons/io5";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Task from "objects/Task";
 import ExpandableDiv, { VERTICAL } from "molecules/ExpandableDiv";
@@ -17,6 +17,17 @@ import TaskRemainTimer from "./TaskRemainTimer";
 import TaskRepeatMenu from "molecules/TaskRepeatMenu";
 import { fastInterval, fromRelativeTime } from "utils/Common";
 import { useTimeFormat, withTimeFormat } from "utils/timeFormat";
+
+const REPEAT_LABELS = { day: "매일", week: "매주", month: "매월", year: "매년" };
+
+// A category badge/tag in its own color: the color as text over ~15% of it.
+const categoryStyle = (category) => {
+  const color = category?.color || "#6294ff";
+  const tint = /^#[0-9a-f]{6}$/i.test(color)
+    ? `${color}26`
+    : `color-mix(in srgb, ${color} 15%, transparent)`;
+  return { color, tint };
+};
 
 const TodoItem = ({
   todo,
@@ -35,6 +46,7 @@ const TodoItem = ({
   onTaskCategoryDelete,
   onTaskDelete,
   onTaskRepeatChange,
+  onTaskImportantChange,
   onSubtaskAdded,
   onSubtaskTitleChange,
   onSubtaskDone,
@@ -142,6 +154,21 @@ const TodoItem = ({
   }, [taggedCategories]);
 
   const todoCtx = Task.fromObject(todo);
+  const firstCategory = categoryTags[0];
+  const firstCategoryStyle = categoryStyle(firstCategory);
+  const subtaskTotal = todo.getSubTaskCount();
+  // Second row line: remaining time · repeat · subtask progress.
+  const metaItems = [];
+  if (remainTimeMilli != null)
+    metaItems.push({
+      className: "remain-time",
+      title: `${dueDateText} ${dueTimeText}${todoCtx.repeatPeriod != null ? ` (${repeatTimeText})` : ""}`,
+      text: `${remainTimeText} ${remainTimeMilli < 0 ? "지남" : "남음"}`,
+    });
+  if (REPEAT_LABELS[todoCtx.repeatPeriod])
+    metaItems.push({ className: "repeat", title: repeatTimeText, text: `↻ ${REPEAT_LABELS[todoCtx.repeatPeriod]}` });
+  if (subtaskTotal > 0)
+    metaItems.push({ className: "subtask-count", text: `${todo.getFulfilledSubTaskCount()}/${subtaskTotal}` });
   const subtaskMap = useMemo(() => {
     return todoCtx.subtasks ?? {};
   });
@@ -293,19 +320,34 @@ const TodoItem = ({
               className={"color-label"}
               style={{ backgroundColor: categoryColor }}
             ></div>
-            <div className="title">{todo.title}</div>
-            {categoryTags.length > 0 && <span className="task-category-badge">{categoryTags[0].title}</span>}
-          </div>
-          <div className="right-side">
-            {remainTimeMilli != null && (
-              <div
-                className="remain-time"
-                title={`${dueDateText} ${dueTimeText}${todoCtx.repeatPeriod != null ? ` (${repeatTimeText})` : ""}`}
-              >
-                {remainTimeText} {remainTimeMilli < 0 ? "지남" : "남음"}
+            <div className="text">
+              <div className="title-line">
+                {firstCategory && (
+                  <span className="task-category-badge" style={{ color: firstCategoryStyle.color, backgroundColor: firstCategoryStyle.tint }}>
+                    {firstCategory.title}
+                  </span>
+                )}
+                <div className="title">{todo.title}</div>
               </div>
-            )}
+              {metaItems.length > 0 && (
+                <div className="meta">
+                  {metaItems.map((item, i) => [
+                    i > 0 && <span key={`sep-${i}`} className="separator">·</span>,
+                    <span key={i} className={item.className} title={item.title}>{item.text}</span>,
+                  ])}
+                </div>
+              )}
+            </div>
           </div>
+          <button type="button" className={"star-button" + JsxUtil.classByCondition(todo.important, "on")}
+            aria-label={todo.important ? "중요 해제" : "중요로 표시"}
+            title={todo.important ? "중요 해제" : "중요로 표시"}
+            onClick={(e) => {
+              e.stopPropagation();
+              onTaskImportantChange?.(todo.id, !todo.important);
+            }}>
+            {todo.important ? <IoStar /> : <IoStarOutline />}
+          </button>
         </DraggableZone>
         <ExpandableDiv
           reference={expandableRef}
@@ -343,10 +385,12 @@ const TodoItem = ({
             <div className="section summary">
               <div className="category-tags">
                 {categoryTags.map((category) => {
+                  const { color, tint } = categoryStyle(category);
                   return (
                     <div
                       className="category-tag card"
                       key={category.id}
+                      style={{ "--category-color": color, "--category-tint": tint }}
                       onClick={(e) =>
                         onTaskCategoryDelete?.(todo.id, category.id)
                       }

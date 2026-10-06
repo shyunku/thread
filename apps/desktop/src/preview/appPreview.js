@@ -17,21 +17,28 @@ function at(days, hour, minute = 0) {
 
 const inHours = (hours) => Date.now() + hours * 3600000;
 
-function previewView() {
+// long=1 adds a long title and a long category name (ellipsis checks).
+function previewView(long = false) {
   const categories = [
     { cid: "work", title: "업무", color: "#6294ff", secret: false, locked: false, created_at: at(-30, 9) },
     { cid: "study", title: "공부", color: "#b58cff", secret: false, locked: false, created_at: at(-30, 9) },
     { cid: "life", title: "생활", color: "#44c98b", secret: false, locked: false, created_at: at(-30, 9) },
+    ...(long ? [{ cid: "exam", title: "자격증 및 어학 시험 준비 (2026 하반기)", color: "#f0838b", secret: false, locked: false, created_at: at(-30, 9) }] : []),
   ];
   const tasks = [
-    { tid: "t1", title: "분기 회고 자료 정리", due: inHours(3), cats: ["work"], memo: "지난 분기 지표와 다음 목표 3가지" },
-    { tid: "t2", title: "디자인 리뷰 피드백 반영", due: at(1, 11), cats: ["work"] },
-    { tid: "t3", title: "운동 30분", due: inHours(5), cats: ["life"], repeat: DAY },
+    { tid: "t1", title: "분기 회고 자료 정리", due: inHours(3), cats: ["work"], memo: "지난 분기 지표와 다음 목표 3가지", important: true },
+    { tid: "t2", title: "디자인 리뷰 피드백 반영", due: at(1, 11), cats: ["work"], important: true },
+    { tid: "t9", title: "여행 숙소 알아보기", due: at(1, 20), cats: [] },
+    ...(long ? [
+      { tid: "t10", title: "다음 주 월요일 회의 전까지 분기별 마케팅 성과 보고서 초안 작성해서 팀에 공유하기", due: at(3, 18), cats: ["work"] },
+      { tid: "t11", title: "토익 단어 50개", due: at(3, 21), cats: ["exam"], repeat: "day" },
+    ] : []),
+    { tid: "t3", title: "운동 30분", due: inHours(5), cats: ["life"], repeat: "day" },
     { tid: "t4", title: "알고리즘 문제 2개 풀기", due: at(2, 22), cats: ["study"] },
     { tid: "t5", title: "영어 회화 스터디 준비", due: at(4, 19), cats: ["study"] },
     { tid: "t6", title: "주간 장보기", due: at(5, 15), cats: ["life"] },
     { tid: "t7", title: "릴리스 노트 작성", due: at(-1, 18), cats: ["work"], done: true },
-    { tid: "t8", title: "치과 예약", due: at(9, 10), cats: ["life"] },
+    { tid: "t8", title: "치과 예약", due: at(9, 10), cats: ["life"], important: true },
   ];
   return {
     categories,
@@ -39,7 +46,7 @@ function previewView() {
       tid: task.tid, title: task.title, memo: task.memo || "", due_date: task.due,
       done: !!task.done, done_at: task.done ? at(-1, 17) : null,
       repeat_period: task.repeat || null, repeat_start_at: task.repeat ? task.due : null,
-      created_at: at(-7, 9), next: tasks[index + 1]?.tid || null,
+      created_at: at(-7, 9), next: tasks[index + 1]?.tid || null, important: !!task.important,
     })),
     subtasks: [
       { sid: "s1", tid: "t1", title: "매출 지표 정리", done: true, done_at: at(0, 10), due_date: null, created_at: at(-2, 9) },
@@ -67,7 +74,7 @@ export function installAppPreviewIpc(IpcSender, params = new URLSearchParams()) 
 }
 
 function PreviewRoot() {
-  const states = useMemo(() => fromSyncV2View(previewView()), []);
+  const states = useMemo(() => fromSyncV2View(previewView(window.location.hash.includes("long=1"))), []);
   const [searchQuery, setSearchQuery] = useState("");
   return (
     <div className="root-layout">

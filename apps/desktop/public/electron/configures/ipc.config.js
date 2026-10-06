@@ -1192,6 +1192,14 @@ module.exports = function (s) {
     }
   );
 
+  // Starred ("중요", #97) exists only in the encrypted model; the E2EE routing in
+  // register() handles it first. The legacy transaction chain has no field for it.
+  s.register("task/updateTaskImportant", async (event, reqId) => {
+    s.sender("task/updateTaskImportant", reqId, false, {
+      code: "UNSUPPORTED_LEGACY_ACTION",
+    });
+  });
+
   s.register("task/createSubtask", async (event, reqId, subtask, taskId) => {
     try {
       const preResult = await createSubtaskPre();

@@ -9,7 +9,8 @@ export type Prefs = {
   timeFormat: '12' | '24';
   listTodoOpen: boolean;
   listDoneOpen: boolean;
-  sort: 'due' | 'importance' | 'remaining' | 'created';
+  // 'importance' was removed (#97); a stored one falls back to 'due'.
+  sort: 'due' | 'remaining' | 'created';
   // When an opened secret category locks again (#88): app closed/locked, or each visit.
   secretRelock: 'session' | 'each';
   // Show the patch notes once after an update (#99), and the last version shown
@@ -38,8 +39,7 @@ const valid: { [K in keyof Prefs]: (value: unknown) => boolean } = {
   timeFormat: v => v === '12' || v === '24',
   listTodoOpen: v => typeof v === 'boolean',
   listDoneOpen: v => typeof v === 'boolean',
-  sort: v =>
-    v === 'due' || v === 'importance' || v === 'remaining' || v === 'created',
+  sort: v => v === 'due' || v === 'remaining' || v === 'created',
   secretRelock: v => v === 'session' || v === 'each',
   showPatchNotes: v => typeof v === 'boolean',
   patchNotesSeen: v =>

@@ -34,6 +34,7 @@ export const applyAddTask = ({ addPromise, success, data }) => {
           task.repeatStartAt = data.repeatStartAt
             ? new Date(data.repeatStartAt)
             : null;
+          task.important = data.important === true;
 
           const updated = { ...taskMap };
           let prevTask = taskMap[data.prevTaskId];
@@ -180,6 +181,24 @@ export const applyUpdateTaskMemo = ({ addPromise, success, data }) => {
           resolve({ taskMap: { ...taskMap, [tid]: task } });
         } else {
           console.error("failed to update task memo");
+          reject();
+        }
+      })
+  );
+};
+
+export const applyUpdateTaskImportant = ({ addPromise, success, data }) => {
+  addPromise(
+    (states) =>
+      new Promise((resolve, reject) => {
+        const { taskMap } = states;
+        if (success) {
+          const { tid, important } = data;
+          const task = taskMap[tid];
+          task.important = important === true;
+          resolve({ taskMap: { ...taskMap, [tid]: task } });
+        } else {
+          console.error("failed to update task important");
           reject();
         }
       })

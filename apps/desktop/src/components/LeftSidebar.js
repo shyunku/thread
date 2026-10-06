@@ -15,6 +15,7 @@ import {
   IoKeySharp,
   IoLogoBuffer,
   IoReader,
+  IoStar,
   IoToday,
   IoSettingsOutline,
 } from "react-icons/io5";
@@ -46,11 +47,19 @@ const activateWithKeyboard = (event) => {
 export const TODO_MENU_TYPE = {
   ALL: "모든 할일",
   TODAY: "오늘의 할일",
+  IMPORTANT: "중요한 할일",
 };
 
 export const TODO_MENU_TYPE_TO_ICON = {
   [TODO_MENU_TYPE.ALL]: <IoLogoBuffer />,
   [TODO_MENU_TYPE.TODAY]: <IoToday />,
+  [TODO_MENU_TYPE.IMPORTANT]: <IoStar style={{ color: "#f2c14e" }} />,
+};
+
+const TODO_MENU_TYPE_TO_LABEL = {
+  [TODO_MENU_TYPE.ALL]: "모든 할 일",
+  [TODO_MENU_TYPE.TODAY]: "오늘",
+  [TODO_MENU_TYPE.IMPORTANT]: "중요",
 };
 
 const LeftSidebar = ({
@@ -94,7 +103,8 @@ const LeftSidebar = ({
   const undoneTaskCountMap = useMemo(() => {
     const cntMap = {};
     let totalUndone = 0,
-      todayUndone = 0;
+      todayUndone = 0,
+      importantUndone = 0;
     for (const category of sortedCategories) {
       cntMap[category.id] = 0;
     }
@@ -114,10 +124,12 @@ const LeftSidebar = ({
           moment(task.dueDate).isSame(moment(), "day")
         )
           todayUndone++;
+        if (task.important === true) importantUndone++;
       }
     }
     cntMap[TODO_MENU_TYPE.ALL] = totalUndone;
     cntMap[TODO_MENU_TYPE.TODAY] = todayUndone;
+    cntMap[TODO_MENU_TYPE.IMPORTANT] = importantUndone;
     return cntMap;
   }, [sortedCategories, taskMap]);
 
@@ -242,7 +254,7 @@ const LeftSidebar = ({
                 </div>
                 <div className={"content"}>
                   {/*undoneTaskCountMap*/}
-                  <div className="title">{menuType === TODO_MENU_TYPE.ALL ? "모든 할 일" : "오늘"}</div>
+                  <div className="title">{TODO_MENU_TYPE_TO_LABEL[menuType]}</div>
                   <div className={"task-count"}>
                     {" "}
                     {undoneTaskCountMap?.[menuType] ?? "?"}

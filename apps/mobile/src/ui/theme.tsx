@@ -19,6 +19,7 @@ const dark = {
   successSoft: '#1d3a2b',
   warning: '#edbc72',
   danger: '#f0838b',
+  star: '#f2c14e',
   scrim: 'rgba(0,0,0,0.62)',
 };
 const light: typeof dark = {
@@ -38,6 +39,7 @@ const light: typeof dark = {
   successSoft: '#dcf3e7',
   warning: '#b9770e',
   danger: '#d64550',
+  star: '#e0a10b',
   scrim: 'rgba(0,0,0,0.4)',
 };
 export type Theme = typeof dark;

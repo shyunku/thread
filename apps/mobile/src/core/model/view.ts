@@ -11,6 +11,7 @@ export type TaskRow = {
   recurrenceGeneration: string;
   createdAt: number;
   sortRank: bigint;
+  important: boolean;
   categories: string[];
   subtasks: SubtaskRow[];
 };
@@ -40,8 +41,9 @@ export type Lists = {
 export type Scope =
   | { kind: 'all' }
   | { kind: 'today' }
+  | { kind: 'important' }
   | { kind: 'category'; cid: string };
-export type SortMode = 'due' | 'importance' | 'remaining' | 'created';
+export type SortMode = 'due' | 'remaining' | 'created';
 
 const num = (value: unknown) =>
   typeof value === 'number' && Number.isFinite(value) ? value : 0;
@@ -88,6 +90,8 @@ export function buildModel(lists: Lists) {
     recurrenceGeneration: t.recurrence_generation ?? '0',
     createdAt: num(t.created_at),
     sortRank: BigInt(t.sort_rank ?? '0'),
+    // Starred (#97); a task without the key is not.
+    important: t.important === true,
     categories: categoriesByTask.get(t.tid) ?? [],
     subtasks: subtasksByTask.get(t.tid) ?? [],
   }));
@@ -121,6 +125,7 @@ export function visibleTasks(
       !(task.dueDate != null && sameDay(task.dueDate, now))
     )
       return false;
+    if (scope.kind === 'important' && !task.important) return false;
     if (scope.kind === 'category' && !task.categories.includes(scope.cid))
       return false;
     // A task in a secret category only shows inside that category (desktop secretFilter).
@@ -154,10 +159,6 @@ const byDue = (a: TaskRow, b: TaskRow) =>
 
 export function sortTasks(tasks: TaskRow[], mode: SortMode) {
   const list = [...tasks];
-  if (mode === 'importance')
-    return list.sort((a, b) =>
-      a.sortRank < b.sortRank ? -1 : a.sortRank > b.sortRank ? 1 : 0,
-    );
   if (mode === 'due') return list.sort(byDue);
   if (mode === 'remaining') return list.sort((a, b) => -byDue(a, b) || 0);
   return list.sort((a, b) => b.createdAt - a.createdAt);

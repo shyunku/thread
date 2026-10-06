@@ -350,6 +350,9 @@ const IpcSender = {
       updateTaskRepeatPeriod: (taskId, repeatPeriod, callback) => {
         sender("task/updateTaskRepeatPeriod", callback, taskId, repeatPeriod);
       },
+      updateTaskImportant: (taskId, important, callback) => {
+        sender("task/updateTaskImportant", callback, taskId, important);
+      },
       createSubtask: (subtask, taskId, callback) => {
         sender("task/createSubtask", callback, subtask, taskId);
       },

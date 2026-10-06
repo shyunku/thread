@@ -10,6 +10,7 @@ const mutationTopics = new Set([
   "task/addTaskCategory",
   "task/deleteTaskCategory",
   "task/updateTaskRepeatPeriod",
+  "task/updateTaskImportant",
   "task/createSubtask",
   "task/deleteSubtask",
   "task/updateSubtaskTitle",
@@ -49,6 +50,7 @@ function command(topic, args, view) {
             "due_date",
             "repeat_period",
             "repeat_start_at",
+            "important",
           ])
         ),
         categoryIds: Array.isArray(a.categories)
@@ -67,6 +69,9 @@ function command(topic, args, view) {
       return make("task", a, "patch", { due_date: b ?? 0 });
     case "task/updateTaskRepeatPeriod":
       return make("task", a, "patch", { repeat_period: b ?? "" });
+    // Starred ("중요", #97). Always a boolean; a task without the key is not starred.
+    case "task/updateTaskImportant":
+      return make("task", a, "patch", { important: b === true });
     case "task/updateTaskDone": {
       const row = view.rows.find(
         (r) => r.entityType === "task" && r.entityId === a

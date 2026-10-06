@@ -141,7 +141,7 @@ test("decrypted application view keeps rank/date sorting and local title, memo, 
  const {container,rerender}=render(<TodoContent/>);
  const titles=()=>[...container.querySelectorAll(".todo-item-wrapper")].map(row=>["Alpha","Beta","Gamma"].find(title=>row.textContent.includes(title)));
  fireEvent.click(screen.getByRole("button",{name:"기한 순"}));expect(titles()).toEqual(["Beta","Alpha","Gamma"]);
- fireEvent.click(screen.getByRole("button",{name:"중요도 순"}));expect(titles()).toEqual(["Alpha","Beta","Gamma"]);
+ expect(screen.queryByRole("button",{name:"중요도 순"})).toBeNull();
  fireEvent.click(screen.getByRole("button",{name:"생성일 순"}));expect(titles()).toEqual(["Alpha","Gamma","Beta"]);
  for(const [query,expected] of [["needle",["Beta"]],["검색카테고리",["Alpha"]],["GAMMA",["Gamma"]]]){
   mockContext={...mockContext,searchQuery:query};rerender(<TodoContent/>);expect(titles()).toEqual(expected);
@@ -165,6 +165,47 @@ test("quick add and completion keep the existing IPC mutation contract", () => {
     "first",
     true,
     expect.any(Number),
+    null
+  );
+});
+
+test("row shows the first category badge before the title and the star toggles via IPC without expanding", () => {
+  mockContext.states.categories.public.color = "#44c98b";
+  const { container, rerender } = render(<TodoContent />);
+  const row = container.querySelector('[todo-id="first"]');
+  const line = row.querySelector(".title-line");
+  expect(line.firstElementChild).toHaveClass("task-category-badge");
+  expect(line.firstElementChild).toHaveTextContent("개발");
+  expect(line.firstElementChild.style.color).toBe("rgb(68, 201, 139)");
+  expect(line.firstElementChild.style.backgroundColor).toBe("rgba(68, 201, 139, 0.149)");
+  expect(line.lastElementChild).toHaveTextContent("리뷰 준비");
+  expect(container.querySelector('[todo-id="second"] .task-category-badge')).toBeNull();
+  expect(row.querySelector(".star-button")).not.toHaveClass("on");
+  fireEvent.click(row.querySelector(".star-button"));
+  expect(IpcSender.req.task.updateTaskImportant).toHaveBeenCalledWith("first", true, null);
+  expect(screen.getByRole("button", { name: "리뷰 준비 상세" })).toHaveAttribute("aria-expanded", "false");
+  mockContext.states.taskMap.first.important = true;
+  rerender(<TodoContent />);
+  expect(row.querySelector(".star-button")).toHaveClass("on");
+  expect(row.querySelector(".star-button")).toHaveAccessibleName("중요 해제");
+  fireEvent.click(row.querySelector(".star-button"));
+  expect(IpcSender.req.task.updateTaskImportant).toHaveBeenLastCalledWith("first", false, null);
+});
+
+test("the 중요 list shows only starred tasks and adds new tasks as starred", () => {
+  mockContext.states.taskMap.second.important = true;
+  mockContext = { ...mockContext, selectedTodoMenuType: "중요한 할일", category: { title: "중요한 할일", default: true } };
+  const { container } = render(<TodoContent />);
+  fireEvent.click(screen.getByRole("button", { name: "완료됨 1" }));
+  const rows = [...container.querySelectorAll(".todo-item-wrapper")];
+  expect(rows.map((row) => row.getAttribute("todo-id"))).toEqual(["second"]);
+  expect(container.querySelector(".header .title")).toHaveTextContent("중요");
+  expect(container.querySelector(".header .title .heading-star")).not.toBeNull();
+  const input = screen.getByRole("textbox", { name: "새 할 일" });
+  fireEvent.change(input, { target: { value: "별 작업" } });
+  fireEvent.keyDown(input, { key: "Enter" });
+  expect(IpcSender.req.task.addTask).toHaveBeenCalledWith(
+    expect.objectContaining({ title: "별 작업", important: true }),
     null
   );
 });

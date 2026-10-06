@@ -26,6 +26,11 @@
     line-height: 1.3;
     color: var(--text);
   }
+  .heading-star {
+    flex: none;
+    font-size: 24px;
+    color: #f2c14e;
+  }
   .heading-count {
     display: inline-grid;
     place-items: center;

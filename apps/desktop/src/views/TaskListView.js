@@ -100,7 +100,7 @@ const TaskListView = forwardRef(
               <>
                 <TaskList
                   taskList={notDoneTaskList}
-                  draggable={sorter == null}
+                  draggable={false}
                   {...rest}
                 />
                 {notDoneTaskList.length === 0 && <p className="empty-list">진행 중인 할 일이 없어요. 새로운 일을 추가하거나 다른 필터를 선택해보세요.</p>}
@@ -116,7 +116,7 @@ const TaskListView = forwardRef(
               <>
                 <TaskList
                   taskList={suppressedDoneTaskList}
-                  draggable={sorter == null}
+                  draggable={false}
                   {...rest}
                 />
                 {doneTaskList.length === 0 && <p className="empty-list">완료한 할 일이 여기에 모여요.</p>}

@@ -25,6 +25,8 @@ const TodoItemAddSection = ({ onTaskAdd, category, expanded }) => {
         newTodoItemDate == null
       ) {
         newTask.dueDate = moment().endOf("day").toDate();
+      } else if (category.title === TODO_MENU_TYPE.IMPORTANT) {
+        newTask.important = true;
       }
     }
     onTaskAdd(newTask);
@@ -49,7 +51,7 @@ const TodoItemAddSection = ({ onTaskAdd, category, expanded }) => {
         <button className="quick-add" aria-label="할 일 추가" disabled={!newTodoItemContent.trim()} onClick={onAddTodoItem}><IoAdd /></button>
         <input
           aria-label="새 할 일"
-          placeholder="할 일을 추가하세요…"
+          placeholder={category?.default && category?.title === TODO_MENU_TYPE.IMPORTANT ? "중요한 할 일을 추가하세요…" : "할 일을 추가하세요…"}
           onBlur={(e) => setNewTodoItemFocused(false)}
           onFocus={(e) => setNewTodoItemFocused(true)}
           onChange={(e) => setNewTodoItemContent(e.target.value)}

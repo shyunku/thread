@@ -41,6 +41,7 @@ import {
   applyUpdateSubtaskTitle,
   applyUpdateTaskDone,
   applyUpdateTaskDueDate,
+  applyUpdateTaskImportant,
   applyUpdateTaskMemo,
   applyUpdateTaskOrder,
   applyUpdateTaskRepeatPeriod,
@@ -52,6 +53,7 @@ import ColorPicker from "../molecules/ColorPicker";
 import AutoBlurDiv from "../molecules/AutoBlurDiv";
 import TaskTimelineView from "../views/TaskTimelineView";
 import TaskListTimelineView from "../views/TaskListTimelineView";
+import { IoStar } from "react-icons/io5";
 
 const TASK_VIEW_MODE = {
   LIST_CALENDAR: "리스트 | 캘린더",
@@ -64,7 +66,6 @@ const TASK_VIEW_MODE = {
 
 const SORT_MODE = {
   DUE_DATE: "기한",
-  IMPORTANT: "중요도",
   REMAIN_DATE: "남은 기한",
   CREATED_DATE: "생성일",
 };
@@ -125,6 +126,8 @@ const TodoContent = (callback, deps) => {
       case TODO_MENU_TYPE.TODAY:
         return (task) =>
           task.dueDate != null && moment(task.dueDate).isSame(moment(), "day");
+      case TODO_MENU_TYPE.IMPORTANT:
+        return (task) => task.important === true;
       default:
         return (task) => {
           if (
@@ -198,8 +201,6 @@ const TodoContent = (callback, deps) => {
   /* ------------------------------ Sorters ------------------------------ */
   const sorter = useMemo(() => {
     switch (currentSortMode) {
-      case SORT_MODE.IMPORTANT:
-        return null;
       case SORT_MODE.REMAIN_DATE:
         return (t1, t2) => {
           if (t1.dueDate == null && t2.dueDate == null) return 0;
@@ -372,41 +373,6 @@ const TodoContent = (callback, deps) => {
     IpcSender.req.task.deleteTask(tid, null);
   };
 
-  const onTaskDragEndHandler = (result) => {
-    const { targetId, currentId, afterTarget } = result;
-    let targetTaskId = document
-      .getElementById(targetId)
-      ?.getAttribute("todo-id");
-    let currentTaskId = document
-      .getElementById(currentId)
-      ?.getAttribute("todo-id");
-    if (targetTaskId != null && currentTaskId != null) {
-      // check if the target.next is current when afterTarget
-      if (
-        afterTarget === true &&
-        taskMap[targetTaskId].next?.id == currentTaskId
-      ) {
-        return;
-      }
-      // check if the target.prev is current when beforeTarget
-      if (
-        afterTarget === false &&
-        taskMap[targetTaskId].prev?.id == currentTaskId
-      ) {
-        return;
-      }
-
-      IpcSender.req.task.updateTaskOrder(
-        currentTaskId,
-        targetTaskId,
-        afterTarget,
-        null
-      );
-    } else {
-      console.log(result);
-    }
-  };
-
   const onTaskTitleChange = (tid, title) => {
     IpcSender.req.task.updateTaskTitle(tid, title, null);
   };
@@ -436,6 +402,10 @@ const TodoContent = (callback, deps) => {
 
   const onTaskRepeatChange = (tid, repeat) => {
     IpcSender.req.task.updateTaskRepeatPeriod(tid, repeat, null);
+  };
+
+  const onTaskImportantChange = (tid, important) => {
+    IpcSender.req.task.updateTaskImportant(tid, important, null);
   };
 
   const onSubtaskAdded = (tid, subtask) => {
@@ -525,6 +495,10 @@ const TodoContent = (callback, deps) => {
       applyUpdateTaskRepeatPeriod({ addPromise, success, data });
     });
 
+    IpcSender.onAll("task/updateTaskImportant", ({ success, data }) => {
+      applyUpdateTaskImportant({ addPromise, success, data });
+    });
+
     IpcSender.onAll("task/createSubtask", ({ success, data }) => {
       applyCreateSubtask({ addPromise, success, data });
     });
@@ -566,6 +540,7 @@ const TodoContent = (callback, deps) => {
       IpcSender.offAll("task/updateTaskMemo");
       IpcSender.offAll("task/updateTaskDone");
       IpcSender.offAll("task/updateTaskRepeatPeriod");
+      IpcSender.offAll("task/updateTaskImportant");
       IpcSender.offAll("task/createSubtask");
       IpcSender.offAll("task/deleteSubtask");
       IpcSender.offAll("task/updateSubtaskTitle");
@@ -600,7 +575,6 @@ const TodoContent = (callback, deps) => {
     sorter: sorter,
     selectedId: selectedTodoItemId,
     selectTodoItemHandler: setSelectedTodoItemId,
-    onTaskDragEndHandler: onTaskDragEndHandler,
     onTaskDelete: onTaskDelete,
     onTaskDone: onTaskDone,
     onTaskTitleChange: onTaskTitleChange,
@@ -609,6 +583,7 @@ const TodoContent = (callback, deps) => {
     onTaskCategoryAdd: onTaskCategoryAdd,
     onTaskCategoryDelete: onTaskCategoryDelete,
     onTaskRepeatChange: onTaskRepeatChange,
+    onTaskImportantChange: onTaskImportantChange,
     onSubtaskAdded: onSubtaskAdded,
     onSubtaskDelete: onSubtaskDelete,
     onSubtaskTitleChange: onSubtaskTitleChange,
@@ -620,7 +595,9 @@ const TodoContent = (callback, deps) => {
     <div className={"todo-content" + (renderedViewMode === TASK_VIEW_MODE.LIST_CALENDAR ? " split-workspace" : "")} onScroll={onScroll}>
       <div className="header">
         <div className="title">
-          {category?.title === TODO_MENU_TYPE.ALL ? "모든 할 일" : category?.title === TODO_MENU_TYPE.TODAY ? "오늘의 할 일" : category?.title ?? "내 작업"} <span className="heading-count">{filteredUndoneTaskCount}</span>
+          {category?.title === TODO_MENU_TYPE.ALL ? "모든 할 일" : category?.title === TODO_MENU_TYPE.TODAY ? "오늘의 할 일"
+            : category?.title === TODO_MENU_TYPE.IMPORTANT ? <><IoStar className="heading-star" aria-hidden="true" />중요</>
+            : category?.title ?? "내 작업"} <span className="heading-count">{filteredUndoneTaskCount}</span>
         </div>
         {searchQuery && <p className="workspace-description">{`“${searchQuery}” 검색 결과`}</p>}
         <div className="metadata">

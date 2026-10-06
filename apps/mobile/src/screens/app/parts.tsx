@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { Check, Repeat } from 'lucide-react-native';
+import { Check, Repeat, Star } from 'lucide-react-native';
 import { useApp } from '@/app/AppContext';
 import {
   REPEAT_LABEL,
@@ -119,6 +119,8 @@ export function TaskItem({
   const doneSubtasks = task.subtasks.filter(s => s.done).length;
   const toggle = () =>
     mutate('task/updateTaskDone', [task.tid, !task.done, Date.now()]);
+  const star = () =>
+    mutate('task/updateTaskImportant', [task.tid, !task.important]);
   return (
     <Pressable
       onPress={onPress}
@@ -130,7 +132,8 @@ export function TaskItem({
         gap: 12,
         marginHorizontal: 12,
         marginBottom: 8,
-        paddingHorizontal: 14,
+        paddingLeft: 14,
+        paddingRight: 8,
         paddingVertical: 13,
         borderRadius: 14,
         borderWidth: 1,
@@ -196,6 +199,34 @@ export function TaskItem({
             )}
         </View>
       </View>
+      <StarButton on={task.important} onPress={star} />
+    </Pressable>
+  );
+}
+
+// Star toggle at the row's end (#97); its own press, the row does not open.
+function StarButton({ on, onPress }: { on: boolean; onPress: () => void }) {
+  const theme = useTheme();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={on ? '중요 해제' : '중요로 표시'}
+      accessibilityState={{ selected: on }}
+      onPress={onPress}
+      style={({ pressed }) => ({
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: pressed ? theme.hover : 'transparent',
+      })}
+    >
+      <Star
+        color={on ? theme.star : theme.muted}
+        fill={on ? theme.star : 'none'}
+        size={20}
+      />
     </Pressable>
   );
 }

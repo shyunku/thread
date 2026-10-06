@@ -16,6 +16,7 @@ class Task extends Mutatable {
       categories: "categories",
       repeat_period: "repeatPeriod",
       repeat_start_at: "repeatStartAt",
+      important: "important",
     });
 
     this.id = v4();
@@ -30,6 +31,8 @@ class Task extends Mutatable {
     this.categories = {};
     this.repeatPeriod = repeatPeriod;
     this.repeatStartAt = dueDate;
+    // Starred ("중요", #97); a row without the field is not starred.
+    this.important = false;
 
     this.next = null;
     this.prev = null;
@@ -105,6 +108,7 @@ class Task extends Mutatable {
     if (ctx.repeatPeriod === "") {
       ctx.repeatPeriod = null;
     }
+    ctx.important = ctx.important === true;
     return ctx;
   }
 

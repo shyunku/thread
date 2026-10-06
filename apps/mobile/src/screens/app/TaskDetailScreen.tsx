@@ -8,7 +8,7 @@ import {
   View,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { ArrowLeft, Plus, Trash2, X } from 'lucide-react-native';
+import { ArrowLeft, Plus, Star, Trash2, X } from 'lucide-react-native';
 import { useApp } from '@/app/AppContext';
 import { REPEAT_LABEL, formatDue, remainingText } from '@/core/model/view';
 import { DateTimeSheet } from '@/ui/DateTimeSheet';
@@ -96,6 +96,18 @@ export default function TaskDetailScreen() {
           <ArrowLeft color={theme.secondary} size={22} />
         </IconButton>
         <View style={{ flex: 1 }} />
+        <IconButton
+          label={task.important ? '중요 해제' : '중요로 표시'}
+          onPress={() =>
+            mutate('task/updateTaskImportant', [tid, !task.important])
+          }
+        >
+          <Star
+            color={task.important ? theme.star : theme.secondary}
+            fill={task.important ? theme.star : 'none'}
+            size={22}
+          />
+        </IconButton>
         <IconButton label="삭제" onPress={remove}>
           <Trash2 color={theme.secondary} size={20} />
         </IconButton>
