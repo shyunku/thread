@@ -147,6 +147,7 @@ const TASKS = [
   { t: '알고리즘 문제 2개 풀기', cat: '공부', color: '#b58cff', rt: '2일 남음', imp: false },
   { t: '영어 회화 스터디 준비', cat: '공부', color: '#b58cff', rt: '4일 남음', imp: false },
   { t: '치과 예약', cat: '생활', color: '#44c98b', rt: '8일 남음', imp: true },
+  { t: '여행 숙소 알아보기', cat: null, color: null, rt: '12일 남음', imp: false },
 ];
 const s = { platform: 'desktop', dscreen: 'all', mscreen: 'tasks', theme: 'dark', mark: true, fit: true, catPos: 'title', stars: TASKS.map(t => t.imp) };
 const shown = () => (s.platform === 'desktop' ? s.dscreen : s.mscreen) === 'important' ? TASKS.map((t, i) => [t, i]).filter(([, i]) => s.stars[i]) : TASKS.map((t, i) => [t, i]);
@@ -158,10 +159,10 @@ function desktop() {
   const rows = list.map(([t, i], n) => {
     const on = s.stars[i];
     const starBtn = `<button class="star ${on ? 'on' : 'ghost'} chg" data-star="${i}" title="${on ? '중요 해제' : '중요로 표시'}">${STAR(16, on)}</button>`;
-    const badge = `<span class="cbadge chg" style="color:${t.color};background:${t.color}26">${t.cat}</span>`;
-    const dot = `<span class="dot chg" style="background:${t.color}"></span>`;
+    const badge = t.cat ? `<span class="cbadge chg" style="color:${t.color};background:${t.color}26">${t.cat}</span>` : '';
+    const dot = t.cat ? `<span class="dot chg" style="background:${t.color}"></span>` : '';
     const meta = [s.catPos === 'meta' ? badge : s.catPos === 'dot' ? dot : '', `<span>${t.rt}</span>`, t.repeat ? `<span>·</span><span>↻ ${t.repeat}</span>` : '', t.sub ? `<span>·</span><span>${t.sub}</span>` : ''].join('');
-    const row = `<div class="row two ${!imp && n === 1 ? 'hovered' : ''}"><span class="chk"></span><div class="body"><div style="display:flex;align-items:center;gap:8px"><span class="t">${t.t}</span>${s.catPos === 'title' ? badge : ''}</div><div class="rmeta chg">${meta}</div></div>${starBtn}</div>`;
+    const row = `<div class="row two ${!imp && n === 1 ? 'hovered' : ''}"><span class="chk"></span><div class="body"><div style="display:flex;align-items:center;gap:8px">${s.catPos === 'before' ? badge : ''}<span class="t">${t.t}</span>${s.catPos === 'title' ? badge : ''}</div><div class="rmeta chg">${meta}</div></div>${starBtn}</div>`;
     if (s.dscreen === 'expanded' && n === 0) return `<div class="exp">${row}<div class="body"><div class="head"><h2>${t.t}</h2>
       <span class="pill">${ICON.cal} 26년 10월 6일 (화) 오후 9시 36분</span><span class="pill icon">${ICON.repeat}</span></div>
       <div class="meta"><span class="cbadge chg" style="color:${t.color};background:${t.color}26">${t.cat}</span><span>+ 카테고리 태그 추가</span></div></div></div>`;
@@ -196,7 +197,7 @@ function mobileList(imp) {
     <div class="msub"><span class="dot" style="background:var(--success)"></span> 모두 동기화됨 · 방금</div>
     <div class="chips chg"><span class="chip on">기한 순</span><span class="chip">남은 기한 순</span><span class="chip">생성일 순</span></div>
     <div class="msec">▾ 해야할 일 (${list.length})</div>
-    ${list.map(([t, i]) => `<div class="task"><span class="check"></span><div class="body"><div class="t">${t.t}</div><div class="meta"><span class="dot" style="background:${t.color}"></span><span>${t.rt}</span>${t.sub ? `<span>·</span><span>${t.sub}</span>` : ''}</div></div>
+    ${list.map(([t, i]) => `<div class="task"><span class="check"></span><div class="body"><div class="t">${t.t}</div><div class="meta">${t.color ? `<span class="dot" style="background:${t.color}"></span>` : ""}<span>${t.rt}</span>${t.sub ? `<span>·</span><span>${t.sub}</span>` : ''}</div></div>
       <span class="mstar chg ${s.stars[i] ? 'on' : ''}" data-star="${i}">${STAR(20, s.stars[i])}</span></div>`).join('')}
   </div><button class="fab">+</button>${tabbar()}`;
 }
@@ -231,13 +232,13 @@ function notes() {
     </ul>
     <h3>그대로인 것</h3><ul><li>할 일 줄의 나머지 정보, 펼친 할 일·상세의 나머지 항목, 카테고리 목록.</li>
       <li>옛 버전 앱(PC 2.1.1 이하, 지금 폰 테스트판)은 별을 안 보여 주지만, 그 앱에서 할 일을 고쳐도 별 표시는 지워지지 않음.</li></ul>
-    ${d ? '<h3 class="q">정할 것</h3><ul class="q"><li>카테고리: 제목 옆 / 아래 줄 맨 앞(이름) / 아래 줄 점(모바일과 같음). 툴바 "카테고리"로 비교.</li></ul>' : ''}</div>`;
+    ${d ? '<h3 class="q">정할 것</h3><ul class="q"><li>카테고리: 제목 앞 / 제목 옆 / 아래 줄 맨 앞(이름) / 아래 줄 점(모바일과 같음). 툴바 "카테고리"로 비교. 맨 아래 "여행 숙소 알아보기"는 카테고리가 없는 할 일.</li></ul>' : ''}</div>`;
 }
 function toolbar() {
   const b = (k, v, l) => `<button class="${s[k] === v ? 'on' : ''}" data-set="${k}:${v}">${l}</button>`;
   return `<div class="line"><strong>플랫폼</strong>${b('platform', 'desktop', 'PC')}${b('platform', 'mobile', '모바일')}<span class="sep"></span><strong>표시</strong>${b('mark', true, '바뀌는 부분 표시')}${b('mark', false, '끔')}</div>` +
     (s.platform === 'desktop'
-      ? `<div class="line"><strong>화면</strong>${b('dscreen', 'all', '모든 할 일')}${b('dscreen', 'expanded', '할 일 펼침')}${b('dscreen', 'important', '중요 목록')}<span class="sep"></span><strong>카테고리</strong>${b('catPos', 'title', '제목 옆')}${b('catPos', 'meta', '아래 줄 맨 앞')}${b('catPos', 'dot', '아래 줄 점(모바일처럼)')}<span class="sep"></span><strong>크기</strong>${b('fit', true, '맞춤(70%)')}${b('fit', false, '실제 1440×960')}</div>`
+      ? `<div class="line"><strong>화면</strong>${b('dscreen', 'all', '모든 할 일')}${b('dscreen', 'expanded', '할 일 펼침')}${b('dscreen', 'important', '중요 목록')}<span class="sep"></span><strong>카테고리</strong>${b('catPos', 'before', '제목 앞')}${b('catPos', 'title', '제목 옆')}${b('catPos', 'meta', '아래 줄 맨 앞')}${b('catPos', 'dot', '아래 줄 점(모바일처럼)')}<span class="sep"></span><strong>크기</strong>${b('fit', true, '맞춤(70%)')}${b('fit', false, '실제 1440×960')}</div>`
       : `<div class="line"><strong>화면</strong>${b('mscreen', 'tasks', '할 일')}${b('mscreen', 'sheet', '보기 선택')}${b('mscreen', 'important', '중요 보기')}${b('mscreen', 'detail', '상세')}<span class="sep"></span><strong>테마</strong>${b('theme', 'dark', '다크')}${b('theme', 'light', '라이트')}</div>`);
 }
 function render() {
