@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thread 중요 표시 시안 (#97)</title>
+<style>
+  :root { --page: #0b0d10; --frame: #222730; --border-ui: #2b303b; --ui-text: #edf1f7; --ui-muted: #8792a4; --ui-panel: #15181e; --ui-selected: #253858; }
+  .theme-dark { --canvas: #101216; --panel: #15181e; --surface: #1c2028; --hover: #252b36; --border: #2b303b; --text: #edf1f7; --secondary: #a0aaba; --muted: #8792a4; --accent: #6294ff; --accent-text: #fff; --selected: #253858; --success: #70d5a0; --warning: #edbc72; --danger: #f0838b; --scrim: rgba(0,0,0,.62); --star: #f2c14e; }
+  .theme-light { --canvas: #f5f6f8; --panel: #ffffff; --surface: #ffffff; --hover: #eef0f4; --border: #e2e5ea; --text: #15181e; --secondary: #4f5868; --muted: #7b8494; --accent: #3d6ef0; --accent-text: #fff; --selected: #e5ecff; --success: #239a62; --warning: #b9770e; --danger: #d64550; --scrim: rgba(0,0,0,.4); --star: #e0a10b; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--ui-text); font: 14px/1.5 Pretendard, "Malgun Gothic", "Segoe UI", sans-serif; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  svg { display: block; }
+  .toolbar { position: sticky; top: 0; z-index: 50; display: flex; flex-direction: column; gap: 6px; padding: 10px 16px; background: #0b0d10ee; border-bottom: 1px solid var(--border-ui); }
+  .toolbar .line { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+  .toolbar strong { margin-right: 4px; font-size: 12px; color: var(--ui-muted); min-width: 52px; }
+  .toolbar button { padding: 4px 9px; border: 1px solid var(--border-ui); border-radius: 7px; background: var(--ui-panel); font-size: 12px; color: #a0aaba; }
+  .toolbar button.on { background: var(--ui-selected); border-color: #3a5486; color: var(--ui-text); }
+  .toolbar .sep { width: 1px; height: 18px; background: var(--border-ui); margin: 0 4px; }
+  .stage { display: flex; gap: 28px; align-items: flex-start; justify-content: center; padding: 28px 16px 64px; flex-wrap: wrap; }
+  .notes { width: 400px; padding: 16px 18px; border: 1px dashed #3a4252; border-radius: 12px; color: #a0aaba; font-size: 13px; }
+  .notes h3 { margin: 14px 0 6px; font-size: 13px; color: var(--ui-text); } .notes h3:first-child { margin-top: 0; }
+  .notes ul { margin: 0; padding-left: 18px; } .notes li { margin: 4px 0; }
+  .notes .q { color: #edbc72; }
+  .notes .now { padding: 8px 10px; border-radius: 8px; background: #161b24; color: #cfd6e2; margin-bottom: 10px; }
+  .mark .chg { outline: 2px dashed #edbc72; outline-offset: 2px; border-radius: 8px; }
+
+  /* ---------- Desktop main window (1440x960, shown at 70%) ---------- */
+  .desk-wrap.fit { zoom: .7; }
+  .desk { width: 1440px; height: 960px; display: flex; flex-direction: column; border: 1px solid #2b303b; border-radius: 10px; overflow: hidden; background: var(--canvas); color: var(--text); }
+  .topbar { height: 42px; flex: none; display: flex; align-items: center; gap: 12px; padding: 0 14px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--secondary); }
+  .topbar .search { margin: 0 auto; width: 470px; height: 28px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); display: flex; align-items: center; padding: 0 12px; color: var(--muted); font-size: 12px; }
+  .dbody { flex: 1; display: flex; min-height: 0; }
+  .side { width: 232px; flex: none; padding: 18px 12px; background: var(--panel); border-right: 1px solid var(--border); }
+  .side .clock { padding: 0 8px 18px; color: var(--muted); font-size: 11px; } .side .clock b { display: block; font-size: 22px; color: var(--text); font-weight: 500; }
+  .side h5 { margin: 12px 8px 8px; font-size: 12px; color: var(--secondary); }
+  .menu { height: 34px; display: flex; align-items: center; gap: 10px; padding: 0 10px; border-radius: 8px; color: var(--secondary); font-size: 14px; cursor: pointer; }
+  .menu .ic { width: 18px; display: grid; place-items: center; color: var(--muted); }
+  .menu .n { margin-left: auto; font-size: 12px; color: var(--muted); }
+  .menu.on { background: var(--selected); color: var(--text); font-weight: 600; } .menu.on .ic { color: var(--accent); }
+  .menu .dot { width: 9px; height: 9px; border-radius: 50%; }
+  .menu .star-ic { color: var(--star); }
+  .main { width: 560px; flex: none; padding: 24px 28px; overflow: hidden; }
+  .main h1 { margin: 0; font-size: 28px; display: flex; align-items: center; gap: 10px; }
+  .main h1 .cnt { font-size: 14px; padding: 1px 9px; border-radius: 7px; background: var(--surface); border: 1px solid var(--border); color: var(--secondary); }
+  .main .sub { font-size: 11px; color: var(--muted); margin: 6px 0 18px; }
+  .btns { display: flex; gap: 6px; margin-bottom: 14px; }
+  .btns .b { flex: none; white-space: nowrap; height: 30px; padding: 0 12px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface); color: var(--secondary); font-size: 12px; display: flex; align-items: center; }
+  .btns .b.on { border-color: var(--accent); color: var(--accent); background: #1b2740; }
+  .btns .gap { width: 30px; }
+  .add { height: 50px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); display: flex; align-items: center; gap: 12px; padding: 0 16px; color: var(--muted); margin: 14px 0 22px; }
+  .grp { font-size: 13px; color: var(--secondary); margin-bottom: 10px; font-weight: 600; }
+  .row { position: relative; display: flex; align-items: center; gap: 12px; height: 54px; padding: 0 14px; margin-bottom: 8px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+  .row .chk { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--muted); flex: none; }
+  .row .t { font-weight: 600; font-size: 15px; }
+  .row .badge { font-size: 10px; padding: 1px 6px; border-radius: 5px; background: var(--selected); color: var(--accent); }
+  .row .rt { margin-left: auto; font-size: 12px; color: var(--muted); }
+  .row.hovered { background: var(--hover); }
+  .star { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 7px; border: 0; background: none; color: var(--muted); padding: 0; flex: none; }
+  .star.on { color: var(--star); }
+  .star.ghost { opacity: 0; }
+  .row.hovered .star.ghost { opacity: 1; }
+  .star:hover { background: var(--hover); }
+  .exp { border: 1px solid var(--accent); border-radius: 10px; background: var(--surface); margin-bottom: 8px; overflow: hidden; }
+  .exp .row { border: 0; border-radius: 0; margin: 0; background: transparent; }
+  .exp .body { padding: 16px 22px 18px; background: #181c24; }
+  .exp .head { display: flex; align-items: center; gap: 8px; }
+  .exp .head h2 { margin: 0 auto 0 0; font-size: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pill { flex: none; white-space: nowrap; height: 30px; padding: 0 12px; border-radius: 6px; border: 1px solid #2c3d63; background: #1b2740; color: var(--accent); font-size: 12px; display: flex; align-items: center; gap: 6px; }
+  .pill.icon { padding: 0 9px; color: var(--secondary); border-color: var(--border); background: var(--surface); }
+  .pill.star-on { color: var(--star); border-color: #5a4a22; background: #2a2416; }
+  .exp .meta { display: flex; gap: 6px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 11px; }
+  .exp .meta span { padding: 3px 8px; border-radius: 6px; background: var(--selected); color: var(--accent); }
+  .cal { flex: 1; padding: 24px 28px; border-left: 1px solid var(--border); color: var(--muted); }
+  .cal h2 { margin: 0 0 18px; color: var(--text); font-size: 24px; }
+  .calgrid { height: 600px; border: 1px solid var(--border); border-radius: 10px; display: grid; grid-template-columns: repeat(7, 1fr); grid-template-rows: 30px repeat(5, 1fr); }
+  .calgrid div { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); font-size: 12px; padding: 6px 8px; }
+  .cell-t { margin-top: 4px; font-size: 11px; color: var(--secondary); display: flex; align-items: center; gap: 3px; }
+
+  /* ---------- Mobile (390x844) ---------- */
+  .phone { position: relative; width: 390px; height: 844px; border-radius: 44px; border: 10px solid var(--frame); background: var(--canvas); color: var(--text); overflow: hidden; display: flex; flex-direction: column; }
+  .status { height: 36px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 22px; font-size: 12px; color: var(--secondary); }
+  .content { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; position: relative; }
+  .appbar { display: flex; align-items: center; gap: 8px; padding: 8px 12px 6px 18px; min-height: 52px; }
+  .appbar h1 { margin: 0; font-size: 22px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+  .appbar .count { padding: 1px 8px; border-radius: 7px; background: var(--surface); border: 1px solid var(--border); color: var(--secondary); font-size: 13px; font-weight: 600; }
+  .msub { padding: 0 18px 10px; color: var(--muted); font-size: 12px; }
+  .chips { display: flex; gap: 6px; padding: 0 18px 12px; }
+  .chip { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--secondary); font-size: 13px; }
+  .chip.on { background: var(--selected); border-color: var(--accent); color: var(--text); }
+  .msec { padding: 10px 18px 8px; color: var(--secondary); font-size: 13px; font-weight: 600; }
+  .task { display: flex; align-items: center; gap: 12px; margin: 0 12px 8px; padding: 12px 8px 12px 14px; border-radius: 14px; background: var(--surface); border: 1px solid var(--border); }
+  .task .check { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--muted); flex: none; }
+  .task .body { flex: 1; min-width: 0; }
+  .task .t { font-weight: 600; font-size: 15px; }
+  .task .meta { display: flex; gap: 6px; align-items: center; margin-top: 3px; color: var(--muted); font-size: 12px; }
+  .task .meta .over { color: var(--danger); }
+  .task .mstar { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; color: var(--muted); flex: none; }
+  .task .mstar.on { color: var(--star); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .fab { position: absolute; right: 18px; bottom: 82px; width: 56px; height: 56px; border-radius: 18px; border: 0; background: var(--accent); color: #fff; font-size: 28px; z-index: 15; }
+  .tabbar { flex: none; display: flex; height: 70px; padding: 6px 6px 16px; background: var(--panel); border-top: 1px solid var(--border); }
+  .tabbar button { flex: 1; border: 0; background: none; display: flex; flex-direction: column; align-items: center; gap: 2px; color: var(--muted); font-size: 11px; }
+  .tabbar button.on { color: var(--accent); font-weight: 700; }
+  .scrim { position: absolute; inset: 0; background: var(--scrim); z-index: 40; }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 41; background: var(--panel); border-radius: 22px 22px 0 0; padding: 8px 0 26px; }
+  .sheet .grab { width: 36px; height: 4px; border-radius: 4px; background: var(--border); margin: 4px auto 12px; }
+  .sheet h2 { margin: 0 20px 10px; font-size: 17px; }
+  .srow { display: flex; align-items: center; gap: 12px; padding: 12px 20px; font-size: 15px; }
+  .srow.on { background: var(--selected); }
+  .srow .lead { width: 24px; display: grid; place-items: center; color: var(--secondary); }
+  .srow .n { margin-left: auto; color: var(--muted); font-size: 13px; }
+  .hdr { display: flex; align-items: center; gap: 4px; padding: 8px 8px 6px; }
+  .ib { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; color: var(--secondary); }
+  .ib.on { color: var(--star); }
+  .dtitle { margin: 4px 18px 12px; font-size: 22px; font-weight: 700; }
+  .prop { display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-bottom: 1px solid var(--border); font-size: 15px; }
+  .prop .k { width: 70px; color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="toolbar" id="toolbar"></div>
+<div class="stage" id="stage"></div>
+<script>
+const P = 'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
+const STAR = (size, filled) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" ${filled ? P.replace('fill="none"', 'fill="currentColor"') : P}><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/></svg>`;
+const ICON = {
+  layers: '<svg width="18" height="18" viewBox="0 0 24 24" ' + P + '><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></svg>',
+  sun: '<svg width="18" height="18" viewBox="0 0 24 24" ' + P + '><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>',
+  cal: '<svg width="18" height="18" viewBox="0 0 24 24" ' + P + '><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>',
+  back: '<svg width="22" height="22" viewBox="0 0 24 24" ' + P + '><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>',
+  trash: '<svg width="20" height="20" viewBox="0 0 24 24" ' + P + '><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>',
+  repeat: '<svg width="14" height="14" viewBox="0 0 24 24" ' + P + '><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>',
+  chev: '<svg width="14" height="14" viewBox="0 0 24 24" ' + P + '><path d="m6 9 6 6 6-6"/></svg>',
+};
+const TASKS = [
+  { t: '분기 회고 자료 정리', cat: '업무', color: '#6294ff', rt: '2시간 남음', imp: true, sub: '2/3' },
+  { t: '운동 30분', cat: '생활', color: '#44c98b', rt: '4시간 남음', imp: false },
+  { t: '디자인 리뷰 피드백 반영', cat: '업무', color: '#6294ff', rt: '16시간 남음', imp: true, sub: '0/2' },
+  { t: '알고리즘 문제 2개 풀기', cat: '공부', color: '#b58cff', rt: '2일 남음', imp: false },
+  { t: '영어 회화 스터디 준비', cat: '공부', color: '#b58cff', rt: '4일 남음', imp: false },
+  { t: '치과 예약', cat: '생활', color: '#44c98b', rt: '8일 남음', imp: true },
+];
+const s = { platform: 'desktop', dscreen: 'all', mscreen: 'tasks', theme: 'dark', mark: true, fit: true, stars: TASKS.map(t => t.imp) };
+const shown = () => (s.platform === 'desktop' ? s.dscreen : s.mscreen) === 'important' ? TASKS.map((t, i) => [t, i]).filter(([, i]) => s.stars[i]) : TASKS.map((t, i) => [t, i]);
+const count = () => s.stars.filter(Boolean).length;
+
+function desktop() {
+  const imp = s.dscreen === 'important';
+  const list = shown();
+  const rows = list.map(([t, i], n) => {
+    const on = s.stars[i];
+    const starBtn = `<button class="star ${on ? 'on' : 'ghost'} chg" data-star="${i}" title="${on ? '중요 해제' : '중요로 표시'}">${STAR(16, on)}</button>`;
+    const row = `<div class="row ${!imp && n === 1 ? 'hovered' : ''}"><span class="chk"></span>${t.sub ? `<span style="font-size:11px;color:var(--muted)">${t.sub}</span>` : ''}<span class="t">${t.t}</span><span class="badge">${t.cat}</span><span class="rt">${t.rt}</span>${starBtn}</div>`;
+    if (s.dscreen === 'expanded' && n === 0) return `<div class="exp">${row}<div class="body"><div class="head"><h2>${t.t}</h2>
+      <span class="pill">${ICON.cal} 26년 10월 6일 (화) 오후 9시 36분</span><span class="pill icon">${ICON.repeat}</span>
+      <button class="pill icon chg ${on ? 'star-on' : ''}" data-star="${i}">${STAR(14, on)} ${on ? '중요' : '중요 표시'}</button></div>
+      <div class="meta"><span>${t.cat}</span><span>+ 카테고리 태그 추가</span></div></div></div>`;
+    return row;
+  }).join('');
+  return `<div class="desk-wrap ${s.fit ? 'fit' : ''}"><div class="desk theme-dark">
+    <div class="topbar"><b style="color:var(--text)">Thread</b><span class="search">⌕ 할 일, 메모, 카테고리 검색…</span></div>
+    <div class="dbody"><div class="side"><div class="clock">2026년 10월 06일 (화요일)<b>오후 6:36:39</b></div>
+      <h5>내 작업</h5>
+      <div class="menu ${s.dscreen !== 'important' ? 'on' : ''}" data-go="all"><span class="ic">${ICON.layers}</span>모든 할 일<span class="n">7</span></div>
+      <div class="menu"><span class="ic">${ICON.cal}</span>오늘<span class="n">2</span></div>
+      <div class="menu chg ${imp ? 'on' : ''}" data-go="important"><span class="ic star-ic">${STAR(16, true)}</span>중요<span class="n">${count()}</span></div>
+      <h5 style="margin-top:22px">카테고리</h5>
+      ${[['업무', '#6294ff', 2], ['공부', '#b58cff', 2], ['생활', '#44c98b', 3]].map(([n, c, k]) => `<div class="menu"><span class="ic"><span class="dot" style="background:${c}"></span></span>${n}<span class="n">${k}</span></div>`).join('')}
+    </div>
+    <div class="main"><h1>${imp ? `<span style="color:var(--star)">${STAR(24, true)}</span>중요` : '모든 할 일'} <span class="cnt">${imp ? count() : 7}</span></h1>
+      <div class="sub">${imp ? `${count()}개의 할 일 · 0개 완료` : '8개의 할 일 · 1개 완료'}</div>
+      <div class="btns"><span class="b on">리스트</span><span class="b">캘린더</span><span class="b">타임라인</span><span class="gap"></span>
+        <span class="b on chg">기한 순</span><span class="b chg">남은 기한 순</span><span class="b chg">생성일 순</span></div>
+      <div class="add ${imp ? 'chg' : ''}"><span style="font-size:20px">+</span>${imp ? '중요한 할 일을 추가하세요…' : '할 일을 추가하세요…'}</div>
+      <div class="grp">▾ 해야할 일 (${list.length})</div>${rows}</div>
+    <div class="cal"><h2>2026년 10월</h2><div class="calgrid">${['일', '월', '화', '수', '목', '금', '토'].map(d => `<div style="text-align:center">${d}</div>`).join('')}
+      ${Array.from({ length: 35 }, (_, i) => { const d = i - 3; const t = d === 6 ? `<div class="cell-t"><span class="chg" style="color:var(--star);display:inline-grid">${STAR(10, true)}</span>분기 회고…</div><div class="cell-t">운동 30분</div>` : ''; return `<div>${d > 0 && d <= 31 ? d : ''}${t}</div>`; }).join('')}</div></div>
+    </div></div></div>`;
+}
+
+const status = () => `<div class="status"><span>9:41</span><span>▂▄▆ ◔ ▮</span></div>`;
+const tabbar = () => `<nav class="tabbar">${['할 일', '캘린더', '일정', '설정'].map((l, i) => `<button class="${i === 0 ? 'on' : ''}">${l}</button>`).join('')}</nav>`;
+function mobileList(imp) {
+  const list = shown();
+  return `<div class="content"><div class="appbar"><h1>${imp ? `<span style="color:var(--star)">${STAR(20, true)}</span>중요` : '모든 할 일'} <span class="count">${imp ? count() : 6}</span><span style="color:var(--muted)">${ICON.chev}</span></h1></div>
+    <div class="msub"><span class="dot" style="background:var(--success)"></span> 모두 동기화됨 · 방금</div>
+    <div class="chips chg"><span class="chip on">기한 순</span><span class="chip">남은 기한 순</span><span class="chip">생성일 순</span></div>
+    <div class="msec">▾ 해야할 일 (${list.length})</div>
+    ${list.map(([t, i]) => `<div class="task"><span class="check"></span><div class="body"><div class="t">${t.t}</div><div class="meta"><span class="dot" style="background:${t.color}"></span><span>${t.rt}</span>${t.sub ? `<span>·</span><span>${t.sub}</span>` : ''}</div></div>
+      <span class="mstar chg ${s.stars[i] ? 'on' : ''}" data-star="${i}">${STAR(20, s.stars[i])}</span></div>`).join('')}
+  </div><button class="fab">+</button>${tabbar()}`;
+}
+function phone() {
+  let body;
+  if (s.mscreen === 'tasks') body = mobileList(false);
+  else if (s.mscreen === 'important') body = mobileList(true);
+  else if (s.mscreen === 'sheet') body = mobileList(false) + `<div class="scrim"></div><div class="sheet"><div class="grab"></div><h2>보기</h2>
+    <div class="srow on"><span class="lead">${ICON.layers}</span>모든 할 일<span class="n">6</span></div>
+    <div class="srow"><span class="lead">${ICON.sun}</span>오늘<span class="n">2</span></div>
+    <div class="srow chg"><span class="lead" style="color:var(--star)">${STAR(18, true)}</span>중요<span class="n">${count()}</span></div>
+    <div style="height:1px;background:var(--border);margin:6px 20px"></div>
+    ${[['업무', '#6294ff', 2], ['공부', '#b58cff', 2], ['생활', '#44c98b', 2]].map(([n, c, k]) => `<div class="srow"><span class="lead"><span class="dot" style="background:${c}"></span></span>${n}<span class="n">${k}</span></div>`).join('')}
+    <div class="srow" style="color:var(--accent)"><span class="lead">+</span>카테고리 추가·관리</div></div>`;
+  else body = `<div class="content"><div class="hdr"><span class="ib">${ICON.back}</span><span style="flex:1"></span>
+      <span class="ib chg ${s.stars[0] ? 'on' : ''}" data-star="0">${STAR(22, s.stars[0])}</span><span class="ib">${ICON.trash}</span></div>
+    <div class="dtitle">분기 회고 자료 정리</div>
+    <div class="prop"><span class="k">기한</span>오늘 오후 9:00</div><div class="prop"><span class="k">반복</span>안 함</div><div class="prop"><span class="k">카테고리</span><span class="dot" style="background:#6294ff"></span> 업무</div>
+    <div class="prop" style="border:0"><span class="k">하위 할 일</span>2/3</div></div>`;
+  return `<div class="phone theme-${s.theme}">${status()}${body}</div>`;
+}
+
+function notes() {
+  const d = s.platform === 'desktop';
+  return `<div class="notes"><div class="now">${d ? { all: 'PC · 모든 할 일 (두 번째 줄에 마우스를 올린 상태)', important: 'PC · 중요 목록', expanded: 'PC · 할 일을 펼친 상태' }[s.dscreen] : { tasks: '모바일 · 할 일', important: '모바일 · 중요 보기', sheet: '모바일 · 보기 선택', detail: '모바일 · 할 일 상세' }[s.mscreen]}</div>
+    <h3>바뀌는 것 (노란 점선)</h3><ul>
+      <li><b>중요도 순</b> 정렬이 없어짐. 정렬은 기한 순 · 남은 기한 순 · 생성일 순. ${d ? 'PC에서 끌어서 순서 바꾸기도 없어짐.' : '이 정렬을 골라 두었던 폰은 기한 순으로 바뀜.'}</li>
+      <li><b>별(중요 표시)</b>: ${d ? '할 일 줄 오른쪽 끝. 켜진 별은 항상 노랗게 보이고, 꺼진 별은 마우스를 올렸을 때만 보임. 펼친 할 일의 날짜 옆에도 "중요" 버튼.' : '할 일 줄 오른쪽 끝(누르면 바로 켜고 끔), 상세 화면 위쪽 휴지통 옆.'} 별을 눌러도 할 일이 펼쳐지지 않음.</li>
+      <li><b>중요 목록</b>: ${d ? '왼쪽 "내 작업"에 모든 할 일 · 오늘 · 중요.' : '보기 선택에 모든 할 일 · 오늘 · 중요.'} 중요 표시한 할 일만 보이고, 캘린더·일정도 같은 목록을 따름. 이 목록에서 추가한 할 일은 바로 중요로 표시됨.</li>
+      ${d ? '<li>캘린더 칸의 할 일 제목 앞에 작은 노란 별(중요인 것만).</li>' : ''}
+      <li>별 표시는 동기화되고, PC와 폰에서 같은 할 일에 같이 보임.</li>
+    </ul>
+    <h3>그대로인 것</h3><ul><li>할 일 줄의 나머지 정보, 펼친 할 일·상세의 나머지 항목, 카테고리 목록.</li>
+      <li>옛 버전 앱(PC 2.1.1 이하, 지금 폰 테스트판)은 별을 안 보여 주지만, 그 앱에서 할 일을 고쳐도 별 표시는 지워지지 않음.</li></ul>
+    <h3 class="q">정할 것</h3><ul class="q">
+      <li>별 색: 노랑(시안) / 앱 기본 파랑.</li>
+      <li>"중요" 목록 위치: 오늘 아래(시안) / 모든 할 일 바로 아래.</li>
+      ${d ? '<li>캘린더 칸의 작은 별: 넣기(시안) / 빼기.</li>' : '<li>줄의 별 크기·여백이 체크 원과 헷갈리지 않는지.</li>'}
+    </ul></div>`;
+}
+function toolbar() {
+  const b = (k, v, l) => `<button class="${s[k] === v ? 'on' : ''}" data-set="${k}:${v}">${l}</button>`;
+  return `<div class="line"><strong>플랫폼</strong>${b('platform', 'desktop', 'PC')}${b('platform', 'mobile', '모바일')}<span class="sep"></span><strong>표시</strong>${b('mark', true, '바뀌는 부분 표시')}${b('mark', false, '끔')}</div>` +
+    (s.platform === 'desktop'
+      ? `<div class="line"><strong>화면</strong>${b('dscreen', 'all', '모든 할 일')}${b('dscreen', 'expanded', '할 일 펼침')}${b('dscreen', 'important', '중요 목록')}<span class="sep"></span><strong>크기</strong>${b('fit', true, '맞춤(70%)')}${b('fit', false, '실제 1440×960')}</div>`
+      : `<div class="line"><strong>화면</strong>${b('mscreen', 'tasks', '할 일')}${b('mscreen', 'sheet', '보기 선택')}${b('mscreen', 'important', '중요 보기')}${b('mscreen', 'detail', '상세')}<span class="sep"></span><strong>테마</strong>${b('theme', 'dark', '다크')}${b('theme', 'light', '라이트')}</div>`);
+}
+function render() {
+  document.getElementById('toolbar').innerHTML = toolbar();
+  const st = document.getElementById('stage');
+  st.className = 'stage' + (s.mark ? ' mark' : '');
+  st.innerHTML = (s.platform === 'desktop' ? desktop() : phone()) + notes();
+}
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-set],[data-star],[data-go]'); if (!t) return;
+  if (t.dataset.set) { const [k, v] = t.dataset.set.split(':'); s[k] = v === 'true' ? true : v === 'false' ? false : v; }
+  if (t.dataset.star) { const i = +t.dataset.star; s.stars[i] = !s.stars[i]; }
+  if (t.dataset.go) s.dscreen = t.dataset.go;
+  render();
+});
+render();
+</script>
+</body>
+</html>
