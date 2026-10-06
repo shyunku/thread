@@ -59,7 +59,7 @@
   /* Two-line row (like mobile): title, then category · remaining · repeat · subtasks. */
   .row.two { height: 62px; align-items: center; }
   .row.two .body { flex: 1; min-width: 0; }
-  .row.two .rmeta { display: flex; align-items: center; gap: 6px; margin-top: 3px; font-size: 12px; color: var(--muted); }
+  .row.two .rmeta { display: flex; align-items: center; gap: 6px; margin-top: 1px; font-size: 12px; color: var(--muted); }
   .row.two .rmeta .over { color: var(--danger); }
   .cbadge { font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 6px; }
   .row.hovered { background: var(--hover); }
@@ -159,7 +159,8 @@ function desktop() {
     const on = s.stars[i];
     const starBtn = `<button class="star ${on ? 'on' : 'ghost'} chg" data-star="${i}" title="${on ? '중요 해제' : '중요로 표시'}">${STAR(16, on)}</button>`;
     const badge = `<span class="cbadge chg" style="color:${t.color};background:${t.color}26">${t.cat}</span>`;
-    const meta = [s.catPos === 'meta' ? badge : '', `<span>${t.rt}</span>`, t.repeat ? `<span>·</span><span>↻ ${t.repeat}</span>` : '', t.sub ? `<span>·</span><span>${t.sub}</span>` : ''].join('');
+    const dot = `<span class="dot chg" style="background:${t.color}"></span>`;
+    const meta = [s.catPos === 'meta' ? badge : s.catPos === 'dot' ? dot : '', `<span>${t.rt}</span>`, t.repeat ? `<span>·</span><span>↻ ${t.repeat}</span>` : '', t.sub ? `<span>·</span><span>${t.sub}</span>` : ''].join('');
     const row = `<div class="row two ${!imp && n === 1 ? 'hovered' : ''}"><span class="chk"></span><div class="body"><div style="display:flex;align-items:center;gap:8px"><span class="t">${t.t}</span>${s.catPos === 'title' ? badge : ''}</div><div class="rmeta chg">${meta}</div></div>${starBtn}</div>`;
     if (s.dscreen === 'expanded' && n === 0) return `<div class="exp">${row}<div class="body"><div class="head"><h2>${t.t}</h2>
       <span class="pill">${ICON.cal} 26년 10월 6일 (화) 오후 9시 36분</span><span class="pill icon">${ICON.repeat}</span>
@@ -222,7 +223,7 @@ function phone() {
 function notes() {
   const d = s.platform === 'desktop';
   return `<div class="notes"><div class="now">${d ? { all: 'PC · 모든 할 일 (두 번째 줄에 마우스를 올린 상태)', important: 'PC · 중요 목록', expanded: 'PC · 할 일을 펼친 상태' }[s.dscreen] : { tasks: '모바일 · 할 일', important: '모바일 · 중요 보기', sheet: '모바일 · 보기 선택', detail: '모바일 · 할 일 상세' }[s.mscreen]}</div>
-    ${d ? `<h3>2차 반영</h3><ul style="color:#70d5a0"><li>할 일 줄을 모바일처럼 두 줄로: 제목 아래에 남은 시간 · 반복 · 하위 할 일.</li><li>카테고리 표시를 카테고리 색으로(줄, 펼친 할 일). 툴바 "카테고리"로 위치 두 가지 비교.</li><li>캘린더 칸의 별은 뺌. 별 색 노랑, 중요 목록은 오늘 아래(모바일과 같음).</li></ul>` : ''}
+    ${d ? `<h3>2차 반영</h3><ul style="color:#70d5a0"><li>할 일 줄을 모바일처럼 두 줄로: 제목 아래에 남은 시간 · 반복 · 하위 할 일. (3차) 제목과 아래 줄 간격 2px 줄임.</li><li>카테고리 표시를 카테고리 색으로(줄, 펼친 할 일). 툴바 "카테고리"로 위치 두 가지 비교.</li><li>캘린더 칸의 별은 뺌. 별 색 노랑, 중요 목록은 오늘 아래(모바일과 같음).</li></ul>` : ''}
     <h3>바뀌는 것 (노란 점선)</h3><ul>
       <li><b>중요도 순</b> 정렬이 없어짐. 정렬은 기한 순 · 남은 기한 순 · 생성일 순. ${d ? 'PC에서 끌어서 순서 바꾸기도 없어짐.' : '이 정렬을 골라 두었던 폰은 기한 순으로 바뀜.'}</li>
       <li><b>별(중요 표시)</b>: ${d ? '할 일 줄 오른쪽 끝. 켜진 별은 항상 노랗게 보이고, 꺼진 별은 마우스를 올렸을 때만 보임. 펼친 할 일의 날짜 옆에도 "중요" 버튼.' : '할 일 줄 오른쪽 끝(누르면 바로 켜고 끔), 상세 화면 위쪽 휴지통 옆.'} 별을 눌러도 할 일이 펼쳐지지 않음.</li>
@@ -231,13 +232,13 @@ function notes() {
     </ul>
     <h3>그대로인 것</h3><ul><li>할 일 줄의 나머지 정보, 펼친 할 일·상세의 나머지 항목, 카테고리 목록.</li>
       <li>옛 버전 앱(PC 2.1.1 이하, 지금 폰 테스트판)은 별을 안 보여 주지만, 그 앱에서 할 일을 고쳐도 별 표시는 지워지지 않음.</li></ul>
-    ${d ? '<h3 class="q">정할 것</h3><ul class="q"><li>카테고리 위치: 제목 옆(시안) / 아래 줄 맨 앞.</li></ul>' : ''}</div>`;
+    ${d ? '<h3 class="q">정할 것</h3><ul class="q"><li>카테고리: 제목 옆 / 아래 줄 맨 앞(이름) / 아래 줄 점(모바일과 같음). 툴바 "카테고리"로 비교.</li></ul>' : ''}</div>`;
 }
 function toolbar() {
   const b = (k, v, l) => `<button class="${s[k] === v ? 'on' : ''}" data-set="${k}:${v}">${l}</button>`;
   return `<div class="line"><strong>플랫폼</strong>${b('platform', 'desktop', 'PC')}${b('platform', 'mobile', '모바일')}<span class="sep"></span><strong>표시</strong>${b('mark', true, '바뀌는 부분 표시')}${b('mark', false, '끔')}</div>` +
     (s.platform === 'desktop'
-      ? `<div class="line"><strong>화면</strong>${b('dscreen', 'all', '모든 할 일')}${b('dscreen', 'expanded', '할 일 펼침')}${b('dscreen', 'important', '중요 목록')}<span class="sep"></span><strong>카테고리</strong>${b('catPos', 'title', '제목 옆')}${b('catPos', 'meta', '아래 줄 맨 앞')}<span class="sep"></span><strong>크기</strong>${b('fit', true, '맞춤(70%)')}${b('fit', false, '실제 1440×960')}</div>`
+      ? `<div class="line"><strong>화면</strong>${b('dscreen', 'all', '모든 할 일')}${b('dscreen', 'expanded', '할 일 펼침')}${b('dscreen', 'important', '중요 목록')}<span class="sep"></span><strong>카테고리</strong>${b('catPos', 'title', '제목 옆')}${b('catPos', 'meta', '아래 줄 맨 앞')}${b('catPos', 'dot', '아래 줄 점(모바일처럼)')}<span class="sep"></span><strong>크기</strong>${b('fit', true, '맞춤(70%)')}${b('fit', false, '실제 1440×960')}</div>`
       : `<div class="line"><strong>화면</strong>${b('mscreen', 'tasks', '할 일')}${b('mscreen', 'sheet', '보기 선택')}${b('mscreen', 'important', '중요 보기')}${b('mscreen', 'detail', '상세')}<span class="sep"></span><strong>테마</strong>${b('theme', 'dark', '다크')}${b('theme', 'light', '라이트')}</div>`);
 }
 function render() {
