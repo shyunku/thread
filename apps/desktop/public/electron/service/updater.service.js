@@ -62,8 +62,6 @@ class UpdaterService {
         await this.showUpdateCheckFailure(window, data);
         break;
     }
-    await Util.sleep(1000);
-
     if (!window.isDestroyed()) window.close();
   }
 

@@ -31,7 +31,10 @@ async function openSyncSession({store,transport,signal,migrationJournalFor=null}
  signal?.addEventListener("abort",close,{once:true});
  try{
   const journal=migrationJournalFor?.(store)??null,migration=journal?.get();
-  const migrating=migration&&migration.phase!=="CANCELLED";
+  // The journal stays ACTIVE after a migration; once the migrated snapshot has been
+  // installed locally (READY mark) the replica syncs like any other (#98.5).
+  const migrating=migration&&migration.phase!=="CANCELLED"&&
+   !(migration.phase==="ACTIVE"&&store.get("recovery","$migration-local-"+migration.id)?.phase==="READY");
   // A replica that already synced pulls only the changes since its cursor and then
   // compares its objects with the server's state digest; a first sync, a migration
   // or a mismatch restores from a full snapshot (#98).

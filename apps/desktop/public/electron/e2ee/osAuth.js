@@ -8,7 +8,15 @@ function createOSAuth({ app, systemPreferences, platform = process.platform, res
   let busy = false;
   const helper = app.isPackaged ? path.join(resourcesPath, "resources/native/thread-auth.exe")
     : path.resolve(__dirname, "../../resources/native/thread-auth.exe");
+  // One unlock asks several times in a row; reuse the answer briefly (#98.5).
+  let checked = null;
   async function availability() {
+    if (checked && Date.now() - checked.at < 30000) return checked.value;
+    const value = await check();
+    checked = { at: Date.now(), value };
+    return value;
+  }
+  async function check() {
     if (platform === "darwin") return !!systemPreferences.canPromptTouchID();
     if (platform !== "win32" || !fs.existsSync(helper)) return false;
     try {

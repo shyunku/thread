@@ -31,6 +31,30 @@ test("invalid snapshot leaves a new replica unbound; next valid attempt succeeds
  assert.equal(f.store.get("confirmed","$sync-state"),null);
  f.transport.snapshot=valid;const session=await openSyncSession(f);session.close();
 });
+// A PC that migrated from v2 keeps its journal ACTIVE (#98.5).
+function migrated(f,{ready}){
+ const meta=f.store.get("confirmed","$sync-state");f.store.put("confirmed","$sync-state",{...meta,cursor:"5"});
+ if(ready)f.store.put("recovery","$migration-local-m1",{phase:"READY"});
+ const journal={store:f.store,get:()=>({id:"m1",phase:"ACTIVE"})},calls=[];
+ for(const name of ["snapshot","pull","digest"]){const call=f.transport[name];f.transport[name]=async(...args)=>{calls.push(name);return call(...args);};}
+ return {calls,migrationJournalFor:()=>journal};
+}
+test("a migrated replica past its first install reopens with changes and the state digest, not a snapshot",async t=>{
+ const f=await fixture(t);(await openSyncSession(f)).close();
+ const {localStateDigest}=require("@thread/e2ee/src/synchronize"),identity=f.store.get("recovery","$owner-identity");
+ f.transport.pull=async()=>({changes:[],until:"5",next:"5",more:false});
+ f.transport.digest=async()=>({epoch:"epoch",seq:"5",membershipHead:identity.fingerprint,...localStateDigest(f.store)});
+ const {openSyncSession:shared}=require("@thread/e2ee/src/syncSession"),m=migrated(f,{ready:true});
+ const session=await shared({...f,migrationJournalFor:m.migrationJournalFor});session.close();
+ assert.deepEqual(m.calls.filter(c=>c==="snapshot"),[]);assert.ok(m.calls.includes("pull")&&m.calls.includes("digest"));
+});
+test("a migrated replica without the local READY mark still installs the migration snapshot",async t=>{
+ const f=await fixture(t);(await openSyncSession(f)).close();
+ f.transport.snapshot=async()=>{throw Error("SNAPSHOT_REQUESTED");};
+ const {openSyncSession:shared}=require("@thread/e2ee/src/syncSession"),m=migrated(f,{ready:false});
+ await assert.rejects(shared({...f,migrationJournalFor:m.migrationJournalFor}),/SNAPSHOT_REQUESTED/);
+ assert.deepEqual(m.calls.filter(c=>c==="pull"||c==="digest"),[]);
+});
 
 async function rotate(f,{epoch="epoch",recipients}={}){
  const {MembershipHistory}=require("../public/electron/e2ee/readProtocol"),{proposeTransition}=require("../public/electron/e2ee/keyTransition");
