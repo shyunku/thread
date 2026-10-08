@@ -300,6 +300,7 @@ const LeftSidebar = ({
                   <IoKey />
                 </div>
                 <ContextMenu
+                  className="category-create-menu"
                   defaultStyle={true}
                   sticky={true}
                   reference={addSecretCategoryCxt.ref}
