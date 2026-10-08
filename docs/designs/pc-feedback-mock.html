@@ -130,6 +130,62 @@
   .radio-row .ex { font-size: 12.5px; color: var(--secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .seg span[data-mode], .seg span[data-h24] { cursor: pointer; }
   .opt .ex { margin-top: 8px; font-size: 12px; color: var(--secondary); line-height: 1.7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* Phone 390x844 */
+  .phone { position: relative; width: 390px; height: 844px; border-radius: 44px; border: 10px solid #222730; background: var(--canvas); color: var(--text); overflow: hidden; display: flex; flex-direction: column; flex: none; }
+  .ph-status { height: 36px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 22px; font-size: 12px; color: var(--secondary); }
+  .ph-content { flex: 1; min-height: 0; overflow: hidden; position: relative; }
+  .ph-title { padding: 16px 18px 12px; font-size: 22px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+  .ph-title .count { padding: 1px 8px; border-radius: 7px; background: var(--surface); border: 1px solid var(--border); color: var(--secondary); font-size: 13px; font-weight: 600; }
+  .ph-sub { padding: 0 18px 10px; color: var(--muted); font-size: 12px; }
+  .ph-chips { display: flex; gap: 6px; padding: 0 18px 12px; }
+  .ph-chip { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--secondary); font-size: 13px; }
+  .ph-chip.on { background: var(--selected); border-color: var(--accent); color: var(--text); }
+  .ph-sec { padding: 10px 18px 8px; color: var(--secondary); font-size: 13px; font-weight: 600; }
+  .ph-task { display: flex; align-items: center; gap: 12px; margin: 0 12px 8px; padding: 12px 8px 12px 14px; border-radius: 14px; background: var(--surface); border: 1px solid var(--border); }
+  .ph-task .check { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--muted); flex: none; }
+  .ph-task .body { flex: 1; min-width: 0; }
+  .ph-task .t { font-weight: 600; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ph-task .meta { display: flex; gap: 6px; align-items: center; margin-top: 3px; color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; }
+  .ph-task .meta > * { flex: none; }
+  .ph-task .meta .over { color: var(--danger); }
+  .ph-task .mstar { width: 40px; height: 40px; display: grid; place-items: center; color: var(--muted); flex: none; }
+  .ph-task .mstar.on { color: var(--star); }
+  .ph-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .ph-fab { position: absolute; right: 18px; bottom: 14px; width: 56px; height: 56px; border-radius: 18px; background: var(--accent); color: #fff; font-size: 28px; display: grid; place-items: center; }
+  .ph-tabbar { flex: none; display: flex; height: 70px; padding: 6px 6px 16px; background: var(--panel); border-top: 1px solid var(--border); }
+  .ph-tabbar span { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 11px; }
+  .ph-tabbar span.on { color: var(--accent); font-weight: 700; }
+  .ph-account { display: flex; align-items: center; gap: 12px; margin: 0 12px; padding: 14px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); }
+  .ph-account .logo { width: 44px; height: 44px; border-radius: 12px; background: #1b2740; color: var(--accent); display: grid; place-items: center; font-weight: 800; }
+  .ph-ghead { padding: 18px 18px 6px; color: var(--muted); font-size: 12px; font-weight: 600; }
+  .ph-group { margin: 0 12px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); overflow: hidden; }
+  .ph-item { display: flex; align-items: center; gap: 8px; padding: 13px 14px; border-bottom: 1px solid var(--border); font-size: 15px; }
+  .ph-item:last-child { border-bottom: 0; }
+  .ph-item .tx { flex: 1; min-width: 0; }
+  .ph-item .dt { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .ph-item .v { color: var(--muted); font-size: 13px; }
+  .ph-item .chev { color: var(--muted); font-size: 16px; }
+  .ph-sw { width: 40px; height: 22px; border-radius: 11px; background: var(--accent); position: relative; flex: none; }
+  .ph-sw::after { content: ""; position: absolute; top: 3px; left: 21px; width: 16px; height: 16px; border-radius: 50%; background: #fff; }
+  .ph-scrim { position: absolute; inset: 0; background: rgba(0,0,0,.62); z-index: 40; }
+  .ph-sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 41; background: var(--panel); border-radius: 22px 22px 0 0; padding: 8px 0 26px; }
+  .ph-sheet .grab { width: 36px; height: 4px; border-radius: 4px; background: var(--border); margin: 4px auto 12px; }
+  .ph-sheet h2 { margin: 0 20px 4px; font-size: 17px; }
+  .ph-sheet .desc { margin: 0 20px 12px; font-size: 12.5px; color: var(--secondary); line-height: 1.5; }
+  .ph-seg { display: flex; margin: 0 20px 14px; border: 1px solid var(--border); border-radius: 10px; padding: 3px; gap: 3px; }
+  .ph-seg span { flex: 1; text-align: center; padding: 7px 0; border-radius: 8px; font-size: 14px; color: var(--secondary); cursor: pointer; }
+  .ph-seg span.on { background: var(--selected); color: var(--text); font-weight: 600; }
+  .ph-pvl { margin: 0 20px 6px; font-size: 12px; font-weight: 600; color: var(--muted); }
+  .ph-pv { margin: 0 12px 10px; padding: 10px 0 2px; border: 1px solid var(--border); border-radius: 14px; background: var(--canvas); }
+  .ph-pv .ph-task { margin: 0 10px 8px; }
+  .ph-radio { display: flex; align-items: center; gap: 12px; padding: 10px 20px; cursor: pointer; }
+  .ph-radio.on { background: var(--selected); }
+  .ph-radio .rd { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--muted); flex: none; }
+  .ph-radio.on .rd { border-color: var(--accent); background: var(--accent); box-shadow: inset 0 0 0 3px var(--selected); }
+  .ph-radio .tx { min-width: 0; }
+  .ph-radio .nm { font-size: 15px; }
+  .ph-radio .ex { font-size: 12px; line-height: 1.45; color: var(--muted); }
 </style>
 </head>
 <body>
@@ -146,7 +202,7 @@ const FORMATS = [
   { id: 3, name: '자세히', desc: '큰 단위부터 세 개' },
   { id: 9, name: '모두', desc: '초 단위까지 전부' },
 ];
-// From the largest non-zero unit, up to `layers` consecutive units; zero units at the end are dropped.
+// From the largest non-zero unit, `layers` units of precision; zero units are left out.
 function remain(ms, layers) {
   const neg = ms < 0; let rest = Math.abs(ms); const parts = []; let started = false;
   for (const [size, unit] of UNITS) {
@@ -155,16 +211,16 @@ function remain(ms, layers) {
     started = true; parts.push([v, unit]);
     if (parts.length >= layers) break;
   }
-  while (parts.length > 1 && parts.at(-1)[0] === 0) parts.pop();
-  const text = parts.length ? parts.map(([v, u]) => v + u).join(' ') : '0초';
+  const shown = parts.filter(([v]) => v > 0);
+  const text = shown.length ? shown.map(([v, u]) => v + u).join(' ') : '0초';
   return { text: `${text} ${neg ? '지남' : '남음'}`, over: neg };
 }
 const TASKS = [
   { t: '분기 회고 자료 정리', cat: '업무', color: '#6294ff', ms: 2 * H + 59 * M + 55 * S, imp: true, sub: '2/3', today: true },
-  { t: '운동 30분', cat: '생활', color: '#44c98b', ms: 4 * H + 12 * M + 8 * S, imp: false, repeat: '매일', today: true },
   { t: '주간 보고서 제출', cat: '업무', color: '#6294ff', ms: -(3 * H + 40 * M + 2 * S), imp: false, today: true },
   { t: '디자인 리뷰 피드백 반영', cat: '업무', color: '#6294ff', ms: 20 * H + 5 * M + 3 * S, imp: true, sub: '0/2' },
   { t: '여행 숙소 알아보기', cat: null, ms: D + 9 * M + 13 * S, imp: false },
+  { t: '운동 30분', cat: '생활', color: '#44c98b', ms: D + 4 * H + 12 * M + 8 * S, imp: false, repeat: '매일' },
   { t: '알고리즘 문제 2개 풀기', cat: '공부', color: '#b58cff', ms: 2 * D + 6 * H + 30 * M, imp: false },
   { t: '토익 단어 50개', cat: '자격증 및 어학 시험 준비 (2026 하반기)', color: '#f0838b', ms: 3 * D + 23 * H + 2 * M + 8 * S, imp: false, repeat: '매일' },
   { t: '치과 예약', cat: '생활', color: '#44c98b', ms: MO + 4 * D + 23 * H + 2 * M + 8 * S, imp: true },
@@ -185,7 +241,8 @@ function clock(d, h24, long) {
   return long ? ap + ' ' + h12 + '시' + (m ? ' ' + m + '분' : '') : ap + ' ' + h12 + ':' + pad(m);
 }
 const dayDiff = (a, b) => Math.round((new Date(a).setHours(0, 0, 0, 0) - new Date(b).setHours(0, 0, 0, 0)) / D);
-// Due time text for the 종료 시각 mode.
+const WEEKDAYS = '일월화수목금토';
+// Due time text for the 기한 mode.
 function due(ms, fmt, h24) {
   const at = NOW + ms, d = new Date(at), over = ms < 0;
   const exact = pad(d.getFullYear() % 100) + '.' + pad(d.getMonth() + 1) + '.' + pad(d.getDate()) + ' ' + clock(d, h24, false);
@@ -193,7 +250,7 @@ function due(ms, fmt, h24) {
   if (fmt === 'full') return { text: d.getFullYear() + '년 ' + (d.getMonth() + 1) + '월 ' + d.getDate() + '일 ' + clock(d, h24, true), over };
   const days = dayDiff(at, NOW);
   if (fmt === 'auto') {
-    const word = { 0: '오늘', 1: '내일', '-1': '어제' }[days];
+    const word = { 0: '오늘', 1: '내일', '-1': '어제' }[days] ?? (days >= 2 && days <= 6 ? WEEKDAYS[d.getDay()] + '요일' : null);
     return { text: word ? word + ' ' + clock(d, h24, true) : exact, over };
   }
   const n = Math.abs(days), side = days < 0 ? '전' : '뒤';
@@ -203,6 +260,12 @@ function due(ms, fmt, h24) {
   if (n < 365) return { text: Math.floor(n / 30) + '개월 ' + side, over };
   return { text: Math.floor(n / 365) + '년 ' + side, over };
 }
+const remainSamples = [D + 4 * H + 12 * M + 8 * S, MO + 4 * D + 23 * H + 2 * M + 8 * S, H + 5 * S];
+// Exact sample times: now is 14:58:19, so +21m41s is 15:20 today, +2d1m41s is Friday 15:00.
+const dueSamples = { simple: [20 * M, D + 2 * H, -2 * D, 10 * D, 95 * D, 5 * Y + 3 * D], auto: [21 * M + 41 * S, D + 2 * H + 31 * M + 41 * S, 2 * D + M + 41 * S, -D, 10 * D], exact: [2 * D - 13 * M - 19 * S, D + 2 * H + 31 * M + 41 * S], full: [2 * D - 13 * M - 19 * S, D + 2 * H + 31 * M + 41 * S] };
+const sampleText = (mode, id) => mode === 'remain' ? remainSamples.map(ms => remain(ms, id).text).join(' · ') : dueSamples[id].map(ms => due(ms, id, s.h24).text).join(' · ');
+const PREVIEW = () => [TASKS.find(t => t.t === '분기 회고 자료 정리'), TASKS.find(t => t.t === '운동 30분')];
+const descText = () => '할 일 목록과 캘린더 아래 목록에 ' + (s.mode === 'remain' ? '남은 시간' : '기한') + '을 얼마나 자세히 보여 줄지 정해요.';
 const timeText = ms => s.mode === 'remain' ? remain(ms, s.fmt) : due(ms, s.dueFmt, s.h24);
 const s = { screen: 'main', mode: 'remain', fmt: 1, dueFmt: 'auto', h24: false, popup: 'after', mark: false, fit: false };
 
@@ -210,7 +273,7 @@ function sidebar(withPopup) {
   return `<div class="side"><div class="clock">2026년 10월 07일 (수요일)<b>오후 2:58:19</b></div>
     <h5>내 작업</h5>
     <div class="menu on"><span class="ic">≡</span>모든 할 일<span class="n">8</span></div>
-    <div class="menu"><span class="ic">▣</span>오늘<span class="n">3</span></div>
+    <div class="menu"><span class="ic">▣</span>오늘<span class="n">2</span></div>
     <div class="menu"><span class="ic" style="color:var(--star)">${STAR(16, true)}</span>중요<span class="n">3</span></div>
     <h5 style="margin-top:22px">카테고리<span class="plus">＋</span></h5>
     ${[['업무', '#6294ff', 3], ['공부', '#b58cff', 1], ['생활', '#44c98b', 2]].map(([n, c, k]) => `<div class="menu"><span class="ic"><span class="dot" style="background:${c}"></span></span>${n}<span class="n">${k}</span></div>`).join('')}
@@ -240,17 +303,15 @@ function mainWindow(overlay = '') {
     ${calendar()}</div>${overlay}</div></div>`;
 }
 function settings() {
-  const remainSamples = [10 * H + 5 * M + 3 * S, MO + 4 * D + 23 * H + 2 * M + 8 * S, 9 * M + 13 * S];
-  const dueSamples = { simple: [20 * M, D + 2 * H, -2 * D, 10 * D, 95 * D, 5 * Y + 3 * D], auto: [20 * M, D + 2 * H, -D, 10 * D], exact: [20 * M, D + 2 * H], full: [20 * M, D + 2 * H] };
   const radio = (on, attr, name, ex) => '<div class="radio-row ' + (on ? 'on' : '') + '" ' + attr + '><span class="rd"></span><span class="nm">' + name + '</span><span class="ex">' + ex + '</span></div>';
   const radios = s.mode === 'remain'
-    ? FORMATS.map(f => radio(s.fmt === f.id, 'data-fmt="' + f.id + '"', f.name, remainSamples.map(ms => remain(ms, f.id).text).join(' · '))).join('')
-    : DUE_FORMATS.map(f => radio(s.dueFmt === f.id, 'data-due="' + f.id + '"', f.name, dueSamples[f.id].map(ms => due(ms, f.id, s.h24).text).join(' · '))).join('');
+    ? FORMATS.map(f => radio(s.fmt === f.id, 'data-fmt="' + f.id + '"', f.name, sampleText('remain', f.id))).join('')
+    : DUE_FORMATS.map(f => radio(s.dueFmt === f.id, 'data-due="' + f.id + '"', f.name, sampleText('due', f.id))).join('');
   const today = TASKS.filter(t => t.today);
-  const pvRows = today.slice(0, 2).map(t => { const r = timeText(t.ms);
-    return '<div class="row"><span class="chk"></span><div class="body"><div class="t">' + t.t + '</div><div class="meta"><span class="cbadge" style="color:' + t.color + ';background:' + t.color + '26">' + t.cat + '</span><span class="' + (r.over ? 'over' : '') + '">' + r.text + '</span>' + (t.sub ? '<span>·</span><span>' + t.sub + '</span>' : '') + '</div></div><span class="star ' + (t.imp ? 'on' : '') + '">' + STAR(16, t.imp) + '</span></div>'; }).join('');
+  const pvRows = PREVIEW().map(t => { const r = timeText(t.ms);
+    return '<div class="row"><span class="chk"></span><div class="body"><div class="t">' + t.t + '</div><div class="meta"><span class="cbadge" style="color:' + t.color + ';background:' + t.color + '26">' + t.cat + '</span><span class="' + (r.over ? 'over' : '') + '">' + r.text + '</span>' + (t.repeat ? '<span>·</span><span>↻ ' + t.repeat + '</span>' : '') + (t.sub ? '<span>·</span><span>' + t.sub + '</span>' : '') + '</div></div><span class="star ' + (t.imp ? 'on' : '') + '">' + STAR(16, t.imp) + '</span></div>'; }).join('');
   const pvDay = '<div class="daylist"><h4>10월 7일 (수)</h4>' + [...today].sort((a, b) => a.ms - b.ms).map(t => { const r = timeText(t.ms); return '<div class="dayrow"><span class="dot" style="background:' + t.color + '"></span><span class="tt">' + t.t + '</span><span class="r ' + (r.over ? 'over' : '') + '">' + r.text + '</span></div>'; }).join('') + '</div>';
-  const desc = s.mode === 'remain' ? '할 일 목록과 캘린더 아래 목록에 남은 시간을 얼마나 자세히 보여 줄지 정해요.' : '할 일 목록과 캘린더 아래 목록에 종료 시각을 얼마나 자세히 보여 줄지 정해요.';
+  const desc = descText();
   const nav = ['일반', '데이터', '사용자 맞춤', '시스템', '계정', '정보'].map((x, i) => '<div class="mi ' + (i === 0 ? 'on ' : '') + (x === '시스템' || x === '계정' ? 'chg' : '') + '">' + x + '</div>').join('');
   const seg = (items) => '<div class="seg">' + items.map(([on, attr, label]) => '<span class="' + (on ? 'on' : '') + '" ' + attr + '>' + label + '</span>').join('') + '</div>';
   return mainWindow('<div class="backdrop"><div class="set"><div class="set-nav"><h4>설정</h4>' + nav + '</div>' +
@@ -259,34 +320,67 @@ function settings() {
     '<div class="srow"><div class="tx"><div class="lb">주 시작 요일</div><div class="ds">캘린더의 첫 번째 열</div></div>' + seg([[1, '', '일요일'], [0, '', '월요일']]) + '</div>' +
     '<div class="srow"><div class="tx"><div class="lb"><span class="chg">시각 형식</span></div><div class="ds">오후 3시 / 15시</div></div>' + seg([[!s.h24, 'data-h24="false"', '12시간'], [s.h24, 'data-h24="true"', '24시간']]) + '</div>' +
     '<div class="tsec chg"><div class="head"><div class="tx" style="flex:1"><div class="lb" style="font-size:14px;font-weight:600">시간 표시</div><div class="ds" style="font-size:12.5px;color:var(--secondary)">' + desc + '</div></div>' +
-    seg([[s.mode === 'remain', 'data-mode="remain"', '남은 시간'], [s.mode === 'due', 'data-mode="due"', '종료 시각']]) + '</div>' +
+    seg([[s.mode === 'remain', 'data-mode="remain"', '남은 시간'], [s.mode === 'due', 'data-mode="due"', '기한']]) + '</div>' +
     '<div class="pv-label">미리 보기</div><div class="pv"><div>' + pvRows + '</div>' + pvDay + '</div><div class="radios">' + radios + '</div></div>' +
     '<div class="srow"><div class="tx"><div class="lb">테마 <span style="font-size:10px;padding:1px 6px;border-radius:5px;background:#252b36;color:var(--muted)">준비 중</span></div><div class="ds">다크, 라이트, 시스템 설정 따르기</div></div>' + seg([[1, '', '다크'], [0, '', '라이트'], [0, '', '시스템']]) + '</div>' +
     '<div class="srow"><div class="tx"><div class="lb">업데이트 후 변경 내용 보기</div><div class="ds">새 버전으로 바뀐 뒤 처음 열 때 바뀐 점을 창으로 보여 줘요.</div></div><span class="tog"></span></div>' +
     '</div></div></div></div>');
 }
 
+const PH_STATUS = '<div class="ph-status"><span>9:41</span><span>▂▄▆ ◔ ▮</span></div>';
+const phTabbar = on => '<div class="ph-tabbar">' + ['할 일', '캘린더', '일정', '설정'].map((l, i) => '<span class="' + (i === on ? 'on' : '') + '">' + l + '</span>').join('') + '</div>';
+function phTask(t) {
+  const r = timeText(t.ms);
+  return '<div class="ph-task"><span class="check"></span><div class="body"><div class="t">' + t.t + '</div><div class="meta">' + (t.color ? '<span class="ph-dot" style="background:' + t.color + '"></span>' : '') +
+    '<span class="chg ' + (r.over ? 'over' : '') + '">' + r.text + '</span>' + (t.sub ? '<span>·</span><span>' + t.sub + '</span>' : '') + '</div></div><span class="mstar ' + (t.imp ? 'on' : '') + '">' + STAR(20, t.imp) + '</span></div>';
+}
+function phoneList() {
+  return '<div class="phone">' + PH_STATUS + '<div class="ph-content"><div class="ph-title">모든 할 일 <span class="count">' + TASKS.length + '</span></div>' +
+    '<div class="ph-sub"><span class="ph-dot" style="background:var(--success)"></span> 모두 동기화됨 · 방금</div>' +
+    '<div class="ph-chips"><span class="ph-chip on">기한 순</span><span class="ph-chip">남은 기한 순</span><span class="ph-chip">생성일 순</span></div>' +
+    '<div class="ph-sec">▾ 해야할 일 (' + TASKS.length + ')</div>' + TASKS.map(phTask).join('') + '<span class="ph-fab">+</span></div>' + phTabbar(0) + '</div>';
+}
+function phoneSettings(sheet) {
+  const cur = s.mode === 'remain' ? '남은 시간 · ' + FORMATS.find(f => f.id === s.fmt).name : '기한 · ' + DUE_FORMATS.find(f => f.id === s.dueFmt).name;
+  const item = (title, value, extra = '') => '<div class="ph-item ' + extra + '"><div class="tx">' + title + '</div><span class="v">' + value + '</span><span class="chev">›</span></div>';
+  let body = '<div class="ph-title">설정</div><div class="ph-account"><span class="logo">T</span><div><div style="font-weight:700;font-size:15px">thread-user</div><div style="color:var(--muted);font-size:12px">Google 연결됨 · user@example.com</div></div></div>' +
+    '<div class="ph-ghead">일반</div><div class="ph-group">' + item('시작 화면', '할 일') + item('주 시작 요일', '일요일') +
+    item('<span class="chg">시각 형식</span>', s.h24 ? '24시간 (15:00)' : '12시간 (오후 3:00)', '') + item('<span class="chg">시간 표시</span>', cur, 'chg') +
+    item('테마', '시스템 기본값') + item('비밀 카테고리 잠금', '앱을 닫거나 잠글 때') +
+    '<div class="ph-item"><div class="tx">업데이트 후 변경 내용 보기<div class="dt">새 버전으로 바뀐 뒤 처음 열 때 바뀐 점을 보여 줘요.</div></div><span class="ph-sw"></span></div></div>' +
+    '<div class="ph-ghead">데이터</div><div class="ph-group"><div class="ph-item"><div class="tx">동기화 · 기기 · 복구</div><span class="chev">›</span></div></div>';
+  if (sheet) {
+    const radios = (s.mode === 'remain' ? FORMATS.map(f => [s.fmt === f.id, 'data-fmt="' + f.id + '"', f.name, sampleText('remain', f.id)]) : DUE_FORMATS.map(f => [s.dueFmt === f.id, 'data-due="' + f.id + '"', f.name, sampleText('due', f.id)]))
+      .map(([on, attr, name, ex]) => '<div class="ph-radio ' + (on ? 'on' : '') + '" ' + attr + '><span class="rd"></span><div class="tx"><div class="nm">' + name + '</div><div class="ex">' + ex + '</div></div></div>').join('');
+    body += '<div class="ph-scrim"></div><div class="ph-sheet chg"><div class="grab"></div><h2>시간 표시</h2><p class="desc">' + descText() + '</p>' +
+      '<div class="ph-seg"><span class="' + (s.mode === 'remain' ? 'on' : '') + '" data-mode="remain">남은 시간</span><span class="' + (s.mode === 'due' ? 'on' : '') + '" data-mode="due">기한</span></div>' +
+      '<div class="ph-pvl">미리 보기</div><div class="ph-pv">' + PREVIEW().map(phTask).join('') + '</div>' + radios + '</div>';
+  }
+  return '<div class="phone">' + PH_STATUS + '<div class="ph-content">' + body + '</div>' + phTabbar(3) + '</div>';
+}
+
 function notes() {
-  const mode = s.mode === 'remain' ? '남은 시간 "' + FORMATS.find(f => f.id === s.fmt).name + '"' : '종료 시각 "' + DUE_FORMATS.find(f => f.id === s.dueFmt).name + '"';
-  return '<div class="notes"><div class="now">' + { main: '할 일 목록 + 캘린더', popup: '카테고리 추가 창', settings: '설정 > 일반' }[s.screen] + ' · ' + mode + (s.h24 ? ' · 24시간' : '') + '</div>' +
-    '<h3>2차 반영</h3><ul style="color:#70d5a0">' +
-    '<li>"남은 시간 표시" → <b>시간 표시</b>. 오른쪽 스위치로 <b>남은 시간 / 종료 시각</b>.</li>' +
-    '<li>종료 시각: 간단히(오늘 · 어제 · 5일 전 · 10일 뒤 · 3개월 뒤 · 5년 뒤), 자동(오늘·내일·어제는 "오늘 오후 3시 20분", 나머지는 정확히), 정확히(26.10.09 오후 2:45), 자세히(2026년 10월 9일 오후 2시 45분).</li>' +
-    '<li>디스코드처럼 위에 <b>미리 보기</b>(할 일 줄 두 개 + 캘린더 아래 목록)를 두고, 아래 방식 목록은 라디오로. 고르면 미리 보기가 바로 바뀜.</li>' +
-    '<li>설정 메뉴: 시스템이 계정 위로.</li></ul>' +
-    '<h3>1차 그대로</h3><ul><li>카테고리 아래 줄 맨 앞, 캘린더 아래 목록 짧은 순, 별 항상, 카테고리 추가 창 입력칸.</li></ul>' +
-    '<h3 class="q">정할 것 / 제안</h3><ul class="q">' +
-    '<li><b>이름 겹침</b>: 이미 "시간 표시"(12시간/24시간) 항목이 있음. 시안은 그걸 <b>시각 형식</b>으로 바꿈. 다른 안: 새 항목을 "할 일 시간"으로.</li>' +
-    '<li><b>"종료 시각" 대신 "기한"</b>: 앱의 다른 곳(정렬 "기한 순", 폰 상세 "기한")이 모두 기한이라 스위치를 "남은 시간 / 기한"으로 하면 일관됨. 추천.</li>' +
-    '<li><b>자동</b>에 이번 주는 요일로("금요일 오후 3시") 넣기 제안. 지금은 오늘·내일·어제만 말로 쓰고 나머지는 정확히.</li>' +
-    '<li>분이 0이면 "오후 3시"로 줄임(시안). "오후 3시 0분"을 원하면 말해 줘.</li>' +
-    '<li>12시간/24시간 설정을 종료 시각에도 따름(툴바 "시각 형식"으로 확인). 지난 기한은 두 방식 모두 빨강.</li>' +
-    '<li>남은 시간 방식 이름(간단히 · 보통 · 자세히 · 모두)과 중간 0 단위, 초 단위 갱신 부담, 폰 적용 여부는 1차 질문 그대로.</li></ul></div>';
+  const mode = s.mode === 'remain' ? '남은 시간 "' + FORMATS.find(f => f.id === s.fmt).name + '"' : '기한 "' + DUE_FORMATS.find(f => f.id === s.dueFmt).name + '"';
+  const screen = { main: '할 일 목록 + 캘린더', popup: '카테고리 추가 창', settings: '설정 > 일반', plist: '폰 할 일', pset: '폰 설정', psheet: '폰 시간 표시 창' }[s.screen];
+  return '<div class="notes"><div class="now">' + screen + ' · ' + mode + (s.h24 ? ' · 24시간' : '') + '</div>' +
+    '<h3>3차 반영</h3><ul style="color:#70d5a0">' +
+    '<li>미리 보기 둘째 줄 "운동 30분"을 하루 뒤로. 자세히(1일 4시간 12분)와 모두(1일 4시간 12분 8초)가 구분됨.</li>' +
+    '<li>"종료 시각" → <b>기한</b> (스위치 "남은 시간 / 기한", 설명 문구도).</li>' +
+    '<li>자동: 2~6일 뒤는 요일로 ("금요일 오후 3시"). 그 너머와 그저께 이전은 정확히.</li>' +
+    '<li>중간이 0인 단위도 뺌: 1시간 0분 5초 → "1시간 5초".</li>' +
+    '<li><b>폰 추가</b>: 설정 > 일반에 "시간 표시" 줄, 누르면 아래에서 창(스위치 · 미리 보기 · 방식). 폰의 기존 "시간 표시"(12/24시간)도 PC처럼 "시각 형식"으로. 적용: 할 일 목록, 캘린더 아래 목록, 검색 결과(모두 같은 할 일 줄).</li></ul>' +
+    '<h3>확정된 것</h3><ul><li>이름 간단히 · 보통 · 자세히 · 모두, 분 0이면 "오후 3시", 12/24시간 따름, 지난 건 빨강, 펼친 할 일 카운트다운은 그대로(폰 상세의 남은 시간도 그대로).</li>' +
+    '<li>1차: 카테고리 아래 줄 맨 앞, 캘린더 아래 목록 짧은 순, 별 항상, 카테고리 추가 창 입력칸.</li></ul>' +
+    '<h3 class="q">정할 것</h3><ul class="q">' +
+    '<li><b>요일 범위</b>: "이번 주" 대신 "6일 안"으로 함. 주 시작 요일에 따라 이번 주가 하루뿐일 수 있고, 6일 안이면 같은 요일이 겹치지 않음. 지난 날은 "지난 금요일"이 헷갈려서 정확히로.</li>' +
+    '<li><b>단위 세는 법</b>: 보통에서 1시간 0분 5초는 "1시간" (큰 단위부터 자리 두 개, 그중 0은 숨김). 0 아닌 단위 두 개를 세면 "1시간 5초"가 되는데, 분을 건너뛰고 초가 나와 정밀도가 들쭉날쭉함. 시안은 자리 기준.</li>' +
+    '<li><b>폰 창 모양</b>: 아래에서 올라오는 창(시안, 폰 설정의 다른 항목도 이 방식) vs 별도 화면.</li>' +
+    '<li>초 단위 갱신 부담은 구현 뒤 할 일 470개로 재 봄.</li></ul></div>';
 }
 function toolbar() {
   const b = (k, v, l) => '<button class="' + (s[k] === v ? 'on' : '') + '" data-set="' + k + ':' + v + '">' + l + '</button>';
-  return '<div class="line"><strong>화면</strong>' + b('screen', 'main', '할 일 목록') + b('screen', 'popup', '카테고리 추가 창') + b('screen', 'settings', '설정 > 일반') + '<span class="sep"></span><strong>추가 창</strong>' + b('popup', 'before', '지금') + b('popup', 'after', '바뀐 뒤') + '</div>' +
-    '<div class="line"><strong>시간 표시</strong>' + b('mode', 'remain', '남은 시간') + b('mode', 'due', '종료 시각') + '<span class="sep"></span>' +
+  return '<div class="line"><strong>화면</strong>' + b('screen', 'main', '할 일 목록') + b('screen', 'popup', '카테고리 추가 창') + b('screen', 'settings', '설정 > 일반') + '<span class="sep"></span><strong>폰</strong>' + b('screen', 'plist', '할 일') + b('screen', 'pset', '설정') + b('screen', 'psheet', '시간 표시 창') + '<span class="sep"></span><strong>추가 창</strong>' + b('popup', 'before', '지금') + b('popup', 'after', '바뀐 뒤') + '</div>' +
+    '<div class="line"><strong>시간 표시</strong>' + b('mode', 'remain', '남은 시간') + b('mode', 'due', '기한') + '<span class="sep"></span>' +
     (s.mode === 'remain' ? FORMATS.map(f => b('fmt', f.id, f.name)).join('') : DUE_FORMATS.map(f => b('dueFmt', f.id, f.name)).join('')) +
     '<span class="sep"></span><strong>시각 형식</strong>' + b('h24', false, '12시간') + b('h24', true, '24시간') + '</div>' +
     '<div class="line"><strong>표시</strong>' + b('mark', true, '바뀌는 부분 표시') + b('mark', false, '끔') + '<span class="sep"></span><strong>크기</strong>' + b('fit', false, '실제 1440×960') + b('fit', true, '맞춤(70%)') + '</div>';
@@ -295,7 +389,8 @@ function render() {
   document.getElementById('toolbar').innerHTML = toolbar();
   const st = document.getElementById('stage');
   st.className = 'stage' + (s.mark ? ' mark' : '');
-  st.innerHTML = (s.screen === 'settings' ? settings() : mainWindow()) + notes();
+  const view = { settings, plist: phoneList, pset: () => phoneSettings(false), psheet: () => phoneSettings(true) }[s.screen] || mainWindow;
+  st.innerHTML = view() + notes();
 }
 document.addEventListener('click', e => {
   const t = e.target.closest('[data-set],[data-fmt],[data-due],[data-mode],[data-h24]'); if (!t) return;
