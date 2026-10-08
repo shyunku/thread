@@ -7,6 +7,10 @@ export type Prefs = {
   startTab: 'tasks' | 'calendar' | 'timeline';
   weekStart: 0 | 1;
   timeFormat: '12' | '24';
+  // List rows show the time left or the due time, and how detailed (#101).
+  timeDisplay: 'remain' | 'due';
+  remainFormat: 'simple' | 'normal' | 'detailed' | 'all';
+  dueFormat: 'simple' | 'auto' | 'exact' | 'full';
   listTodoOpen: boolean;
   listDoneOpen: boolean;
   // 'importance' was removed (#97); a stored one falls back to 'due'.
@@ -24,6 +28,9 @@ export const defaultPrefs: Prefs = Object.freeze({
   startTab: 'tasks',
   weekStart: 0,
   timeFormat: '12',
+  timeDisplay: 'remain',
+  remainFormat: 'normal',
+  dueFormat: 'auto',
   listTodoOpen: true,
   listDoneOpen: false,
   sort: 'due',
@@ -37,6 +44,11 @@ const valid: { [K in keyof Prefs]: (value: unknown) => boolean } = {
   startTab: v => v === 'tasks' || v === 'calendar' || v === 'timeline',
   weekStart: v => v === 0 || v === 1,
   timeFormat: v => v === '12' || v === '24',
+  timeDisplay: v => v === 'remain' || v === 'due',
+  remainFormat: v =>
+    v === 'simple' || v === 'normal' || v === 'detailed' || v === 'all',
+  dueFormat: v =>
+    v === 'simple' || v === 'auto' || v === 'exact' || v === 'full',
   listTodoOpen: v => typeof v === 'boolean',
   listDoneOpen: v => typeof v === 'boolean',
   sort: v => v === 'due' || v === 'remaining' || v === 'created',

@@ -8,7 +8,7 @@ import { IconButton } from '@/ui/kit';
 import { endOfDay } from '@/ui/dateTime';
 import { useTheme } from '@/ui/theme';
 import { AddTaskSheet, Fab } from './TasksScreen';
-import { TaskItem, useNow } from './parts';
+import { TaskItem, useListNow } from './parts';
 
 const key = (d: Date) =>
   `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
@@ -19,7 +19,8 @@ export default function CalendarScreen() {
   const { model, scope, prefs } = useApp();
   const navigation = useNavigation<any>();
   const theme = useTheme();
-  const now = useNow(30000);
+  const now = useListNow(model?.tasks, prefs, 30000);
+  const day = new Date(now).setHours(0, 0, 0, 0);
   const [month, setMonth] = useState(
     () => new Date(new Date().getFullYear(), new Date().getMonth(), 1),
   );
@@ -45,7 +46,7 @@ export default function CalendarScreen() {
   const byDay = useMemo(() => {
     const map = new Map<string, TaskRow[]>();
     if (!model) return map;
-    for (const task of visibleTasks(model, scope, { now })) {
+    for (const task of visibleTasks(model, scope, { now: day })) {
       if (task.dueDate == null) continue;
       const k = key(new Date(task.dueDate));
       map.set(k, [...(map.get(k) ?? []), task]);
@@ -57,7 +58,7 @@ export default function CalendarScreen() {
           (a.dueDate ?? 0) - (b.dueDate ?? 0),
       );
     return map;
-  }, [model, scope, now]);
+  }, [model, scope, day]);
 
   const weekStart = prefs.weekStart;
   const first = new Date(month);

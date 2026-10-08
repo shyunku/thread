@@ -3,11 +3,11 @@ import { Pressable, Text, View } from 'react-native';
 import { Check, Repeat, Star } from 'lucide-react-native';
 import { useApp } from '@/app/AppContext';
 import {
-  REPEAT_LABEL,
-  remainingText,
-  type Model,
-  type TaskRow,
-} from '@/core/model/view';
+  nextTick,
+  taskTimeText,
+  type TimeDisplay,
+} from '@/core/model/timeDisplay';
+import { REPEAT_LABEL, type Model, type TaskRow } from '@/core/model/view';
 import { useTheme } from '@/ui/theme';
 
 // Re-render once a minute so "n분 남음" stays current.
@@ -17,6 +17,30 @@ export function useNow(interval = 60000) {
     const timer = setInterval(() => setNow(Date.now()), interval);
     return () => clearInterval(timer);
   }, [interval]);
+  return now;
+}
+
+// Clock for screens listing tasks (#101): one timer, ticking every second only
+// while some row's time text shows seconds (see nextTick), otherwise every `base`.
+export function useListNow(
+  tasks: { dueDate: number | null }[] | undefined,
+  display: TimeDisplay,
+  base = 60000,
+) {
+  const [now, setNow] = useState(() => Date.now());
+  const delay = nextTick(
+    (tasks ?? []).map(t => t.dueDate),
+    now,
+    display,
+    base,
+  );
+  useEffect(() => {
+    const timer = setTimeout(
+      () => setNow(Date.now()),
+      Math.max(0, now + delay - Date.now()),
+    );
+    return () => clearTimeout(timer);
+  }, [now, delay]);
   return now;
 }
 
@@ -109,21 +133,56 @@ export function TaskItem({
   now: number;
   onPress: () => void;
 }) {
-  const theme = useTheme();
-  const { mutate } = useApp();
-  const remaining = remainingText(task.dueDate, now);
+  const { mutate, prefs } = useApp();
   const color =
     task.categories
       .map(cid => model.categoryMap.get(cid)?.color)
       .find(Boolean) ?? null;
+  return (
+    <TaskCard
+      task={task}
+      color={color}
+      now={now}
+      display={prefs}
+      onPress={onPress}
+      onToggle={() =>
+        mutate('task/updateTaskDone', [task.tid, !task.done, Date.now()])
+      }
+      onStar={() =>
+        mutate('task/updateTaskImportant', [task.tid, !task.important])
+      }
+    />
+  );
+}
+
+// The task row's look. Without handlers it only displays (settings preview, #101).
+export function TaskCard({
+  task,
+  color,
+  now,
+  display,
+  onPress,
+  onToggle,
+  onStar,
+}: {
+  task: Pick<
+    TaskRow,
+    'title' | 'done' | 'dueDate' | 'repeatPeriod' | 'important'
+  > & { subtasks: { done: boolean }[] };
+  color: string | null;
+  now: number;
+  display: TimeDisplay;
+  onPress?: () => void;
+  onToggle?: () => void;
+  onStar?: () => void;
+}) {
+  const theme = useTheme();
+  const time = taskTimeText(task.dueDate, now, display);
   const doneSubtasks = task.subtasks.filter(s => s.done).length;
-  const toggle = () =>
-    mutate('task/updateTaskDone', [task.tid, !task.done, Date.now()]);
-  const star = () =>
-    mutate('task/updateTaskImportant', [task.tid, !task.important]);
   return (
     <Pressable
       onPress={onPress}
+      disabled={!onPress}
       accessibilityRole="button"
       accessibilityLabel={`${task.title}${task.done ? ', 완료' : ''}`}
       style={({ pressed }) => ({
@@ -142,7 +201,7 @@ export function TaskItem({
         opacity: task.done ? 0.6 : 1,
       })}
     >
-      <CheckCircle done={task.done} onPress={toggle} />
+      <CheckCircle done={task.done} onPress={onToggle} />
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text
           numberOfLines={1}
@@ -173,11 +232,11 @@ export function TaskItem({
               }}
             />
           )}
-          {/* (color) (time left) · (repeat) · (subtasks) — user order, #96 */}
+          {/* (color) (time) · (repeat) · (subtasks) — user order, #96 */}
           {[
-            remaining && (
-              <Meta key="left" danger={remaining.overdue && !task.done}>
-                {remaining.text}
+            time && (
+              <Meta key="left" danger={time.overdue && !task.done}>
+                {time.text}
               </Meta>
             ),
             !!task.repeatPeriod && (
@@ -199,19 +258,20 @@ export function TaskItem({
             )}
         </View>
       </View>
-      <StarButton on={task.important} onPress={star} />
+      <StarButton on={task.important} onPress={onStar} />
     </Pressable>
   );
 }
 
 // Star toggle at the row's end (#97); its own press, the row does not open.
-function StarButton({ on, onPress }: { on: boolean; onPress: () => void }) {
+function StarButton({ on, onPress }: { on: boolean; onPress?: () => void }) {
   const theme = useTheme();
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={on ? '중요 해제' : '중요로 표시'}
       accessibilityState={{ selected: on }}
+      disabled={!onPress}
       onPress={onPress}
       style={({ pressed }) => ({
         width: 40,

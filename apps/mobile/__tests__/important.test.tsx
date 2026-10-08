@@ -14,7 +14,7 @@ jest.setTimeout(30000);
 const mockApp = {
   mutate: jest.fn(),
   model: null as any,
-  prefs: { timeFormat: '12' } as any,
+  prefs: sanitize({}),
 };
 jest.mock('@/app/AppContext', () => ({ useApp: () => mockApp }));
 jest.mock('@react-navigation/native', () => ({

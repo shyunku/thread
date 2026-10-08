@@ -6,21 +6,25 @@ import { useApp } from '@/app/AppContext';
 import { sortTasks, visibleTasks } from '@/core/model/view';
 import { IconButton } from '@/ui/kit';
 import { useTheme } from '@/ui/theme';
-import { TaskItem, useNow } from './parts';
+import { TaskItem, useListNow } from './parts';
 
 // Title, memo and category names, across all lists (desktop search box).
 export default function SearchScreen() {
-  const { model } = useApp();
+  const { model, prefs } = useApp();
   const navigation = useNavigation<any>();
   const theme = useTheme();
-  const now = useNow();
+  const now = useListNow(model?.tasks, prefs);
+  const day = new Date(now).setHours(0, 0, 0, 0);
   const [query, setQuery] = useState('');
   const results = useMemo(
     () =>
       model && query.trim()
-        ? sortTasks(visibleTasks(model, { kind: 'all' }, { now, query }), 'due')
+        ? sortTasks(
+            visibleTasks(model, { kind: 'all' }, { now: day, query }),
+            'due',
+          )
         : [],
-    [model, query, now],
+    [model, query, day],
   );
   return (
     <View style={{ flex: 1, backgroundColor: theme.canvas }}>

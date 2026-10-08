@@ -32,7 +32,7 @@ import { formatDue, REPEAT_LABEL } from '@/core/model/view';
 import { today, tomorrow } from '@/ui/dateTime';
 import { DateTimeSheet } from '@/ui/DateTimeSheet';
 import { useTheme } from '@/ui/theme';
-import { AppBar, SectionHeader, SyncLine, TaskItem, useNow } from './parts';
+import { AppBar, SectionHeader, SyncLine, TaskItem, useListNow } from './parts';
 
 const SORTS: [SortMode, string][] = [
   ['due', '기한 순'],
@@ -51,14 +51,18 @@ export default function TasksScreen() {
   const { model, scope, setScope, prefs, setPrefs } = useApp();
   const navigation = useNavigation<any>();
   const theme = useTheme();
-  const now = useNow();
+  const now = useListNow(model?.tasks, prefs);
+  // The list itself only changes by day (오늘), not on every clock tick.
+  const day = new Date(now).setHours(0, 0, 0, 0);
   const [picking, setPicking] = useState(false);
   const [adding, setAdding] = useState(false);
 
   const tasks = useMemo(
     () =>
-      model ? sortTasks(visibleTasks(model, scope, { now }), prefs.sort) : [],
-    [model, scope, now, prefs.sort],
+      model
+        ? sortTasks(visibleTasks(model, scope, { now: day }), prefs.sort)
+        : [],
+    [model, scope, day, prefs.sort],
   );
   const todo = tasks.filter(t => !t.done);
   const done = tasks.filter(t => t.done);
