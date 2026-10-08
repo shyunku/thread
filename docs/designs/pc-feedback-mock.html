@@ -267,7 +267,7 @@ const sampleText = (mode, id) => mode === 'remain' ? remainSamples.map(ms => rem
 const PREVIEW = () => [TASKS.find(t => t.t === '분기 회고 자료 정리'), TASKS.find(t => t.t === '운동 30분')];
 const descText = () => '할 일 목록과 캘린더 아래 목록에 ' + (s.mode === 'remain' ? '남은 시간' : '기한') + '을 얼마나 자세히 보여 줄지 정해요.';
 const timeText = ms => s.mode === 'remain' ? remain(ms, s.fmt) : due(ms, s.dueFmt, s.h24);
-const s = { screen: 'main', mode: 'remain', fmt: 1, dueFmt: 'auto', h24: false, popup: 'after', mark: false, fit: false };
+const s = { screen: 'main', mode: 'remain', fmt: 2, dueFmt: 'auto', h24: false, popup: 'after', mark: false, fit: false };
 
 function sidebar(withPopup) {
   return `<div class="side"><div class="clock">2026년 10월 07일 (수요일)<b>오후 2:58:19</b></div>
@@ -375,6 +375,7 @@ function notes() {
     '<li>요일은 2~6일 뒤까지. 지난 날(그저께 이전)은 정확히.</li>' +
     '<li>단위는 자리 기준: 보통에서 1시간 0분 5초는 "1시간", 자세히는 "1시간 5초".</li>' +
     '<li>폰은 아래에서 올라오는 창.</li>' +
+    '<li>기본값: PC·폰 모두 남은 시간 "보통", 기한으로 바꾸면 "자동".</li>' +
     '<li>초 단위 갱신 부담은 구현 뒤 할 일 470개로 재 봄.</li></ul></div>';
 }
 function toolbar() {
