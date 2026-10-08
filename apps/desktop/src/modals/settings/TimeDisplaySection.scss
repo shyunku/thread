@@ -1,0 +1,107 @@
+// 설정 > 일반 > 시간 표시 (#101), a block inside the general settings card.
+.time-display {
+  padding: 14px 14px 16px;
+  border-top: 1px solid var(--border);
+
+  & + .settings-row { border-top: 1px solid var(--border); }
+
+  &__head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  &__label {
+    margin: 14px 0 6px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  &__preview {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 12px;
+    align-items: start;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--canvas);
+    pointer-events: none;
+    user-select: none;
+  }
+
+  &__rows .todo-item-wrapper:not(:last-child) { margin-bottom: 6px; }
+
+  &__day.task-view.calendar {
+    .selected-day {
+      margin: 0;
+      padding: 10px 12px;
+    }
+    .selected-day h3 {
+      margin-bottom: 4px;
+      font-size: 13px;
+    }
+    .selected-day-task { white-space: nowrap; }
+    .selected-day-task__title {
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+
+  &__choices {
+    display: flex;
+    flex-direction: column;
+    margin-top: 12px;
+  }
+
+  &__choice {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 8px 4px;
+    border: 0;
+    border-radius: 8px;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover { background: var(--hover); }
+    &:focus-visible { outline: 2px solid #83aaff; outline-offset: -2px; }
+  }
+
+  &__radio {
+    box-sizing: border-box;
+    width: 16px;
+    height: 16px;
+    flex: none;
+    border: 2px solid var(--muted);
+    border-radius: 50%;
+  }
+
+  &__choice--on &__radio {
+    border-color: var(--accent);
+    background: var(--accent);
+    box-shadow: inset 0 0 0 3px var(--surface);
+  }
+
+  &__name {
+    width: 70px;
+    flex: none;
+    color: var(--text);
+    font-size: 13.5px;
+    font-weight: 600;
+  }
+
+  &__examples {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--secondary);
+    font-size: 12.5px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+}

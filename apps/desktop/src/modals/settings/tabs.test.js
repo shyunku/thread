@@ -29,8 +29,50 @@ test("general preferences are stored in the persisted prefs slice", () => {
   fireEvent.click(screen.getByRole("radio", { name: "타임라인" }));
   fireEvent.click(screen.getByRole("radio", { name: "월요일" }));
   fireEvent.click(screen.getByRole("radio", { name: "24시간" }));
-  expect(s.getState().prefs).toEqual({ startView: "timeline", weekStart: 1, timeFormat: "24", listTodoOpen: true, listDoneOpen: false });
+  expect(s.getState().prefs).toEqual({ startView: "timeline", weekStart: 1, timeFormat: "24", timeDisplay: "remain", remainFormat: "normal", dueFormat: "auto", listTodoOpen: true, listDoneOpen: false });
   expect(screen.getByRole("radio", { name: "라이트" })).toBeDisabled();
+});
+
+test("시각 형식 keeps the 12/24-hour choice; 시간 표시 switches mode and detail with a live preview", () => {
+  jest.useFakeTimers().setSystemTime(new Date(2026, 9, 7, 14, 58, 19));
+  try {
+    const { store: s } = wrap(<SettingCommon />);
+    expect(screen.getByRole("radiogroup", { name: "시각 형식" })).toBeInTheDocument();
+    expect(screen.getByText("할 일 목록과 캘린더 아래 목록에 남은 시간을 얼마나 자세히 보여 줄지 정해요.")).toBeInTheDocument();
+    const normal = screen.getByRole("radio", { name: "보통" });
+    expect(normal).toHaveAttribute("aria-checked", "true");
+    expect(normal).toHaveAccessibleDescription("1일 4시간 남음 · 1개월 4일 남음 · 1시간 남음");
+    // Preview: two task rows and today's list, overdue first.
+    expect(screen.getAllByText("2시간 59분 남음")).toHaveLength(2);
+    expect(screen.getByText("1일 4시간 남음")).toBeInTheDocument();
+    const day = [...document.querySelectorAll(".time-display .selected-day-task")];
+    expect(day.map((row) => row.querySelector(".selected-day-task__title").textContent)).toEqual(["주간 보고서 제출", "분기 회고 자료 정리"]);
+    expect(screen.getByText("3시간 40분 지남")).toHaveClass("overdue");
+
+    fireEvent.click(screen.getByRole("radio", { name: "모두" }));
+    expect(s.getState().prefs.remainFormat).toBe("all");
+    expect(screen.getAllByText("2시간 59분 55초 남음")).toHaveLength(2);
+    act(() => { jest.advanceTimersByTime(1000); });
+    expect(screen.getAllByText("2시간 59분 54초 남음")).toHaveLength(2);
+
+    fireEvent.click(screen.getByRole("radio", { name: "기한" }));
+    expect(s.getState().prefs.timeDisplay).toBe("due");
+    expect(screen.getByText("할 일 목록과 캘린더 아래 목록에 기한을 얼마나 자세히 보여 줄지 정해요.")).toBeInTheDocument();
+    const choices = screen.getByRole("radiogroup", { name: "기한 표시 방식" });
+    expect([...choices.querySelectorAll("[role=radio]")].map((radio) => radio.getAttribute("aria-label"))).toEqual(["간단히", "자동", "정확히", "자세히"]);
+    expect(screen.getByRole("radio", { name: "자동" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("radio", { name: "자동" })).toHaveAccessibleDescription("오늘 오후 3시 20분 · 내일 오후 5시 30분 · 금요일 오후 3시 · 어제 오후 6시 · 26.10.17 오후 2:00");
+    expect(screen.getAllByText("오늘 오후 5시 58분")).toHaveLength(2);
+    expect(screen.getByText("오늘 오전 11시 18분")).toHaveClass("overdue");
+
+    fireEvent.click(screen.getByRole("radio", { name: "24시간" }));
+    expect(screen.getAllByText("오늘 17시 58분")).toHaveLength(2);
+    fireEvent.click(screen.getByRole("radio", { name: "정확히" }));
+    expect(s.getState().prefs).toMatchObject({ timeDisplay: "due", remainFormat: "all", dueFormat: "exact", timeFormat: "24" });
+    expect(screen.getAllByText("26.10.07 17:58")).toHaveLength(2);
+  } finally {
+    jest.useRealTimers();
+  }
 });
 
 test("system toggles save through main and show the restart notice for hardware acceleration", () => {

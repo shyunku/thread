@@ -87,7 +87,7 @@
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-    // Color comes inline from the category (text color, ~15% tint background).
+    // First on the meta line (#101). Color comes inline from the category (text color, ~15% tint background).
     .task-category-badge {
       flex: none;
       max-width: 120px;
@@ -120,6 +120,7 @@
       margin-left: auto;
     }
     // Clear of the hover delete X that overhangs the top-right corner.
+    // Always shown: filled yellow when important, a muted outline when not (#101).
     .star-button {
       display: grid;
       place-items: center;
@@ -133,20 +134,13 @@
       background: none;
       color: var(--muted);
       font-size: 16px;
-      opacity: 0;
       &.on {
         color: #f2c14e;
-        opacity: 1;
       }
       &:hover {
         background: var(--hover);
       }
     }
-  }
-  &:hover > div > .todo-item .star-button,
-  &.hovered > div > .todo-item .star-button,
-  &:focus-within > div > .todo-item .star-button {
-    opacity: 1;
   }
   > div > .expandable-options {
     height: 0;

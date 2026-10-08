@@ -5,7 +5,18 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { IoPlay, IoPlayBack, IoPlayForward } from "react-icons/io5";
 import { fastInterval, fromRelativeTime } from "utils/Common";
 import JsxUtil from "utils/JsxUtil";
+import TaskTimeText from "components/TaskTimeText";
+import useClock from "hooks/UseClock";
 import "./TaskCalendarView.scss";
+
+// Selected-day list order (#101): least time left first, so overdue on top; no due date last.
+export function sortByDue(tasks) {
+  const dueOf = (task) => (task.dueDate == null ? Infinity : moment(task.dueDate).valueOf());
+  return [...tasks].sort((a, b) => {
+    const da = dueOf(a), db = dueOf(b);
+    return da === db ? 0 : da < db ? -1 : 1;
+  });
+}
 
 const TaskCalendarView = ({
   taskMap,
@@ -35,6 +46,8 @@ const TaskCalendarView = ({
     }
     return dateMap;
   }, [filteredTaskMap]);
+
+  const selectedDayTasks = useMemo(() => sortByDue(dateTaskMap[selectedDate] || []), [dateTaskMap, selectedDate]);
 
   const currentMoment = useMemo(() => {
     return moment(currentDate);
@@ -229,10 +242,10 @@ const TaskCalendarView = ({
       </div>
       <section className="selected-day" aria-label="선택한 날짜의 할 일">
         <h3>{moment(selectedDate, "YYYY-M-D").format("M월 D일 (ddd)")}</h3>
-        {(dateTaskMap[selectedDate] || []).length === 0
+        {selectedDayTasks.length === 0
           ? <p>등록된 할 일이 없어요. 여유로운 하루를 계획해보세요.</p>
-          : (dateTaskMap[selectedDate] || []).map((task) => (
-            <SelectedDayTask key={task.id} task={task} now={currentDate}
+          : selectedDayTasks.map((task) => (
+            <SelectedDayTask key={task.id} task={task}
               hovered={hoveredTaskId === task.id} setHoveredTaskId={setHoveredTaskId} />
           ))}
       </section>
@@ -240,8 +253,9 @@ const TaskCalendarView = ({
   );
 };
 
-const SelectedDayTask = ({ task, now, hovered, setHoveredTaskId }) => {
-  const remain = task.dueDate == null ? null : moment(task.dueDate).valueOf() - now.valueOf();
+export const SelectedDayTask = ({ task, hovered, setHoveredTaskId }) => {
+  const dueAt = task.dueDate == null ? null : moment(task.dueDate).valueOf();
+  const overdue = useClock((now) => dueAt != null && dueAt < now);
   return (
     <div
       className={"selected-day-task" + JsxUtil.classByCondition(task.done, "done") +
@@ -251,10 +265,9 @@ const SelectedDayTask = ({ task, now, hovered, setHoveredTaskId }) => {
     >
       <span className={task.done ? "done-dot" : "task-dot"} />
       <span className="selected-day-task__title">{task.title}</span>
-      {remain != null && (
-        <span className={"selected-day-task__time" + JsxUtil.classByCondition(remain < 0 && !task.done, "overdue")}>
-          {fromRelativeTime(Math.abs(remain), { showLayerCount: 1, showMillisec: false })} {remain < 0 ? "지남" : "남음"}
-        </span>
+      {dueAt != null && (
+        <TaskTimeText dueDate={dueAt}
+          className={"selected-day-task__time" + JsxUtil.classByCondition(overdue && !task.done, "overdue")} />
       )}
     </div>
   );

@@ -9,7 +9,7 @@ test("settings preview keeps all six sections and their controls", () => {
   render(<Provider store={store}><SettingsModal id="SETTINGS_PREVIEW" preview previewTab="data" /></Provider>);
 
   const navigation = screen.getByRole("navigation", { name: "설정 메뉴" });
-  expect(navigation.querySelectorAll("button")).toHaveLength(6);
+  expect([...navigation.querySelectorAll("button")].map((button) => button.textContent)).toEqual(["일반", "데이터", "사용자 맞춤", "시스템", "계정", "정보"]);
   expect(screen.getByRole("heading", { name: "데이터" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "지금 동기화" })).toBeDisabled();
   expect(screen.getAllByText("복구 키").length).toBeGreaterThan(0);

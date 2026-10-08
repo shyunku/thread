@@ -17,8 +17,18 @@ function at(days, hour, minute = 0) {
 
 const inHours = (hours) => Date.now() + hours * 3600000;
 
-// long=1 adds a long title and a long category name (ellipsis checks).
-function previewView(long = false) {
+// Filler tasks for count=<n> (#101 tick cost): due times spread from ~1 day ago to ~12 days ahead.
+function fillerTasks(count) {
+  const cats = ["work", "study", "life"];
+  return Array.from({ length: Math.max(0, count) }, (_, i) => ({
+    tid: `f${i}`, title: `샘플 할 일 ${i + 1}`, due: Date.now() + (((i * 7919) % 20000) - 2000) * 61000 + (i % 60) * 1000,
+    cats: i % 4 === 3 ? [] : [cats[i % 3]], important: i % 7 === 0, repeat: i % 11 === 0 ? "day" : undefined,
+  }));
+}
+
+// long=1 adds a long title and a long category name (ellipsis checks);
+// count=<n> fills the list up to n tasks.
+function previewView(long = false, count = 0) {
   const categories = [
     { cid: "work", title: "업무", color: "#6294ff", secret: false, locked: false, created_at: at(-30, 9) },
     { cid: "study", title: "공부", color: "#b58cff", secret: false, locked: false, created_at: at(-30, 9) },
@@ -40,6 +50,7 @@ function previewView(long = false) {
     { tid: "t7", title: "릴리스 노트 작성", due: at(-1, 18), cats: ["work"], done: true },
     { tid: "t8", title: "치과 예약", due: at(9, 10), cats: ["life"], important: true },
   ];
+  tasks.push(...fillerTasks(count - tasks.length));
   return {
     categories,
     tasks: tasks.map((task, index) => ({
@@ -74,7 +85,10 @@ export function installAppPreviewIpc(IpcSender, params = new URLSearchParams()) 
 }
 
 function PreviewRoot() {
-  const states = useMemo(() => fromSyncV2View(previewView(window.location.hash.includes("long=1"))), []);
+  const states = useMemo(() => {
+    const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
+    return fromSyncV2View(previewView(params.get("long") === "1", Number(params.get("count")) || 0));
+  }, []);
   const [searchQuery, setSearchQuery] = useState("");
   return (
     <div className="root-layout">

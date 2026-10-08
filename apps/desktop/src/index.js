@@ -51,6 +51,8 @@ if (appPreview) {
   require("./preview/appPreview").installAppPreviewIpc(require("./utils/IpcSender").default, previewParams);
   store.dispatch(require("./store/accountSlice").setAccount({ uid: "preview", username: "Thread", offlineMode: false }));
 }
+// Dev previews take display prefs from the URL, e.g. timeDisplay=due&dueFormat=auto&timeFormat=24.
+if (settingsPreview || appPreview) store.dispatch(require("./store/prefsSlice").setPrefs(Object.fromEntries(previewParams)));
 const persistor = settingsPreview || appPreview ? null : persistStore(store);
 const root = ReactDOM.createRoot(document.getElementById("root"));
 const AppPreview = appPreview ? require("./preview/appPreview").default : null;

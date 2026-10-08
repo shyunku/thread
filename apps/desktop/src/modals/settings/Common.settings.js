@@ -2,6 +2,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { prefsSelector, setPrefs } from "../../store/prefsSlice";
 import { Segmented, SettingsCard, SettingsPage, SettingsRow, Skeleton, Soon, Toggle } from "./SettingsUI";
 import { useAppSettings } from "./System.settings";
+import TimeDisplaySection from "./TimeDisplaySection";
 
 const SettingCommon = ({ preview = false }) => {
   const prefs = useSelector(prefsSelector);
@@ -19,10 +20,11 @@ const SettingCommon = ({ preview = false }) => {
           <Segmented label="주 시작 요일" value={prefs.weekStart} onChange={(weekStart) => set({ weekStart })}
             options={[{ value: 0, label: "일요일" }, { value: 1, label: "월요일" }]} />
         </SettingsRow>
-        <SettingsRow label="시간 표시" description="오후 3시 / 15시">
-          <Segmented label="시간 표시" value={prefs.timeFormat} onChange={(timeFormat) => set({ timeFormat })}
+        <SettingsRow label="시각 형식" description="오후 3시 / 15시">
+          <Segmented label="시각 형식" value={prefs.timeFormat} onChange={(timeFormat) => set({ timeFormat })}
             options={[{ value: "12", label: "12시간" }, { value: "24", label: "24시간" }]} />
         </SettingsRow>
+        <TimeDisplaySection prefs={prefs} set={set} />
         <SettingsRow label={<>테마<Soon /></>} description="다크, 라이트, 시스템 설정 따르기">
           <Segmented label="테마" value="dark" disabled
             options={[{ value: "dark", label: "다크" }, { value: "light", label: "라이트" }, { value: "system", label: "시스템" }]} />

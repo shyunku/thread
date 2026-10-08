@@ -278,6 +278,7 @@ const LeftSidebar = ({
                   <IoAdd />
                 </div>
                 <ContextMenu
+                  className="category-create-menu"
                   defaultStyle={true}
                   sticky={true}
                   reference={createCategoryCxt.ref}

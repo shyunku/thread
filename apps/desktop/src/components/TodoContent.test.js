@@ -169,16 +169,17 @@ test("quick add and completion keep the existing IPC mutation contract", () => {
   );
 });
 
-test("row shows the first category badge before the title and the star toggles via IPC without expanding", () => {
+test("row shows the first category badge at the start of the second line and the star toggles via IPC without expanding", () => {
   mockContext.states.categories.public.color = "#44c98b";
   const { container, rerender } = render(<TodoContent />);
   const row = container.querySelector('[todo-id="first"]');
-  const line = row.querySelector(".title-line");
-  expect(line.firstElementChild).toHaveClass("task-category-badge");
-  expect(line.firstElementChild).toHaveTextContent("개발");
-  expect(line.firstElementChild.style.color).toBe("rgb(68, 201, 139)");
-  expect(line.firstElementChild.style.backgroundColor).toBe("rgba(68, 201, 139, 0.149)");
-  expect(line.lastElementChild).toHaveTextContent("리뷰 준비");
+  const badge = row.querySelector(".meta").firstElementChild;
+  expect(badge).toHaveClass("task-category-badge");
+  expect(badge).toHaveTextContent("개발");
+  expect(badge.style.color).toBe("rgb(68, 201, 139)");
+  expect(badge.style.backgroundColor).toBe("rgba(68, 201, 139, 0.149)");
+  expect(row.querySelector(".title-line .task-category-badge")).toBeNull();
+  expect(row.querySelector(".title-line")).toHaveTextContent("리뷰 준비");
   expect(container.querySelector('[todo-id="second"] .task-category-badge')).toBeNull();
   expect(row.querySelector(".star-button")).not.toHaveClass("on");
   fireEvent.click(row.querySelector(".star-button"));

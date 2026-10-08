@@ -15,8 +15,9 @@ import { DraggableDiv, DraggableZone } from "molecules/Draggable";
 import { ContextMenu, useContextMenu } from "molecules/CustomContextMenu";
 import TaskRemainTimer from "./TaskRemainTimer";
 import TaskRepeatMenu from "molecules/TaskRepeatMenu";
-import { fastInterval, fromRelativeTime } from "utils/Common";
 import { useTimeFormat, withTimeFormat } from "utils/timeFormat";
+import useClock from "hooks/UseClock";
+import TaskTimeText from "./TaskTimeText";
 
 const REPEAT_LABELS = { day: "매일", week: "매주", month: "매월", year: "매년" };
 
@@ -59,8 +60,6 @@ const TodoItem = ({
   const expandableRef = useRef();
   const titleRef = useRef();
   const memoRef = useRef();
-
-  const [timeCounter, setTimeCounter] = useState(0);
 
   const [editedTitle, setEditedTitle] = useState(todo.title);
   const [editedMemo, setEditedMemo] = useState(todo.memo);
@@ -119,30 +118,13 @@ const TodoItem = ({
     return "";
   }, [todo.repeatStartAt, todo.repeatPeriod, timeFormat]);
 
-  const remainTimeMilli = useMemo(() => {
-    if (!todo.dueDate) return null;
-    const dueMoment = moment(todo.dueDate);
-    const nowMoment = moment();
-    const diff = dueMoment.diff(nowMoment);
-    return diff;
-  }, [JSON.stringify(todo.dueDate), timeCounter]);
-
-  const remainTimeText = useMemo(() => {
-    if (remainTimeMilli == null) return "";
-    return fromRelativeTime(
-      remainTimeMilli < 0 ? -remainTimeMilli : remainTimeMilli,
-      { showLayerCount: 1, showMillisec: false }
-    );
-  }, [remainTimeMilli]);
-
   const categoryTags = useMemo(() => {
     return Object.keys(todo.categories).map((cid) => categories[cid]);
   }, [JSON.stringify(todo.categories), taggableCategories]);
 
-  const isOverDue = useMemo(() => {
-    if (!todo.dueDate) return false;
-    return moment(todo.dueDate).isBefore(moment());
-  }, [JSON.stringify(todo.dueDate), timeCounter]);
+  // Shared clock: the row re-renders only when this flips.
+  const dueAt = todo.dueDate ? moment(todo.dueDate).valueOf() : null;
+  const isOverDue = useClock((now) => dueAt != null && dueAt < now);
 
   const categoryColor = useMemo(() => {
     for (let category of taggedCategories) {
@@ -157,13 +139,12 @@ const TodoItem = ({
   const firstCategory = categoryTags[0];
   const firstCategoryStyle = categoryStyle(firstCategory);
   const subtaskTotal = todo.getSubTaskCount();
-  // Second row line: remaining time · repeat · subtask progress.
+  // Second row line: category badge, then time (설정 > 시간 표시) · repeat · subtask progress.
   const metaItems = [];
-  if (remainTimeMilli != null)
+  if (dueAt != null)
     metaItems.push({
-      className: "remain-time",
-      title: `${dueDateText} ${dueTimeText}${todoCtx.repeatPeriod != null ? ` (${repeatTimeText})` : ""}`,
-      text: `${remainTimeText} ${remainTimeMilli < 0 ? "지남" : "남음"}`,
+      node: <TaskTimeText key="time" dueDate={dueAt} className="remain-time"
+        title={`${dueDateText} ${dueTimeText}${todoCtx.repeatPeriod != null ? ` (${repeatTimeText})` : ""}`} />,
     });
   if (REPEAT_LABELS[todoCtx.repeatPeriod])
     metaItems.push({ className: "repeat", title: repeatTimeText, text: `↻ ${REPEAT_LABELS[todoCtx.repeatPeriod]}` });
@@ -191,17 +172,7 @@ const TodoItem = ({
   );
 
   useEffect(() => {
-    if (!(todo instanceof Task)) {
-      console.error(`todo is not an instance of Task: ${todo}`);
-      return;
-    }
-    const timeCounterThread = fastInterval(() => {
-      setTimeCounter((timeCounter) => timeCounter + 1);
-    }, 1000);
-
-    return () => {
-      clearInterval(timeCounterThread);
-    };
+    if (!(todo instanceof Task)) console.error(`todo is not an instance of Task: ${todo}`);
   }, []);
 
   useEffect(() => {
@@ -322,18 +293,18 @@ const TodoItem = ({
             ></div>
             <div className="text">
               <div className="title-line">
-                {firstCategory && (
-                  <span className="task-category-badge" style={{ color: firstCategoryStyle.color, backgroundColor: firstCategoryStyle.tint }}>
-                    {firstCategory.title}
-                  </span>
-                )}
                 <div className="title">{todo.title}</div>
               </div>
-              {metaItems.length > 0 && (
+              {(firstCategory || metaItems.length > 0) && (
                 <div className="meta">
+                  {firstCategory && (
+                    <span className="task-category-badge" style={{ color: firstCategoryStyle.color, backgroundColor: firstCategoryStyle.tint }}>
+                      {firstCategory.title}
+                    </span>
+                  )}
                   {metaItems.map((item, i) => [
                     i > 0 && <span key={`sep-${i}`} className="separator">·</span>,
-                    <span key={i} className={item.className} title={item.title}>{item.text}</span>,
+                    item.node ?? <span key={i} className={item.className} title={item.title}>{item.text}</span>,
                   ])}
                 </div>
               )}
