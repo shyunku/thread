@@ -233,12 +233,13 @@ pnpm cert:desktop:renew <현재 trust 폴더> [만료일] [--rotate-release-keys
 
 ## 9. 데이터 보존 정책
 
-- **v2 평문 데이터와 과거 백업은 삭제하지 않는다.** 정리는 별도로 결정한 뒤에만 한다([정리 계획](initiatives/v3-encryption/protocol/v3-plaintext-purge-plan.md)). 정리 도구는 아직 없다.
+- **v2 평문 데이터와 과거 백업은 삭제하지 않는다.** 정리는 별도로 결정한 뒤에만 한다([정리 계획](initiatives/v3-encryption/protocol/v3-plaintext-purge-plan.md)).
 - 남은 평문 양은 읽기 전용 도구로 확인한다. 원문은 출력하지 않는다.
   ```bash
   cd services/api
   THREAD_V3_INVENTORY_DSN='<SELECT 전용 DSN>' go run ./cmd/v3-legacy-inventory --user <UID>
   ```
+- 평문 정리(#80)는 `cmd/v3-legacy-purge`로 한다. E2EE로 옮기기가 끝난 계정(sync_users.mode=e2ee, vault active, 진행 중인 옮기기 없음)만 받는다. 옵션 없이 돌리면 지울 행 수(계획)만 출력하고, `-execute -plan <계획 파일> -backup-sha256 <백업 해시>`로 돌리면 계획과 행 수가 같을 때만 한 트랜잭션으로 지운다. 로그인·기기·vault·옮기기 기록과 암호화 데이터는 지우지 않는다. 실행 전 4장의 백업·복원 확인은 필수다.
 - 암호화 백업 가져오기는 원본 DB를 덮어쓰지 않고 복구용 사본만 만든다.
 
 ## 10. 주의사항
