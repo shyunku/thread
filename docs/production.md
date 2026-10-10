@@ -233,7 +233,7 @@ pnpm cert:desktop:renew <현재 trust 폴더> [만료일] [--rotate-release-keys
 
 ## 9. 데이터 보존 정책
 
-- **v2 평문 데이터와 과거 백업은 삭제하지 않는다.** 정리는 별도로 결정한 뒤에만 한다([정리 계획](initiatives/v3-encryption/protocol/v3-plaintext-purge-plan.md)).
+- 운영자 계정의 v2 평문과 평문이 든 백업은 2026-10-10에 정리했다(#80). 그 전 평문이 남은 MySQL binlog(binlog.000004)는 2026-11-09쯤 30일 보관 규칙으로 지워진다. 앞으로 v2 평문을 가진 계정이 생기면 같은 [정리 계획](initiatives/v3-encryption/protocol/v3-plaintext-purge-plan.md)대로, 사용자 결정 뒤에만 정리한다.
 - 남은 평문 양은 읽기 전용 도구로 확인한다. 원문은 출력하지 않는다.
   ```bash
   cd services/api
