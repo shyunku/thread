@@ -122,12 +122,13 @@
   .ghost:hover { background: var(--hover); }
   .ghost.on { background: var(--raise); color: var(--text); }
   .push { margin-left: auto; }
-  @keyframes done-out { from { transform: translateY(0); opacity: 1; } to { transform: translateY(28px); opacity: 0; } }
-  .task.leaving, .tl-task.leaving { animation: done-out 420ms cubic-bezier(.36, 0, .66, -.56) forwards; pointer-events: none; }
+  @keyframes done-fall { from { transform: translateY(0); opacity: 1; } 70% { opacity: 1; } to { transform: translateY(180px); opacity: 0; } }
+  .task.fall, .tl-task.fall { position: fixed; z-index: 200; margin: 0; pointer-events: none; border-radius: 10px; box-shadow: 0 12px 28px #0008; animation: done-fall 620ms cubic-bezier(.36, 0, .66, -.56) forwards; }
+  .task.fall::before { display: none; }
   .task.closing, .tl-task.closing { overflow: hidden; transition: height 180ms ease, min-height 180ms ease, padding 180ms ease; min-height: 0 !important; padding-top: 0 !important; padding-bottom: 0 !important; }
   .ck.pop { animation: ck-pop 220ms ease-out; }
   @keyframes ck-pop { 0% { transform: scale(.8); } 60% { transform: scale(1.12); } 100% { transform: scale(1); } }
-  @media (prefers-reduced-motion: reduce) { .task.leaving, .tl-task.leaving { animation: none; opacity: 0; transition: opacity 200ms; } }
+  @media (prefers-reduced-motion: reduce) { .fall { animation: none; opacity: 0; transition: opacity 200ms; } }
   /* Korean text (Noto Sans KR) sits about 1.5px high in its line box; nudge labels that sit beside icons. */
   .nt { position: relative; top: 2px; }
   .ghost.sq { width: 32px; min-width: 32px; padding: 0; }
@@ -455,7 +456,7 @@ const GROUPS = [
   { id: 'none', name: '기한 없음', test: t => !t.due },
 ];
 
-const s = { w: 1440, view: 'list', panel: 'auto', rail: 'auto', group: 'date', density: 'normal', ctxX: 380, ctxY: 300, dpDay: 0, dpTime: 1050, dpOn: true, dpAt: 'ctx', noneTop: false, left: true, state: 'selected',
+const s = { w: 1440, view: 'list', panel: 'auto', rail: 'auto', group: 'date', density: 'normal', ctxX: 380, ctxY: 300, dpDay: 0, dpTime: 1439, dpOn: false, dpAt: 'ctx', noneTop: false, left: true, state: 'selected',
   nav: 'all', selected: 't2', picked: 0, tab: null, closed: { done: true }, viewMenu: false, drawer: false, sideOpen: false, guides: false, mark: false, fit: false,
   done: Object.fromEntries(TASKS.map(t => [t.id, !!t.done])), imp: Object.fromEntries(TASKS.map(t => [t.id, !!t.imp])) };
 const SIZES = { 1440: 960, 1180: 800, 960: 720, 760: 640 };
@@ -609,7 +610,7 @@ function duePicker() {
     (s.dpOn ? '<div class="dp-field"><span class="seg2"><span class="' + (pm ? '' : 'on') + '" data-dp="ampm:am">오전</span><span class="' + (pm ? 'on' : '') + '" data-dp="ampm:pm">오후</span></span>' +
       '<span class="num">' + h12 + '</span><span class="colon">:</span><span class="num">' + pad(m) + '</span></div>' +
       '<div class="dp-quick">' + presets.map(([v, l]) => '<span class="chip ' + (s.dpTime === v ? 'on' : '') + '" data-dp="at:' + v + '"><span class="nt">' + l + '</span></span>').join('') + '</div>'
-      : '<p class="dp-note">시간 없이 그날 끝(오후 11:59)까지예요.</p>') + '</div>' +
+      : '<p class="dp-note">시간 없이 그날 끝(오후 11:59)까지예요. 켜면 오후 11:59부터 바꿀 수 있어요.</p>') + '</div>' +
     '<div class="dp-foot"><span class="sum nt">' + sum + '</span><span class="btn" data-dp="close"><span class="nt">취소</span></span><span class="btn pri" data-dp="close"><span class="nt">정하기</span></span></div></div>';
 }
 function calendarPane(L) {
@@ -762,15 +763,15 @@ document.addEventListener('click', e => {
   if (opener) {
     const t = TASKS.find(x => x.id === s.selected), from = opener.dataset.dpopen;
     s.dpAt = from; s.state = 'picker'; s.viewMenu = false;
-    if (from === 'detail') { s.dpDay = t.due ? dayDiff(t.due) : 0; s.dpOn = !!t.due; s.dpTime = t.due ? new Date(t.due).getHours() * 60 + new Date(t.due).getMinutes() : 1080; }
-    else { s.dpDay = s.view === 'list' ? 0 : s.picked; s.dpOn = false; s.dpTime = 1080; }
+    if (from === 'detail') { s.dpDay = t.due ? dayDiff(t.due) : 0; s.dpOn = !!t.due && !(new Date(t.due).getHours() === 23 && new Date(t.due).getMinutes() === 59); s.dpTime = s.dpOn ? new Date(t.due).getHours() * 60 + new Date(t.due).getMinutes() : 1439; }
+    else { s.dpDay = s.view === 'list' ? 0 : s.picked; s.dpOn = false; s.dpTime = 1439; }
     render(); return;
   }
   const ctxEl = e.target.closest('[data-ctx],[data-dp]');
   if (ctxEl) {
     const c = ctxEl.dataset.ctx, p = ctxEl.dataset.dp, t = TASKS.find(x => x.id === s.selected);
     if (c === 'none') return;
-    if (c === 'pick') { s.state = 'picker'; s.dpAt = 'ctx'; s.dpDay = t.due ? dayDiff(t.due) : 0; s.dpOn = !!t.due; s.dpTime = t.due ? new Date(t.due).getHours() * 60 + new Date(t.due).getMinutes() : 1080; }
+    if (c === 'pick') { s.state = 'picker'; s.dpAt = 'ctx'; s.dpDay = t.due ? dayDiff(t.due) : 0; s.dpOn = !!t.due && !(new Date(t.due).getHours() === 23 && new Date(t.due).getMinutes() === 59); s.dpTime = s.dpOn ? new Date(t.due).getHours() * 60 + new Date(t.due).getMinutes() : 1439; }
     else if (c === 'star') { s.imp[t.id] = !s.imp[t.id]; s.state = 'selected'; }
     else if (c && c.startsWith('cat:')) { t.cat = c.slice(4); s.state = 'selected'; }
     else if (c === 'today' || c === 'tomorrow') { t.due = at(c === 'today' ? 0 : 1, 23, 59); s.state = 'selected'; }
@@ -779,7 +780,7 @@ document.addEventListener('click', e => {
     else if (c) s.state = 'selected';
     if (p === 'close') s.state = 'selected';
     else if (p && p.startsWith('day:')) s.dpDay = +p.slice(4);
-    else if (p === 'time') s.dpOn = !s.dpOn;
+    else if (p === 'time') { s.dpOn = !s.dpOn; if (s.dpOn) s.dpTime = 1439; }
     else if (p && p.startsWith('at:')) s.dpTime = +p.slice(3);
     else if (p === 'ampm:am' && s.dpTime >= 720) s.dpTime -= 720;
     else if (p === 'ampm:pm' && s.dpTime < 720) s.dpTime += 720;
@@ -795,12 +796,16 @@ document.addEventListener('click', e => {
     if (row && !s.done[d.check] && !row.classList.contains('leaving')) {
       el.classList.add('done', 'pop'); el.innerHTML = I.check;
       setTimeout(() => {
-        row.classList.add('leaving');
-        setTimeout(() => {
-          row.style.height = row.offsetHeight + 'px';
-          requestAnimationFrame(() => { row.classList.add('closing'); row.style.height = '0px'; });
-          setTimeout(() => { s.done[d.check] = true; render(); }, 200);
-        }, 420);
+        const r = row.getBoundingClientRect(), bg = getComputedStyle(row).backgroundColor;
+        const copy = row.cloneNode(true);
+        copy.classList.add('fall'); copy.classList.remove('hov');
+        Object.assign(copy.style, { left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px',
+          background: bg === 'rgba(0, 0, 0, 0)' ? 'var(--raise)' : bg });
+        row.closest('.win').appendChild(copy);
+        row.classList.add('leaving'); row.style.visibility = 'hidden';
+        row.style.height = row.offsetHeight + 'px';
+        requestAnimationFrame(() => { row.classList.add('closing'); row.style.height = '0px'; });
+        setTimeout(() => { copy.remove(); s.done[d.check] = true; render(); }, 640);
       }, 160);
       return;
     }
