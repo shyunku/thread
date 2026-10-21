@@ -122,6 +122,12 @@
   .ghost:hover { background: var(--hover); }
   .ghost.on { background: var(--raise); color: var(--text); }
   .push { margin-left: auto; }
+  @keyframes done-out { from { transform: translateY(0); opacity: 1; } to { transform: translateY(28px); opacity: 0; } }
+  .task.leaving, .tl-task.leaving { animation: done-out 420ms cubic-bezier(.36, 0, .66, -.56) forwards; pointer-events: none; }
+  .task.closing, .tl-task.closing { overflow: hidden; transition: height 180ms ease, min-height 180ms ease, padding 180ms ease; min-height: 0 !important; padding-top: 0 !important; padding-bottom: 0 !important; }
+  .ck.pop { animation: ck-pop 220ms ease-out; }
+  @keyframes ck-pop { 0% { transform: scale(.8); } 60% { transform: scale(1.12); } 100% { transform: scale(1); } }
+  @media (prefers-reduced-motion: reduce) { .task.leaving, .tl-task.leaving { animation: none; opacity: 0; transition: opacity 200ms; } }
   /* Korean text (Noto Sans KR) sits about 1.5px high in its line box; nudge labels that sit beside icons. */
   .nt { position: relative; top: 2px; }
   .ghost.sq { width: 32px; min-width: 32px; padding: 0; }
@@ -134,11 +140,12 @@
   .quick .in kbd { margin-left: auto; font: inherit; font-size: 11px; line-height: 1; color: var(--muted); border: 1px solid #2b303b; border-radius: 4px; padding: 3px 5px; }
   .quick .in { display: flex; align-items: center; gap: var(--ck-gap); height: 44px; color: var(--muted); font-size: 13.5px; }
   .quick .in .plus { width: var(--ck); display: grid; place-items: center; color: var(--accent); }
+  .quick .chip[data-dpopen] { cursor: pointer; }
   .quick .chips { display: flex; gap: 6px; padding: 0 0 12px calc(var(--ck) + var(--ck-gap)); flex-wrap: wrap; }
   .chip { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 8px; border-radius: 6px; background: var(--raise); color: var(--secondary); font-size: 12px; white-space: nowrap; }
   .chip.on { background: var(--accent-soft); color: #a9c3ff; }
   .chip .dot { width: 7px; height: 7px; }
-  .scroll { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #2b303b transparent; padding: 0 calc(var(--main-x) - 14px) 20px; }
+  .scroll { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #2b303b transparent; padding: 0 calc(var(--main-x) - 14px) 80px; }
   /* Date groups: the heading sits on the canvas, its rows inside one filled box below it. */
   .sec { display: flex; align-items: center; gap: 8px; height: 36px; margin-top: 20px; padding: 0 14px; font-size: 13.5px; font-weight: 700; color: var(--text); cursor: pointer; }
   .sec:first-child { margin-top: 4px; }
@@ -226,7 +233,7 @@
   .tl-head em { font-style: normal; font-size: 11.5px; font-weight: 600; color: #fff; background: var(--accent); padding: 0 6px; border-radius: 5px; align-self: center; }
   .tl-head .cnt { margin-left: auto; min-width: 22px; height: 20px; padding: 0 7px; display: grid; place-items: center; border-radius: 10px; background: var(--raise); color: var(--secondary); font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
   .tl-col.today .tl-head { border-bottom-color: var(--accent); }
-  .tl-body { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #2b303b transparent; padding-top: 4px; }
+  .tl-body { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #2b303b transparent; padding: 4px 0 80px; }
   .tl-hour { margin: 12px 0 6px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
   .tl-task { display: flex; align-items: center; gap: var(--ck-gap); padding: 12px; cursor: pointer; position: relative; }
   .tl-task + .tl-task { border-top: 1px solid var(--line); }
@@ -258,6 +265,8 @@
   .box { border-radius: 10px; background: var(--surface); }
   .prop { display: flex; align-items: center; gap: 12px; min-height: 40px; padding: 8px var(--in); font-size: 13px; }
   .prop + .prop { border-top: 1px solid var(--line); }
+  .prop.click { cursor: pointer; border-radius: 10px 10px 0 0; }
+  .prop.click:hover { background: var(--raise); }
   .prop .k { width: 60px; flex: none; color: var(--muted); font-size: 12.5px; }
   .prop .v { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
   .prop .v .sub { color: var(--muted); font-size: 12px; }
@@ -446,7 +455,7 @@ const GROUPS = [
   { id: 'none', name: '기한 없음', test: t => !t.due },
 ];
 
-const s = { w: 1440, view: 'list', panel: 'auto', rail: 'auto', group: 'date', density: 'normal', ctxX: 380, ctxY: 300, dpDay: 0, dpTime: 1050, dpOn: true, noneTop: false, left: true, state: 'selected',
+const s = { w: 1440, view: 'list', panel: 'auto', rail: 'auto', group: 'date', density: 'normal', ctxX: 380, ctxY: 300, dpDay: 0, dpTime: 1050, dpOn: true, dpAt: 'ctx', noneTop: false, left: true, state: 'selected',
   nav: 'all', selected: 't2', picked: 0, tab: null, closed: { done: true }, viewMenu: false, drawer: false, sideOpen: false, guides: false, mark: false, fit: false,
   done: Object.fromEntries(TASKS.map(t => [t.id, !!t.done])), imp: Object.fromEntries(TASKS.map(t => [t.id, !!t.imp])) };
 const SIZES = { 1440: 960, 1180: 800, 960: 720, 760: 640 };
@@ -454,8 +463,8 @@ const SIZES = { 1440: 960, 1180: 800, 960: 720, 760: 640 };
 const open = t => !s.done[t.id];
 const overdue = t => open(t) && t.due && t.due < NOW.getTime();
 const NAV = [
-  { id: 'today', name: '오늘', icon: I.sun, list: () => TASKS.filter(t => t.due && dayDiff(t.due) <= 0 && (open(t) || dayDiff(t.due) === 0)) },
-  { id: 'week', name: '다음 7일', icon: I.week, list: () => TASKS.filter(t => t.due && dayDiff(t.due) < 7 && (open(t) || dayDiff(t.due) >= 0)) },
+  { id: 'today', name: '오늘', icon: I.sun, list: () => TASKS.filter(t => t.due && dayDiff(t.due) <= 0) },
+  { id: 'week', name: '다음 7일', icon: I.week, list: () => TASKS.filter(t => t.due && dayDiff(t.due) < 7) },
   { id: 'imp', name: '중요', icon: I.star(false), list: () => TASKS.filter(t => s.imp[t.id]) },
   { id: 'all', name: '모든 할 일', icon: I.all, list: () => TASKS },
 ];
@@ -528,8 +537,8 @@ const viewSeg = () => `<div class="seg">${[['list', '목록', I.vList], ['calend
 // Quick add, fixed at the bottom of every view. Chips start from what is on screen.
 function quickAdd() {
   const pd = new Date(NOW); pd.setDate(pd.getDate() + s.picked);
-  const dayChip = s.view === 'list' ? (s.nav === 'today' ? `<span class="chip on">${I.sun}<span class="nt">오늘</span></span>` : `<span class="chip">${I.cal}<span class="nt">날짜</span></span>`)
-    : `<span class="chip on">${I.cal}<span class="nt">${pd.getMonth() + 1}월 ${pd.getDate()}일</span></span>`;
+  const dayChip = s.view === 'list' ? (s.nav === 'today' ? `<span class="chip on" data-dpopen="quick">${I.sun}<span class="nt">오늘</span></span>` : `<span class="chip" data-dpopen="quick">${I.cal}<span class="nt">날짜</span></span>`)
+    : `<span class="chip on" data-dpopen="quick">${I.cal}<span class="nt">${pd.getMonth() + 1}월 ${pd.getDate()}일</span></span>`;
   const c = s.view === 'list' ? cat(s.nav) : null;
   return `<div class="quick chg"><div class="in"><span class="plus">${I.plus}</span><span class="nt">할 일 추가 · 예: 내일 오후 3시 회의</span><kbd>Ctrl N</kbd></div>
     <div class="chips">${dayChip}<span class="chip">${I.repeat}<span class="nt">반복</span></span>${c && !c.secret ? `<span class="chip on"><span class="dot" style="background:${c.color}"></span><span class="nt">${c.name}</span></span>` : `<span class="chip"><span class="dot" style="background:var(--muted)"></span><span class="nt">카테고리</span></span>`}<span class="chip ${s.view === 'list' && s.nav === 'imp' ? 'on' : ''}">${I.star(s.view === 'list' && s.nav === 'imp', 13)}<span class="nt">중요</span></span></div></div>`;
@@ -546,7 +555,7 @@ function listPane(L) {
     <div style="height:12px"></div>
     <div class="scroll ${s.density === 'compact' ? 'compact' : ''}">${listBody()}</div>
     ${quick ? quickAdd() : ''}
-    ${s.viewMenu ? viewMenu() : ''}${s.state === 'context' ? contextMenu() : ''}${s.state === 'picker' ? duePicker() : ''}
+    ${s.viewMenu ? viewMenu() : ''}${s.state === 'context' ? contextMenu() : ''}${s.state === 'picker' && s.dpAt !== 'detail' ? duePicker() : ''}
   </section>`;
 }
 function viewMenu() {
@@ -591,7 +600,8 @@ function duePicker() {
   const presets = [[540, '오전 9:00'], [720, '낮 12:00'], [1080, '오후 6:00'], [1260, '오후 9:00'], [1439, '하루 끝']];
   const h = Math.floor(s.dpTime / 60), m = s.dpTime % 60, pm = h >= 12, h12 = h % 12 || 12;
   const sum = (base.getMonth() + 1) + '월 ' + base.getDate() + '일 (' + WD[base.getDay()] + ')' + (s.dpOn ? ' ' + (pm ? '오후 ' : '오전 ') + h12 + ':' + pad(m) : ' · 하루 끝까지');
-  return '<div class="dp" style="top:' + Math.max(8, s.ctxY - 40) + 'px;left:' + s.ctxX + 'px">' +
+  const where = s.dpAt === 'quick' ? 'bottom:128px;left:calc(var(--main-x) - 14px)' : s.dpAt === 'detail' ? 'top:156px;left:var(--panel-x)' : 'top:' + Math.max(8, s.ctxY - 40) + 'px;left:' + s.ctxX + 'px';
+  return '<div class="dp" style="' + where + '">' +
     '<div class="dp-h"><span class="nt">기한 정하기</span><span class="x" data-dp="close" title="닫기">' + I.vsClose + '</span></div>' +
     '<div class="dp-quick">' + quick.map(([n, l]) => '<span class="chip ' + (s.dpDay === n ? 'on' : '') + '" data-dp="day:' + n + '"><span class="nt">' + l + '</span></span>').join('') + '</div>' +
     '<div class="mini dp-cal"><div class="mh">2026년 10월<span><i>' + I.prev + '</i><i>' + I.next + '</i></span></div><div class="mg">' + g + '</div></div>' +
@@ -616,7 +626,7 @@ function calendarPane(L) {
   return `<section class="pane main chg">
     <div class="head ${L.hideSide ? 'has-menu' : ''}"><div class="row1">${headLeft(L)}<h1>2026년 10월</h1>${headNav()}${headRight(L)}</div>
       <p class="finding">이번 달 남은 할 일 ${TASKS.filter(t => t.due && open(t) && new Date(t.due).getMonth() === 9).length}개 · 날짜를 누르면 ${L.overlayPanel ? '그날 할 일이 열려요' : '오른쪽에 그날 할 일이 보여요'}</p></div>
-    <div class="cal"><div class="grid">${cells}</div></div>${quickAdd()}${s.viewMenu ? viewMenu() : ''}${s.state === 'context' ? contextMenu() : ''}${s.state === 'picker' ? duePicker() : ''}</section>`;
+    <div class="cal"><div class="grid">${cells}</div></div>${quickAdd()}${s.viewMenu ? viewMenu() : ''}${s.state === 'context' ? contextMenu() : ''}${s.state === 'picker' && s.dpAt !== 'detail' ? duePicker() : ''}</section>`;
 }
 function timelinePane(L) {
   // Day columns from the focused day; as many as fit the pane (at least 240px each).
@@ -645,7 +655,7 @@ function timelinePane(L) {
   return `<section class="pane main chg">
     <div class="head ${L.hideSide ? 'has-menu' : ''}"><div class="row1">${headLeft(L)}<h1>10월 ${NOW.getDate()}일 – ${last.getMonth() === NOW.getMonth() ? '' : (last.getMonth() + 1) + '월 '}${last.getDate()}일</h1>${headNav()}${headRight(L)}</div>
       <p class="finding">${cols}일 · 남은 할 일 ${TASKS.filter(t => t.due && open(t) && dayDiff(t.due) >= 0 && dayDiff(t.due) < cols).length}개${over ? ` · <b>기한 지난 할 일 ${over}개</b>는 목록에서 볼 수 있어요` : ''}</p></div>
-    <div class="tl">${days.map(col).join('')}</div>${quickAdd()}${s.viewMenu ? viewMenu() : ''}${s.state === 'context' ? contextMenu() : ''}${s.state === 'picker' ? duePicker() : ''}</section>`;
+    <div class="tl">${days.map(col).join('')}</div>${quickAdd()}${s.viewMenu ? viewMenu() : ''}${s.state === 'context' ? contextMenu() : ''}${s.state === 'picker' && s.dpAt !== 'detail' ? duePicker() : ''}</section>`;
 }
 
 // ---------- Right panel ----------
@@ -653,7 +663,7 @@ function detailBody(t) {
   const c = cat(t.cat), r = t.due ? remain(t.due) : null, subsDone = t.subs ? t.subs.filter(x => x[1]).length : 0, dd = t.due ? new Date(t.due) : null;
   return `<div class="dt-title"><span class="ck ${s.done[t.id] ? 'done' : ''}" data-check="${t.id}">${s.done[t.id] ? I.check : ''}</span><h2>${t.t}</h2><span class="st ${s.imp[t.id] ? 'on' : ''}" data-star="${t.id}">${I.star(s.imp[t.id], 20)}</span></div>
     <div class="box">
-      <div class="prop"><span class="k">기한</span><span class="v" style="${overdue(t) ? 'color:var(--danger)' : ''}">${dd ? `${dd.getFullYear()}.${pad(dd.getMonth() + 1)}.${pad(dd.getDate())} ${clockFull(dd)}` : '<span class="sub">없음</span>'}</span></div>
+      <div class="prop click" data-dpopen="detail" title="기한 정하기"><span class="k">기한</span><span class="v" style="${overdue(t) ? 'color:var(--danger)' : ''}">${dd ? `${dd.getFullYear()}.${pad(dd.getMonth() + 1)}.${pad(dd.getDate())} ${clockFull(dd)}` : '<span class="sub">없음</span>'}</span></div>
       <div class="prop"><span class="k">반복</span><span class="v">${t.repeat || '<span class="sub">안 함</span>'}</span></div>
       <div class="prop"><span class="k">카테고리</span><span class="v">${c ? `<span class="chip"><span class="dot" style="background:${c.color}"></span><span class="nt">${c.name}</span></span>` : ''}<span class="chip">＋</span></span></div>
     </div>
@@ -693,7 +703,7 @@ function panel(L, cls = '') {
   const body = tab === 'day' ? dayList() : tab === 'detail' && t ? detailBody(t) : calendarBody();
   return `<aside class="pane aside ${cls} chg" style="width:${L.panelW}px">
     <div class="ptabs">${tabs.map(([k, l]) => { const off = k === 'detail' && !(s.selected && ['selected', 'context', 'picker'].includes(s.state)); return `<span class="tab ${tab === k ? 'on' : ''} ${off ? 'off' : ''}" ${off ? 'title="할 일을 고르면 열려요"' : `data-tab="${k}"`}><span class="nt">${l}</span></span>`; }).join('')}<span class="x" data-closepanel="1" title="패널 닫기">✕</span></div>
-    <div class="pbody">${body}</div></aside>`;
+    <div class="pbody">${body}</div>${s.state === 'picker' && s.dpAt === 'detail' ? duePicker() : ''}</aside>`;
 }
 
 // ---------- Window ----------
@@ -722,9 +732,6 @@ function win() {
 function notes() {
   const mode = s.w >= 1280 ? '넓은 창: 메뉴 + 목록 + 패널' : s.w >= 1000 ? '중간 창: 메뉴는 아이콘만, 패널 320px' : s.w >= 800 ? '좁은 창: 패널은 위에 겹쳐 열림' : '아주 좁은 창: 메뉴는 ☰ 버튼으로';
   return '<div class="notes"><div class="now">' + s.w + '×' + SIZES[s.w] + ' · ' + mode + '</div><h3 class="q">정할 것</h3><ul class="q">' + [
-    '<b>우클릭 메뉴</b>: 할 일 줄을 오른쪽 클릭. 열기 · 기한(오늘 / 내일 / 하루 미루기 / 일주일 미루기 / 날짜 · 시간 정하기 / 기한 없애기) · 중요 · 카테고리(마우스를 올리면 고르기) · 복제 · 삭제. "오늘" · "내일"은 지금 앱처럼 그날 끝(오후 11:59). 이 항목들로 될지.',
-    '<b>날짜 · 시간 정하기 창</b>: 빠른 날짜(오늘 · 내일 · 이번 주 토요일 · 다음 주 월요일) · 달력 · 시간 켜기(오전/오후 · 시 · 분, 자주 쓰는 시각) · 정하기. 시간을 끄면 그날 끝까지. 같은 창을 오른쪽 상세의 기한 줄과 빠른 추가의 날짜 칩에서도 열지.',
-    '<b>완료한 할 일</b>: 목록 맨 아래 "완료됨" 묶음에 접어 둠(눌러서 펼침). "오늘" 보기에선 오늘 끝낸 것만. 접어 둘지 펼쳐 둘지.',
     '<b>오른쪽 시간 칸과 "시간 표시" 설정</b>: 다른 것 다 정한 뒤 따로 시안.',
   ].map(x => '<li>' + x + '</li>').join('') + '</ul></div>';
 }
@@ -751,11 +758,19 @@ function render() {
 }
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-set],[data-nav],[data-task],[data-check],[data-star],[data-sec],[data-view],[data-tab],[data-pick],[data-closepanel],[data-viewmenu],[data-drawer],[data-sideopen]');
+  const opener = e.target.closest('[data-dpopen]');
+  if (opener) {
+    const t = TASKS.find(x => x.id === s.selected), from = opener.dataset.dpopen;
+    s.dpAt = from; s.state = 'picker'; s.viewMenu = false;
+    if (from === 'detail') { s.dpDay = t.due ? dayDiff(t.due) : 0; s.dpOn = !!t.due; s.dpTime = t.due ? new Date(t.due).getHours() * 60 + new Date(t.due).getMinutes() : 1080; }
+    else { s.dpDay = s.view === 'list' ? 0 : s.picked; s.dpOn = false; s.dpTime = 1080; }
+    render(); return;
+  }
   const ctxEl = e.target.closest('[data-ctx],[data-dp]');
   if (ctxEl) {
     const c = ctxEl.dataset.ctx, p = ctxEl.dataset.dp, t = TASKS.find(x => x.id === s.selected);
     if (c === 'none') return;
-    if (c === 'pick') { s.state = 'picker'; s.dpDay = t.due ? dayDiff(t.due) : 0; s.dpOn = !!t.due; s.dpTime = t.due ? new Date(t.due).getHours() * 60 + new Date(t.due).getMinutes() : 1080; }
+    if (c === 'pick') { s.state = 'picker'; s.dpAt = 'ctx'; s.dpDay = t.due ? dayDiff(t.due) : 0; s.dpOn = !!t.due; s.dpTime = t.due ? new Date(t.due).getHours() * 60 + new Date(t.due).getMinutes() : 1080; }
     else if (c === 'star') { s.imp[t.id] = !s.imp[t.id]; s.state = 'selected'; }
     else if (c && c.startsWith('cat:')) { t.cat = c.slice(4); s.state = 'selected'; }
     else if (c === 'today' || c === 'tomorrow') { t.due = at(c === 'today' ? 0 : 1, 23, 59); s.state = 'selected'; }
@@ -774,8 +789,23 @@ document.addEventListener('click', e => {
   if (!el) { if (s.viewMenu) { s.viewMenu = false; render(); } return; }
   const d = el.dataset;
   if (!d.viewmenu && !(d.set && /^(group|density|left|noneTop):/.test(d.set))) s.viewMenu = false;
-  if (d.set) { const [k, v] = d.set.split(':'); s[k] = v === 'true' ? true : v === 'false' ? false : /^\d+$/.test(v) ? +v : v; if (k === 'state') { s.tab = null; if (s.nav === 'diary') s.nav = 'all'; } if (k === 'panel') s.tab = null; if (k === 'w') { s.drawer = false; s.sideOpen = false; } }
-  else if (d.check) { s.done[d.check] = !s.done[d.check]; }
+  if (d.set) { const [k, v] = d.set.split(':'); s[k] = v === 'true' ? true : v === 'false' ? false : /^\d+$/.test(v) ? +v : v; if (k === 'state') { s.tab = null; if (v === 'picker') s.dpAt = 'ctx'; if (s.nav === 'diary') s.nav = 'all'; } if (k === 'panel') s.tab = null; if (k === 'w') { s.drawer = false; s.sideOpen = false; } }
+  else if (d.check) {
+    const row = el.closest('.task, .tl-task');
+    if (row && !s.done[d.check] && !row.classList.contains('leaving')) {
+      el.classList.add('done', 'pop'); el.innerHTML = I.check;
+      setTimeout(() => {
+        row.classList.add('leaving');
+        setTimeout(() => {
+          row.style.height = row.offsetHeight + 'px';
+          requestAnimationFrame(() => { row.classList.add('closing'); row.style.height = '0px'; });
+          setTimeout(() => { s.done[d.check] = true; render(); }, 200);
+        }, 420);
+      }, 160);
+      return;
+    }
+    s.done[d.check] = !s.done[d.check];
+  }
   else if (d.star) { s.imp[d.star] = !s.imp[d.star]; }
   else if (d.task) { s.selected = d.task; s.state = 'selected'; s.tab = null; if (s.view === 'calendar') s.view = 'list'; if (layout().overlayPanel) s.drawer = true; }
   else if (d.nav) { s.nav = d.nav; s.sideOpen = false; if (s.state === 'search' || s.state === 'empty') s.state = 'selected'; }
