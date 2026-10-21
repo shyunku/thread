@@ -167,6 +167,15 @@
   .row-s.on .ic { color: var(--text); }
   /* Category rows sit their name 3px closer to the colour dot / icon. */
   .row-s.cat-row { gap: 7px; }
+  /* Drag to reorder: the row lifts and follows the pointer, the others slide to open its slot. */
+  .side.sorting .cat-row { transition: transform .16s cubic-bezier(.2, 0, 0, 1); }
+  .side.sorting .cat-row.lifted { visibility: hidden; }
+  .side.sorting, .side.sorting * { cursor: grabbing !important; }
+  .side .cat-row { user-select: none; }
+  .side.sorting .cat-row:not(.on):not(.menu-on):hover { background: transparent; }
+  .cat-ghost.in-rail { justify-content: center; padding: 0; }
+  .cat-ghost.in-rail .lbl, .cat-ghost.in-rail .n { display: none; }
+  .cat-ghost { position: fixed; z-index: 250; pointer-events: none; background: #262c38 !important; color: var(--text) !important; box-shadow: 0 10px 24px #000a, inset 0 0 0 1px #3a4354; transform: scale(1.02); transition: top .16s cubic-bezier(.2, 0, 0, 1), left .16s; }
   .row-s .lbl { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .row-s .n { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 16px; text-align: right; }
   .row-s .n.due { color: var(--danger); }
@@ -207,7 +216,7 @@
   .pane { position: relative; min-width: 0; display: flex; flex-direction: column; }
   .pane.main { flex: 1; }
   .pane.aside { flex: none; background: var(--panel); }
-  .splitter { width: 1px; flex: none; background: var(--line); position: relative; cursor: col-resize; }
+  .splitter { width: 1px; flex: none; background: var(--line); position: relative; z-index: 2; cursor: col-resize; }
   .splitter::after { content: ""; position: absolute; left: -3px; right: -3px; top: 0; bottom: 0; }
 
   /* List pane: title, quick-add icon, checkboxes and section arrows share the main-x edge;
@@ -280,6 +289,7 @@
   .meta .cat { max-width: 160px; } .meta .cat b { font-weight: 400; overflow: hidden; text-overflow: ellipsis; }
   .meta .cat .dot { width: 7px; height: 7px; }
   .meta .cat .shield { display: grid; place-items: center; }
+  .meta .cat .more { padding: 0 5px; border-radius: 4px; background: var(--raise); color: var(--secondary); font-weight: 600; font-size: 11px; line-height: 16px; }
   /* Right column: due time, and under it the time left in a fainter tone (can be hidden). */
   .rcol { width: 112px; flex: none; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
   .rcol .when { display: block; font-size: 13px; line-height: 20px; color: var(--secondary); }
@@ -297,10 +307,10 @@
   .task > .ck, .task > .st { align-self: center; margin-top: 0; }
   /* A row with no second line keeps its title in the middle. */
   .task.no-meta > .tx { align-self: center; }
-  .compact .task { min-height: 44px; padding: 12px 14px; }
-  .compact .task .meta { display: none; }
-  .compact .task .t .ic-cat { display: inline-block; }
-  .compact .rcol .left { display: none; }
+  .compact .task, .task.compact-row { min-height: 44px; padding: 12px 14px; }
+  .compact .task .meta, .task.compact-row .meta { display: none; }
+  .compact .task .t .ic-cat, .task.compact-row .t .ic-cat { display: inline-block; }
+  .compact .rcol .left, .task.compact-row .rcol .left { display: none; }
   .ic-cat { display: none; width: 7px; height: 7px; border-radius: 50%; margin-right: 8px; vertical-align: 2px; }
   .empty { margin: 56px auto 0; text-align: center; color: var(--secondary); max-width: 340px; font-size: 13px; }
   .empty b { display: block; color: var(--text); font-size: 15px; margin-bottom: 6px; }
@@ -400,6 +410,22 @@
   .mini .mg .c b { position: relative; z-index: 1; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 7px; font-weight: inherit; }
   .mini .mg .c.today b { background: var(--accent); color: #fff; font-weight: 700; }
   .mini .mg .c.picked:not(.today) b { background: var(--raise); color: var(--text); }
+  /* fill: picked = solid accent; today = accent ring. */
+  .ps-fill .mg .c.today b { background: none; color: #a9c3ff; font-weight: 700; box-shadow: inset 0 0 0 1.5px var(--accent); }
+  .ps-fill .mg .c.picked b, .ps-fill .mg .c.picked:not(.today) b { background: #3d6fe6; color: #fff; font-weight: 700; box-shadow: none; }
+  .ps-fill .mg .c.today.picked b { box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px #6294ff8c; }
+  .dp.ps-fill .chip.on, .dp.ps-fill .seg2 span.on { background: #3d6fe6; color: #fff; font-weight: 600; }
+  /* soft: picked = tinted fill + accent ring; today = accent number with a bar under it. */
+  .ps-soft .mg .c.today b { background: none; color: #8fb2ff; font-weight: 700; }
+  .ps-soft .mg .c.today b::after { content: ""; position: absolute; bottom: 2px; left: 50%; width: 10px; height: 2px; margin-left: -5px; border-radius: 1px; background: var(--accent); }
+  .ps-soft .mg .c.today.picked b::after { bottom: 4px; }
+  .ps-soft .mg .c.picked b, .ps-soft .mg .c.picked:not(.today) b { background: #6294ff33; color: #fff; font-weight: 700; box-shadow: inset 0 0 0 1.5px var(--accent); }
+  .dp.ps-soft .chip.on, .dp.ps-soft .seg2 span.on { background: #6294ff4d; color: #fff; font-weight: 600; box-shadow: inset 0 0 0 1.5px var(--accent); }
+  /* white: picked = light fill, dark number; today = accent ring. */
+  .ps-white .mg .c.today b { background: none; color: #a9c3ff; font-weight: 700; box-shadow: inset 0 0 0 1.5px var(--accent); }
+  .ps-white .mg .c.picked b, .ps-white .mg .c.picked:not(.today) b { background: #e8edf6; color: #11151c; font-weight: 700; box-shadow: none; }
+  .ps-white .mg .c.today.picked b { box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px #6294ff8c; }
+  .dp.ps-white .chip.on, .dp.ps-white .seg2 span.on { background: #e8edf6; color: #11151c; font-weight: 600; }
   .mini .mg .c i { position: absolute; bottom: 1px; left: 50%; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: var(--muted); }
   .mini .mg .c i.over { background: var(--danger); }
   .agenda .ai { display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 0 var(--in); font-size: 13px; cursor: pointer; }
@@ -419,7 +445,7 @@
   .menu-pop .mi { display: flex; align-items: center; gap: 10px; height: 32px; padding: 0 10px; border-radius: 7px; color: var(--secondary); cursor: pointer; }
   .menu-pop .mi:hover { background: var(--raise); color: var(--text); }
   .menu-pop .mi.on { color: var(--text); }
-  .menu-pop .mi .ok { margin-left: auto; color: var(--accent); }
+  .menu-pop .mi .ok { margin-left: auto; width: 16px; height: 16px; display: grid; place-items: center; flex: none; color: var(--accent); }
   .menu-pop .mi.has-sub { position: relative; }
   .hello-scrim { z-index: 60; }
   .eye-top-wrap { position: absolute; top: 50%; transform: translateY(-50%); }
@@ -464,7 +490,7 @@
   .menu-pop .sub.flip { left: auto; right: calc(100% + 6px); }
   .menu-pop .sub::before { content: ""; position: absolute; top: 0; bottom: 0; left: -12px; width: 12px; }
   .menu-pop .sub.flip::before { left: auto; right: -12px; }
-  .menu-pop .mi.has-sub:hover > .sub { display: block; }
+  .menu-pop .mi.has-sub:hover > .sub, .menu-pop .mi.has-sub.open > .sub { display: block; }
   .menu-pop .mi .lb { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .menu-pop .mi .mic .dot { width: 8px; height: 8px; }
   /* Due picker */
@@ -514,6 +540,9 @@
   .dp-field .colon { color: var(--muted); font-weight: 600; }
   .dp-note { margin: 8px 0 0; font-size: 12px; line-height: 1.5; color: var(--muted); word-break: keep-all; text-wrap: balance; }
   .dp-foot { display: flex; align-items: center; gap: 6px; margin-top: 12px; }
+  /* When the picker has to scroll (short window), the 취소/정하기 row stays in view. */
+  .dp, .pk, .menu-pop { scrollbar-width: thin; scrollbar-color: #3a4354 transparent; }
+  .dp .dp-foot { position: sticky; bottom: -12px; margin: 2px -12px -12px; padding: 10px 12px 12px; background: #1e2430; border-radius: 0 0 12px 12px; }
   .dp-foot .sum { flex: 1; min-width: 0; color: var(--secondary); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .dp-foot .btn { height: 30px; padding: 0 12px; display: grid; place-items: center; border-radius: 8px; background: var(--raise); cursor: pointer; font-size: 12.5px; }
   .dp-foot .btn.pri { background: var(--accent); color: #fff; font-weight: 600; }
@@ -581,6 +610,8 @@ const I = {
   vsClose: `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 8.707l3.646 3.647.708-.707L8.707 8l3.647-3.646-.707-.708L8 7.293 4.354 3.646l-.707.708L7.293 8l-3.646 3.646.707.708L8 8.707z"/></svg>`,
   prev: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>`,
   next: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>`,
+  // Standard check mark for chosen menu items.
+  tick: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`,
   plusS: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>`,
   plus: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>`,
   vList: `<svg width="16" height="16" viewBox="0 0 24 24" ${P}><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></svg>`,
@@ -622,7 +653,7 @@ const TASKS = [
 ];
 const cat = id => CATS.find(c => c.id === id);
 const taskCats = t => (t.cats || (t.cat ? [t.cat] : [])).map(cat).filter(Boolean);
-const draftIds = () => s.draft.cats || (cat(s.nav) && !cat(s.nav).secret ? [s.nav] : []);
+const draftIds = () => s.draft.cats || (cat(s.nav) && (!cat(s.nav).secret || s.secretUnlocked) ? [s.nav] : []);
 const draftCats = () => draftIds().map(cat).filter(Boolean);
 // Repeat periods the app supports (day / week / month / year), with the next date shown.
 const REPEATS = [['', '안 함'], ['day', '매일'], ['week', '매주'], ['month', '매월'], ['year', '매년']];
@@ -679,7 +710,7 @@ const GROUPS = [
   { id: 'none', name: '기한 없음', test: t => !t.due },
 ];
 
-const s = { w: 1440, view: 'list', panel: 'auto', rail: 'auto', group: 'date', density: 'normal', pk: null, draft: { repeat: '', cats: null }, secretIcon: 'shield', eyePos: 'head', showSecret: false, secretUnlocked: false, hello: false, helloFor: null, catMenu: null, newCat: false, catY: 300, newColor: '#4fc3d9', newSecret: false, customOpen: false, hue: 190, sat: .6, val: .85, ctxX: 380, ctxY: 300, dpDay: 0, dpTime: 1439, dpOn: false, dpAt: 'ctx', noneTop: false, left: true, state: 'selected',
+const s = { w: 1440, view: 'list', panel: 'auto', rail: 'auto', group: 'date', density: 'normal', dpBottom: 128, ctxSub: false, pickStyle: 'fill', catDrag: null, pk: null, draft: { repeat: '', cats: null }, secretIcon: 'shield', eyePos: 'head', showSecret: false, secretUnlocked: false, hello: false, helloFor: null, catMenu: null, newCat: false, catY: 300, newColor: '#4fc3d9', newSecret: false, customOpen: false, hue: 190, sat: .6, val: .85, ctxX: 380, ctxY: 300, dpDay: 0, dpTime: 1439, dpOn: false, dpAt: 'ctx', noneTop: false, left: true, state: 'selected',
   nav: 'all', selected: 't2', picked: 0, tab: null, closed: { done: true }, viewMenu: false, drawer: false, sideOpen: false, guides: false, mark: false, fit: false,
   done: Object.fromEntries(TASKS.map(t => [t.id, !!t.done])), imp: Object.fromEntries(TASKS.map(t => [t.id, !!t.imp])) };
 const SIZES = { 1440: 960, 1180: 800, 960: 720, 760: 640 };
@@ -687,7 +718,7 @@ const SIZES = { 1440: 960, 1180: 800, 960: 720, 760: 640 };
 const open = t => !s.done[t.id];
 const overdue = t => open(t) && t.due && t.due < NOW.getTime();
 // Secret categories' tasks appear in their own (unlocked) category, and everywhere while the eye is on.
-const secretTask = t => !!cat(t.cat)?.secret;
+const secretTask = t => taskCats(t).some(c => c.secret);
 const shown = t => !secretTask(t) || s.showSecret;
 const NAV = [
   { id: 'all', name: '모든 할 일', icon: I.all, list: () => TASKS.filter(shown) },
@@ -695,7 +726,7 @@ const NAV = [
   { id: 'week', name: '다음 7일', icon: I.week, list: () => TASKS.filter(t => shown(t) && t.due && dayDiff(t.due) < 7) },
   { id: 'imp', name: '중요', icon: I.star(false), list: () => TASKS.filter(t => shown(t) && s.imp[t.id]) },
 ];
-const navList = id => (NAV.find(n => n.id === id) || { list: () => TASKS.filter(t => t.cat === id) }).list();
+const navList = id => (NAV.find(n => n.id === id) || { list: () => TASKS.filter(t => taskCats(t).some(c => c.id === id)) }).list();
 const navCount = id => navList(id).filter(open).length;
 
 function layout() {
@@ -743,7 +774,7 @@ function sidebar(L, inDrawer) {
 // ---------- List ----------
 function taskRow(t, opts = {}) {
   const c = cat(t.cat), done = s.done[t.id], r = t.due ? remain(t.due) : null;
-  const meta = [c ? `<span class="cat">${c.secret ? `<span class="shield" style="color:${c.color}">${secretSvg(12)}</span>` : `<span class="dot" style="background:${c.color}"></span>`}<b class="nt">${c.name}</b></span>` : '',
+  const meta = [c ? `<span class="cat">${c.secret ? `<span class="shield" style="color:${c.color}">${secretSvg(12)}</span>` : `<span class="dot" style="background:${c.color}"></span>`}<b class="nt">${c.name}</b>${taskCats(t).length > 1 ? `<b class="more nt" data-tip="${taskCats(t).map(x => x.name).join(', ')}">+${taskCats(t).length - 1}</b>` : ''}</span>` : '',
     t.repeat ? `<span>${I.repeat}<i class="nt">${t.repeat}</i></span>` : '',
     t.subs ? `<span>${I.sub}<i class="nt">${t.subs.filter(x => x[1]).length}/${t.subs.length}</i></span>` : '',
     t.memo ? `<span data-tip="메모 있음">${I.memo}</span>` : ''].filter(Boolean);
@@ -790,11 +821,12 @@ const viewSeg = () => `<div class="seg">${[['list', '목록', I.vList], ['calend
 // Quick add, fixed at the bottom of every view. Chips start from what is on screen.
 function quickAdd() {
   const pd = new Date(NOW); pd.setDate(pd.getDate() + s.picked);
-  const dayChip = s.view === 'list' ? (s.nav === 'today' ? `<span class="chip on" data-dpopen="quick">${I.sun}<span class="nt">오늘</span></span>` : `<span class="chip" data-dpopen="quick">${I.cal}<span class="nt">날짜</span></span>`)
-    : `<span class="chip on" data-dpopen="quick">${I.cal}<span class="nt">${pd.getMonth() + 1}월 ${pd.getDate()}일</span></span>`;
+  const dn = draftDay(), db = dayBase(dn), dd = s.draft.due;
+  const dayChip = dn === null ? `<span class="chip" data-dpopen="quick">${I.cal}<span class="nt">날짜</span></span>`
+    : `<span class="chip on" data-dpopen="quick">${I.cal}<span class="nt">${db.getMonth() + 1}월 ${db.getDate()}일${dd && dd.on ? ' ' + clockShort(dd.time) : ''}</span></span>`;
   const c = s.view === 'list' ? cat(s.nav) : null;
   return `<div class="quick chg"><div class="in"><span class="plus">${I.plus}</span><span class="nt">할 일 추가 · 예: 내일 오후 3시 회의</span><kbd>Ctrl N</kbd></div>
-    <div class="chips">${dayChip}<span class="chip ${s.draft.repeat ? 'on' : ''}" data-pkopen="rep:quick">${I.repeat}<span class="nt">${s.draft.repeat ? REPEATS.find(r => r[0] === s.draft.repeat)[1] : '반복'}</span></span>${draftCats().length ? draftCats().map(x => `<span class="chip on" data-pkopen="cat:quick"><span class="dot" style="background:${x.color}"></span><span class="nt">${x.name}</span></span>`).join('') : `<span class="chip" data-pkopen="cat:quick"><span class="dot" style="background:var(--muted)"></span><span class="nt">카테고리</span></span>`}<span class="chip ${s.view === 'list' && s.nav === 'imp' ? 'on' : ''}">${I.star(s.view === 'list' && s.nav === 'imp', 13)}<span class="nt">중요</span></span></div></div>`;
+    <div class="chips">${dayChip}<span class="chip ${s.draft.repeat ? 'on' : ''}" data-pkopen="rep:quick">${I.repeat}<span class="nt">${s.draft.repeat ? repeatName(s.draft.repeat, db) : '반복'}</span></span>${draftCats().length ? draftCats().map(x => `<span class="chip on" data-pkopen="cat:quick"><span class="dot" style="background:${x.color}"></span><span class="nt">${x.name}</span></span>`).join('') : `<span class="chip" data-pkopen="cat:quick"><span class="dot" style="background:var(--muted)"></span><span class="nt">카테고리</span></span>`}<span class="chip ${s.view === 'list' && s.nav === 'imp' ? 'on' : ''}">${I.star(s.view === 'list' && s.nav === 'imp', 13)}<span class="nt">중요</span></span></div></div>`;
 }
 function listPane(L) {
   const nav = NAV.find(n => n.id === s.nav) || cat(s.nav);
@@ -812,7 +844,7 @@ function listPane(L) {
   </section>`;
 }
 function viewMenu() {
-  const mi = (on, label, attr = '') => `<div class="mi ${on ? 'on' : ''}" ${attr}>${label}${on ? '<span class="ok">✓</span>' : ''}</div>`;
+  const mi = (on, label, attr = '') => `<div class="mi ${on ? 'on' : ''}" ${attr}>${label}${on ? '<span class="ok">' + I.tick + '</span>' : ''}</div>`;
   return `<div class="menu-pop" style="top:56px;right:${s.w < 1000 ? 110 : 32}px">
     <div class="hd">묶기</div>${mi(s.group === 'date', '날짜별', 'data-set="group:date"')}${mi(s.group === 'none', '묶지 않기 (기한 순)', 'data-set="group:none"')}
     <div class="hd">기한 없음 묶음</div>${mi(!s.noneTop, '맨 아래', 'data-set="noneTop:false"')}${mi(s.noneTop, '맨 위', 'data-set="noneTop:true"')}
@@ -826,7 +858,7 @@ function contextMenu() {
   const t = TASKS.find(x => x.id === s.selected);
   const ic = d => '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + d + '</svg>';
   const mi = (icon, label, act, kb = '', cls = '', extra = '') => '<div class="mi ' + cls + '" data-ctx="' + act + '"><span class="mic">' + icon + '</span><span class="nt">' + label + '</span>' + (kb ? '<span class="kb">' + kb + '</span>' : '') + extra + '</div>';
-  const cats = CATS.map(c => '<div class="mi" data-ctx="cat:' + c.id + '"><span class="mic">' + (c.secret ? I.key : '<span class="dot" style="background:' + c.color + '"></span>') + '</span><span class="nt lb">' + c.name + '</span>' + (t.cat === c.id ? '<span class="ok">✓</span>' : '') + '</div>').join('') +
+  const cats = CATS.map(c => '<div class="mi" data-ctx="cat:' + c.id + '"><span class="mic">' + (c.secret ? I.key : '<span class="dot" style="background:' + c.color + '"></span>') + '</span><span class="nt lb">' + c.name + '</span>' + (taskCats(t).some(x => x.id === c.id) ? '<span class="ok">' + I.tick + '</span>' : '') + '</div>').join('') +
     '<div class="sp"></div><div class="mi" data-ctx="newcat"><span class="mic">' + I.plusS + '</span><span class="nt">새 카테고리…</span></div>';
   const flip = s.ctxX > (s.w - (layout().rail ? 56 : 232) - 361) - 520 ? 'flip' : '';
   return '<div class="menu-pop" style="top:' + s.ctxY + 'px;left:' + s.ctxX + 'px">' +
@@ -835,21 +867,29 @@ function contextMenu() {
     (t.due ? mi(ic('<path d="M5 12h12M13 8l4 4-4 4"/><path d="M20 5v14"/>'), '하루 미루기', 'plus1') + mi(ic('<path d="M4 12h12M12 8l4 4-4 4"/><path d="M19 5v14M22 5v14"/>'), '일주일 미루기', 'plus7') : '') +
     mi(I.cal, '날짜 · 시간 정하기…', 'pick') + (t.due ? mi(ic('<path d="M6 6l12 12M18 6L6 18"/>'), '기한 없애기', 'clear') : '') + '<div class="sp"></div>' +
     (s.imp[s.selected] ? mi(I.star(true, 15), '중요 해제', 'star') : mi(I.star(false, 15), '중요로 표시', 'star')) +
-    mi(ic('<path d="M20 12l-8 8-9-9V3h8z"/><circle cx="7.5" cy="7.5" r="1.2"/>'), '카테고리', 'none', '', 'has-sub', '<span class="kb">' + I.next + '</span><div class="menu-pop sub ' + flip + '">' + cats + '</div>') +
+    mi(ic('<path d="M20 12l-8 8-9-9V3h8z"/><circle cx="7.5" cy="7.5" r="1.2"/>'), '카테고리', 'none', '', 'has-sub' + (s.ctxSub ? ' open' : ''), '<span class="kb">' + I.next + '</span><div class="menu-pop sub ' + flip + '">' + cats + '</div>') +
     mi(ic('<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>'), '복제', 'dup') + '<div class="sp"></div>' +
     mi(ic('<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>'), '삭제', 'del', 'Del', 'danger') + '</div>';
 }
+// The draft's date (quick add): what the date picker set, else the view's own day (today in 오늘, the picked day in
+// calendar/timeline), else none.
+const Z = () => s.fit ? 0.7 : 1;
+const draftDay = () => s.draft.due ? s.draft.due.day : s.view === 'calendar' ? s.picked : s.view === 'timeline' ? 0 : s.nav === 'today' ? 0 : null;
+const dayBase = n => { const d = new Date(NOW); d.setDate(d.getDate() + (n || 0)); d.setHours(23, 59, 0, 0); return d; };
+const clockShort = mins => { const h = Math.floor(mins / 60), m = mins % 60; return (h >= 12 ? '오후 ' : '오전 ') + (h % 12 || 12) + (m ? ':' + pad(m) : '시'); };
+// "매주 수요일" etc. for a repeat key on a given date.
+const repeatName = (k, base) => ({ '': '안 함', day: '매일', week: '매주 ' + WD[base.getDay()] + '요일', month: '매월 ' + base.getDate() + '일', year: '매년 ' + (base.getMonth() + 1) + '월 ' + base.getDate() + '일' })[k];
 // Repeat picker: one choice; each line says when it comes next.
 function repeatPicker() {
   const t = s.pk.at === 'detail' ? TASKS.find(x => x.id === s.selected) : null;
-  const base = t && t.due ? new Date(t.due) : (() => { const d = new Date(NOW); d.setDate(d.getDate() + (s.view === 'list' ? 0 : s.picked)); d.setHours(23, 59); return d; })();
+  const base = t && t.due ? new Date(t.due) : dayBase(t ? 0 : draftDay());
   const cur = t ? ({ '매일': 'day', '매주': 'week', '매월': 'month', '매년': 'year' }[t.repeat] || '') : s.draft.repeat;
   const next = k => { const d = new Date(base); if (k === 'day') d.setDate(d.getDate() + 1); if (k === 'week') d.setDate(d.getDate() + 7); if (k === 'month') d.setMonth(d.getMonth() + 1); if (k === 'year') d.setFullYear(d.getFullYear() + 1); return (d.getFullYear() !== base.getFullYear() ? d.getFullYear() + '년 ' : '') + (d.getMonth() + 1) + '월 ' + d.getDate() + '일 (' + WD[d.getDay()] + ')'; };
-  const name = { '': '안 함', day: '매일', week: '매주 ' + WD[base.getDay()] + '요일', month: '매월 ' + base.getDate() + '일', year: '매년 ' + (base.getMonth() + 1) + '월 ' + base.getDate() + '일' };
+  const name = Object.fromEntries(REPEATS.map(([k]) => [k, repeatName(k, base)]));
   const sub = k => k ? '다음: ' + next(k) : '한 번만';
   return '<div class="pk" style="' + s.pk.style + '"><div class="dp-h"><span class="nt">반복</span><span class="x" data-pk="close">' + I.vsClose + '</span></div>' +
     REPEATS.map(([k]) => '<div class="pk-row ' + (cur === k ? 'on' : '') + '" data-pk="rep:' + k + '"><span class="rd"></span><span class="tx"><span class="nm">' + name[k] + '</span><small>' + sub(k) + '</small></span></div>').join('') +
-    ((!t || !t.due) ? '<p class="dp-note">기한이 없으면 오늘 오후 11:59가<br>기한이 돼요.</p>' : '') + '</div>';
+    ((t ? !t.due : draftDay() === null) ? '<p class="dp-note">기한이 없으면 오늘 오후 11:59가<br>기한이 돼요.</p>' : '') + '</div>';
 }
 // The next palette colour no category uses yet (first one if all are used).
 const nextColor = () => PALETTE.find(c => !CATS.some(x => x.color === c)) || PALETTE[0];
@@ -876,11 +916,11 @@ function duePicker() {
     g += '<span class="c ' + (d.getMonth() !== 9 ? 'out' : '') + ' ' + (n === 0 ? 'today' : '') + ' ' + (n === s.dpDay ? 'picked' : '') + ' ' + (d.getDay() === 0 ? 'sun' : d.getDay() === 6 ? 'sat' : '') + '" data-dp="day:' + n + '"><b>' + d.getDate() + '</b></span>';
   }
   const quick = [[0, '오늘'], [1, '내일'], [6 - NOW.getDay(), '이번 주 토요일'], [8 - NOW.getDay(), '다음 주 월요일']];
-  const presets = [[540, '오전 9:00'], [720, '낮 12:00'], [1080, '오후 6:00'], [1260, '오후 9:00'], [1439, '하루 끝']];
+  const presets = [[540, '오전 9:00'], [720, '오후 12:00'], [1080, '오후 6:00'], [1260, '오후 9:00'], [1439, '하루 끝']];
   const h = Math.floor(s.dpTime / 60), m = s.dpTime % 60, pm = h >= 12, h12 = h % 12 || 12;
   const sum = (base.getMonth() + 1) + '월 ' + base.getDate() + '일 (' + WD[base.getDay()] + ')' + (s.dpOn ? ' ' + (pm ? '오후 ' : '오전 ') + h12 + ':' + pad(m) : ' · 하루 끝까지');
-  const where = s.dpAt === 'quick' ? 'bottom:128px;left:calc(var(--main-x) - 14px)' : s.dpAt === 'detail' ? 'top:156px;left:var(--panel-x)' : 'top:' + Math.max(8, s.ctxY - 40) + 'px;left:' + s.ctxX + 'px';
-  return '<div class="dp" style="' + where + '">' +
+  const where = s.dpAt === 'quick' ? 'bottom:' + s.dpBottom + 'px;left:calc(var(--main-x) - 14px)' : s.dpAt === 'detail' ? 'top:156px;left:var(--panel-x)' : 'top:' + Math.max(8, s.ctxY - 40) + 'px;left:' + s.ctxX + 'px';
+  return '<div class="dp ps-' + s.pickStyle + '" style="' + where + '">' +
     '<div class="dp-h"><span class="nt">기한 정하기</span><span class="x" data-dp="close" data-tip="닫기">' + I.vsClose + '</span></div>' +
     '<div class="dp-quick">' + quick.map(([n, l]) => '<span class="chip ' + (s.dpDay === n ? 'on' : '') + '" data-dp="day:' + n + '"><span class="nt">' + l + '</span></span>').join('') + '</div>' +
     '<div class="mini dp-cal"><div class="mh">2026년 10월<span><i>' + I.prev + '</i><i>' + I.next + '</i></span></div><div class="mg">' + g + '</div></div>' +
@@ -889,7 +929,7 @@ function duePicker() {
       '<span class="num">' + h12 + '</span><span class="colon">:</span><span class="num">' + pad(m) + '</span></div>' +
       '<div class="dp-quick">' + presets.map(([v, l]) => '<span class="chip ' + (s.dpTime === v ? 'on' : '') + '" data-dp="at:' + v + '"><span class="nt">' + l + '</span></span>').join('') + '</div>'
       : '<p class="dp-note">시간 없이 그날 끝(오후 11:59)까지예요.<br>켜면 시각을 바꿀 수 있어요.</p>') + '</div>' +
-    '<div class="dp-foot"><span class="sum nt">' + sum + '</span><span class="btn" data-dp="close"><span class="nt">취소</span></span><span class="btn pri" data-dp="close"><span class="nt">정하기</span></span></div></div>';
+    '<div class="dp-foot"><span class="sum nt">' + sum + '</span><span class="btn" data-dp="close"><span class="nt">취소</span></span><span class="btn pri" data-dp="ok"><span class="nt">정하기</span></span></div></div>';
 }
 function calendarPane(L) {
   const first = new Date(2026, 9, 1), start = new Date(first); start.setDate(1 - first.getDay());
@@ -943,7 +983,7 @@ function detailBody(t) {
   return `<div class="dt-title"><span class="ck ${s.done[t.id] ? 'done' : ''}" data-check="${t.id}">${s.done[t.id] ? I.check : ''}</span><h2>${t.t}</h2><span class="st ${s.imp[t.id] ? 'on' : ''}" data-star="${t.id}">${I.star(s.imp[t.id], 20)}</span></div>
     <div class="box">
       <div class="prop click" data-dpopen="detail" data-tip="기한 정하기"><span class="k">기한</span><span class="v" style="${overdue(t) ? 'color:var(--danger)' : ''}">${dd ? `${dd.getFullYear()}.${pad(dd.getMonth() + 1)}.${pad(dd.getDate())} ${clockFull(dd)}` : '<span class="sub">없음</span>'}</span></div>
-      <div class="prop click mid" data-pkopen="rep:detail" data-tip="반복 정하기"><span class="k">반복</span><span class="v">${t.repeat || '<span class="sub">안 함</span>'}</span></div>
+      <div class="prop click mid" data-pkopen="rep:detail" data-tip="반복 정하기"><span class="k">반복</span><span class="v">${t.repeat ? repeatName({ '매일': 'day', '매주': 'week', '매월': 'month', '매년': 'year' }[t.repeat], t.due ? new Date(t.due) : dayBase(0)) : '<span class="sub">안 함</span>'}</span></div>
       <div class="prop click last" data-pkopen="cat:detail" data-tip="카테고리 고르기"><span class="k">카테고리</span><span class="v">${taskCats(t).map(x => `<span class="chip">${x.secret ? `<span style="color:${x.color};display:grid">${secretSvg(12)}</span>` : `<span class="dot" style="background:${x.color}"></span>`}<span class="nt">${x.name}</span></span>`).join('')}<span class="chip">${I.plusS}</span></span></div>
     </div>
     <div class="block-h">하위 할 일<span>${t.subs ? `${subsDone}/${t.subs.length}` : ''}</span></div>
@@ -968,7 +1008,7 @@ function calendarBody() {
     const evs = TASKS.filter(t => shown(t) && t.due && dayDiff(t.due) === n && open(t));
     g += `<span class="c ${d.getMonth() !== 9 ? 'out' : ''} ${n === 0 ? 'today' : ''} ${n === s.picked ? 'picked' : ''} ${d.getDay() === 0 ? 'sun' : d.getDay() === 6 ? 'sat' : ''}" data-pick="${n}"><b>${d.getDate()}</b>${evs.length ? `<i class="${evs.some(overdue) ? 'over' : ''}"></i>` : ''}</span>`;
   }
-  return `<div class="box mini"><div class="mh">2026년 10월<span><i>${I.prev}</i><i>${I.next}</i></span></div><div class="mg">${g}</div></div>` + dayList();
+  return `<div class="box mini ps-${s.pickStyle}"><div class="mh">2026년 10월<span><i>${I.prev}</i><i>${I.next}</i></span></div><div class="mg">${g}</div></div>` + dayList();
 }
 function panelTab() {
   if (s.view === 'calendar') return 'day';
@@ -1011,6 +1051,7 @@ function win() {
 function notes() {
   const mode = s.w >= 1280 ? '넓은 창: 메뉴 + 목록 + 패널' : s.w >= 1000 ? '중간 창: 메뉴는 아이콘만, 패널 320px' : s.w >= 800 ? '좁은 창: 패널은 위에 겹쳐 열림' : '아주 좁은 창: 메뉴는 ☰ 버튼으로';
   return '<div class="notes"><div class="now">' + s.w + '×' + SIZES[s.w] + ' · ' + mode + '</div><h3 class="q">정할 것</h3><ul class="q">' + [
+    '<b>고른 날짜 · 버튼 표시</b>(툴바 "선택 표시"): 파란 채움(오늘은 파란 테두리) vs 연한 채움 + 테두리(오늘은 파란 숫자 + 밑줄) vs 흰 채움(오늘은 파란 테두리). 날짜 창과 오른쪽 캘린더 탭에 같이 적용.',
     '<b>오른쪽 시간 칸과 "시간 표시" 설정</b>: 다른 것 다 정한 뒤 따로 시안.',
   ].map(x => '<li>' + x + '</li>').join('') + '</ul></div>';
 }
@@ -1018,7 +1059,8 @@ function toolbar() {
   const b = (k, v, l) => `<button class="${s[k] === v ? 'on' : ''}" data-set="${k}:${v}">${l}</button>`;
   return `<div class="line"><strong>창 크기</strong>${b('w', 1440, '1440×960')}${b('w', 1180, '1180×800')}${b('w', 960, '960×720')}${b('w', 760, '760×640')}<span class="sep"></span>
       <strong>가운데</strong>${b('view', 'list', '목록')}${b('view', 'calendar', '캘린더')}${b('view', 'timeline', '타임라인')}</div>
-        <div class="line"><strong>상태</strong>${b('state', 'selected', '할 일 선택')}${b('state', 'nosel', '선택 없음')}${b('state', 'context', '우클릭 메뉴')}${b('state', 'picker', '날짜 · 시간 정하기')}${b('state', 'search', '검색 중')}${b('state', 'empty', '빈 목록')}${b('nav', 'diary', '비밀 카테고리')}<span class="sep"></span>${b('catMenu', 'work', '카테고리 메뉴')}${b('newCat', true, '카테고리 만들기')}<span class="sep"></span>${b('hello', true, 'Hello 확인 창')}${b('showSecret', true, '비밀 보기 켬')}${b('showSecret', false, '끔')}</div>
+        <div class="line"><strong>선택 표시</strong>${b('pickStyle', 'fill', '파란 채움')}${b('pickStyle', 'soft', '연한 채움 + 테두리')}${b('pickStyle', 'white', '흰 채움')}<span style="color:#8a93a3;margin-left:8px">날짜 창 · 오른쪽 캘린더 탭</span></div>
+    <div class="line"><strong>상태</strong>${b('state', 'selected', '할 일 선택')}${b('state', 'nosel', '선택 없음')}${b('state', 'context', '우클릭 메뉴')}${b('state', 'picker', '날짜 · 시간 정하기')}${b('state', 'search', '검색 중')}${b('state', 'empty', '빈 목록')}${b('nav', 'diary', '비밀 카테고리')}<span class="sep"></span>${b('catMenu', 'work', '카테고리 메뉴')}${b('newCat', true, '카테고리 만들기')}<span class="sep"></span>${b('hello', true, 'Hello 확인 창')}${b('showSecret', true, '비밀 보기 켬')}${b('showSecret', false, '끔')}</div>
     <div class="line"><strong>오른쪽 패널</strong>${b('panel', 'auto', '자동(선택하면 상세)')}${b('panel', 'calendar', '캘린더 고정')}${b('panel', 'off', '끔')}<span class="sep"></span>
       <strong>왼쪽 메뉴</strong>${b('rail', 'auto', '창 크기에 맞춤')}${b('rail', 'full', '펼침')}${b('rail', 'rail', '아이콘만')}<span class="sep"></span>
       <strong>남은 시간</strong>${b('left', true, '보임')}${b('left', false, '숨김')}</div>
@@ -1034,8 +1076,49 @@ function render() {
   st.className = 'stage' + (s.mark ? ' mark' : '') + (s.fit ? ' fit' : '');
   st.innerHTML = win() + notes();
   document.querySelectorAll('.scroll, .tl-body, .pbody').forEach((el, i) => { if (keep[s.view + i]) el.scrollTop = keep[s.view + i]; });
+  fitPopups();
+}
+// Keep floating menus and pickers inside the app window (8px margin): move them, and scroll inside if still too tall.
+function fitPopups() {
+  const w = document.querySelector('.win'); if (!w) return;
+  const z = Z(), wr = w.getBoundingClientRect(), m = 8 * z;
+  w.querySelectorAll('.dp, .pk, .menu-pop:not(.sub), .cat-menu, .new-cat').forEach(el => {
+    let r = el.getBoundingClientRect();
+    if (r.height > wr.height - 2 * m) { el.style.maxHeight = Math.floor((wr.height - 2 * m) / z) + 'px'; el.style.overflowY = 'auto'; r = el.getBoundingClientRect(); }
+    // Anchored by its bottom (above the quick-add box): keep the anchor, cap the height instead of moving it.
+    if (el.style.bottom && el.style.bottom !== 'auto' && r.top < wr.top + m) {
+      el.style.maxHeight = Math.floor((r.bottom - wr.top - m) / z) + 'px'; el.style.overflowY = 'auto'; r = el.getBoundingClientRect();
+    }
+    let dy = 0, dx = 0;
+    if (r.bottom > wr.bottom - m) dy = wr.bottom - m - r.bottom;
+    if (r.top + dy < wr.top + m) dy = wr.top + m - r.top;
+    if (dy) { el.style.top = Math.round(el.offsetTop + dy / z) + 'px'; el.style.bottom = 'auto'; }
+    if (r.right > wr.right - m) dx = wr.right - m - r.right;
+    if (r.left + dx < wr.left + m) dx = wr.left + m - r.left;
+    if (dx) { el.style.left = Math.round(el.offsetLeft + dx / z) + 'px'; el.style.right = 'auto'; }
+  });
+  w.querySelectorAll('.menu-pop .mi.has-sub.open').forEach(fitSub);
+}
+document.addEventListener('mouseover', e => {
+  const item = e.target.closest('.menu-pop .mi');
+  if (s.ctxSub && item && !item.closest('.has-sub')) { s.ctxSub = false; document.querySelectorAll('.mi.has-sub.open').forEach(x => x.classList.remove('open')); }
+  const mi = e.target.closest('.menu-pop .mi.has-sub');
+  if (mi) fitSub(mi);
+});
+// Sub menu: flip to the left and move up when it would leave the window (measured once it is shown).
+function fitSub(mi) {
+  const sub = mi.querySelector(':scope > .sub');
+  if (!sub || sub.dataset.fit) return;
+  sub.dataset.fit = '1';
+  const w = mi.closest('.win').getBoundingClientRect(), m = 8 * Z();
+  sub.classList.remove('flip');
+  if (sub.getBoundingClientRect().right > w.right - m) sub.classList.add('flip');
+  const r = sub.getBoundingClientRect(), over = r.bottom - (w.bottom - m);
+  if (over > 0) sub.style.top = Math.round(sub.offsetTop - over / Z()) + 'px';
 }
 document.addEventListener('click', e => {
+  const tbKey = e.target.closest('#toolbar [data-set]')?.dataset.set.split(':')[0];
+  if (tbKey && !['pickStyle', 'guides', 'mark', 'secretIcon'].includes(tbKey)) { s.pk = null; s.catMenu = null; s.newCat = false; s.customOpen = false; s.hello = false; if (s.state === 'context' || s.state === 'picker') s.state = 'selected'; }
   const el = e.target.closest('[data-set],[data-nav],[data-task],[data-check],[data-star],[data-sec],[data-view],[data-tab],[data-pick],[data-closepanel],[data-viewmenu],[data-drawer],[data-sideopen]');
   const pk = e.target.closest('[data-custom],[data-sv],[data-hue]');
   if (pk) {
@@ -1056,7 +1139,7 @@ document.addEventListener('click', e => {
     else if (d2.newcolor) { s.newColor = d2.newcolor; s.customOpen = false; }
     else if (d2.newsecret) s.newSecret = !s.newSecret;
     else if (d2.catclose) s.newCat = false;
-    else if (d2.newcat) { const r = catEl.getBoundingClientRect(), b = catEl.closest('.body').getBoundingClientRect(); s.newCat = true; s.catMenu = null; s.catY = Math.round(r.top - b.top); }
+    else if (d2.newcat) { const r = catEl.getBoundingClientRect(), b = catEl.closest('.body').getBoundingClientRect(); s.newCat = true; s.catMenu = null; s.catY = Math.round((r.top - b.top) / Z()); }
     render(); return;
   }
   if ((s.catMenu || s.newCat) && !e.target.closest('.cat-menu, .new-cat')) { s.catMenu = null; s.newCat = false; s.customOpen = false; render(); return; }
@@ -1074,14 +1157,14 @@ document.addEventListener('click', e => {
   if (pkEl) {
     if (pkEl.dataset.pkopen) {
       const [kind, at] = pkEl.dataset.pkopen.split(':'), host = pkEl.closest(at === 'detail' ? '.pane.aside' : '.pane.main').getBoundingClientRect(), r = pkEl.getBoundingClientRect();
-      const style = at === 'detail' ? 'top:' + Math.round(r.bottom - host.top + 6) + 'px;left:var(--panel-x)' : 'bottom:' + Math.round(host.bottom - r.top + 8) + 'px;left:' + Math.round(Math.min(r.left - host.left, host.width - 280)) + 'px';
+      const z = Z(), style = at === 'detail' ? 'top:' + Math.round((r.bottom - host.top) / z + 6) + 'px;left:var(--panel-x)' : 'bottom:' + Math.round((host.bottom - r.top) / z + 8) + 'px;left:' + Math.round(Math.min((r.left - host.left) / z, host.width / z - 280)) + 'px';
       s.pk = s.pk && s.pk.kind === kind && s.pk.at === at ? null : { kind, at, style }; s.state = s.state === 'picker' ? 'selected' : s.state;
     } else {
       const v = pkEl.dataset.pk, t = s.pk.at === 'detail' ? TASKS.find(x => x.id === s.selected) : null;
       if (v === 'close') s.pk = null;
       else if (v.startsWith('rep:')) {
         const k = v.slice(4), label = (REPEATS.find(x => x[0] === k) || [])[1];
-        if (t) { t.repeat = k ? label : ''; if (k && !t.due) t.due = at(0, 23, 59); } else s.draft.repeat = k;
+        if (t) { t.repeat = k ? label : ''; if (k && !t.due) t.due = at(0, 23, 59); } else { s.draft.repeat = k; if (k && draftDay() === null) s.draft.due = { day: 0, on: false, time: 1439 }; }
         s.pk = null;
       } else if (v.startsWith('cat:')) {
         const id = v.slice(4);
@@ -1095,13 +1178,16 @@ document.addEventListener('click', e => {
     }
     render(); return;
   }
-  if (s.pk && !e.target.closest('.pk')) { s.pk = null; render(); return; }
+  if (s.pk && !e.target.closest('.pk')) { s.pk = null; if (!e.target.closest('[data-dpopen]')) { render(); return; } }
   const opener = e.target.closest('[data-dpopen]');
   if (opener) {
     const t = TASKS.find(x => x.id === s.selected), from = opener.dataset.dpopen;
+    if (s.state === 'picker' && s.dpAt === from) { s.state = 'selected'; render(); return; }
+    if (from === 'quick') { const host = opener.closest('.pane.main').getBoundingClientRect(), q = opener.closest('.quick').getBoundingClientRect(); s.dpBottom = Math.round((host.bottom - q.top) / Z() + 8); }
     s.dpAt = from; s.state = 'picker'; s.viewMenu = false;
     if (from === 'detail') { s.dpDay = t.due ? dayDiff(t.due) : 0; s.dpOn = !!t.due && !(new Date(t.due).getHours() === 23 && new Date(t.due).getMinutes() === 59); s.dpTime = s.dpOn ? new Date(t.due).getHours() * 60 + new Date(t.due).getMinutes() : 1439; }
-    else { s.dpDay = s.view === 'list' ? 0 : s.picked; s.dpOn = false; s.dpTime = 1439; }
+    else if (s.draft.due) { s.dpDay = s.draft.due.day; s.dpOn = s.draft.due.on; s.dpTime = s.draft.due.time; }
+    else { s.dpDay = draftDay() || 0; s.dpOn = false; s.dpTime = 1439; }
     render(); return;
   }
   const ctxEl = e.target.closest('[data-ctx],[data-dp]');
@@ -1110,12 +1196,17 @@ document.addEventListener('click', e => {
     if (c === 'none') return;
     if (c === 'pick') { s.state = 'picker'; s.dpAt = 'ctx'; s.dpDay = t.due ? dayDiff(t.due) : 0; s.dpOn = !!t.due && !(new Date(t.due).getHours() === 23 && new Date(t.due).getMinutes() === 59); s.dpTime = s.dpOn ? new Date(t.due).getHours() * 60 + new Date(t.due).getMinutes() : 1439; }
     else if (c === 'star') { s.imp[t.id] = !s.imp[t.id]; s.state = 'selected'; }
-    else if (c && c.startsWith('cat:')) { t.cat = c.slice(4); s.state = 'selected'; }
+    else if (c && c.startsWith('cat:')) { const id = c.slice(4), list = taskCats(t).map(x => x.id); t.cats = list.includes(id) ? list.filter(x => x !== id) : [...list, id]; t.cat = t.cats[0] || null; s.ctxSub = true; }
     else if (c === 'today' || c === 'tomorrow') { t.due = at(c === 'today' ? 0 : 1, 23, 59); s.state = 'selected'; }
     else if (c === 'plus1' || c === 'plus7') { t.due += (c === 'plus1' ? 1 : 7) * D; s.state = 'selected'; }
     else if (c === 'clear') { t.due = null; s.state = 'selected'; }
     else if (c) s.state = 'selected';
     if (p === 'close') s.state = 'selected';
+    else if (p === 'ok') {
+      if (s.dpAt === 'quick') s.draft.due = { day: s.dpDay, on: s.dpOn, time: s.dpTime };
+      else if (t) t.due = at(s.dpDay, Math.floor((s.dpOn ? s.dpTime : 1439) / 60), (s.dpOn ? s.dpTime : 1439) % 60);
+      s.state = 'selected';
+    }
     else if (p && p.startsWith('day:')) s.dpDay = +p.slice(4);
     else if (p === 'time') { s.dpOn = !s.dpOn; if (s.dpOn) s.dpTime = 1439; }
     else if (p && p.startsWith('at:')) s.dpTime = +p.slice(3);
@@ -1135,8 +1226,9 @@ document.addEventListener('click', e => {
       setTimeout(() => {
         const r = row.getBoundingClientRect(), bg = getComputedStyle(row).backgroundColor;
         const copy = row.cloneNode(true);
-        copy.classList.add('fall'); copy.classList.remove('hov');
-        Object.assign(copy.style, { left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px',
+        copy.classList.add('fall'); copy.classList.remove('hov'); if (row.closest('.compact')) copy.classList.add('compact-row');
+        const z = Z();
+        Object.assign(copy.style, { left: r.left / z + 'px', top: r.top / z + 'px', width: r.width / z + 'px', height: r.height / z + 'px',
           background: bg === 'rgba(0, 0, 0, 0)' ? 'var(--raise)' : bg });
         row.closest('.win').appendChild(copy);
         row.classList.add('leaving'); row.style.visibility = 'hidden';
@@ -1162,28 +1254,93 @@ document.addEventListener('click', e => {
   render();
 });
 // Right-click a task row (list, timeline, day list) to open its menu where the mouse is.
+// Category drag and drop: press on a category row and move 4px to lift it.
+(() => {
+  let drag = null, swallowUntil = 0, settling = false;
+  const cancel = () => {
+    if (!drag) return;
+    if (drag.on) { drag.rows.forEach(el => { el.style.transform = ''; el.classList.remove('lifted'); }); drag.side.classList.remove('sorting'); drag.ghost.remove(); }
+    drag = null;
+  };
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && drag) { cancel(); e.stopImmediatePropagation(); } }, true);
+  document.addEventListener('mousedown', e => {
+    const row = e.button === 0 && !settling && e.target.closest('.side .cat-row');
+    if (!row) return;
+    e.preventDefault();
+    drag = { id: row.dataset.catrow, x: e.clientX, y: e.clientY, row, on: false };
+  });
+  document.addEventListener('mousemove', e => {
+    if (!drag) return;
+    if (!drag.row.isConnected) { cancel(); return; }
+    if (!drag.on) {
+      if (Math.abs(e.clientY - drag.y) < 4 && Math.abs(e.clientX - drag.x) < 4) return;
+      const side = drag.row.closest('.side'), rows = [...side.querySelectorAll('.cat-row')], r = drag.row.getBoundingClientRect();
+      drag.on = true; drag.side = side; drag.rows = rows; drag.from = rows.indexOf(drag.row); drag.to = drag.from;
+      drag.h = rows.length > 1 ? rows[1].getBoundingClientRect().top - rows[0].getBoundingClientRect().top : r.height;
+      drag.top0 = r.top; drag.dy = drag.y - r.top; drag.z = Z();
+      drag.ghost = drag.row.cloneNode(true); drag.ghost.classList.add('cat-ghost'); drag.ghost.removeAttribute('data-tip');
+      drag.ghost.classList.toggle('in-rail', side.classList.contains('rail'));
+      Object.assign(drag.ghost.style, { left: r.left / drag.z + 'px', top: r.top / drag.z + 'px', width: r.width / drag.z + 'px', height: r.height / drag.z + 'px', transition: 'none' });
+      drag.row.closest('.win').appendChild(drag.ghost);
+      side.classList.add('sorting'); drag.row.classList.add('lifted');
+      // An open category menu would point at the wrong row once rows move.
+      if (s.catMenu || s.newCat) { s.catMenu = null; s.newCat = false; s.customOpen = false; document.querySelectorAll('.cat-menu, .new-cat').forEach(el => el.remove()); side.querySelectorAll('.menu-on').forEach(el => el.classList.remove('menu-on')); }
+      document.getElementById('tip')?.classList.remove('on');
+    }
+    const minTop = drag.top0 - drag.from * drag.h, maxTop = minTop + (drag.rows.length - 1) * drag.h;
+    const top = Math.max(minTop - 8, Math.min(maxTop + 8, e.clientY - drag.dy));
+    drag.ghost.style.top = top / drag.z + 'px';
+    drag.to = Math.max(0, Math.min(drag.rows.length - 1, Math.round((top - minTop) / drag.h)));
+    drag.rows.forEach((el, i) => {
+      if (el === drag.row) return;
+      const shift = drag.from < drag.to && i > drag.from && i <= drag.to ? -drag.h : drag.from > drag.to && i >= drag.to && i < drag.from ? drag.h : 0;
+      el.style.transform = shift ? 'translateY(' + shift / drag.z + 'px)' : '';
+    });
+  });
+  document.addEventListener('mouseup', e => {
+    if (!drag || e.button !== 0) return;
+    if (!drag.row.isConnected) { cancel(); return; }
+    const d = drag; drag = null;
+    if (!d.on) return;
+    swallowUntil = performance.now() + 400;
+    // Settle the ghost into the slot, then reorder for real.
+    d.ghost.style.transition = ''; d.ghost.style.top = (d.top0 + (d.to - d.from) * d.h) / d.z + 'px';
+    settling = true;
+    setTimeout(() => {
+      settling = false;
+      const [moved] = CATS.splice(d.from, 1); CATS.splice(d.to, 0, moved);
+      d.ghost.remove(); render();
+    }, 170);
+  });
+  // No context menu while a row is lifted.
+  document.addEventListener('contextmenu', e => { if (drag && drag.on) { e.preventDefault(); e.stopImmediatePropagation(); } else drag = null; }, true);
+  // The click that ends a drag does not open the category.
+  document.addEventListener('click', e => { if (performance.now() < swallowUntil) { swallowUntil = 0; e.stopPropagation(); e.preventDefault(); } }, true);
+})();
 document.addEventListener('contextmenu', e => {
   const catRow = e.target.closest('[data-catrow]');
   if (catRow) {
     e.preventDefault();
     const r = catRow.getBoundingClientRect(), b = catRow.closest('.body').getBoundingClientRect();
-    s.catMenu = catRow.dataset.catrow; s.newCat = false; s.catY = Math.round(r.top - b.top); render(); return;
+    s.catMenu = catRow.dataset.catrow; s.newCat = false; s.catY = Math.round((r.top - b.top) / Z()); render(); return;
   }
-  const row = e.target.closest('[data-task]'), pane = e.target.closest('.pane.main');
+  const row = e.target.closest('[data-task]'), pane = e.target.closest('.pane.main') || (e.target.closest('.pane.aside .agenda') && document.querySelector('.pane.main'));
   if (!row || !pane) return;
   e.preventDefault();
   const r = pane.getBoundingClientRect(), z = s.fit ? 0.7 : 1;
   s.selected = row.dataset.task; s.state = 'context'; s.tab = null; s.viewMenu = false;
-  s.ctxX = Math.min((e.clientX - r.left) / z, r.width / z - 250); s.ctxY = Math.min((e.clientY - r.top) / z, r.height / z - 380);
+  const wr = pane.closest('.win').getBoundingClientRect();
+  s.ctxX = Math.min((e.clientX - r.left) / z, (wr.right - r.left) / z - 244); s.ctxY = (e.clientY - r.top) / z; s.ctxSub = false;
   render();
 });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { s.pk = null; if (s.state === 'context' || s.state === 'picker') s.state = 'selected'; s.catMenu = null; s.newCat = false; render(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { s.pk = null; s.hello = false; if (s.state === 'context' || s.state === 'picker') s.state = 'selected'; s.catMenu = null; s.newCat = false; render(); } });
 // Tooltips for [data-tip] inside the app window.
 (() => {
   const tip = document.getElementById('tip');
   let target = null, timer = 0;
   const hide = () => { clearTimeout(timer); target = null; tip.classList.remove('on'); };
   document.addEventListener('mouseover', e => {
+    if (document.querySelector('.side.sorting')) { hide(); return; }
     const el = e.target.closest('.win [data-tip]');
     if (el === target) return;
     hide(); if (!el || !el.dataset.tip) return;
