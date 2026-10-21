@@ -36,19 +36,16 @@
 
   /* ---------- Window ---------- */
   .win { position: relative; display: flex; flex-direction: column; border: 1px solid #2b303b; border-radius: 10px; overflow: hidden; background: var(--canvas); color: var(--text); flex: none; }
-  .top { height: 40px; flex: none; display: flex; align-items: center; background: var(--panel); }
-  .top .lead { display: flex; align-items: center; gap: 10px; padding-left: var(--side-x); }
-  .top .logo { width: 20px; height: 20px; border-radius: 6px; background: var(--accent); color: #fff; font-size: 11px; font-weight: 800; display: grid; place-items: center; }
-  .top .name { font-size: 13px; font-weight: 600; color: var(--secondary); }
-  .top .ham { width: 28px; height: 28px; margin-left: -4px; border-radius: 7px; display: grid; place-items: center; color: var(--secondary); cursor: pointer; }
-  .top .mid { flex: 1; display: flex; justify-content: center; min-width: 0; padding: 0 16px; }
-  .top .search { width: 100%; max-width: 480px; height: 28px; border-radius: 8px; background: var(--surface); display: flex; align-items: center; gap: 8px; padding: 0 10px; color: var(--muted); font-size: 12.5px; }
-  .top .search.on { background: var(--raise); color: var(--text); box-shadow: inset 0 0 0 1px #3a5486; }
-  .top .search kbd { margin-left: auto; font: inherit; font-size: 11px; padding: 0 6px; border-radius: 5px; background: var(--raise); color: var(--muted); }
-  .top .sync { display: flex; align-items: center; gap: 6px; padding-right: 12px; font-size: 12px; color: var(--muted); white-space: nowrap; }
-  .top .sync i { width: 7px; height: 7px; border-radius: 50%; background: var(--success); }
-  .top .wc { display: flex; height: 100%; }
-  .top .wc span { width: 44px; display: grid; place-items: center; color: var(--muted); font-size: 13px; }
+  /* Top bar: unchanged from the current app (TopBar.js). */
+  .top { height: 42px; flex: none; display: flex; align-items: center; background: var(--panel); position: relative; }
+  .top .brand { display: flex; align-items: center; gap: 8px; padding-left: 14px; }
+  .top .logo { width: 20px; height: 20px; border-radius: 6px; background: #4f6bff; color: #fff; font-size: 11px; font-weight: 800; display: grid; place-items: center; }
+  .top .ver { font-size: 12px; color: var(--muted); }
+  .top .search { position: absolute; left: 50%; transform: translateX(-50%); width: min(470px, 46%); height: 28px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); display: flex; align-items: center; gap: 8px; padding: 0 12px; color: var(--muted); font-size: 12px; }
+  .top .search.on { color: var(--text); border-color: #3a5486; }
+  .top .search kbd { margin-left: auto; font: inherit; font-size: 11px; padding: 0 6px; border-radius: 5px; border: 1px solid var(--line); color: var(--muted); }
+  .top .wc { display: flex; height: 100%; margin-left: auto; }
+  .top .wc span { width: 46px; display: grid; place-items: center; color: var(--muted); font-size: 13px; }
   .body { flex: 1; min-height: 0; display: flex; position: relative; }
 
   /* Sidebar: every row starts at --side-x (icon column 18px, label at side-x + 28). */
@@ -64,19 +61,23 @@
   .row-s .n.due { color: var(--danger); }
   .add-s { margin: 0 0 14px; background: var(--accent); color: #fff; font-weight: 600; font-size: 13px; }
   .add-s:hover { background: #7aa5ff; }
-  .add-s .ic { color: #fff; font-size: 17px; }
+  .add-s .ic { color: #fff; }
   .add-s kbd { font: inherit; font-size: 11px; opacity: .75; }
   .rail .row-s { justify-content: center; padding: 0; }
   .rail .row-s .lbl, .rail .row-s .n, .rail .grp, .rail .add-s kbd, .rail .foot .who { display: none; }
-  .rail .row-s .badge { position: absolute; top: 5px; right: 6px; width: 6px; height: 6px; border-radius: 50%; background: var(--danger); }
+  .row-s .badge { display: none; }
+  .rail .row-s .badge { display: block; position: absolute; top: 5px; right: 6px; width: 6px; height: 6px; border-radius: 50%; background: var(--danger); }
   .grp { display: flex; align-items: center; height: 28px; margin-top: 14px; padding: 0 10px; font-size: 12px; color: var(--muted); }
   .grp span { margin-left: auto; width: 18px; text-align: center; font-size: 15px; cursor: pointer; }
   .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
-  .foot { margin-top: auto; display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 10px; }
-  .foot .av { width: 24px; height: 24px; border-radius: 50%; background: #2a3242; display: grid; place-items: center; font-size: 11px; color: var(--secondary); flex: none; margin-left: -3px; }
+  /* Account section: its own band, ruled off from the menu above. */
+  .foot { margin: auto calc(10px - var(--side-x)) -10px; display: flex; align-items: center; gap: 10px; height: 56px; padding: 0 var(--side-x); border-top: 1px solid var(--line); background: #12151a; }
+  .foot .av { width: 28px; height: 28px; border-radius: 50%; background: #2a3242; display: grid; place-items: center; font-size: 12px; color: var(--secondary); flex: none; }
   .foot .who { flex: 1; font-size: 12.5px; line-height: 1.3; } .foot .who small { display: block; color: var(--muted); font-size: 11.5px; }
-  .foot .gear { color: var(--muted); }
-  .rail .foot { flex-direction: column; height: auto; gap: 8px; padding: 6px 0; }
+  .foot .gear { width: 28px; height: 28px; margin-right: -5px; display: grid; place-items: center; border-radius: 7px; color: var(--muted); }
+  .foot .gear:hover { background: var(--raise); }
+  .rail .foot { flex-direction: column; height: auto; gap: 8px; padding: 10px 0; margin: auto -9px -10px; }
+  .rail .foot .gear { margin: 0; }
   .rail .foot .av { margin: 0; }
 
   /* Panes */
@@ -95,29 +96,38 @@
   .head .finding { margin: 2px 0 0; font-size: 13px; line-height: 20px; color: var(--secondary); }
   .head .finding b { color: var(--danger); font-weight: 600; }
   .seg { display: flex; padding: 2px; gap: 2px; border-radius: 8px; background: var(--surface); height: 32px; }
-  .seg span { display: grid; place-items: center; padding: 0 12px; border-radius: 6px; font-size: 12.5px; color: var(--secondary); cursor: pointer; white-space: nowrap; }
+  .seg span { display: grid; place-items: center; width: 32px; padding: 0; border-radius: 6px; font-size: 12.5px; color: var(--secondary); cursor: pointer; white-space: nowrap; }
   .seg span.on { background: var(--raise); color: var(--text); font-weight: 600; }
-  .ghost { height: 32px; padding: 0 10px; border-radius: 8px; display: flex; align-items: center; gap: 6px; color: var(--secondary); font-size: 12.5px; cursor: pointer; white-space: nowrap; }
+  .ghost { height: 32px; min-width: 32px; justify-content: center; padding: 0 8px; border-radius: 8px; display: flex; align-items: center; gap: 6px; color: var(--secondary); font-size: 12.5px; cursor: pointer; white-space: nowrap; }
   .ghost:hover { background: var(--hover); }
   .ghost.on { background: var(--raise); color: var(--text); }
   .push { margin-left: auto; }
-  .quick { margin: 16px calc(var(--main-x) - 10px) 8px; border-radius: 10px; background: var(--surface); padding: 0 10px; }
+  /* Quick add sits at the bottom of the list pane, always in reach. */
+  .quick { flex: none; margin: 0 calc(var(--main-x) - 14px) 20px; border-radius: 10px; background: var(--surface); padding: 0 14px; position: relative; }
+  .quick .in kbd { margin-left: auto; font: inherit; font-size: 11px; color: var(--faint); }
   .quick .in { display: flex; align-items: center; gap: var(--ck-gap); height: 44px; color: var(--muted); font-size: 13.5px; }
-  .quick .in .plus { width: var(--ck); text-align: center; color: var(--accent); font-size: 19px; line-height: 1; }
+  .quick .in .plus { width: var(--ck); display: grid; place-items: center; color: var(--accent); }
   .quick .chips { display: flex; gap: 6px; padding: 0 0 10px calc(var(--ck) + var(--ck-gap)); flex-wrap: wrap; }
   .chip { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 8px; border-radius: 6px; background: var(--raise); color: var(--secondary); font-size: 12px; white-space: nowrap; }
   .chip.on { background: var(--accent-soft); color: #a9c3ff; }
   .chip .dot { width: 7px; height: 7px; }
-  .scroll { flex: 1; min-height: 0; overflow: hidden; padding: 0 calc(var(--main-x) - 10px) 20px; }
-  .sec { display: flex; align-items: center; gap: var(--ck-gap); height: 36px; margin-top: 8px; padding: 0 10px; font-size: 12.5px; font-weight: 600; color: var(--secondary); cursor: pointer; border-radius: 8px; }
-  .sec:hover { background: var(--hover); }
-  .sec .tri { width: var(--ck); text-align: center; color: var(--muted); font-size: 10px; }
-  .sec .c { color: var(--muted); font-weight: 400; margin-left: -4px; }
+  .scroll { flex: 1; min-height: 0; overflow: hidden; padding: 0 calc(var(--main-x) - 14px) 20px; }
+  /* Date groups: the heading sits on the canvas, its rows inside one filled box below it. */
+  .sec { display: flex; align-items: center; gap: 8px; height: 36px; margin-top: 18px; padding: 0 14px; font-size: 13.5px; font-weight: 700; color: var(--text); cursor: pointer; }
+  .sec:first-child { margin-top: 4px; }
+  .sec .c { min-width: 22px; height: 20px; padding: 0 7px; display: grid; place-items: center; border-radius: 10px; background: var(--raise); color: var(--secondary); font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .sec .tog { margin-left: auto; width: 28px; height: 28px; margin-right: -6px; display: grid; place-items: center; border-radius: 7px; color: var(--muted); }
+  .sec:hover .tog { background: var(--raise); color: var(--text); }
   .sec.over { color: var(--danger); }
-  .task { display: flex; align-items: center; gap: var(--ck-gap); min-height: 56px; padding: 8px 10px; border-radius: 8px; cursor: pointer; position: relative; }
+  .sec.over .c { background: #3a2226; color: var(--danger); }
+  .sec.plain { cursor: default; font-size: 12.5px; font-weight: 600; color: var(--secondary); }
+  .gbox { border-radius: 12px; background: var(--surface); padding: 4px; }
+  .gbox .task:hover { background: var(--raise); }
+  .gbox .task.sel { background: var(--accent-soft); }
+  .task { display: flex; align-items: flex-start; gap: var(--ck-gap); min-height: 60px; padding: 10px; border-radius: 8px; cursor: pointer; position: relative; }
   .task:hover, .task.hov { background: var(--hover); }
   .task.sel { background: var(--accent-soft); }
-  .task + .task::before { content: ""; position: absolute; left: calc(10px + var(--ck) + var(--ck-gap)); right: 10px; top: 0; height: 1px; background: var(--line); }
+  .task + .task::before { content: ""; position: absolute; left: calc(10px + var(--ck) + var(--ck-gap)); right: 10px; top: -0.5px; height: 1px; background: var(--line); }
   .task:hover::before, .task.hov::before, .task.sel::before, .task:hover + .task::before, .task.hov + .task::before, .task.sel + .task::before { display: none; }
   .ck { width: var(--ck); height: var(--ck); border-radius: 50%; border: 2px solid #5a6475; flex: none; display: grid; place-items: center; }
   .ck.done { background: var(--accent); border-color: var(--accent); color: #fff; }
@@ -129,19 +139,19 @@
   .meta .cat { max-width: 160px; } .meta .cat b { font-weight: 400; overflow: hidden; text-overflow: ellipsis; }
   .meta .cat .dot { width: 7px; height: 7px; }
   /* Right column: due time, and under it the time left in a fainter tone (can be hidden). */
-  .rcol { width: 92px; flex: none; text-align: right; font-variant-numeric: tabular-nums; }
-  .rcol .when { display: block; font-size: 12.5px; line-height: 20px; color: var(--secondary); }
-  .rcol .left { display: block; font-size: 11.5px; line-height: 18px; margin-top: 2px; color: var(--faint); }
+  .rcol { width: 112px; flex: none; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .rcol .when { display: block; font-size: 13px; line-height: 20px; color: var(--secondary); }
+  .rcol .left { display: block; font-size: 12px; line-height: 18px; margin-top: 2px; color: var(--faint); }
   .rcol .over { color: var(--danger); }
   .rcol .left.over { color: #b8666d; }
-  .st { width: 28px; height: 28px; margin-right: -6px; display: grid; place-items: center; color: #4d5666; border-radius: 7px; flex: none; }
+  .st { width: 28px; height: 28px; margin: -4px -6px 0 0; display: grid; place-items: center; color: #4d5666; border-radius: 7px; flex: none; }
   .st:hover { background: var(--raise); }
   .st.on { color: var(--star); }
   .hacts { display: none; gap: 2px; flex: none; }
   .task.hov .hacts { display: flex; }
   .task.hov .rcol { display: none; }
   .hacts span { height: 28px; padding: 0 8px; border-radius: 7px; display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--secondary); background: var(--raise); }
-  .compact .task { min-height: 40px; padding: 6px 10px; }
+  .compact .task { min-height: 40px; padding: 10px; }
   .compact .task .meta { display: none; }
   .compact .task .t .ic-cat { display: inline-block; }
   .compact .rcol .left { display: none; }
@@ -166,6 +176,31 @@
   .ev.over { color: var(--danger); }
   .ev.done { color: var(--muted); text-decoration: line-through; }
   .more { font-size: 11px; color: var(--muted); margin: 2px 0 0 6px; }
+
+  /* Timeline: day columns 240px or wider, 12px apart, inside the same 32px gutter. */
+  .tl { flex: 1; min-height: 0; display: flex; gap: 12px; padding: 16px var(--main-x) 24px; overflow: hidden; }
+  .tl-col { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .tl-head { display: flex; align-items: baseline; gap: 6px; height: 36px; padding: 0 2px; color: var(--secondary); font-size: 12.5px; border-bottom: 1px solid var(--line); }
+  .tl-head b { font-size: 18px; color: var(--text); font-variant-numeric: tabular-nums; }
+  .tl-head em { font-style: normal; font-size: 11.5px; font-weight: 600; color: #fff; background: var(--accent); padding: 0 6px; border-radius: 5px; align-self: center; }
+  .tl-head .cnt { margin-left: auto; color: var(--muted); font-size: 12px; }
+  .tl-col.today .tl-head { border-bottom-color: var(--accent); }
+  .tl-body { flex: 1; min-height: 0; overflow: hidden; padding-top: 4px; }
+  .tl-hour { margin: 12px 2px 6px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .tl-task { display: flex; align-items: flex-start; gap: 10px; padding: 10px; cursor: pointer; position: relative; border-radius: 8px; }
+  .tl-task + .tl-task { margin-top: 1px; box-shadow: 0 -1px 0 var(--line); }
+  .tl-task:hover { background: var(--raise); }
+  .tl-task.sel { background: var(--accent-soft); }
+  .tl-task .ck { width: 18px; height: 18px; margin-top: 1px; }
+  .tl-task .tx { flex: 1; min-width: 0; }
+  .tl-task .t { font-size: 13px; line-height: 20px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tl-task.done .t { color: var(--muted); text-decoration: line-through; }
+  .tl-task .meta { margin-top: 0; }
+  .tl-task .meta .over { color: var(--danger); }
+  .tl-task .st { margin: -3px -6px 0 0; }
+  .tl-now { display: flex; align-items: center; gap: 8px; margin: 14px 0 2px; color: var(--danger); font-size: 11.5px; font-weight: 600; }
+  .tl-now::after { content: ""; flex: 1; height: 1px; background: var(--danger); opacity: .7; }
+  .tl-empty { margin-top: 14px; padding: 0 2px; color: var(--faint); font-size: 12.5px; }
 
   /* Right panel: one gutter (--panel-x); boxes have --in inside. */
   .ptabs { display: flex; align-items: center; gap: 4px; height: 52px; padding: 0 calc(var(--panel-x) - 8px); }
@@ -258,6 +293,11 @@ const I = {
   sliders: `<svg width="15" height="15" viewBox="0 0 24 24" ${P}><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>`,
   panel: `<svg width="15" height="15" viewBox="0 0 24 24" ${P}><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></svg>`,
   cal: `<svg width="13" height="13" viewBox="0 0 24 24" ${P}><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>`,
+  plus: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>`,
+  vList: `<svg width="16" height="16" viewBox="0 0 24 24" ${P}><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></svg>`,
+  vCal: `<svg width="16" height="16" viewBox="0 0 24 24" ${P}><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>`,
+  vTime: `<svg width="16" height="16" viewBox="0 0 24 24" ${P}><rect x="3" y="4" width="5" height="16" rx="1.5"/><rect x="10" y="4" width="5" height="16" rx="1.5"/><rect x="17" y="4" width="4" height="16" rx="1.5"/></svg>`,
+  chev: open => `<svg width="14" height="14" viewBox="0 0 24 24" ${P} style="transform:rotate(${open ? 0 : -90}deg)"><path d="M6 9l6 6 6-6"/></svg>`,
   more: `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>`,
 };
 
@@ -290,6 +330,7 @@ const cat = id => CATS.find(c => c.id === id);
 const pad = n => String(n).padStart(2, '0');
 const WD = '일월화수목금토';
 const dayDiff = t => Math.round((new Date(t).setHours(0, 0, 0, 0) - new Date(NOW).setHours(0, 0, 0, 0)) / D);
+const clockFull = d => { const h = d.getHours(); return (h < 12 ? '오전 ' : '오후 ') + (h % 12 || 12) + ':' + pad(d.getMinutes()); };
 const clock = d => { const h = d.getHours(), m = d.getMinutes(); return (h < 12 ? '오전 ' : '오후 ') + (h % 12 || 12) + (m ? ':' + pad(m) : '시'); };
 function remain(t) {
   let ms = t - NOW.getTime(); const over = ms < 0; ms = Math.abs(ms);
@@ -344,10 +385,10 @@ function sidebar(L, inDrawer) {
     (n.id === 'today' && TASKS.some(overdue) ? `<span class="n due">${navCount(n.id)}</span><i class="badge"></i>` : `<span class="n">${navCount(n.id) || ''}</span>`) + `</div>`;
   const cats = CATS.map(c => `<div class="row-s ${s.nav === c.id ? 'on' : ''}" data-nav="${c.id}" title="${c.name}"><span class="ic">${c.secret ? I.key : `<span class="dot" style="background:${c.color}"></span>`}</span><span class="lbl">${c.name}</span><span class="n">${c.secret ? '' : navCount(c.id) || ''}</span></div>`).join('');
   return `<aside class="side ${rail ? 'rail' : ''} chg">
-    <div class="row-s add-s" title="할 일 추가 (Ctrl N)"><span class="ic">＋</span><span class="lbl">할 일 추가</span><kbd>Ctrl N</kbd></div>
+    <div class="row-s add-s" title="할 일 추가 (Ctrl N)"><span class="ic">${I.plus}</span><span class="lbl">할 일 추가</span><kbd>Ctrl N</kbd></div>
     ${NAV.map(row).join('')}
     <div class="grp">카테고리<span title="카테고리 추가">＋</span></div>${cats}
-    <div class="foot"><span class="av">J</span><span class="who">Jo<small>모두 동기화됨</small></span><span class="gear" title="설정">${I.gear}</span></div>
+    <div class="foot"><span class="av">J</span><span class="who">Jo<small><i style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--success);margin-right:5px;vertical-align:1px"></i>모두 동기화됨</small></span><span class="gear" title="설정">${I.gear}</span></div>
   </aside>`;
 }
 
@@ -371,12 +412,12 @@ function taskRow(t, opts = {}) {
 }
 function sec(id, name, rows, cls = '', opts) {
   const closed = s.closed[id];
-  return `<div class="sec ${cls}" data-sec="${id}"><span class="tri">${closed ? '▶' : '▼'}</span>${name}<span class="c">${rows.length}</span></div>` + (closed ? '' : rows.map(t => taskRow(t, opts)).join(''));
+  return `<div class="sec ${cls}" data-sec="${id}">${name}<span class="c">${rows.length}</span><span class="tog" title="${closed ? '펼치기' : '접기'}">${I.chev(!closed)}</span></div>` + (closed ? '' : `<div class="gbox">${rows.map(t => taskRow(t, opts)).join('')}</div>`);
 }
 function listBody() {
   if (s.state === 'search') {
     const q = '리뷰', hits = TASKS.filter(t => t.t.includes(q) || (t.memo || '').includes(q));
-    return `<div class="search-res">${sec('search', `"${q}" 검색 결과`, hits, '', { q })}<div class="sec" style="cursor:default"><span class="tri"></span>메모에서 1개 · 카테고리에서 0개</div></div>`;
+    return `<div class="search-res">${sec('search', `"${q}" 검색 결과`, hits, '', { q })}<div class="sec plain">메모에서 1개 · 카테고리에서 0개</div></div>`;
   }
   if (cat(s.nav)?.secret) return `<div class="locked"><div class="ic">${I.lock}</div><b>일기는 잠겨 있어요</b>열면 이 카테고리의 할 일이 보여요. 앱을 닫거나 잠그면 다시 잠겨요.<br><span class="btn">Windows Hello로 열기</span></div>`;
   const items = s.state === 'empty' ? [] : navList(s.nav);
@@ -389,7 +430,7 @@ function listBody() {
   if (done.length) html += sec('done', '완료됨', done);
   return html;
 }
-const viewSeg = () => `<div class="seg">${[['list', '목록'], ['calendar', '캘린더'], ['timeline', '타임라인']].map(([k, l]) => `<span class="${s.view === k ? 'on' : ''}" data-view="${k}">${l}</span>`).join('')}</div>`;
+const viewSeg = () => `<div class="seg">${[['list', '목록', I.vList], ['calendar', '캘린더', I.vCal], ['timeline', '타임라인', I.vTime]].map(([k, l, ic]) => `<span class="${s.view === k ? 'on' : ''}" data-view="${k}" title="${l}">${ic}</span>`).join('')}</div>`;
 function listPane(L) {
   const nav = NAV.find(n => n.id === s.nav) || cat(s.nav);
   const items = navList(s.nav), over = items.filter(overdue).length, left = items.filter(open).length;
@@ -397,13 +438,14 @@ function listPane(L) {
   const finding = s.state === 'search' ? '할 일 제목·메모·카테고리에서 찾았어요' : cat(s.nav)?.secret ? '비밀 카테고리' : s.state === 'empty' || !left ? '남은 할 일이 없어요' : over ? `남은 할 일 ${left}개 · <b>기한 지남 ${over}개</b>` : `남은 할 일 ${left}개`;
   const quick = s.state !== 'search' && !cat(s.nav)?.secret;
   return `<section class="pane main chg">
-    <div class="head"><div class="row1"><h1>${title}</h1><span class="push"></span>${viewSeg()}
-      <span class="ghost ${s.viewMenu ? 'on' : ''}" data-viewmenu="1">${I.sliders} 보기</span>
-      ${L.overlayPanel && s.panel !== 'off' ? `<span class="ghost" data-drawer="1">${I.panel} 패널</span>` : ''}</div>
+    <div class="head"><div class="row1">${L.hideSide ? `<span class="ghost" data-sideopen="1" title="메뉴" style="margin-left:-8px">${I.menu}</span>` : ''}<h1>${title}</h1><span class="push"></span>${viewSeg()}
+      <span class="ghost ${s.viewMenu ? 'on' : ''}" data-viewmenu="1" title="보기 옵션">${I.sliders}</span>
+      ${L.overlayPanel && s.panel !== 'off' ? `<span class="ghost" data-drawer="1" title="패널 열기">${I.panel}</span>` : ''}</div>
       <p class="finding">${finding}</p></div>
-    ${quick ? `<div class="quick"><div class="in"><span class="plus">＋</span>할 일 추가 · 예: 내일 오후 3시 회의</div>
-      <div class="chips">${s.nav === 'today' ? `<span class="chip on">${I.sun} 오늘</span>` : `<span class="chip">${I.cal} 날짜</span>`}<span class="chip">${I.repeat} 반복</span>${cat(s.nav) ? `<span class="chip on"><span class="dot" style="background:${cat(s.nav).color}"></span>${cat(s.nav).name}</span>` : `<span class="chip"><span class="dot" style="background:var(--muted)"></span>카테고리</span>`}<span class="chip ${s.nav === 'imp' ? 'on' : ''}">${I.star(s.nav === 'imp', 13)} 중요</span></div></div>` : '<div style="height:12px"></div>'}
+    <div style="height:12px"></div>
     <div class="scroll ${s.density === 'compact' ? 'compact' : ''}">${listBody()}</div>
+    ${quick ? `<div class="quick"><div class="in"><span class="plus">${I.plus}</span>할 일 추가 · 예: 내일 오후 3시 회의<kbd>Ctrl N</kbd></div>
+      <div class="chips">${s.nav === 'today' ? `<span class="chip on">${I.sun} 오늘</span>` : `<span class="chip">${I.cal} 날짜</span>`}<span class="chip">${I.repeat} 반복</span>${cat(s.nav) ? `<span class="chip on"><span class="dot" style="background:${cat(s.nav).color}"></span>${cat(s.nav).name}</span>` : `<span class="chip"><span class="dot" style="background:var(--muted)"></span>카테고리</span>`}<span class="chip ${s.nav === 'imp' ? 'on' : ''}">${I.star(s.nav === 'imp', 13)} 중요</span></div></div>` : ''}
     ${s.viewMenu ? viewMenu() : ''}${s.state === 'context' ? contextMenu() : ''}
   </section>`;
 }
@@ -439,9 +481,34 @@ function calendarPane() {
       <p class="finding">이번 달 남은 할 일 ${TASKS.filter(t => t.due && open(t) && new Date(t.due).getMonth() === 9).length}개 · 날짜를 누르면 오른쪽에 그날 할 일</p></div>
     <div class="cal"><div class="grid">${cells}</div></div></section>`;
 }
-function timelinePane() {
-  return `<section class="pane main"><div class="head"><div class="row1"><h1>타임라인</h1><span class="push"></span>${viewSeg()}</div>
-    <p class="finding">타임라인은 목록·캘린더가 정해진 뒤 같은 규칙으로 그려요.</p></div></section>`;
+function timelinePane(L) {
+  // Day columns from the focused day; as many as fit the pane (at least 240px each).
+  const sideW = L.hideSide ? 0 : L.rail ? 56 : 232, panelW = s.panel !== 'off' && !L.overlayPanel ? L.panelW + 1 : 0;
+  const cols = Math.max(1, Math.min(5, Math.floor((s.w - 2 - sideW - panelW - 64 + 12) / 252)));
+  const days = Array.from({ length: cols }, (_, i) => i);
+  const last = new Date(NOW); last.setDate(last.getDate() + cols - 1);
+  const col = n => {
+    const d = new Date(NOW); d.setDate(d.getDate() + n);
+    const items = TASKS.filter(t => t.due && dayDiff(t.due) === n).sort((a, b) => a.due - b.due);
+    const hours = [...new Set(items.map(t => new Date(t.due).getHours()))];
+    let body = '';
+    let nowDrawn = n !== 0;
+    for (const h of hours) {
+      if (!nowDrawn && h > NOW.getHours()) { body += `<div class="tl-now"><span>지금 ${clock(NOW)}</span></div>`; nowDrawn = true; }
+      body += `<div class="tl-hour">${clock(new Date(2026, 0, 1, h))}</div><div class="gbox">${items.filter(t => new Date(t.due).getHours() === h).map(t => {
+        const c = cat(t.cat), done = s.done[t.id], sel = s.selected === t.id && ['selected', 'context'].includes(s.state);
+        return `<div class="tl-task ${done ? 'done' : ''} ${sel ? 'sel' : ''}" data-task="${t.id}"><span class="ck ${done ? 'done' : ''}" data-check="${t.id}">${done ? I.check : ''}</span><div class="tx"><div class="t">${t.t}</div><div class="meta">${c ? `<span class="cat"><span class="dot" style="background:${c.color}"></span><b>${c.name}</b></span>` : ''}<span class="${overdue(t) ? 'over' : ''}">${clockFull(new Date(t.due))}</span></div></div>${s.imp[t.id] ? `<span class="st on">${I.star(true, 14)}</span>` : ''}</div>`;
+      }).join('')}</div>`;
+    }
+    if (!nowDrawn) body += `<div class="tl-now"><span>지금 ${clock(NOW)}</span></div>`;
+    if (!items.length) body += `<div class="tl-empty">할 일 없음</div>`;
+    return `<div class="tl-col ${n === 0 ? 'today' : ''}"><div class="tl-head"><b>${d.getDate()}</b><span>${WD[d.getDay()]}요일</span>${n === 0 ? '<em>오늘</em>' : ''}<span class="cnt">${items.filter(open).length}</span></div><div class="tl-body">${body}</div></div>`;
+  };
+  const over = TASKS.filter(overdue).length;
+  return `<section class="pane main chg">
+    <div class="head"><div class="row1">${L.hideSide ? `<span class="ghost" data-sideopen="1" title="메뉴" style="margin-left:-8px">${I.menu}</span>` : ''}<h1>10월 ${NOW.getDate()}일 – ${last.getMonth() === NOW.getMonth() ? '' : (last.getMonth() + 1) + '월 '}${last.getDate()}일</h1><span class="ghost" style="margin-left:8px" title="이전">‹</span><span class="ghost">오늘</span><span class="ghost" title="다음">›</span><span class="push"></span>${viewSeg()}<span class="ghost" data-viewmenu="1" title="보기 옵션">${I.sliders}</span></div>
+      <p class="finding">${cols}일 · 남은 할 일 ${TASKS.filter(t => t.due && open(t) && dayDiff(t.due) >= 0 && dayDiff(t.due) < cols).length}개${over ? ` · <b>기한 지남 ${over}개</b>는 목록에서` : ''}</p></div>
+    <div class="tl">${days.map(col).join('')}</div></section>`;
 }
 
 // ---------- Right panel ----------
@@ -449,7 +516,7 @@ function detailBody(t) {
   const c = cat(t.cat), r = t.due ? remain(t.due) : null, subsDone = t.subs ? t.subs.filter(x => x[1]).length : 0, dd = t.due ? new Date(t.due) : null;
   return `<div class="dt-title"><span class="ck ${s.done[t.id] ? 'done' : ''}" data-check="${t.id}">${s.done[t.id] ? I.check : ''}</span><h2>${t.t}</h2><span class="st ${s.imp[t.id] ? 'on' : ''}" data-star="${t.id}">${I.star(s.imp[t.id])}</span></div>
     <div class="box">
-      <div class="prop"><span class="k">기한</span><span class="v">${dd ? `${dd.getMonth() + 1}월 ${dd.getDate()}일 (${WD[dd.getDay()]}) ${clock(dd)}<span class="sub" style="${r.over ? 'color:var(--danger)' : ''}">${r.text}</span>` : '<span class="sub">없음</span>'}</span></div>
+      <div class="prop"><span class="k">기한</span><span class="v" style="${overdue(t) ? 'color:var(--danger)' : ''}">${dd ? `${dd.getFullYear()}.${pad(dd.getMonth() + 1)}.${pad(dd.getDate())} ${clockFull(dd)}` : '<span class="sub">없음</span>'}</span></div>
       <div class="prop"><span class="k">반복</span><span class="v">${t.repeat || '<span class="sub">안 함</span>'}</span></div>
       <div class="prop"><span class="k">카테고리</span><span class="v">${c ? `<span class="chip"><span class="dot" style="background:${c.color}"></span>${c.name}</span>` : ''}<span class="chip">＋</span></span></div>
     </div>
@@ -502,15 +569,15 @@ function guides(L) {
 }
 function win() {
   const L = layout(), H = SIZES[s.w];
-  const main = s.view === 'calendar' ? calendarPane() : s.view === 'timeline' ? timelinePane() : listPane(L);
+  const main = s.view === 'calendar' ? calendarPane() : s.view === 'timeline' ? timelinePane(L) : listPane(L);
   const showPanel = s.panel !== 'off' && !L.overlayPanel;
   const panes = main + (showPanel ? '<div class="splitter" title="끌어서 너비 조절"></div>' + panel(L) : '');
   const drawer = L.overlayPanel && s.drawer && s.panel !== 'off' ? `<div class="scrim" data-drawer="0"></div>${panel(L, 'drawer')}` : '';
   const sideDrawer = L.hideSide && s.sideOpen ? `<div class="scrim" data-sideopen="0"></div><div class="sidedrawer">${sidebar(L, true)}</div>` : '';
   return `<div class="win" style="width:${s.w}px;height:${H}px">
-    <div class="top"><div class="lead">${L.hideSide ? `<span class="ham" data-sideopen="1">${I.menu}</span>` : ''}<span class="logo">T</span>${!L.rail || L.hideSide ? '<span class="name">Thread</span>' : ''}</div>
-      <div class="mid"><span class="search ${s.state === 'search' ? 'on' : ''}">${I.search}${s.state === 'search' ? '리뷰' : '할 일, 메모, 카테고리 검색'}<kbd>${s.state === 'search' ? 'Esc' : 'Ctrl K'}</kbd></span></div>
-      ${s.w >= 960 ? '<span class="sync"><i></i>모두 동기화됨</span>' : ''}<span class="wc"><span>—</span><span>▢</span><span>✕</span></span></div>
+    <div class="top"><div class="brand"><span class="logo">T</span><span class="ver">Thread 2.1.4</span></div>
+      <span class="search ${s.state === 'search' ? 'on' : ''}">${I.search}${s.state === 'search' ? '리뷰' : '할 일, 메모, 카테고리 검색…'}<kbd>${s.state === 'search' ? 'Esc' : 'Ctrl K'}</kbd></span>
+      <span class="wc"><span>—</span><span>▢</span><span>✕</span></span></div>
     <div class="body">${L.hideSide ? '' : sidebar(L)}<div class="panes">${panes}</div>${drawer}${sideDrawer}${guides(L)}</div>
   </div>`;
 }
@@ -518,16 +585,25 @@ function win() {
 function notes() {
   const mode = s.w >= 1280 ? '넓은 창: 메뉴 + 목록 + 패널' : s.w >= 1000 ? '중간 창: 메뉴는 아이콘만, 패널 320px' : s.w >= 800 ? '좁은 창: 패널은 위에 겹쳐 열림' : '아주 좁은 창: 메뉴도 ☰ 버튼으로';
   return `<div class="notes"><div class="now">${s.w}×${SIZES[s.w]} · ${mode}</div>
-    <h3>2차에서 바꾼 것</h3><ul class="new">
-    <li><b>정렬 기준선을 정함</b> (툴바 "정렬선"으로 확인): 메뉴는 20px, 목록은 32px(제목 · 체크 · 빠른 추가 ＋ · 묶음 화살표 · 오른쪽 끝 별), 그 32px 뒤(할 일 제목 · 입력칸 글자 · 묶음 이름 · 아래 줄 구분선 시작), 오른쪽 패널은 20px, 상자 안은 12px. 크기는 4px 단위.</li>
+    <h3>3차에서 바꾼 것</h3><ul class="new">
+    <li><b>위쪽 막대</b>는 지금 앱 그대로(로고 · 버전 · 가운데 검색 · 창 버튼). 동기화 표시는 왼쪽 아래 계정 칸으로. 800px 미만 창의 메뉴 버튼(☰)은 목록 머리글 왼쪽으로.</li>
+    <li>왼쪽 메뉴: "오늘" 숫자 칸이 다른 줄과 같은 오른쪽 선에 오게 고침. "할 일 추가" ＋를 아이콘으로 바꿔 다른 줄 아이콘과 같은 칸에.</li>
+    <li>왼쪽 아래 <b>계정 칸</b>: 위쪽 구분선과 한 단계 어두운 배경으로 메뉴와 나눔. 동기화 상태 점도 여기.</li>
+    <li><b>할 일 줄</b>: 왼쪽(제목/아래 줄)과 오른쪽(시각/남은 시간)을 위쪽 기준으로 맞추고 줄 높이를 똑같이(20px + 2px + 18px). 아래 줄이 없는 할 일도 제목과 시각이 같은 높이.</li>
+    <li><b>날짜별 묶음</b>: 묶음 이름은 바탕 위에 굵게 + 개수 배지, 그 묶음의 할 일은 아래 상자 하나에 담아 계층을 나눔. 접기는 오른쪽 끝 화살표.</li>
+    <li>목록 · 캘린더 · 타임라인 전환과 보기 옵션을 <b>아이콘만</b>(마우스를 올리면 이름).</li>
+    <li><b>타임라인</b> 시안 추가: 오늘부터 하루씩 칸(창 폭에 맞춰 1~5칸), 시각별로 묶고 오늘 칸에 "지금" 선. ‹ 오늘 ›로 하루씩 이동.</li>
+    <li>오른쪽 상세의 기한: "2026.10.21 오후 5:30", 남은 시간은 뺌.</li><li><b>빠른 추가 칸</b>을 목록 맨 아래로(스크롤해도 늘 그 자리). Ctrl N이면 이 칸으로.</li></ul>
+    <h3>2차에서 바꾼 것</h3><ul class="new" style="opacity:.75">
+    <li><b>정렬 기준선을 정함</b> (툴바 "정렬선"으로 확인): 메뉴는 20px, 목록은 32px(제목 · 체크 · 빠른 추가 ＋ · 묶음 이름 · 오른쪽 끝 별), 그 32px 뒤(할 일 제목 · 입력칸 글자 · 아래 줄 구분선 시작), 오른쪽 패널은 20px, 상자 안은 12px. 크기는 4px 단위.</li>
     <li><b>오른쪽 시간 칸</b>: 위에 기한 시각, 그 아래 연하게 남은 시간. "보기 > 남은 시간 보이기"로 끌 수 있음. 아래 줄에서는 남은 시간을 뺌(카테고리 · 반복 · 하위 할 일 · 메모 표시만).</li>
-    <li>사이드바: 위쪽 시계 줄을 빼고 "할 일 추가"를 맨 위로. 모든 줄 높이 34px, 아이콘 칸 18px. 앱 이름은 위쪽 막대 왼쪽(메뉴와 같은 20px 선).</li>
+    <li>사이드바: 위쪽 시계 줄을 빼고 "할 일 추가"를 맨 위로. 모든 줄 높이 34px, 아이콘 칸 18px.</li>
     <li>오른쪽 패널: 하위 할 일 · 메모 · 그날 할 일도 상자 안에 넣어 상자 모양을 통일. 진행 막대는 하위 할 일 상자 위쪽 테두리로.</li>
     <li>목록 머리글: 제목 · 보기 전환 · "보기" 버튼 높이를 32px로 맞춤.</li>
     <li>새 상태: 우클릭 메뉴, 검색 중, 빈 목록, 비밀 카테고리 잠김. 툴바 "상태"로.</li>
     <li>패널 옮기기는 뺌(1차 결정).</li></ul><h3>2차 결정</h3><ul><li>마우스를 올리면 배경만 바뀜(빠른 버튼 없음). 줄 메뉴는 우클릭으로.</li><li>오른쪽 시간 칸의 시각 문구는 "시간 표시" 설정의 기한 형식을 따름(시안의 문구는 "자동" 예시). 남은 시간 줄과 함께 설정을 어떻게 합칠지는 따로 시안.</li></ul>
     <h3>1차 결정</h3><ul><li>"다음 7일" 넣기 · 상세는 오른쪽 패널 · 목록 화면 옆은 미니 달력 + 그날 목록 · 패널 옮기기 안 함.</li></ul>
-    <h3>그대로인 것</h3><ul><li>색 · 글꼴 · 다크 테마, 카테고리 색, 노란 별, 비밀 카테고리, 설정 창. 기존 "시간 표시" 설정(남은 시간/기한 방식)은 이번 시안에서 안 건드림 — 오른쪽 시간 칸과 어떻게 합칠지는 따로 시안.</li></ul>
+    <h3>그대로인 것</h3><ul><li>위쪽 막대, 색 · 글꼴 · 다크 테마, 카테고리 색, 노란 별, 비밀 카테고리, 설정 창. 기존 "시간 표시" 설정(남은 시간/기한 방식)은 이번 시안에서 안 건드림 — 오른쪽 시간 칸과 어떻게 합칠지는 따로 시안.</li></ul>
     <h3 class="q">정할 것 (세부)</h3><ul class="q">
     
     
@@ -535,13 +611,15 @@ function notes() {
     <li><b>완료한 할 일</b>: 목록 맨 아래 "완료됨"에 접어 둠(지금 앱과 같음). "오늘" 보기에선 오늘 끝낸 것만.</li>
     <li><b>빠른 추가</b>: 보고 있는 목록에 맞춰 칩이 미리 골라짐(오늘 → 오늘, 카테고리 → 그 카테고리, 중요 → 중요). "내일 오후 3시" 같은 글을 날짜로 알아듣게 할지는 따로(구현 범위가 큼).</li>
     <li><b>묶음 이름</b>: 기한 지남 · 오늘 · 내일 · 이번 주 · 나중에 · 기한 없음. "이번 주"는 2~6일 뒤(시간 표시 "자동"과 같은 범위).</li>
+    <li><b>보기 옵션 아이콘</b>: 이름 없이 아이콘만 두면 처음엔 뭔지 모를 수 있음. 아이콘만 vs "보기" 글자 함께.</li>
+    <li><b>타임라인</b>: 칸 수를 창 폭에 맞출지(시안), 지금처럼 늘 4칸 고정일지. 기한 지난 할 일은 타임라인에 안 보임(목록에서 봄).</li>
     <li><b>검색</b>: 위쪽 막대에서 입력하면 가운데가 검색 결과로 바뀜(제목 · 메모 · 카테고리). Esc로 돌아감.</li>
     <li><b>캘린더 화면</b>: 칸마다 3개까지, 나머지는 "+N개 더". 끝낸 건 줄 긋고 아래로.</li></ul></div>`;
 }
 function toolbar() {
   const b = (k, v, l) => `<button class="${s[k] === v ? 'on' : ''}" data-set="${k}:${v}">${l}</button>`;
   return `<div class="line"><strong>창 크기</strong>${b('w', 1440, '1440×960')}${b('w', 1180, '1180×800')}${b('w', 960, '960×720')}${b('w', 760, '760×640')}<span class="sep"></span>
-      <strong>가운데</strong>${b('view', 'list', '목록')}${b('view', 'calendar', '캘린더')}</div>
+      <strong>가운데</strong>${b('view', 'list', '목록')}${b('view', 'calendar', '캘린더')}${b('view', 'timeline', '타임라인')}</div>
     <div class="line"><strong>상태</strong>${b('state', 'selected', '할 일 선택')}${b('state', 'nosel', '선택 없음')}${b('state', 'context', '우클릭 메뉴')}${b('state', 'search', '검색 중')}${b('state', 'empty', '빈 목록')}${b('nav', 'diary', '비밀 카테고리')}</div>
     <div class="line"><strong>오른쪽 패널</strong>${b('panel', 'auto', '자동(선택하면 상세)')}${b('panel', 'calendar', '캘린더 고정')}${b('panel', 'off', '끔')}<span class="sep"></span>
       <strong>왼쪽 메뉴</strong>${b('rail', 'auto', '창 크기에 맞춤')}${b('rail', 'full', '펼침')}${b('rail', 'rail', '아이콘만')}<span class="sep"></span>
