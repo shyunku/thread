@@ -122,8 +122,10 @@
   .ghost:hover { background: var(--hover); }
   .ghost.on { background: var(--raise); color: var(--text); }
   .push { margin-left: auto; }
-  @keyframes done-fall { from { transform: translateY(0); opacity: 1; } 70% { opacity: 1; } to { transform: translateY(180px); opacity: 0; } }
-  .task.fall, .tl-task.fall { position: fixed; z-index: 200; margin: 0; pointer-events: none; border-radius: 10px; box-shadow: 0 12px 28px #0008; animation: done-fall 620ms cubic-bezier(.36, 0, .66, -.56) forwards; }
+  /* Movement eases in with a back-swing; the fade runs on its own linear curve so it reaches 0 smoothly. */
+  @keyframes done-fall { from { transform: translateY(0); } to { transform: translateY(80px); } }
+  @keyframes done-fade { 0% { opacity: 1; } 30% { opacity: 1; } 100% { opacity: 0; } }
+  .task.fall, .tl-task.fall { position: fixed; z-index: 200; margin: 0; pointer-events: none; border-radius: 10px; box-shadow: 0 12px 28px #0008; animation: done-fall 480ms cubic-bezier(.36, 0, .66, -.56) forwards, done-fade 480ms linear forwards; }
   .task.fall::before { display: none; }
   .task.closing, .tl-task.closing { overflow: hidden; transition: height 180ms ease, min-height 180ms ease, padding 180ms ease; min-height: 0 !important; padding-top: 0 !important; padding-bottom: 0 !important; }
   .ck.pop { animation: ck-pop 220ms ease-out; }
@@ -805,7 +807,7 @@ document.addEventListener('click', e => {
         row.classList.add('leaving'); row.style.visibility = 'hidden';
         row.style.height = row.offsetHeight + 'px';
         requestAnimationFrame(() => { row.classList.add('closing'); row.style.height = '0px'; });
-        setTimeout(() => { copy.remove(); s.done[d.check] = true; render(); }, 640);
+        setTimeout(() => { copy.remove(); s.done[d.check] = true; render(); }, 500);
       }, 160);
       return;
     }
