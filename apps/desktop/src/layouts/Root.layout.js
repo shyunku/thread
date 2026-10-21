@@ -2,6 +2,7 @@ import TopBar from "components/TopBar";
 import SyncWarning from "components/SyncWarning";
 import ApplicationGate from "components/ApplicationGate";
 import PatchNotes from "components/PatchNotes";
+import { TooltipLayer } from "components/Tooltip";
 import Loading from "molecules/Loading";
 import Prompt from "molecules/Prompt";
 import Toast from "molecules/Toast";
@@ -534,7 +535,7 @@ const RootLayout = ({ applicationMode }) => {
       {databaseReady && <PatchNotes />}
       <div className="root-layout__content">
         {databaseReady ? (
-          <Outlet context={{ localNonce, remoteNonce, addPromise, states, searchQuery }} />
+          <Outlet context={{ localNonce, remoteNonce, addPromise, states, searchQuery, syncStatus: syncV2 }} />
         ) : (
           <div
             style={{
@@ -555,5 +556,6 @@ const RootLayout = ({ applicationMode }) => {
 
 export default function GuardedRootLayout(){
  const account=useSelector(accountInfoSlice);
- return <ApplicationGate key={account.uid} uid={account.uid}>{mode=><RootLayout applicationMode={mode}/>}</ApplicationGate>;
+ // The tooltip layer sits above the gate so its title bar (update button) gets the same tips.
+ return <><TooltipLayer/><ApplicationGate key={account.uid} uid={account.uid}>{mode=><RootLayout applicationMode={mode}/>}</ApplicationGate></>;
 }

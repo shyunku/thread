@@ -21,9 +21,9 @@ import {
 } from "react-icons/io5";
 import { useSelector } from "react-redux";
 import { useOutletContext } from "react-router-dom";
-import sha256 from "sha256";
 import { accountInfoSlice } from "store/accountSlice";
 import { printf } from "utils/Common";
+import { sortCategories } from "utils/categoryOrder";
 import IpcSender from "utils/IpcSender";
 import JsxUtil from "utils/JsxUtil";
 import "./LeftSidebar.scss";
@@ -90,15 +90,11 @@ const LeftSidebar = ({
     return ["synchronizing", `동기화 중 - ${localNonce} / ${remoteNonce}`];
   }, [offlineMode, localNonce, remoteNonce]);
 
-  const sortedCategories = useMemo(() => {
-    return Object.values(categories).sort((a, b) => {
-      let aCreatedAt = new moment(a.createdAt).valueOf();
-      let bCreatedAt = new moment(b.createdAt).valueOf();
-      if (isNaN(aCreatedAt)) aCreatedAt = 0;
-      if (isNaN(bCreatedAt)) bCreatedAt = 0;
-      return aCreatedAt - bCreatedAt;
-    });
-  }, [categories]);
+  // The synced user order (sort_rank), the same as mobile.
+  const sortedCategories = useMemo(
+    () => sortCategories(Object.values(categories)),
+    [categories]
+  );
 
   const undoneTaskCountMap = useMemo(() => {
     const cntMap = {};
@@ -169,38 +165,41 @@ const LeftSidebar = ({
     const category = categories[categoryId];
     if (category) {
       if (category.secret == true) {
-        Prompt.float(
-          "비밀 카테고리",
-          `'${category.title}' 카테고리에 접근하려면 계정 비밀번호를 입력해주세요.`,
-          {
-            inputs: [
-              { key: "password", placeholder: "비밀번호", type: "password" },
-            ],
-            onConfirm: (data) => {
-              const password = data.password;
-              const hashedPassword = sha256(password);
-
-              return new Promise((resolve, reject) => {
-                IpcSender.req.category.checkCategoryPassword(
-                  hashedPassword,
-                  ({ success, data }) => {
-                    if (success) {
-                      if (data) {
-                        setSelectedTodoMenuType(categoryId);
-                      } else {
-                        Toast.error("비밀번호가 일치하지 않습니다.");
-                        resolve(false);
-                      }
-                    } else {
-                      Toast.error(`비밀번호가 틀렸습니다.`);
-                    }
-                    resolve(true);
-                  }
-                );
-              });
-            },
+        // Secret categories open the way the vault opens (#102): OS auth when the vault
+        // uses it, otherwise the vault password. The session-wide unlock comes in the
+        // sidebar redesign; this keeps the category usable until then.
+        const open = () => setSelectedTodoMenuType(categoryId);
+        IpcSender.vault.verifyUser({}, ({ success, data } = {}) => {
+          if (!success) return Toast.error("잠금을 풀 수 없습니다.");
+          if (data?.verified) return open();
+          if (data?.method !== "password" || data.code !== "PASSWORD_REJECTED") {
+            if (data?.code !== "OS_AUTH_CANCELLED") Toast.error("잠금을 풀 수 없습니다.");
+            return;
           }
-        );
+          Prompt.float(
+            "비밀 카테고리",
+            `'${category.title}' 카테고리를 열려면 보관함 비밀번호를 입력해주세요.`,
+            {
+              inputs: [
+                { key: "password", placeholder: "비밀번호", type: "password" },
+              ],
+              onConfirm: (input) =>
+                new Promise((resolve) => {
+                  IpcSender.vault.verifyUser(
+                    { method: "password", password: input.password },
+                    ({ success, data } = {}) => {
+                      if (success && data?.verified) {
+                        open();
+                        return resolve(true);
+                      }
+                      Toast.error("비밀번호가 일치하지 않습니다.");
+                      resolve(false);
+                    }
+                  );
+                }),
+            }
+          );
+        });
       } else {
         setSelectedTodoMenuType(categoryId);
       }

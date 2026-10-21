@@ -1,7 +1,7 @@
 const path=require("node:path"),{createHash}=require("node:crypto");
 const {LocalVault}=require("./localVault"),{createVaultController}=require("./vaultController");
 class VaultWorkspaceService{
- constructor(dependencies){this.dependencies=dependencies;this.active=null;this.generation=0;this.busy=false;}
+ constructor(dependencies){this.dependencies=dependencies;this.active=null;this.generation=0;this.busy=false;this.verifying=false;}
  inject(group){this.group=group;}
  runtime(){
   if(this.dependencies)return this.dependencies;
@@ -75,6 +75,47 @@ class VaultWorkspaceService{
   }finally{password=undefined;this.busy=false;}
  }
  lock(){this.context().controller.lock();}
+ // Confirms the user without opening anything new (secret categories, #102). The method
+ // follows how this vault opens: OS auth when it is available, otherwise the vault
+ // password. A refusal is an answer ({verified:false,code}), not an error; only a
+ // locked or changed session throws. One check runs at a time and it waits for another
+ // vault action (sync, pairing) to finish, so OS prompts or a second store open never
+ // overlap; a repeated call while one is running answers BUSY instead of prompting twice.
+ async verifyUser(input={}){
+  const entry=this.context();
+  if(!entry.unlocked)throw Error("VAULT_LOCKED");
+  if(this.verifying){if(input)input.password=undefined;return {verified:false,code:"BUSY"};}
+  this.verifying=true;
+  try{
+   for(let i=0;this.busy&&i<100;i++)await new Promise(resolve=>setTimeout(resolve,100));
+   if(this.busy){if(input)input.password=undefined;return {verified:false,code:"BUSY"};}
+   this.busy=true;
+   try{return await this.verifyOnce(input);}finally{this.busy=false;}
+  }finally{this.verifying=false;}
+ }
+ async verifyOnce(input){
+  const entry=this.context(),generation=this.generation;
+  if(!entry.unlocked)throw Error("VAULT_LOCKED");
+  entry.controller.use(()=>{});
+  const state=entry.vault.inspect(),osAvailable=!!await this.runtime().osAuth.availability();
+  const method=input?.method??(osAvailable?"os":"password"),password=input?.password;
+  if(input)input.password=undefined;
+  const check=()=>{if(this.active!==entry||generation!==this.generation||!entry.unlocked)throw Error("VAULT_SESSION_CHANGED");entry.controller.use(()=>{});};
+  const answer=code=>({verified:false,method,code,osAvailable,passwordAvailable:state.passwordAvailable});
+  if(method==="os"&&!osAvailable)return answer("OS_AUTH_UNAVAILABLE");
+  if(method==="password"&&!state.passwordAvailable)return answer("PASSWORD_UNAVAILABLE");
+  if(method!=="os"&&method!=="password")throw Error("INVALID_AUTH_METHOD");
+  if(method==="password"&&(typeof password!=="string"||!password.length||Buffer.byteLength(password,"utf8")>1024))return answer("PASSWORD_REJECTED");
+  let ok;
+  try{ok=await this.reauthenticator(entry,{method,password},check)();}
+  catch(error){
+   check();
+   if(method==="os")return answer(/^OS_AUTH_(BUSY|CANCELLED|FAILED|UNAVAILABLE|WINDOW_REQUIRED)$/.test(error?.message)?error.message:"OS_AUTH_FAILED");
+   return answer(error?.message==="PASSWORD_KDF_BUSY"?"BUSY":"PASSWORD_REJECTED");
+  }
+  check();
+  return ok===true?{verified:true,method}:answer(method==="os"?"OS_AUTH_CANCELLED":"PASSWORD_REJECTED");
+ }
  intakes(){
   return this.context().controller.use(store=>{
    const result=[];let after="";

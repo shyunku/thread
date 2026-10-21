@@ -10,6 +10,8 @@ class Category extends Mutatable {
       locked: "locked",
       color: "color",
       created_at: "createdAt",
+      // Synced sidebar order (#102), a string bigint; null before the first move.
+      sort_rank: "sortRank",
     });
 
     this.id = null;
@@ -18,6 +20,7 @@ class Category extends Mutatable {
     this.locked = secret;
     this.color = null;
     this.createdAt = new Date();
+    this.sortRank = null;
     this.default = default_;
   }
 }

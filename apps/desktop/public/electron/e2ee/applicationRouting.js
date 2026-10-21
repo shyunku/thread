@@ -1,4 +1,6 @@
-const {ApplicationAdapter,mutationTopics}=require("./applicationAdapter");
+const {ApplicationAdapter,mutationTopics:single,compositeTopics}=require("./applicationAdapter");
+// Composite topics (duplicate, delete a category in use) are mutations too.
+const mutationTopics={has:topic=>single.has(topic)||compositeTopics.has(topic)};
 const reads={"task/getAllTaskList":"tasks","task/getAllSubtaskList":"subtasks","category/getCategoryList":"categories","tasks_categories/getTasksCategoriesList":"relations"};
 const blocked=new Set(["auth/initializeDatabase","system/migrateLegacyDatabase","system/truncateLegacyDatabase","system/mismatchTxAcceptTheirs","system/mismatchTxAcceptMine","system/initializeState","system/clearStatePermanently"]);
 const passive=new Set(["auth/isDatabaseReady","system/isLegacyMigrationAvailable","system/localLastBlockNumber","system/remoteLastBlockNumber","system/migrateCheckDoneSignal","system/lastTxUpdateTime"]);

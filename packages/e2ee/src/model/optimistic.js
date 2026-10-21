@@ -2,26 +2,34 @@
 // category and task-category rows change locally (moved from the desktop sync-v2 replica).
 const identity = (c) =>
   JSON.stringify([c.entityType, c.parentId || "", c.entityId]);
-function ordered(rows, exclude) {
+// sort_rank is a string bigint. Categories from before #102 have none: they sort after
+// ranked ones, by created_at, until the first move or create ranks them all.
+const rankOf = (c) =>
+  typeof c.fields.sort_rank === "string" &&
+  /^(0|[1-9][0-9]*)$/.test(c.fields.sort_rank)
+    ? BigInt(c.fields.sort_rank)
+    : null;
+function compareRank(a, b) {
+  const x = rankOf(a),
+    y = rankOf(b);
+  if (x !== y) return x === null ? 1 : y === null ? -1 : x < y ? -1 : 1;
+  if (a.entityType === "category") {
+    const t = (a.fields.created_at || 0) - (b.fields.created_at || 0);
+    if (t) return t < 0 ? -1 : 1;
+  }
+  return a.entityId < b.entityId ? -1 : a.entityId === b.entityId ? 0 : 1;
+}
+// Ordered task (or category) rows, the list a move or create ranks against.
+function ordered(rows, exclude, entityType = "task") {
   return [...rows.values()]
     .filter(
       (c) =>
-        c.entityType === "task" &&
+        c.entityType === entityType &&
         c.entityId !== exclude &&
         c.operation !== "delete" &&
         c.fields.deleted_at == null
     )
-    .sort((a, b) =>
-      BigInt(a.fields.sort_rank) < BigInt(b.fields.sort_rank)
-        ? -1
-        : BigInt(a.fields.sort_rank) > BigInt(b.fields.sort_rank)
-        ? 1
-        : a.entityId < b.entityId
-        ? -1
-        : a.entityId === b.entityId
-        ? 0
-        : 1
-    );
+    .sort(compareRank);
 }
 function optimistic(rows, m) {
   const key = identity(m),
@@ -113,11 +121,11 @@ function optimistic(rows, m) {
     }
   }
   if (
-    m.entityType === "task" &&
+    (m.entityType === "task" || m.entityType === "category") &&
     (m.operation === "create" || m.operation === "move")
   ) {
     if (m.operation === "move" && m.anchorId === m.entityId) return;
-    let list = ordered(rows, m.entityId),
+    let list = ordered(rows, m.entityId, m.entityType),
       index = m.anchorId
         ? list.findIndex((c) => c.entityId === m.anchorId)
         : list.length;
@@ -127,18 +135,29 @@ function optimistic(rows, m) {
     const gap = 4294967296n;
     // Rows already at their rank stay the same object, so callers can tell which
     // rows this action really changed.
-    list.forEach((c, i) => {
-      const rank = String(BigInt(i + 1) * gap);
+    const setRank = (i, value) => {
+      const c = list[i],
+        rank = String(value);
       if (c.fields.sort_rank === rank) return;
       const updated = { ...c, fields: { ...c.fields, sort_rank: rank } };
       rows.set(identity(c), updated);
       list[i] = updated;
-    });
-    const before = index ? BigInt(list[index - 1].fields.sort_rank) : 0n;
-    const after =
-      index < list.length
-        ? BigInt(list[index].fields.sort_rank)
-        : before + gap * 2n;
+    };
+    const rankAt = (i) => BigInt(list[i].fields.sort_rank);
+    const rerank = () => list.forEach((c, i) => setRank(i, BigInt(i + 1) * gap));
+    if (m.entityType === "category") {
+      // Category ranks are encrypted objects that sync: rewriting them all on every move
+      // would let two devices' concurrent moves mix into an order neither chose. Rows
+      // without a rank (older clients) get one after the ranked rows; the rest stay, and
+      // all are re-ranked only when the neighbours leave no room.
+      list.forEach((c, i) => {
+        if (rankOf(c) === null) setRank(i, (i ? rankAt(i - 1) : 0n) + gap);
+      });
+      const low = index ? rankAt(index - 1) : 0n;
+      if (index < list.length && rankAt(index) - low < 2n) rerank();
+    } else rerank();
+    const before = index ? rankAt(index - 1) : 0n;
+    const after = index < list.length ? rankAt(index) : before + gap * 2n;
     fields.sort_rank = String((before + after) / 2n);
   }
   rows.set(key, {
@@ -160,4 +179,4 @@ function optimistic(rows, m) {
       });
   }
 }
-module.exports = { identity, ordered, optimistic };
+module.exports = { identity, ordered, compareRank, optimistic };

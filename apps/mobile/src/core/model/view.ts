@@ -30,6 +30,8 @@ export type CategoryRow = {
   secret: boolean;
   locked: boolean;
   createdAt: number;
+  // Synced sidebar order (#102); null for categories never moved or ranked.
+  sortRank: bigint | null;
 };
 export type Lists = {
   tasks: any[];
@@ -47,6 +49,21 @@ export type SortMode = 'due' | 'remaining' | 'created';
 
 const num = (value: unknown) =>
   typeof value === 'number' && Number.isFinite(value) ? value : 0;
+const rank = (value: unknown) =>
+  typeof value === 'string' && /^(0|[1-9][0-9]*)$/.test(value)
+    ? BigInt(value)
+    : null;
+// Same order as the desktop sidebar and the shared model (compareRank): sort_rank,
+// unranked ones after the ranked, then created_at, then id.
+export function compareCategories(a: CategoryRow, b: CategoryRow) {
+  if (a.sortRank !== b.sortRank) {
+    if (a.sortRank === null) return 1;
+    if (b.sortRank === null) return -1;
+    return a.sortRank < b.sortRank ? -1 : 1;
+  }
+  if (a.createdAt !== b.createdAt) return a.createdAt < b.createdAt ? -1 : 1;
+  return a.cid < b.cid ? -1 : a.cid === b.cid ? 0 : 1;
+}
 
 export function buildModel(lists: Lists) {
   const categories: CategoryRow[] = lists.categories
@@ -57,8 +74,9 @@ export function buildModel(lists: Lists) {
       secret: !!c.secret,
       locked: !!c.locked,
       createdAt: num(c.created_at),
+      sortRank: rank(c.sort_rank),
     }))
-    .sort((a, b) => a.createdAt - b.createdAt);
+    .sort(compareCategories);
   const subtasksByTask = new Map<string, SubtaskRow[]>();
   for (const s of lists.subtasks) {
     const row = {

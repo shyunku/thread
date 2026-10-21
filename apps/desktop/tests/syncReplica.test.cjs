@@ -212,3 +212,25 @@ test("epoch change with pending does not rebind queued identity", async (t) => {
   await assert.rejects(r.installSnapshot(s, p), /EPOCH_CHANGED_WITH_PENDING/);
   assert.equal((await r.next()).epoch, "epoch");
 });
+test("enqueueMany queues every step in one transaction, each on the view the last left, or none", async (t) => {
+  const f = await fixture(t),
+    r = f.r;
+  await r.installSnapshot(...snapshot("1", [task("one")]));
+  const patch = (title) => ({ entityType: "task", entityId: "one", operation: "patch", changes: { title } });
+  // A failing later step leaves nothing queued (a composite never half-applies).
+  await assert.rejects(
+    r.enqueueMany([() => patch("first"), () => { throw Error("STEP_FAILED"); }]),
+    /STEP_FAILED/
+  );
+  assert.equal((await r.view()).pending.length, 0);
+  assert.equal((await r.view()).rows[0].fields.title, "one");
+  const seen = [];
+  const id = await r.enqueueMany([
+    () => patch("first"),
+    (view) => { seen.push(view.rows.find((row) => row.entityId === "one").fields.title); return patch("second"); },
+  ]);
+  assert.deepEqual(seen, ["first"]);
+  assert.equal((await r.view()).pending.length, 2);
+  assert.equal((await r.view()).rows[0].fields.title, "second");
+  assert.equal(typeof id, "string");
+});

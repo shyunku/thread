@@ -1,28 +1,26 @@
+// The shared [data-tip] tooltip (components/Tooltip.js), placed by script in window coordinates.
 .thread-tooltip {
-  position: relative;
-  display: inline-flex;
+  position: fixed;
+  z-index: 20000; // above popups, pickers and the loading overlay
+  top: 0;
+  left: 0;
+  max-width: calc(100vw - 8px);
+  padding: 6px 9px;
+  border: 1px solid #46536a;
+  border-radius: 6px;
+  background: #101720;
+  color: #edf1f7;
+  font-size: 12px;
+  font-weight: normal;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity .16s ease, transform .16s ease;
 
-  &__content {
-    position: absolute;
-    z-index: 10;
-    top: calc(100% + 8px);
-    left: 50%;
-    transform: translate(-50%, -4px);
-    padding: 6px 9px;
-    border: 1px solid #46536a;
-    border-radius: 6px;
-    background: #101720;
-    color: #edf1f7;
-    font-size: 12px;
-    white-space: nowrap;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity .16s ease, transform .16s ease;
-  }
-
-  &:hover &__content,
-  &:focus-within &__content {
-    opacity: 1;
-    transform: translate(-50%, 0);
-  }
+  &.up { transform: translateY(4px); }
+  &.on { opacity: 1; transform: translateY(0); }
 }

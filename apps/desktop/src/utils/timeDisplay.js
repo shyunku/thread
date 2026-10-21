@@ -1,7 +1,10 @@
-// Task time text for 설정 > 일반 > 시간 표시 (#101): remaining time or due date.
+// Task time text for 설정 > 일반 > 시간 표시 (#101, #102).
+// #102: the task line shows the due date on top and the remaining time below (optional).
+// The old single choice (remaining time OR due) is only read to migrate saved prefs.
 export const TIME_DISPLAYS = ["remain", "due"];
 export const REMAIN_FORMATS = ["simple", "normal", "detailed", "all"];
-export const DUE_FORMATS = ["simple", "auto", "exact", "full"];
+// "group" (묶음 맞춤) words the due relative to the list's date groups; the default since #102.
+export const DUE_FORMATS = ["group", "simple", "auto", "exact", "full"];
 
 // Same unit lengths as fromRelativeTime in utils/Common.js (year = 365 days, month = 30 days).
 const SECOND = 1000;
@@ -40,14 +43,55 @@ export function formatClock(date, timeFormat = "12", long = false) {
   return long ? `${half} ${h12}시${m ? ` ${m}분` : ""}` : `${half} ${h12}:${pad(m)}`;
 }
 
+// Short clock for the list: "오후 9시" on the hour, "오후 8:30" otherwise; 24h is always "21:00".
+export function formatClockShort(date, timeFormat = "12") {
+  const h = date.getHours(), m = date.getMinutes();
+  if (timeFormat === "24") return `${pad(h)}:${pad(m)}`;
+  return `${h < 12 ? "오전" : "오후"} ${h % 12 || 12}${m ? `:${pad(m)}` : "시"}`;
+}
+
+// Minutes after midnight as a clock, e.g. the picker presets: 540 → "오전 9:00" / "09:00".
+export function formatMinuteOfDay(minutes, timeFormat = "12", short = false) {
+  const date = new Date(2000, 0, 1, Math.floor(minutes / 60), minutes % 60);
+  return short ? formatClockShort(date, timeFormat) : formatClock(date, timeFormat);
+}
+
+// A due date without a chosen time is stored at the end of the day (23:59).
+export function hasDueTime(due) {
+  const date = new Date(due);
+  return !(date.getHours() === 23 && date.getMinutes() === 59);
+}
+
+// Detail panel: "2026.10.21 오후 5:30" / "2026.10.21 17:30".
+export function formatDueDetail(due, timeFormat = "12") {
+  const date = new Date(due);
+  return `${date.getFullYear()}.${pad(date.getMonth() + 1)}.${pad(date.getDate())} ${formatClock(date, timeFormat)}`;
+}
+
+// Quick-add chip: "10월 21일 오후 8시", or just "10월 21일" when no time was chosen.
+export function formatDueChip(due, timeFormat = "12") {
+  const date = new Date(due);
+  const day = `${date.getMonth() + 1}월 ${date.getDate()}일`;
+  return hasDueTime(due) ? `${day} ${formatClockShort(date, timeFormat)}` : day;
+}
+
 // Calendar days from `now` to `date` in local time (DST-safe).
 export function dayDifference(date, now) {
   const start = (value) => new Date(value).setHours(0, 0, 0, 0);
   return Math.round((start(date) - start(now)) / DAY);
 }
 
-export function formatDue(due, now, format = "auto", timeFormat = "12") {
+export function formatDue(due, now, format = "group", timeFormat = "12") {
   const date = new Date(due);
+  if (format === "group") {
+    // 묶음 맞춤: the group heading already says the day, so today is the clock only.
+    const days = dayDifference(date, now), clock = formatClockShort(date, timeFormat);
+    if (days === 0) return clock;
+    if (days === 1) return `내일 ${clock}`;
+    if (days === -1) return `어제 ${clock}`;
+    if (days > 1 && days < 7) return `${WEEKDAYS[date.getDay()]} ${clock}`;
+    return `${date.getMonth() + 1}월 ${date.getDate()}일`;
+  }
   const exact = `${pad(date.getFullYear() % 100)}.${pad(date.getMonth() + 1)}.${pad(date.getDate())} ${formatClock(date, timeFormat)}`;
   if (format === "exact") return exact;
   if (format === "full")
@@ -65,16 +109,21 @@ export function formatDue(due, now, format = "auto", timeFormat = "12") {
   return word ? `${word} ${formatClock(date, timeFormat, true)}` : exact;
 }
 
-// Prefs with unknown values fall back to the defaults.
+// Prefs with unknown values fall back to the defaults. Prefs saved before #102 have no
+// showRemain; their 기한 choice (timeDisplay "due") meant no remaining time.
 export function timeDisplayOptions(prefs = {}) {
+  const showRemain = typeof prefs.showRemain === "boolean" ? prefs.showRemain : prefs.timeDisplay !== "due";
   return {
-    timeDisplay: TIME_DISPLAYS.includes(prefs.timeDisplay) ? prefs.timeDisplay : "remain",
+    showRemain,
+    // Single-text task lines that are not redesigned yet show the due when the remaining time is off.
+    timeDisplay: showRemain ? "remain" : "due",
     remainFormat: REMAIN_FORMATS.includes(prefs.remainFormat) ? prefs.remainFormat : "normal",
-    dueFormat: DUE_FORMATS.includes(prefs.dueFormat) ? prefs.dueFormat : "auto",
+    dueFormat: DUE_FORMATS.includes(prefs.dueFormat) ? prefs.dueFormat : "group",
     timeFormat: prefs.timeFormat === "24" ? "24" : "12",
   };
 }
 
+// One text for a task line: the remaining time, or the due when 남은 시간 보이기 is off.
 export function formatTaskTime(due, now, options = {}) {
   const { timeDisplay, remainFormat, dueFormat, timeFormat } = timeDisplayOptions(options);
   const at = new Date(due).valueOf();
@@ -82,24 +131,31 @@ export function formatTaskTime(due, now, options = {}) {
   return formatRemain(at - now, remainFormat);
 }
 
-// Sample values shown next to each choice in the settings.
-const REMAIN_SAMPLES = [DAY + 4 * HOUR + 12 * MINUTE + 8 * SECOND, MONTH + 4 * DAY + 23 * HOUR + 2 * MINUTE + 8 * SECOND, HOUR + 5 * SECOND];
-// Due samples sit on round times relative to today: [days from today, hour, minute].
-const DUE_SAMPLES = {
-  simple: [[0, 15, 20], [1, 17, 30], [-2, 12, 0], [10, 12, 0], [95, 12, 0], [5 * 365 + 3, 12, 0]],
-  auto: [[0, 15, 20], [1, 17, 30], [2, 15, 0], [-1, 18, 0], [10, 14, 0]],
-  exact: [[2, 14, 45], [1, 17, 30]],
-  full: [[2, 14, 45], [1, 17, 30]],
-};
+// The two-line right column of a task row: due on top, remaining time below (null when off).
+export function formatTaskTimes(due, now, options = {}) {
+  const { showRemain, remainFormat, dueFormat, timeFormat } = timeDisplayOptions(options);
+  const at = new Date(due).valueOf();
+  return {
+    due: formatDue(at, now, dueFormat, timeFormat),
+    remain: showRemain ? formatRemain(at - now, remainFormat) : null,
+    overdue: at < now,
+  };
+}
 
-export function timeDisplayExamples(timeDisplay, format, now, timeFormat = "12") {
-  if (timeDisplay === "remain") return REMAIN_SAMPLES.map((ms) => formatRemain(ms, format)).join(" · ");
-  return (DUE_SAMPLES[format] || DUE_SAMPLES.auto)
+// Sample values shown next to each choice in the settings.
+const REMAIN_SAMPLES = [3 * HOUR + 30 * MINUTE, DAY + 4 * HOUR + 12 * MINUTE + 8 * SECOND];
+// Due samples sit on round times relative to today: [days from today, hour, minute].
+const DUE_SAMPLES = [[0, 21, 0], [2, 19, 0], [9, 18, 0]];
+
+// `kind` is "due" or "remain"; `today` is any time on the day the examples count from.
+export function timeDisplayExamples(kind, format, today, timeFormat = "12") {
+  if (kind === "remain") return REMAIN_SAMPLES.map((ms) => formatRemain(ms, format)).join(" · ");
+  return DUE_SAMPLES
     .map(([days, hour, minute]) => {
-      const date = new Date(now);
+      const date = new Date(today);
       date.setDate(date.getDate() + days);
       date.setHours(hour, minute, 0, 0);
-      return formatDue(date.valueOf(), now, format, timeFormat);
+      return formatDue(date.valueOf(), today, format, timeFormat);
     })
     .join(" · ");
 }

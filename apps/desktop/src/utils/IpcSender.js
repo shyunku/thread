@@ -106,6 +106,16 @@ const IpcSender = {
     status:callback=>sender("vault/getStatus",callback),
     create:(password,callback)=>sender("vault/create",callback,password),
     unlock:(method,password,callback)=>sender("vault/unlock",callback,method,password),
+    // Confirms the user the way the vault opens (secret categories). input: {} for the
+    // vault's own method, or {method:"os"} / {method:"password",password}. The reply data
+    // is {verified, method, code?, osAvailable?, passwordAvailable?}.
+    verifyUser:(input,callback)=>sender("vault/verifyUser",callback,input||{}),
+    // Calls back when this account's vault locks (screen lock, suspend, 잠그기), so
+    // session-only unlocks can be dropped. Returns a function that stops listening.
+    onLocked:(uid,callback)=>{
+     const listener=IpcSender.onAll("vault/status",({data}={})=>{if(data?.phase==="LOCKED"&&(uid==null||data.uid===uid))callback(data);});
+     return ()=>IpcSender.off("vault/status",listener);
+    },
     lock:callback=>sender("vault/lock",callback),
     intakes:callback=>sender("vault/intakes",callback),
     reviews:(request,callback)=>sender("vault/reviews",callback,request),
@@ -353,6 +363,16 @@ const IpcSender = {
       updateTaskImportant: (taskId, important, callback) => {
         sender("task/updateTaskImportant", callback, taskId, important);
       },
+      // New not-done copy with title, memo, due, repeat, importance, categories and
+      // subtasks, queued as one change. newTaskId is optional.
+      duplicateTask: (taskId, newTaskId, callback) => {
+        sender(
+          "task/duplicateTask",
+          callback,
+          taskId,
+          newTaskId ? { tid: newTaskId } : undefined
+        );
+      },
       createSubtask: (subtask, taskId, callback) => {
         sender("task/createSubtask", callback, subtask, taskId);
       },
@@ -392,8 +412,20 @@ const IpcSender = {
       deleteCategory: (categoryId, callback) => {
         sender("category/deleteCategory", callback, categoryId);
       },
-      checkCategoryPassword: (hashedPassword, callback) => {
-        sender("category/checkCategoryPassword", callback, hashedPassword);
+      // Takes the category off all its tasks, then deletes it (tasks stay).
+      deleteCategoryInUse: (categoryId, callback) => {
+        sender("category/deleteCategoryInUse", callback, categoryId);
+      },
+      // Moves the category next to anchorId (after it when afterAnchor, else before).
+      // E2EE only; see utils/categoryOrder.js for the order and the anchor helper.
+      updateCategoryOrder: (categoryId, anchorId, afterAnchor, callback) => {
+        sender(
+          "category/updateCategoryOrder",
+          callback,
+          categoryId,
+          anchorId,
+          afterAnchor
+        );
       },
       updateCategoryTitle: (categoryId, title, callback) => {
         sender("category/updateCategoryTitle", callback, categoryId, title);

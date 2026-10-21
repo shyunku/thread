@@ -1,4 +1,5 @@
 const { v4: randomUUID } = require("../uuid");
+const { compareRank } = require("./optimistic");
 const mutationTopics = new Set([
   "task/addTask",
   "task/deleteTask",
@@ -20,7 +21,15 @@ const mutationTopics = new Set([
   "category/deleteCategory",
   "category/updateCategoryTitle",
   "category/updateCategoryColor",
+  "category/updateCategoryOrder",
 ]);
+// Renderer-facing actions made of several mutation topics. They are applied together
+// (one transaction and one outbox entry on E2EE), so a sync cannot split them.
+const compositeTopics = new Set([
+  "task/duplicateTask",
+  "category/deleteCategoryInUse",
+]);
+const liveRow = (c) => c && c.operation !== "delete" && c.fields.deleted_at == null;
 function command(topic, args, view) {
   const [a, b, c, d, e] = args;
   const make = (kind, id, op, changes, parent) => ({
@@ -65,10 +74,41 @@ function command(topic, args, view) {
       return make("task", a, "patch", { title: b ?? "" });
     case "task/updateTaskMemo":
       return make("task", a, "patch", { memo: b ?? "" });
-    case "task/updateTaskDueDate":
-      return make("task", a, "patch", { due_date: b ?? 0 });
-    case "task/updateTaskRepeatPeriod":
-      return make("task", a, "patch", { repeat_period: b ?? "" });
+    case "task/updateTaskDueDate": {
+      // A repeating task keeps its rule on the new day: the recurrence anchor moves
+      // with the due date. Without a due date the repeat cannot stand, so it is
+      // cleared in the same patch (prepareSchedule rejects a repeat with no due).
+      // Saving the same due date leaves the anchor alone: after a completion the anchor
+      // and the due date differ, and rewriting it would bump the recurrence generation.
+      const due = b ?? 0,
+        row = findRow(view, "task", a);
+      if (!row?.fields.repeat_period || (due && due === row.fields.due_date))
+        return make("task", a, "patch", { due_date: due });
+      return make(
+        "task",
+        a,
+        "patch",
+        due
+          ? { due_date: due, repeat_start_at: due }
+          : { due_date: 0, repeat_period: "", repeat_start_at: 0 }
+      );
+    }
+    case "task/updateTaskRepeatPeriod": {
+      // The anchor moves to the current due date when a repeat is turned on or its
+      // period changes (the picker names the rule by the due date, "매월 21일"), and is
+      // dropped when it is turned off, so an old anchor never comes back later.
+      // Picking the same period again changes nothing.
+      const period = b ?? "",
+        row = findRow(view, "task", a);
+      if (!period)
+        return make("task", a, "patch", { repeat_period: "", repeat_start_at: 0 });
+      if (row?.fields.repeat_period !== period && row?.fields.due_date)
+        return make("task", a, "patch", {
+          repeat_period: period,
+          repeat_start_at: row.fields.due_date,
+        });
+      return make("task", a, "patch", { repeat_period: period });
+    }
     // Starred ("중요", #97). Always a boolean; a task without the key is not starred.
     case "task/updateTaskImportant":
       return make("task", a, "patch", { important: b === true });
@@ -130,6 +170,82 @@ function command(topic, args, view) {
       return make("category", a, "patch", { title: b ?? "" });
     case "category/updateCategoryColor":
       return make("category", a, "patch", { color: b ?? "" });
+    // User-defined sidebar order (#102): fields.sort_rank, like the task move.
+    case "category/updateCategoryOrder":
+      return { ...make("category", a, "move"), anchorId: b, after: c };
+    default:
+      throw Error("UNSUPPORTED_V2_ACTION");
+  }
+}
+function findRow(view, type, id) {
+  return view?.rows?.find((r) => r.entityType === type && r.entityId === id);
+}
+// The mutation topics a composite topic stands for, in order. IDs for new rows are
+// chosen here so every step agrees on them.
+function expand(topic, args, view, now = Date.now()) {
+  const [a, b] = args;
+  const rows = view.rows;
+  switch (topic) {
+    // Copies title, memo, due, repeat, importance, categories and subtasks into a
+    // new, not-done task. Subtasks keep their order and start not done.
+    case "task/duplicateTask": {
+      const source = findRow(view, "task", a);
+      if (!liveRow(source)) throw Error("ENTITY_DELETED");
+      const f = source.fields,
+        tid = b?.tid || randomUUID();
+      const categories = rows
+        .filter(
+          (r) =>
+            r.entityType === "taskCategory" &&
+            r.parentId === a &&
+            r.fields.present &&
+            liveRow(findRow(view, "category", r.entityId))
+        )
+        .map((r) => r.entityId);
+      const task = { tid, title: f.title ?? "", memo: f.memo ?? "", categories };
+      if (f.due_date) task.due_date = f.due_date;
+      if (f.due_date && f.repeat_period) {
+        task.repeat_period = f.repeat_period;
+        task.repeat_start_at = f.repeat_start_at || f.due_date;
+      }
+      if (f.important === true) task.important = true;
+      const subtasks = rows
+        .filter(
+          (r) => r.entityType === "subtask" && r.parentId === a && liveRow(r)
+        )
+        .sort(
+          (x, y) =>
+            (x.fields.created_at || 0) - (y.fields.created_at || 0) ||
+            (x.entityId < y.entityId ? -1 : 1)
+        );
+      return [
+        ["task/addTask", [task]],
+        ...subtasks.map((r, i) => {
+          const subtask = {
+            sid: randomUUID(),
+            title: r.fields.title ?? "",
+            created_at: now + i,
+          };
+          if (r.fields.due_date) subtask.due_date = r.fields.due_date;
+          return ["task/createSubtask", [subtask, tid]];
+        }),
+      ];
+    }
+    // Takes the category off every task that has it, then deletes it. Tasks stay.
+    case "category/deleteCategoryInUse": {
+      if (!liveRow(findRow(view, "category", a))) throw Error("ENTITY_DELETED");
+      return [
+        ...rows
+          .filter(
+            (r) =>
+              r.entityType === "taskCategory" &&
+              r.entityId === a &&
+              r.fields.present
+          )
+          .map((r) => ["task/deleteTaskCategory", [r.parentId, a]]),
+        ["category/deleteCategory", [a]],
+      ];
+    }
     default:
       throw Error("UNSUPPORTED_V2_ACTION");
   }
@@ -155,8 +271,10 @@ function entityLists(view) {
   });
   return {
     tasks,
+    // Sidebar order: sort_rank, then created_at (rows from before #102 have no rank).
     categories: rows
       .filter((c) => c.entityType === "category")
+      .sort(compareRank)
       .map((c) => ({ ...c.fields, cid: c.entityId })),
     subtasks: rows
       .filter((c) => c.entityType === "subtask")
@@ -166,4 +284,4 @@ function entityLists(view) {
       .map((c) => ({ tid: c.parentId, cid: c.entityId })),
   };
 }
-module.exports = {command, entityLists, mutationTopics};
+module.exports = {command, expand, entityLists, mutationTopics, compositeTopics};

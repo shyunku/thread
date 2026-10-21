@@ -125,6 +125,32 @@ test("only exact OAuth launch URL is accepted; production CSP forbids eval", () 
   assert.ok(dev.includes("ws://localhost:9300"));
 });
 
+test("app fonts are bundled: the CSP allows only same-origin fonts and the font faces point at local files", () => {
+  const csp = policy.contentSecurityPolicy("file:///Thread/index.html", "https://api.threadapp.kr/v1");
+  assert.ok(csp.includes("font-src 'self' data:;"));
+  assert.ok(csp.includes("style-src 'self' 'unsafe-inline';"));
+  const fonts = fs.readFileSync(path.join(__dirname, "../src/styles/fonts.scss"), "utf8");
+  const urls = [...fonts.matchAll(/url\(\s*["']?([^"')]+)/g)].map(match => match[1]);
+  assert.ok(urls.some(url => url.startsWith("../assets/fonts/oxanium/")));
+  assert.ok(urls.some(url => url.startsWith("../assets/fonts/noto-sans-kr/")));
+  for (const url of urls) assert.ok(url.startsWith("../assets/fonts/"), url);
+  // Every interpolated file name must exist for each slice and weight, or the build cannot resolve it.
+  const ranges = fs.readFileSync(path.join(__dirname, "../src/styles/_fontRanges.scss"), "utf8");
+  const weights = fonts.match(/\$app-font-weights: \(([^)]+)\)/)[1].split(",").map(weight => weight.trim());
+  for (const id of ["oxanium", "noto-sans-kr"]) {
+    const block = ranges.split(`$${id}-ranges: (`)[1].split("\n);")[0];
+    const subsets = [...block.matchAll(/^ {2}"([^"]+)":/gm)].map(match => match[1]);
+    assert.ok(subsets.length > 0, id);
+    for (const subset of subsets) for (const weight of weights) {
+      const file = path.join(__dirname, "../src/assets/fonts", id, `${id}-${subset}-${weight}-normal.woff2`);
+      assert.ok(fs.existsSync(file), file);
+    }
+  }
+  // The files are vendored; a font package would ship whole in app.asar as a production dependency.
+  const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, "../package.json"), "utf8"));
+  assert.ok(!Object.keys({ ...pkg.dependencies, ...pkg.devDependencies }).some(name => name.startsWith("@fontsource/")));
+});
+
 test("all active renderer event subscriptions exist in the bridge contract", () => {
   const walk = directory => fs.readdirSync(directory, { withFileTypes: true }).flatMap(entry =>
     entry.isDirectory() ? walk(path.join(directory, entry.name)) : [path.join(directory, entry.name)]);

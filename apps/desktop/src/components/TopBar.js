@@ -41,7 +41,7 @@ const TopBar = ({ searchQuery = "", setSearchQuery }) => {
 
   return (
     <header className="component top-bar">
-      <div className="brand" title={`Thread ${PackageJson.version}`}>
+      <div className="brand">
         <img src={process.env.PUBLIC_URL + "/logo192.png"} alt="Thread" />
         <span className="build-label">
           {process.env.NODE_ENV === "development" ? "DEV" : `Thread ${PackageJson.version}`}
@@ -80,6 +80,7 @@ const TopBar = ({ searchQuery = "", setSearchQuery }) => {
         <button
           className="menu-item"
           aria-label="최소화"
+          data-tip="최소화"
           onClick={() => IpcSender.system.minimizeWindow()}
         >
           <VscChromeMinimize />
@@ -87,6 +88,7 @@ const TopBar = ({ searchQuery = "", setSearchQuery }) => {
         <button
           className="menu-item"
           aria-label={maximized ? "이전 크기로" : "최대화"}
+          data-tip={maximized ? "이전 크기로" : "최대화"}
           onClick={() =>
             maximized
               ? IpcSender.system.restoreWindow()
@@ -98,6 +100,7 @@ const TopBar = ({ searchQuery = "", setSearchQuery }) => {
         <button
           className="menu-item close"
           aria-label="창 닫기"
+          data-tip="닫기"
           onClick={() => IpcSender.system.closeWindow()}
         >
           <VscChromeClose />

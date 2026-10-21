@@ -27,7 +27,7 @@ export default function UpdateButton({ update, className = "" }) {
   return (
     <button type="button" className={`update-indicator update-indicator--${status} ${className}`}
       aria-label={`Thread ${update.version} 업데이트 ${STATUS_TEXT[status] || "다운로드 가능"}`}
-      title={`Thread ${update.version} 업데이트`}
+      data-tip={`Thread ${update.version} 업데이트`}
       onClick={() => window.dispatchEvent(new Event("thread:open-update"))}>
       <VscArrowDown aria-hidden="true" />
       <span>{["downloading", "available"].includes(status) && update.autoInstall ? "업데이트 중" : UPDATE_LABEL[status] || "업데이트"}</span>

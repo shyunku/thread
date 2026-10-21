@@ -263,37 +263,50 @@ class Replica {
     );
   }
   async enqueue(input) {
+    return this.serial(() => this.transaction(() => this.queue(input)));
+  }
+  // Queues several changes in one transaction: all of them or none (a composite such
+  // as a duplicate). change(view) builds each one from the view the previous one left.
+  async enqueueMany(builders) {
     return this.serial(() =>
       this.transaction(async () => {
-        if ((await this.meta("migrationBlocked")) === "true")
-          throw Error("LEGACY_REVIEW_REQUIRED");
-        const epoch = await this.meta("epoch");
-        if (!epoch) throw Error("SNAPSHOT_REQUIRED");
-        const rows = await this.rows("visible_entities"),
-          base = rows.get(identity(input));
-        const m = {
-          ...input,
-          epoch,
-          deviceId: await this.meta("deviceId"),
-          clientChangeId: crypto.randomUUID(),
-          baseVersion: base?.version || "0",
-          localTime: Date.now(),
-        };
-        const preview = new Map(rows);
-        try {
-          optimistic(preview, m);
-        } catch (e) {
-          if (e.message !== "RECURRING_COMPLETION_PENDING") throw e;
-        }
-        await run(
-          this.db,
-          "INSERT INTO outbox(change_id,request) VALUES (?,?)",
-          [m.clientChangeId, JSON.stringify(m)]
-        );
-        await this.rebase();
-        return m.clientChangeId;
+        let id = null;
+        for (const change of builders)
+          id = await this.queue(
+            change({ rows: [...(await this.rows("visible_entities")).values()] })
+          );
+        return id;
       })
     );
+  }
+  async queue(input) {
+    if ((await this.meta("migrationBlocked")) === "true")
+      throw Error("LEGACY_REVIEW_REQUIRED");
+    const epoch = await this.meta("epoch");
+    if (!epoch) throw Error("SNAPSHOT_REQUIRED");
+    const rows = await this.rows("visible_entities"),
+      base = rows.get(identity(input));
+    const m = {
+      ...input,
+      epoch,
+      deviceId: await this.meta("deviceId"),
+      clientChangeId: crypto.randomUUID(),
+      baseVersion: base?.version || "0",
+      localTime: Date.now(),
+    };
+    const preview = new Map(rows);
+    try {
+      optimistic(preview, m);
+    } catch (e) {
+      if (e.message !== "RECURRING_COMPLETION_PENDING") throw e;
+    }
+    await run(
+      this.db,
+      "INSERT INTO outbox(change_id,request) VALUES (?,?)",
+      [m.clientChangeId, JSON.stringify(m)]
+    );
+    await this.rebase();
+    return m.clientChangeId;
   }
   async acknowledge(id, result) {
     return this.serial(() =>

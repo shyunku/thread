@@ -1,3 +1,42 @@
+@use "fontRanges" as ranges;
+
+// App font (#102): Oxanium for Latin and digits, Noto Sans KR for Korean, Pretendard last.
+// The woff2 files are copied into src/assets/fonts (from @fontsource 5.3.0, OFL) because the CSP only
+// allows fonts from 'self'. 300 covers the existing light text (200 falls back to it).
+$app-font-weights: (300, 400, 500, 600, 700);
+
+// Oxanium's own metrics put the baseline too high for Hangul from the fallback font; these overrides
+// keep the line height and centre Korean text (decided in the #102 mock).
+@each $subset, $range in ranges.$oxanium-ranges {
+  @each $weight in $app-font-weights {
+    @font-face {
+      font-family: "Oxanium";
+      font-style: normal;
+      font-display: swap;
+      font-weight: $weight;
+      ascent-override: 95%;
+      descent-override: 5%;
+      line-gap-override: 0%;
+      src: url("../assets/fonts/oxanium/oxanium-#{$subset}-#{$weight}-normal.woff2") format("woff2");
+      unicode-range: $range;
+    }
+  }
+}
+
+// Noto Sans KR keeps the unicode-range slices, so a screen only decodes the slices it uses.
+@each $subset, $range in ranges.$noto-sans-kr-ranges {
+  @each $weight in $app-font-weights {
+    @font-face {
+      font-family: "Noto Sans KR";
+      font-style: normal;
+      font-display: swap;
+      font-weight: $weight;
+      src: url("../assets/fonts/noto-sans-kr/noto-sans-kr-#{$subset}-#{$weight}-normal.woff2") format("woff2");
+      unicode-range: $range;
+    }
+  }
+}
+
 @font-face {
   font-family: "Pretendard";
   src: url("../assets/fonts/Pretendard-Thin.otf") format("opentype");

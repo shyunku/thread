@@ -97,6 +97,7 @@ module.exports = function (s) {
     "vault/getStatus":()=>s.vaultWorkspaceService.status(),
     "vault/create":password=>s.vaultWorkspaceService.create(password),
     "vault/unlock":(method,password)=>s.vaultWorkspaceService.unlock(method,password),
+    "vault/verifyUser":input=>s.vaultWorkspaceService.verifyUser(input),
     "vault/lock":()=>{s.vaultWorkspaceService.lock();return true;},
     "vault/intakes":()=>s.vaultWorkspaceService.intakes(),
     "vault/reviews":request=>s.vaultWorkspaceService.reviews(request),
@@ -1440,23 +1441,18 @@ module.exports = function (s) {
     }
   );
 
-  s.register(
-    "category/checkCategoryPassword",
-    async (event, reqId, hashedPassword) => {
-      try {
-        const rootDB = await s.databaseService.getRootDatabaseContext();
-        let results = await rootDB.all(
-          "SELECT * FROM users WHERE auth_hashed_pw = ?",
-          hashedPassword
-        );
-        let ok = results.length > 0;
-        s.sender("category/checkCategoryPassword", reqId, true, ok);
-      } catch (err) {
-        s.sender("category/checkCategoryPassword", reqId, false);
-        throw err;
-      }
-    }
-  );
+  // Encrypted-model actions (#102): the category order (sort_rank), duplicating a task
+  // and deleting a category in use. The E2EE routing in register() handles them
+  // first; the legacy transaction chain has no field or batch for them.
+  for (const topic of [
+    "category/updateCategoryOrder",
+    "task/duplicateTask",
+    "category/deleteCategoryInUse",
+  ]) {
+    s.register(topic, async (event, reqId) => {
+      s.sender(topic, reqId, false, { code: "UNSUPPORTED_LEGACY_ACTION" });
+    });
+  }
 
   /* ---------------------------------------- Test ---------------------------------------- */
   s.register("test_signal", (event, param) => {});

@@ -17,6 +17,31 @@
   --warning: #edbc72;
   --danger: #f0838b;
   --radius: 10px;
+  // Added with the #102 main screen. Existing names keep their values here; the main screen
+  // takes the redesign values below so settings, gate and login look the same as before.
+  --raise: #222731;
+  --line: #232831;
+  --faint: #5f697a;
+  --accent-soft: #1b2741;
+  --star: #f2c14e;
+  // Spacing on a 4px grid, shared edges of the main screen.
+  --side-x: 20px; // sidebar content edge
+  --main-x: 32px; // list pane gutter: title, check column, right edge
+  --ck: 20px; // check column
+  --ck-gap: 12px; // check to text
+  --panel-x: 20px; // right panel gutter
+  --in: 12px; // padding inside a filled box
+}
+
+// Redesign values of existing tokens, only for the main screen (#102). Popups rendered outside
+// .home-layout (portals) can add .main-scope to get the same values.
+.home-layout,
+.main-scope {
+  --panel: #14171d;
+  --surface: #1a1e25;
+  --hover: #1d2129;
+  --secondary: #a3acbb;
+  --muted: #7f8a9c;
 }
 
 button,
@@ -29,6 +54,9 @@ button {
   color: inherit;
   cursor: pointer;
 }
+// Controls with their own hover colours and motion add .no-auto-hover (on themselves or a
+// container) to leave out the shared transition and hover brightness below. :where keeps the
+// specificity of these rules unchanged.
 button,
 [role="button"],
 a,
@@ -36,14 +64,18 @@ summary,
 input,
 select,
 textarea {
-  transition: background-color .16s ease, border-color .16s ease, color .16s ease, box-shadow .16s ease, opacity .16s ease, transform .16s ease, filter .16s ease;
+  &:where(:not(.no-auto-hover, .no-auto-hover *)) {
+    transition: background-color .16s ease, border-color .16s ease, color .16s ease, box-shadow .16s ease, opacity .16s ease, transform .16s ease, filter .16s ease;
+  }
 }
 @media (hover: hover) {
   button:hover:not(:disabled),
   [role="button"]:hover,
   a:hover,
   summary:hover {
-    filter: brightness(1.08);
+    &:where(:not(.no-auto-hover, .no-auto-hover *)) {
+      filter: brightness(1.08);
+    }
   }
 }
 button:disabled {
@@ -86,9 +118,11 @@ body,
   background-color: $main-bg-color;
   color: rgb(255, 255, 255);
 
-  // font-family: "Noto Sans KR", sans-serif;
-  font-family: "Pretendard", sans-serif;
+  font-family: "Oxanium", "Noto Sans KR", "Pretendard", sans-serif;
   font-weight: normal;
+  // Korean wraps between words; long unbroken strings still break.
+  word-break: keep-all;
+  overflow-wrap: break-word;
   overflow: hidden;
 }
 

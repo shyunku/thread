@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { MemoryRouter, Outlet, Route, Routes } from "react-router-dom";
 import TopBar from "../components/TopBar";
+import { TooltipLayer } from "../components/Tooltip";
 import HomeLayout from "../layouts/Home.layout";
 import Home from "../pages/Home";
 import { fromSyncV2View } from "../utils/syncV2View";
@@ -84,17 +85,31 @@ export function installAppPreviewIpc(IpcSender, params = new URLSearchParams()) 
   IpcSender.releaseAlerts = { get: ok(update), update: () => {}, cancel: () => {} };
 }
 
+// sync=<state> (synced, syncing, offline, error) sets the synthetic sync status the
+// layout passes on (the account footer, #102). Same shape as the E2EE sync-v2/status.
+export function previewSyncStatus(state) {
+  const base = { uid: "preview", protocolVersion: 3, ready: true, connected: true, syncing: false, canSync: true, seq: "12", pending: 0, recovery: 0, lastSyncedAt: Date.now() - 60000, error: null };
+  if (state === "syncing") return { ...base, syncing: true, pending: 2 };
+  if (state === "offline") return { ...base, connected: false, pending: 1 };
+  if (state === "error") return { ...base, error: "SYNC_UNAVAILABLE" };
+  return base;
+}
+
 function PreviewRoot() {
-  const states = useMemo(() => {
+  const [states, syncStatus] = useMemo(() => {
     const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
-    return fromSyncV2View(previewView(params.get("long") === "1", Number(params.get("count")) || 0));
+    return [
+      fromSyncV2View(previewView(params.get("long") === "1", Number(params.get("count")) || 0)),
+      previewSyncStatus(params.get("sync")),
+    ];
   }, []);
   const [searchQuery, setSearchQuery] = useState("");
   return (
     <div className="root-layout">
       <TopBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
+      <TooltipLayer />
       <div className="root-layout__content">
-        <Outlet context={{ localNonce: 0, remoteNonce: 0, addPromise: () => {}, states, searchQuery }} />
+        <Outlet context={{ localNonce: 0, remoteNonce: 0, addPromise: () => {}, states, searchQuery, syncStatus }} />
       </div>
     </div>
   );

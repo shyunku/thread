@@ -9,7 +9,7 @@ const { classify, planImport } = require("./legacyImport");
 const { getUserDataPath } = require("../modules/filesystem");
 const { getServerFinalEndpoint } = require("../modules/util");
 
-const {command, entityLists, mutationTopics} = require("./entities");
+const {command, expand, entityLists, mutationTopics, compositeTopics} = require("./entities");
 class SyncV2Service {
   constructor() {
     this.sessions = new Map();
@@ -336,17 +336,29 @@ class SyncV2Service {
       ipc.sender(topic, reqId, true);
       return true;
     }
-    // The plaintext v2 server rejects unknown fields; the star (#97) is E2EE-only.
-    if (topic === "task/updateTaskImportant") {
+    // The plaintext v2 server rejects unknown fields; the star (#97) and the
+    // category order (sort_rank on categories, #102) are E2EE-only.
+    if (["task/updateTaskImportant", "category/updateCategoryOrder"].includes(topic)) {
       ipc.sender(topic, reqId, false, { syncV2Ack: true, code: "UNSUPPORTED_V2_ACTION" });
       return true;
     }
-    if (mutationTopics.has(topic)) {
+    if (mutationTopics.has(topic) || compositeTopics.has(topic)) {
       s.mutating = (s.mutating || 0) + 1;
       try {
-        const change = command(topic, args, await s.replica.view());
-        if (topic === "task/addTask") delete change.changes.important;
-        const id = await s.replica.enqueue(change);
+        const build = (step, stepArgs, view) => {
+          const change = command(step, stepArgs, view);
+          if (step === "task/addTask") delete change.changes.important;
+          return change;
+        };
+        // A composite is queued as its steps in one local transaction (all or none);
+        // each step sees the view the previous one left.
+        const id = compositeTopics.has(topic)
+          ? await s.replica.enqueueMany(
+              expand(topic, args, await s.replica.view()).map(
+                ([step, stepArgs]) => (view) => build(step, stepArgs, view)
+              )
+            )
+          : await s.replica.enqueue(build(topic, args, await s.replica.view()));
         ipc.sender(topic, reqId, true, { syncV2Ack: true, clientChangeId: id });
         await this.publish(s);
         void s.run?.();

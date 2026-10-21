@@ -11,3 +11,8 @@ export function withTimeFormat(pattern, timeFormat) {
 export function useTimeFormat() {
   return useSelector(prefsSelector).timeFormat === "24" ? "24" : "12";
 }
+
+// 설정 > 일반 > 주 시작 요일 (0 = Sunday, 1 = Monday).
+export function useWeekStart() {
+  return useSelector(prefsSelector).weekStart === 1 ? 1 : 0;
+}
