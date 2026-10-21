@@ -69,12 +69,12 @@
   .row-s .n { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 16px; text-align: right; }
   .row-s .n.due { color: var(--danger); }
   /* Date and time at the top of the menu (user decision), on the 20px edge. */
-  .clock { padding: 4px 10px 14px; }
+  .clock { margin: 0 0 14px; padding: 12px 10px 12px; border-radius: 10px; background: var(--surface); }
   .clock .cd { display: block; font-size: 12px; line-height: 18px; color: var(--muted); }
-  .clock b { display: block; font-size: 24px; line-height: 32px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .clock b { display: block; margin-top: 6px; font-size: 24px; line-height: 30px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
   .clock b small { font-size: 16px; font-weight: 500; color: var(--muted); margin-left: 1px; }
   .clock .cr { display: none; }
-  .rail .clock { padding: 2px 0 10px; text-align: center; }
+  .rail .clock { padding: 8px 0; text-align: center; }
   .rail .clock .cd, .rail .clock b { display: none; }
   .rail .clock .cr { display: block; font-size: 11px; line-height: 15px; color: var(--secondary); font-variant-numeric: tabular-nums; }
   .add-s { margin: 0 0 16px; background: var(--accent); color: #fff; font-weight: 600; font-size: 13px; }
@@ -122,6 +122,8 @@
   .ghost:hover { background: var(--hover); }
   .ghost.on { background: var(--raise); color: var(--text); }
   .push { margin-left: auto; }
+  /* Korean text (Noto Sans KR) sits about 1.5px high in its line box; nudge labels that sit beside icons. */
+  .nt { position: relative; top: 2px; }
   .ghost.sq { width: 32px; min-width: 32px; padding: 0; }
   /* The last header button's icon ends on the 32px edge, like the stars below. */
   .head .row1 > .ghost:last-child { margin-right: -8px; }
@@ -136,7 +138,7 @@
   .chip { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 8px; border-radius: 6px; background: var(--raise); color: var(--secondary); font-size: 12px; white-space: nowrap; }
   .chip.on { background: var(--accent-soft); color: #a9c3ff; }
   .chip .dot { width: 7px; height: 7px; }
-  .scroll { flex: 1; min-height: 0; overflow: hidden; padding: 0 calc(var(--main-x) - 14px) 20px; }
+  .scroll { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #2b303b transparent; padding: 0 calc(var(--main-x) - 14px) 20px; }
   /* Date groups: the heading sits on the canvas, its rows inside one filled box below it. */
   .sec { display: flex; align-items: center; gap: 8px; height: 36px; margin-top: 20px; padding: 0 14px; font-size: 13.5px; font-weight: 700; color: var(--text); cursor: pointer; }
   .sec:first-child { margin-top: 4px; }
@@ -162,6 +164,7 @@
   .task.done .t { color: var(--muted); text-decoration: line-through; }
   .meta { display: flex; align-items: center; gap: 12px; margin-top: 2px; height: 18px; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; }
   .meta > span { display: inline-flex; align-items: center; gap: 5px; flex: none; }
+  .meta i { font-style: normal; }
   .meta .cat { max-width: 160px; } .meta .cat b { font-weight: 400; overflow: hidden; text-overflow: ellipsis; }
   .meta .cat .dot { width: 7px; height: 7px; }
   /* Right column: due time, and under it the time left in a fainter tone (can be hidden). */
@@ -187,11 +190,11 @@
   .empty { margin: 56px auto 0; text-align: center; color: var(--secondary); max-width: 340px; font-size: 13px; }
   .empty b { display: block; color: var(--text); font-size: 15px; margin-bottom: 6px; }
   .empty .btn { display: inline-flex; margin-top: 14px; height: 32px; align-items: center; padding: 0 14px; border-radius: 8px; background: var(--raise); color: var(--text); }
-  .search-res mark { background: #2b4170; color: var(--text); border-radius: 3px; padding: 0 2px; font-weight: inherit; }
+  .search-res mark { background: #36569a; color: #fff; border-radius: 3px; padding: 0 2px; font-weight: 600; }
   .search-sum { margin: 12px 14px 0; font-size: 12px; color: var(--muted); }
 
   /* Calendar (main view) */
-  .cal { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 16px var(--main-x) 24px; }
+  .cal { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 16px var(--main-x) 0; }
   .cal .grid { flex: 1; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-template-rows: 28px repeat(5, minmax(0, 1fr)); gap: 1px; background: var(--line); border-radius: 10px; overflow: hidden; }
   .cal .grid > div { background: var(--canvas); padding: 6px; font-size: 12px; color: var(--secondary); min-width: 0; overflow: hidden; cursor: pointer; }
   .cal .grid .wd { background: var(--panel); text-align: center; color: var(--muted); padding: 0; line-height: 28px; cursor: default; }
@@ -199,23 +202,29 @@
   .cal .grid .picked { background: #141a26; }
   .cal .d { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 5px; margin: 0 0 4px 0; border-radius: 6px; font-variant-numeric: tabular-nums; }
   .cal .today .d { background: var(--accent); color: #fff; font-weight: 700; }
-  .ev { display: flex; align-items: flex-start; gap: 6px; min-height: 22px; margin-top: 2px; padding: 3px 6px; line-height: 16px; border-radius: 5px; background: var(--surface); color: var(--text); font-size: 11.5px; white-space: nowrap; overflow: hidden; }
-  .ev b { font-weight: 400; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; }
-  .ev .dot { margin-top: 5px; }
+  .ev { display: flex; align-items: center; gap: 6px; height: 22px; margin-top: 2px; padding: 0 6px; line-height: 16px; border-radius: 5px; background: var(--surface); color: var(--text); font-size: 11.5px; white-space: nowrap; overflow: hidden; }
+  .ev b { font-weight: 400; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; position: relative; top: 1px; }
+  .ev.more { background: none; color: var(--muted); padding-left: 6px; }
+  /* Weekends: Sunday red, Saturday blue, in the header, the day numbers and the mini calendar. */
+  .cal .grid .sun .d, .cal .grid .wd.sun, .mini .mg .c.sun, .mini .mg .w.sun { color: #f0838b; }
+  .cal .grid .sat .d, .cal .grid .wd.sat, .mini .mg .c.sat, .mini .mg .w.sat { color: #7aa5ff; }
+  .cal .grid .out.sun .d { color: #7a4a50; } .cal .grid .out.sat .d { color: #44587f; }
+  .mini .mg .c.out.sun, .mini .mg .c.sun.out { color: #7a4a50; } .mini .mg .c.out.sat { color: #44587f; }
+  .cal .today .d { color: #fff !important; }
   .ev .dot { width: 6px; height: 6px; }
   .ev.over { color: var(--danger); }
   .ev.done { color: var(--muted); text-decoration: line-through; }
-  .more { font-size: 11px; color: var(--muted); margin: 2px 0 0 6px; }
+
 
   /* Timeline: day columns 240px or wider, 12px apart, inside the same 32px gutter. */
-  .tl { flex: 1; min-height: 0; display: flex; gap: 12px; padding: 16px var(--main-x) 24px; overflow: hidden; }
+  .tl { flex: 1; min-height: 0; display: flex; gap: 12px; padding: 16px var(--main-x) 0; overflow: hidden; }
   .tl-col { flex: 1; min-width: 0; display: flex; flex-direction: column; }
   .tl-head { display: flex; align-items: center; gap: 6px; height: 36px; padding: 0; color: var(--secondary); font-size: 12.5px; border-bottom: 1px solid var(--line); }
   .tl-head b { font-size: 18px; color: var(--text); font-variant-numeric: tabular-nums; }
   .tl-head em { font-style: normal; font-size: 11.5px; font-weight: 600; color: #fff; background: var(--accent); padding: 0 6px; border-radius: 5px; align-self: center; }
   .tl-head .cnt { margin-left: auto; min-width: 22px; height: 20px; padding: 0 7px; display: grid; place-items: center; border-radius: 10px; background: var(--raise); color: var(--secondary); font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
   .tl-col.today .tl-head { border-bottom-color: var(--accent); }
-  .tl-body { flex: 1; min-height: 0; overflow: hidden; padding-top: 4px; }
+  .tl-body { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #2b303b transparent; padding-top: 4px; }
   .tl-hour { margin: 12px 0 6px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
   .tl-task { display: flex; align-items: center; gap: var(--ck-gap); padding: 12px; cursor: pointer; position: relative; }
   .tl-task + .tl-task { border-top: 1px solid var(--line); }
@@ -256,7 +265,7 @@
   .subt { display: flex; align-items: center; gap: var(--ck-gap); min-height: 36px; padding: 0 var(--in); font-size: 13px; }
   .subt + .subt { border-top: 1px solid var(--line); }
   .subt .ck { width: var(--ck); height: var(--ck); }
-  .subt.done span { color: var(--muted); text-decoration: line-through; }
+  .subt.done .nm { color: var(--muted); text-decoration: line-through; }
   .subt.add { color: var(--muted); }
   .subt.add i { width: var(--ck); display: grid; place-items: center; font-style: normal; }
   .memo { padding: 12px var(--in); font-size: 13px; color: var(--secondary); line-height: 1.6; min-height: 64px; }
@@ -292,6 +301,8 @@
   .menu-pop .mi:hover { background: var(--raise); color: var(--text); }
   .menu-pop .mi.on { color: var(--text); }
   .menu-pop .mi .ok { margin-left: auto; color: var(--accent); }
+  .menu-pop .mi .mic { width: 16px; height: 16px; display: grid; place-items: center; flex: none; color: var(--muted); }
+  .menu-pop .mi.danger .mic { color: var(--danger); }
   .menu-pop .mi .kb { margin-left: auto; color: var(--faint); font-size: 11.5px; }
   .menu-pop .mi.danger { color: var(--danger); }
   .menu-pop .hd { padding: 8px 10px 2px; font-size: 11.5px; color: var(--muted); }
@@ -360,6 +371,9 @@ const TASKS = [
   { id: 't4', t: '디자인 리뷰 피드백 반영', cat: 'work', due: at(1, 11), imp: true, subs: [['버튼 간격', 0], ['다크 모드 대비', 0]] },
   { id: 't5', t: '알고리즘 문제 2개 풀기', cat: 'study', due: at(1, 22) },
   { id: 't6', t: '영어 회화 스터디 준비', cat: 'study', due: at(2, 19), memo: '질문 5개 준비' },
+  { id: 't11', t: '팀 점심 예약하기', cat: 'work', due: at(2, 11, 30) },
+  { id: 't12', t: '세탁소에 맡긴 코트 찾기', cat: 'life', due: at(2, 18) },
+  { id: 't13', t: '월말 정산 자료 준비', cat: 'work', due: at(2, 20) },
   { id: 't7', t: '치과 예약', cat: 'life', due: at(3, 10), imp: true },
   { id: 't8', t: '토익 단어 50개', cat: 'exam', due: at(5, 23), repeat: '매일' },
   { id: 't9', t: '여행 숙소 알아보기', cat: null, due: at(17, 20) },
@@ -398,7 +412,7 @@ const GROUPS = [
   { id: 'none', name: '기한 없음', test: t => !t.due },
 ];
 
-const s = { w: 1440, view: 'list', panel: 'auto', rail: 'auto', group: 'date', density: 'normal', left: true, state: 'selected',
+const s = { w: 1440, view: 'list', panel: 'auto', rail: 'auto', group: 'date', density: 'normal', noneTop: false, left: true, state: 'selected',
   nav: 'all', selected: 't2', picked: 0, tab: null, closed: { done: true }, viewMenu: false, drawer: false, sideOpen: false, guides: false, mark: false, fit: false,
   done: Object.fromEntries(TASKS.map(t => [t.id, !!t.done])), imp: Object.fromEntries(TASKS.map(t => [t.id, !!t.imp])) };
 const SIZES = { 1440: 960, 1180: 800, 960: 720, 760: 640 };
@@ -422,9 +436,9 @@ function layout() {
 // ---------- Sidebar ----------
 function sidebar(L, inDrawer) {
   const rail = L.rail && !inDrawer;
-  const row = n => `<div class="row-s ${s.nav === n.id && s.state !== 'search' ? 'on' : ''}" data-nav="${n.id}" title="${n.name}"><span class="ic">${n.icon}</span><span class="lbl">${n.name}</span>` +
-    (n.id === 'today' && TASKS.some(overdue) ? `<span class="n due">${navCount(n.id)}</span><i class="badge"></i>` : `<span class="n">${navCount(n.id) || ''}</span>`) + `</div>`;
-  const cats = CATS.map(c => `<div class="row-s ${s.nav === c.id && s.state !== 'search' ? 'on' : ''}" data-nav="${c.id}" title="${c.name}"><span class="ic">${c.secret ? I.key : `<span class="dot" style="background:${c.color}"></span>`}</span><span class="lbl">${c.name}</span><span class="n">${c.secret ? '' : navCount(c.id) || ''}</span></div>`).join('');
+  const row = n => `<div class="row-s ${s.nav === n.id && s.state !== 'search' ? 'on' : ''}" data-nav="${n.id}" title="${n.name}"><span class="ic">${n.icon}</span><span class="lbl nt">${n.name}</span>` +
+    (n.id === 'today' && TASKS.some(overdue) ? `<span class="n due nt">${navCount(n.id)}</span><i class="badge"></i>` : `<span class="n nt">${navCount(n.id) || ''}</span>`) + `</div>`;
+  const cats = CATS.map(c => `<div class="row-s ${s.nav === c.id && s.state !== 'search' ? 'on' : ''}" data-nav="${c.id}" title="${c.name}"><span class="ic">${c.secret ? I.key : `<span class="dot" style="background:${c.color}"></span>`}</span><span class="lbl nt">${c.name}</span><span class="n nt">${c.secret ? '' : navCount(c.id) || ''}</span></div>`).join('');
   return `<aside class="side ${rail ? 'rail' : ''} chg">
     <div class="clock"><span class="cd">2026년 10월 21일 수요일</span><b>오후 2:30<small>:19</small></b><span class="cr">오후<br>2:30</span></div>
     ${NAV.map(row).join('')}
@@ -436,9 +450,9 @@ function sidebar(L, inDrawer) {
 // ---------- List ----------
 function taskRow(t, opts = {}) {
   const c = cat(t.cat), done = s.done[t.id], r = t.due ? remain(t.due) : null;
-  const meta = [c ? `<span class="cat"><span class="dot" style="background:${c.color}"></span><b>${c.name}</b></span>` : '',
-    t.repeat ? `<span>${I.repeat}${t.repeat}</span>` : '',
-    t.subs ? `<span>${I.sub}${t.subs.filter(x => x[1]).length}/${t.subs.length}</span>` : '',
+  const meta = [c ? `<span class="cat"><span class="dot" style="background:${c.color}"></span><b class="nt">${c.name}</b></span>` : '',
+    t.repeat ? `<span>${I.repeat}<i class="nt">${t.repeat}</i></span>` : '',
+    t.subs ? `<span>${I.sub}<i class="nt">${t.subs.filter(x => x[1]).length}/${t.subs.length}</i></span>` : '',
     t.memo ? `<span title="메모 있음">${I.memo}</span>` : ''].filter(Boolean);
   const hov = s.state === 'hover' && t.id === 't4';
   const sel = s.selected === t.id && ['selected', 'hover', 'context'].includes(s.state);
@@ -448,12 +462,12 @@ function taskRow(t, opts = {}) {
     <div class="tx"><div class="t"><i class="ic-cat" style="background:${c ? c.color : 'transparent'}"></i>${title}</div>${meta.length ? `<div class="meta">${meta.join('')}</div>` : ''}</div>
     <div class="hacts"><span>${I.cal} 날짜</span><span>${I.more}</span></div>
     <div class="rcol">${t.due ? `<span class="when ${overdue(t) ? 'over' : ''}">${whenShort(t.due)}</span>${s.left && !done ? `<span class="left ${r.over ? 'over' : ''}">${r.text}</span>` : ''}` : ''}</div>
-    <span class="st ${s.imp[t.id] ? 'on' : ''}" data-star="${t.id}" title="${s.imp[t.id] ? '중요 해제' : '중요로 표시'}">${I.star(s.imp[t.id])}</span>
+    <span class="st ${s.imp[t.id] ? 'on' : ''}" data-star="${t.id}" title="${s.imp[t.id] ? '중요 해제' : '중요로 표시'}">${I.star(s.imp[t.id], 19)}</span>
   </div>`;
 }
 function sec(id, name, rows, cls = '', opts) {
   const closed = s.closed[id];
-  return `<div class="sec ${cls}" data-sec="${id}">${name}<span class="c">${rows.length}</span><span class="tog" title="${closed ? '펼치기' : '접기'}">${I.chev(!closed)}</span></div>` + (closed ? '' : `<div class="gbox">${rows.map(t => taskRow(t, opts)).join('')}</div>`);
+  return `<div class="sec ${cls}" data-sec="${id}"><span class="nt">${name}</span><span class="c">${rows.length}</span><span class="tog" title="${closed ? '펼치기' : '접기'}">${I.chev(!closed)}</span></div>` + (closed ? '' : `<div class="gbox">${rows.map(t => taskRow(t, opts)).join('')}</div>`);
 }
 function listBody() {
   if (s.state === 'search') {
@@ -466,17 +480,26 @@ function listBody() {
   if (!todo.length) return `<div class="empty"><b>${s.nav === 'today' ? '오늘 할 일을 모두 끝냈어요' : '할 일이 없어요'}</b>아래 입력칸에서 바로 추가할 수 있어요.${done.length ? `<br><span class="btn" data-sec="done">완료한 할 일 ${done.length}개 보기</span>` : ''}</div>`;
   let html = '';
   if (s.group === 'date') {
-    for (const g of GROUPS) { const rows = todo.filter(g.test).sort((a, b) => a.due - b.due); if (rows.length) html += sec(g.id, g.name, rows, g.id === 'over' ? 'over' : ''); }
+    for (const g of s.noneTop ? [GROUPS[5], ...GROUPS.slice(0, 5)] : GROUPS) { const rows = todo.filter(g.test).sort((a, b) => a.due - b.due); if (rows.length) html += sec(g.id, g.name, rows, g.id === 'over' ? 'over' : ''); }
   } else html += sec('todo', '해야 할 일', todo.sort((a, b) => (a.due || 9e15) - (b.due || 9e15)));
   if (done.length) html += sec('done', '완료됨', done);
   return html;
 }
 // Shared header ends so the view switch never moves between views.
 const headLeft = L => L.hideSide ? `<span class="ghost sq menu-b" data-sideopen="1" title="메뉴">${I.menu}</span>` : '';
-const headNav = () => `<span class="ghost sq" title="이전" style="margin-left:8px">${I.prev}</span><span class="ghost">오늘</span><span class="ghost sq" title="다음">${I.next}</span>`;
+const headNav = () => `<span class="ghost sq" title="이전" style="margin-left:8px">${I.prev}</span><span class="ghost"><span class="nt">오늘</span></span><span class="ghost sq" title="다음">${I.next}</span>`;
 const headRight = L => `<span class="push"></span>${viewSeg()}<span class="ghost sq ${s.viewMenu ? 'on' : ''}" data-viewmenu="1" title="보기 옵션">${I.sliders}</span>` +
   (L.overlayPanel && s.panel !== 'off' ? `<span class="ghost sq" data-drawer="1" title="패널 열기">${I.panel}</span>` : '');
 const viewSeg = () => `<div class="seg">${[['list', '목록', I.vList], ['calendar', '캘린더', I.vCal], ['timeline', '타임라인', I.vTime]].map(([k, l, ic]) => `<span class="${s.view === k ? 'on' : ''}" data-view="${k}" title="${l}">${ic}</span>`).join('')}</div>`;
+// Quick add, fixed at the bottom of every view. Chips start from what is on screen.
+function quickAdd() {
+  const pd = new Date(NOW); pd.setDate(pd.getDate() + s.picked);
+  const dayChip = s.view === 'list' ? (s.nav === 'today' ? `<span class="chip on">${I.sun}<span class="nt">오늘</span></span>` : `<span class="chip">${I.cal}<span class="nt">날짜</span></span>`)
+    : `<span class="chip on">${I.cal}<span class="nt">${pd.getMonth() + 1}월 ${pd.getDate()}일</span></span>`;
+  const c = s.view === 'list' ? cat(s.nav) : null;
+  return `<div class="quick chg"><div class="in"><span class="plus">${I.plus}</span><span class="nt">할 일 추가 · 예: 내일 오후 3시 회의</span><kbd>Ctrl N</kbd></div>
+    <div class="chips">${dayChip}<span class="chip">${I.repeat}<span class="nt">반복</span></span>${c && !c.secret ? `<span class="chip on"><span class="dot" style="background:${c.color}"></span><span class="nt">${c.name}</span></span>` : `<span class="chip"><span class="dot" style="background:var(--muted)"></span><span class="nt">카테고리</span></span>`}<span class="chip ${s.view === 'list' && s.nav === 'imp' ? 'on' : ''}">${I.star(s.view === 'list' && s.nav === 'imp', 13)}<span class="nt">중요</span></span></div></div>`;
+}
 function listPane(L) {
   const nav = NAV.find(n => n.id === s.nav) || cat(s.nav);
   const items = navList(s.nav), over = items.filter(overdue).length, left = items.filter(open).length;
@@ -488,8 +511,7 @@ function listPane(L) {
       <p class="finding">${finding}</p></div>
     <div style="height:12px"></div>
     <div class="scroll ${s.density === 'compact' ? 'compact' : ''}">${listBody()}</div>
-    ${quick ? `<div class="quick"><div class="in"><span class="plus">${I.plus}</span>할 일 추가 · 예: 내일 오후 3시 회의<kbd>Ctrl N</kbd></div>
-      <div class="chips">${s.nav === 'today' ? `<span class="chip on">${I.sun} 오늘</span>` : `<span class="chip">${I.cal} 날짜</span>`}<span class="chip">${I.repeat} 반복</span>${cat(s.nav) ? `<span class="chip on"><span class="dot" style="background:${cat(s.nav).color}"></span>${cat(s.nav).name}</span>` : `<span class="chip"><span class="dot" style="background:var(--muted)"></span>카테고리</span>`}<span class="chip ${s.nav === 'imp' ? 'on' : ''}">${I.star(s.nav === 'imp', 13)} 중요</span></div></div>` : ''}
+    ${quick ? quickAdd() : ''}
     ${s.viewMenu ? viewMenu() : ''}${s.state === 'context' ? contextMenu() : ''}
   </section>`;
 }
@@ -497,33 +519,37 @@ function viewMenu() {
   const mi = (on, label, attr = '') => `<div class="mi ${on ? 'on' : ''}" ${attr}>${label}${on ? '<span class="ok">✓</span>' : ''}</div>`;
   return `<div class="menu-pop" style="top:56px;right:${s.w < 1000 ? 110 : 32}px">
     <div class="hd">묶기</div>${mi(s.group === 'date', '날짜별', 'data-set="group:date"')}${mi(s.group === 'none', '묶지 않기 (기한 순)', 'data-set="group:none"')}
+    <div class="hd">기한 없음 묶음</div>${mi(!s.noneTop, '맨 아래', 'data-set="noneTop:false"')}${mi(s.noneTop, '맨 위', 'data-set="noneTop:true"')}
     <div class="hd">정렬 (묶음 안에서)</div>${mi(true, '기한 순')}${mi(false, '생성일 순')}
     <div class="hd">줄</div>${mi(s.density === 'normal', '보통 (두 줄)', 'data-set="density:normal"')}${mi(s.density === 'compact', '촘촘 (한 줄)', 'data-set="density:compact"')}${mi(s.left, '남은 시간 보이기', `data-set="left:${!s.left}"`)}
     <div class="sp"></div>${mi(false, '완료한 할 일 숨기기')}
   </div>`;
 }
 function contextMenu() {
-  return `<div class="menu-pop" style="top:360px;left:300px">
-    <div class="mi">열기<span class="kb">Enter</span></div><div class="sp"></div>
-    <div class="hd">기한</div><div class="mi">${I.sun} 오늘</div><div class="mi">${I.week} 내일</div><div class="mi">${I.cal} 날짜 고르기…</div><div class="mi">기한 없애기</div><div class="sp"></div>
-    <div class="mi">${I.star(true, 14)} 중요 해제</div><div class="mi">카테고리…</div><div class="mi">복제</div><div class="sp"></div>
-    <div class="mi danger">삭제<span class="kb">Del</span></div></div>`;
+  // Every item has a 16px icon column so the labels share one edge.
+  const ic = d => '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + d + '</svg>';
+  const mi = (icon, label, kb = '', cls = '') => '<div class="mi ' + cls + '"><span class="mic">' + icon + '</span><span class="nt">' + label + '</span>' + (kb ? '<span class="kb">' + kb + '</span>' : '') + '</div>';
+  return '<div class="menu-pop" style="top:300px;left:380px">' +
+    mi(ic('<path d="M5 12h14M13 6l6 6-6 6"/>'), '열기', 'Enter') + '<div class="sp"></div>' +
+    '<div class="hd">기한</div>' + mi(I.sun, '오늘') + mi(I.week, '내일') + mi(I.cal, '날짜 고르기…') + mi(ic('<path d="M6 6l12 12M18 6L6 18"/>'), '기한 없애기') + '<div class="sp"></div>' +
+    mi(I.star(true, 15), '중요 해제') + mi(ic('<path d="M20 12l-8 8-9-9V3h8z"/><circle cx="7.5" cy="7.5" r="1.2"/>'), '카테고리…') + mi(ic('<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>'), '복제') + '<div class="sp"></div>' +
+    mi(ic('<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>'), '삭제', 'Del', 'danger') + '</div>';
 }
 function calendarPane(L) {
   const first = new Date(2026, 9, 1), start = new Date(first); start.setDate(1 - first.getDay());
-  let cells = WD.split('').map(w => `<div class="wd">${w}</div>`).join('');
+  let cells = WD.split('').map((w, i) => `<div class="wd ${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}">${w}</div>`).join('');
   for (let i = 0; i < 35; i++) {
     const d = new Date(start); d.setDate(start.getDate() + i);
     const n = Math.round((d - new Date(2026, 9, 21)) / D);
     const evs = TASKS.filter(t => t.due && dayDiff(t.due) === n).sort((a, b) => s.done[a.id] - s.done[b.id] || a.due - b.due);
-    cells += `<div class="${d.getMonth() !== 9 ? 'out' : ''} ${n === 0 ? 'today' : ''} ${n === s.picked ? 'picked' : ''}" data-pick="${n}"><span class="d">${d.getDate()}</span>` +
+    cells += `<div class="${d.getMonth() !== 9 ? 'out' : ''} ${n === 0 ? 'today' : ''} ${n === s.picked ? 'picked' : ''} ${d.getDay() === 0 ? 'sun' : d.getDay() === 6 ? 'sat' : ''}" data-pick="${n}"><span class="d">${d.getDate()}</span>` +
       evs.slice(0, 3).map(t => { const c = cat(t.cat); return `<div class="ev ${overdue(t) ? 'over' : ''} ${s.done[t.id] ? 'done' : ''}">${c ? `<span class="dot" style="background:${c.color}"></span>` : ''}<b>${t.t}</b></div>`; }).join('') +
-      (evs.length > 3 ? `<div class="more">+${evs.length - 3}개 더</div>` : '') + `</div>`;
+      (evs.length > 3 ? `<div class="ev more"><b>…외 ${evs.length - 3}개</b></div>` : '') + `</div>`;
   }
   return `<section class="pane main chg">
     <div class="head ${L.hideSide ? 'has-menu' : ''}"><div class="row1">${headLeft(L)}<h1>2026년 10월</h1>${headNav()}${headRight(L)}</div>
       <p class="finding">이번 달 남은 할 일 ${TASKS.filter(t => t.due && open(t) && new Date(t.due).getMonth() === 9).length}개 · 날짜를 누르면 ${L.overlayPanel ? '그날 할 일이 열려요' : '오른쪽에 그날 할 일이 보여요'}</p></div>
-    <div class="cal"><div class="grid">${cells}</div></div>${s.viewMenu ? viewMenu() : ''}</section>`;
+    <div class="cal"><div class="grid">${cells}</div></div>${quickAdd()}${s.viewMenu ? viewMenu() : ''}</section>`;
 }
 function timelinePane(L) {
   // Day columns from the focused day; as many as fit the pane (at least 240px each).
@@ -541,7 +567,7 @@ function timelinePane(L) {
       if (!nowDrawn && h > NOW.getHours()) { body += `<div class="tl-now"><span>지금 ${clock(NOW)}</span></div>`; nowDrawn = true; }
       body += `<div class="tl-hour">${clock(new Date(2026, 0, 1, h))}</div><div class="gbox">${items.filter(t => new Date(t.due).getHours() === h).map(t => {
         const c = cat(t.cat), done = s.done[t.id], sel = s.selected === t.id && ['selected', 'context'].includes(s.state);
-        return `<div class="tl-task ${done ? 'done' : ''} ${sel ? 'sel' : ''}" data-task="${t.id}"><span class="ck ${done ? 'done' : ''}" data-check="${t.id}">${done ? I.check : ''}</span><div class="tx"><div class="t">${t.t}</div><div class="meta">${c ? `<span class="cat"><span class="dot" style="background:${c.color}"></span><b>${c.name}</b></span>` : ''}${new Date(t.due).getMinutes() ? `<span class="${overdue(t) ? 'over' : ''}">${clockFull(new Date(t.due))}</span>` : ''}</div></div>${s.imp[t.id] ? `<span class="st on">${I.star(true, 14)}</span>` : ''}</div>`;
+        return `<div class="tl-task ${done ? 'done' : ''} ${sel ? 'sel' : ''}" data-task="${t.id}"><span class="ck ${done ? 'done' : ''}" data-check="${t.id}">${done ? I.check : ''}</span><div class="tx"><div class="t">${t.t}</div><div class="meta">${c ? `<span class="cat"><span class="dot" style="background:${c.color}"></span><b>${c.name}</b></span>` : ''}${new Date(t.due).getMinutes() ? `<span class="${overdue(t) ? 'over' : ''}">${clockFull(new Date(t.due))}</span>` : ''}</div></div>${s.imp[t.id] ? `<span class="st on">${I.star(true, 17)}</span>` : ''}</div>`;
       }).join('')}</div>`;
     }
     if (!nowDrawn) body += `<div class="tl-now"><span>지금 ${clock(NOW)}</span></div>`;
@@ -552,22 +578,22 @@ function timelinePane(L) {
   return `<section class="pane main chg">
     <div class="head ${L.hideSide ? 'has-menu' : ''}"><div class="row1">${headLeft(L)}<h1>10월 ${NOW.getDate()}일 – ${last.getMonth() === NOW.getMonth() ? '' : (last.getMonth() + 1) + '월 '}${last.getDate()}일</h1>${headNav()}${headRight(L)}</div>
       <p class="finding">${cols}일 · 남은 할 일 ${TASKS.filter(t => t.due && open(t) && dayDiff(t.due) >= 0 && dayDiff(t.due) < cols).length}개${over ? ` · <b>기한 지난 할 일 ${over}개</b>는 목록에서 볼 수 있어요` : ''}</p></div>
-    <div class="tl">${days.map(col).join('')}</div>${s.viewMenu ? viewMenu() : ''}</section>`;
+    <div class="tl">${days.map(col).join('')}</div>${quickAdd()}${s.viewMenu ? viewMenu() : ''}</section>`;
 }
 
 // ---------- Right panel ----------
 function detailBody(t) {
   const c = cat(t.cat), r = t.due ? remain(t.due) : null, subsDone = t.subs ? t.subs.filter(x => x[1]).length : 0, dd = t.due ? new Date(t.due) : null;
-  return `<div class="dt-title"><span class="ck ${s.done[t.id] ? 'done' : ''}" data-check="${t.id}">${s.done[t.id] ? I.check : ''}</span><h2>${t.t}</h2><span class="st ${s.imp[t.id] ? 'on' : ''}" data-star="${t.id}">${I.star(s.imp[t.id])}</span></div>
+  return `<div class="dt-title"><span class="ck ${s.done[t.id] ? 'done' : ''}" data-check="${t.id}">${s.done[t.id] ? I.check : ''}</span><h2>${t.t}</h2><span class="st ${s.imp[t.id] ? 'on' : ''}" data-star="${t.id}">${I.star(s.imp[t.id], 20)}</span></div>
     <div class="box">
       <div class="prop"><span class="k">기한</span><span class="v" style="${overdue(t) ? 'color:var(--danger)' : ''}">${dd ? `${dd.getFullYear()}.${pad(dd.getMonth() + 1)}.${pad(dd.getDate())} ${clockFull(dd)}` : '<span class="sub">없음</span>'}</span></div>
       <div class="prop"><span class="k">반복</span><span class="v">${t.repeat || '<span class="sub">안 함</span>'}</span></div>
-      <div class="prop"><span class="k">카테고리</span><span class="v">${c ? `<span class="chip"><span class="dot" style="background:${c.color}"></span>${c.name}</span>` : ''}<span class="chip">＋</span></span></div>
+      <div class="prop"><span class="k">카테고리</span><span class="v">${c ? `<span class="chip"><span class="dot" style="background:${c.color}"></span><span class="nt">${c.name}</span></span>` : ''}<span class="chip">＋</span></span></div>
     </div>
     <div class="block-h">하위 할 일<span>${t.subs ? `${subsDone}/${t.subs.length}` : ''}</span></div>
     <div class="box">${t.subs ? `<div class="bar"><i style="width:${subsDone / t.subs.length * 100}%"></i></div>` : ''}
-      ${(t.subs || []).map(([n, d]) => `<div class="subt ${d ? 'done' : ''}"><span class="ck ${d ? 'done' : ''}">${d ? I.check : ''}</span><span>${n}</span></div>`).join('')}
-      <div class="subt add"><i>${I.plusS}</i>하위 할 일 추가</div></div>
+      ${(t.subs || []).map(([n, d]) => `<div class="subt ${d ? 'done' : ''}"><span class="ck ${d ? 'done' : ''}">${d ? I.check : ''}</span><span class="nm nt">${n}</span></div>`).join('')}
+      <div class="subt add"><i>${I.plusS}</i><span class="nt">하위 할 일 추가</span></div></div>
     <div class="block-h">메모</div><div class="box memo">${t.memo || '<span style="color:var(--faint)">메모를 적어 두세요</span>'}</div>
     <div class="stamp">만든 날 10월 14일 · 마지막 수정 오늘 오전 10:12</div>`;
 }
@@ -579,12 +605,12 @@ function dayList(rowsAsAgenda) {
 }
 function calendarBody() {
   const first = new Date(2026, 9, 1), start = new Date(first); start.setDate(1 - first.getDay());
-  let g = WD.split('').map(w => `<span class="w">${w}</span>`).join('');
+  let g = WD.split('').map((w, i) => `<span class="w ${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}">${w}</span>`).join('');
   for (let i = 0; i < 35; i++) {
     const d = new Date(start); d.setDate(start.getDate() + i);
     const n = Math.round((d - new Date(2026, 9, 21)) / D);
     const evs = TASKS.filter(t => t.due && dayDiff(t.due) === n && open(t));
-    g += `<span class="c ${d.getMonth() !== 9 ? 'out' : ''} ${n === 0 ? 'today' : ''} ${n === s.picked ? 'picked' : ''}" data-pick="${n}"><b>${d.getDate()}</b>${evs.length ? `<i class="${evs.some(overdue) ? 'over' : ''}"></i>` : ''}</span>`;
+    g += `<span class="c ${d.getMonth() !== 9 ? 'out' : ''} ${n === 0 ? 'today' : ''} ${n === s.picked ? 'picked' : ''} ${d.getDay() === 0 ? 'sun' : d.getDay() === 6 ? 'sat' : ''}" data-pick="${n}"><b>${d.getDate()}</b>${evs.length ? `<i class="${evs.some(overdue) ? 'over' : ''}"></i>` : ''}</span>`;
   }
   return `<div class="box mini"><div class="mh">2026년 10월<span><i>${I.prev}</i><i>${I.next}</i></span></div><div class="mg">${g}</div></div>` + dayList();
 }
@@ -599,7 +625,7 @@ function panel(L, cls = '') {
   const tabs = s.view === 'calendar' ? [['day', '선택한 날']] : [['detail', '할 일 상세'], ['calendar', '캘린더']];
   const body = tab === 'day' ? dayList() : tab === 'detail' && t ? detailBody(t) : calendarBody();
   return `<aside class="pane aside ${cls} chg" style="width:${L.panelW}px">
-    <div class="ptabs">${tabs.map(([k, l]) => { const off = k === 'detail' && !(s.selected && ['selected', 'context'].includes(s.state)); return `<span class="tab ${tab === k ? 'on' : ''} ${off ? 'off' : ''}" ${off ? 'title="할 일을 고르면 열려요"' : `data-tab="${k}"`}>${l}</span>`; }).join('')}<span class="x" data-closepanel="1" title="패널 닫기">✕</span></div>
+    <div class="ptabs">${tabs.map(([k, l]) => { const off = k === 'detail' && !(s.selected && ['selected', 'context'].includes(s.state)); return `<span class="tab ${tab === k ? 'on' : ''} ${off ? 'off' : ''}" ${off ? 'title="할 일을 고르면 열려요"' : `data-tab="${k}"`}><span class="nt">${l}</span></span>`; }).join('')}<span class="x" data-closepanel="1" title="패널 닫기">✕</span></div>
     <div class="pbody">${body}</div></aside>`;
 }
 
@@ -629,14 +655,9 @@ function win() {
 function notes() {
   const mode = s.w >= 1280 ? '넓은 창: 메뉴 + 목록 + 패널' : s.w >= 1000 ? '중간 창: 메뉴는 아이콘만, 패널 320px' : s.w >= 800 ? '좁은 창: 패널은 위에 겹쳐 열림' : '아주 좁은 창: 메뉴는 ☰ 버튼으로';
   return '<div class="notes"><div class="now">' + s.w + '×' + SIZES[s.w] + ' · ' + mode + '</div><h3 class="q">정할 것</h3><ul class="q">' + [
-    '<b>캘린더 · 타임라인에서 할 일 추가</b>(왼쪽 추가 버튼은 뺌): Ctrl N이면 목록으로 바꾸고 아래 입력칸으로 vs 그 화면 아래에도 같은 입력칸(보고 있는 날을 미리 고름).',
-    '<b>우클릭 메뉴 항목</b>: 열기 · 기한(오늘/내일/날짜 고르기/없애기) · 중요 · 카테고리 · 복제 · 삭제. 더하거나 뺄 것.',
-    '<b>완료한 할 일</b>: 목록 맨 아래 "완료됨"에 접어 둠. "오늘" 보기에선 오늘 끝낸 것만.',
-    '<b>빠른 추가 칩</b>: 보고 있는 목록에 맞춰 미리 골라짐(오늘 → 오늘, 카테고리 → 그 카테고리, 중요 → 중요). "내일 오후 3시" 같은 글을 날짜로 알아듣게 할지(구현 범위가 큼).',
-    '<b>묶음 이름</b>: 기한 지남 · 오늘 · 내일 · 이번 주(2~6일 뒤) · 나중에 · 기한 없음.',
-    '<b>검색</b>: 위쪽 막대에서 입력하면 가운데가 결과로 바뀜(제목에서 / 메모에서). Esc로 돌아감.',
-    '<b>캘린더 칸</b>: 칸마다 3개까지, 나머지는 "+N개 더". 끝낸 건 줄 긋고 아래로.',
-    '<b>오른쪽 시간 칸과 "시간 표시" 설정</b>: 시각은 기한 형식을 따르기로 함. 남은 시간 줄과 함께 설정 화면을 어떻게 합칠지는 따로 시안.',
+    '<b>우클릭 메뉴</b>(툴바 상태 "우클릭 메뉴"): 할 일 줄을 마우스 오른쪽 버튼으로 누르면 뜨는 메뉴. 지금 항목은 열기 · 기한(오늘 / 내일 / 날짜 고르기 / 기한 없애기) · 중요 · 카테고리 · 복제 · 삭제. 이 항목들로 될지.',
+    '<b>완료한 할 일</b>: 목록 맨 아래 "완료됨" 묶음에 접어 둠(눌러서 펼침). "오늘" 보기에선 오늘 끝낸 것만. 접어 둘지 펼쳐 둘지.',
+    '<b>오른쪽 시간 칸과 "시간 표시" 설정</b>: 다른 것 다 정한 뒤 따로 시안.',
   ].map(x => '<li>' + x + '</li>').join('') + '</ul></div>';
 }
 function toolbar() {
@@ -648,7 +669,7 @@ function toolbar() {
       <strong>왼쪽 메뉴</strong>${b('rail', 'auto', '창 크기에 맞춤')}${b('rail', 'full', '펼침')}${b('rail', 'rail', '아이콘만')}<span class="sep"></span>
       <strong>남은 시간</strong>${b('left', true, '보임')}${b('left', false, '숨김')}</div>
     <div class="line"><strong>묶기</strong>${b('group', 'date', '날짜별')}${b('group', 'none', '묶지 않기')}<span class="sep"></span>
-      <strong>줄</strong>${b('density', 'normal', '보통')}${b('density', 'compact', '촘촘')}<span class="sep"></span>
+      <strong>기한 없음</strong>${b('noneTop', false, '맨 아래')}${b('noneTop', true, '맨 위')}<span class="sep"></span><strong>줄</strong>${b('density', 'normal', '보통')}${b('density', 'compact', '촘촘')}<span class="sep"></span>
       <strong>표시</strong>${b('guides', true, '정렬선')}${b('guides', false, '끔')}<span class="sep"></span>${b('mark', true, '바뀌는 부분')}${b('mark', false, '끔')}<span class="sep"></span>${b('fit', false, '실제 크기')}${b('fit', true, '맞춤(70%)')}</div>`;
 }
 function render() {
@@ -661,7 +682,7 @@ document.addEventListener('click', e => {
   const el = e.target.closest('[data-set],[data-nav],[data-task],[data-check],[data-star],[data-sec],[data-view],[data-tab],[data-pick],[data-closepanel],[data-viewmenu],[data-drawer],[data-sideopen]');
   if (!el) { if (s.viewMenu) { s.viewMenu = false; render(); } return; }
   const d = el.dataset;
-  if (!d.viewmenu && !(d.set && /^(group|density|left):/.test(d.set))) s.viewMenu = false;
+  if (!d.viewmenu && !(d.set && /^(group|density|left|noneTop):/.test(d.set))) s.viewMenu = false;
   if (d.set) { const [k, v] = d.set.split(':'); s[k] = v === 'true' ? true : v === 'false' ? false : /^\d+$/.test(v) ? +v : v; if (k === 'state') { s.tab = null; if (s.nav === 'diary') s.nav = 'all'; } if (k === 'panel') s.tab = null; if (k === 'w') { s.drawer = false; s.sideOpen = false; } }
   else if (d.check) { s.done[d.check] = !s.done[d.check]; }
   else if (d.star) { s.imp[d.star] = !s.imp[d.star]; }
