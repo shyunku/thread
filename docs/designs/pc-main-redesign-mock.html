@@ -280,6 +280,30 @@
   .task:hover::before, .task.hov::before, .task.sel::before, .task:hover + .task::before, .task.hov + .task::before, .task.sel + .task::before { display: none; }
   .ck { width: var(--ck); height: var(--ck); border-radius: 50%; border: 2px solid #5a6475; flex: none; display: grid; place-items: center; }
   .ck.done { background: var(--accent); border-color: var(--accent); color: #fff; }
+  /* Check circle feedback: hover shows the accent ring and a faint check, press shrinks it a little. */
+  .ck[data-check] { cursor: pointer; transition: border-color .12s, background-color .12s, transform .08s; }
+  .ck[data-check] svg { opacity: 0; transition: opacity .12s; }
+  .ck[data-check]:not(.done):hover { border-color: var(--accent); background: #6294ff1f; color: var(--accent); }
+  .ck[data-check]:not(.done):hover svg { opacity: .7; }
+  .ck.done svg { opacity: 1; }
+  .ck.done[data-check]:hover { background: #7aa5ff; border-color: #7aa5ff; }
+  .ck[data-check]:active { transform: scale(.88); }
+  /* Small controls: hover lifts the background, press dips it. */
+  .chip { transition: background-color .12s, color .12s; }
+  .quick .chip[data-dpopen]:hover, .quick .chip[data-pkopen]:hover, .dp .chip:hover { background: #2d3442; color: var(--text); }
+  .quick .chip.on:hover, .dp:not(.ps-fill) .chip.on:hover { background: #6294ff38; }
+  .dp.ps-fill .chip.on:hover, .dp.ps-fill .seg2 span.on:hover { background: #4a7cf0; }
+  .mini .mg .c b { transition: background-color .1s, color .1s; }
+  .mini .mg .c:not(.picked):hover b { background: var(--raise); color: var(--text); }
+  .ps-fill .mg .c.picked:hover b { background: #4a7cf0; }
+  .mini .mg .c:active b, .chip:active, .seg2 span:active, .pk-row:active, .dp-foot .btn:active { transform: scale(.94); }
+  .seg2 span:not(.on):hover { background: #262c38; color: var(--text); }
+  .mini .mh span i { cursor: pointer; } .mini .mh span i:hover { background: var(--raise); color: var(--text); }
+  .dp-h .x:hover, .pk .dp-h .x:hover { background: var(--raise); color: var(--text); }
+  .dp-field .num { cursor: text; transition: border-color .12s; } .dp-field .num:hover { border-color: #46536a; }
+  .sw { transition: background-color .12s; } .sw:hover { background: #333a48; } .sw.on:hover { background: #7aa5ff; }
+  .dp-foot .btn:hover { background: #2d3442; } .dp-foot .btn.pri:hover { background: #7aa5ff; }
+  @media (prefers-reduced-motion: reduce) { .ck[data-check]:active, .mini .mg .c:active b, .chip:active, .seg2 span:active, .pk-row:active, .dp-foot .btn:active { transform: none; } }
   .task .tx { flex: 1; min-width: 0; }
   .task .t { font-size: 14px; line-height: 20px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .task.done .t { color: var(--muted); text-decoration: line-through; }
@@ -771,7 +795,7 @@ function taskRow(t, opts = {}) {
   const sel = s.selected === t.id && ['selected', 'hover', 'context', 'picker'].includes(s.state);
   const title = opts.q ? t.t.replace(opts.q, `<mark>${opts.q}</mark>`) : t.t;
   return `<div class="task ${done ? 'done' : ''} ${sel ? 'sel' : ''} ${hov ? 'hov' : ''} ${meta.length ? '' : 'no-meta'}" data-task="${t.id}">
-    <span class="ck ${done ? 'done' : ''}" data-check="${t.id}">${done ? I.check : ''}</span>
+    <span class="ck ${done ? 'done' : ''}" data-check="${t.id}">${I.check}</span>
     <div class="tx"><div class="t"><i class="ic-cat" style="background:${c ? c.color : 'transparent'}"></i>${title}</div>${meta.length ? `<div class="meta">${meta.join('')}</div>` : ''}</div>
     <div class="hacts"><span>${I.cal} 날짜</span><span>${I.more}</span></div>
     <div class="rcol">${t.due ? `<span class="when ${overdue(t) ? 'over' : ''}">${whenShort(t.due)}</span>${s.left && !done ? `<span class="left ${r.over ? 'over' : ''}">${r.text}</span>` : ''}` : ''}</div>
@@ -952,7 +976,7 @@ function timelinePane(L) {
       if (!nowDrawn && h > NOW.getHours()) { body += `<div class="tl-now"><span>지금 ${clock(NOW)}</span></div>`; nowDrawn = true; }
       body += `<div class="tl-hour">${clock(new Date(2026, 0, 1, h))}</div><div class="gbox">${items.filter(t => new Date(t.due).getHours() === h).map(t => {
         const c = cat(t.cat), done = s.done[t.id], sel = s.selected === t.id && ['selected', 'context', 'picker'].includes(s.state);
-        return `<div class="tl-task ${done ? 'done' : ''} ${sel ? 'sel' : ''}" data-task="${t.id}"><span class="ck ${done ? 'done' : ''}" data-check="${t.id}">${done ? I.check : ''}</span><div class="tx"><div class="t">${t.t}</div><div class="meta">${c ? `<span class="cat"><span class="dot" style="background:${c.color}"></span><b>${c.name}</b></span>` : ''}${new Date(t.due).getMinutes() ? `<span class="${overdue(t) ? 'over' : ''}">${clockFull(new Date(t.due))}</span>` : ''}</div></div>${s.imp[t.id] ? `<span class="st on">${I.star(true, 17)}</span>` : ''}</div>`;
+        return `<div class="tl-task ${done ? 'done' : ''} ${sel ? 'sel' : ''}" data-task="${t.id}"><span class="ck ${done ? 'done' : ''}" data-check="${t.id}">${I.check}</span><div class="tx"><div class="t">${t.t}</div><div class="meta">${c ? `<span class="cat"><span class="dot" style="background:${c.color}"></span><b>${c.name}</b></span>` : ''}${new Date(t.due).getMinutes() ? `<span class="${overdue(t) ? 'over' : ''}">${clockFull(new Date(t.due))}</span>` : ''}</div></div>${s.imp[t.id] ? `<span class="st on">${I.star(true, 17)}</span>` : ''}</div>`;
       }).join('')}</div>`;
     }
     if (!nowDrawn) body += `<div class="tl-now"><span>지금 ${clock(NOW)}</span></div>`;
@@ -969,7 +993,7 @@ function timelinePane(L) {
 // ---------- Right panel ----------
 function detailBody(t) {
   const c = cat(t.cat), r = t.due ? remain(t.due) : null, subsDone = t.subs ? t.subs.filter(x => x[1]).length : 0, dd = t.due ? new Date(t.due) : null;
-  return `<div class="dt-title"><span class="ck ${s.done[t.id] ? 'done' : ''}" data-check="${t.id}">${s.done[t.id] ? I.check : ''}</span><h2>${t.t}</h2><span class="st ${s.imp[t.id] ? 'on' : ''}" data-star="${t.id}">${I.star(s.imp[t.id], 20)}</span></div>
+  return `<div class="dt-title"><span class="ck ${s.done[t.id] ? 'done' : ''}" data-check="${t.id}">${I.check}</span><h2>${t.t}</h2><span class="st ${s.imp[t.id] ? 'on' : ''}" data-star="${t.id}">${I.star(s.imp[t.id], 20)}</span></div>
     <div class="box">
       <div class="prop click" data-dpopen="detail" data-tip="기한 정하기"><span class="k">기한</span><span class="v" style="${overdue(t) ? 'color:var(--danger)' : ''}">${dd ? `${dd.getFullYear()}.${pad(dd.getMonth() + 1)}.${pad(dd.getDate())} ${clockFull(dd)}` : '<span class="sub">없음</span>'}</span></div>
       <div class="prop click mid" data-pkopen="rep:detail" data-tip="반복 정하기"><span class="k">반복</span><span class="v">${t.repeat ? repeatName({ '매일': 'day', '매주': 'week', '매월': 'month', '매년': 'year' }[t.repeat], t.due ? new Date(t.due) : dayBase(0)) : '<span class="sub">안 함</span>'}</span></div>
