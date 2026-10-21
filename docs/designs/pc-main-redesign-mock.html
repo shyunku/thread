@@ -320,7 +320,20 @@
   .swatches { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; padding: 4px 10px 8px; }
   .sw-c { width: 24px; height: 24px; border-radius: 50%; background: var(--c); cursor: pointer; justify-self: center; box-shadow: inset 0 0 0 2px #0003; }
   .sw-c.on { box-shadow: 0 0 0 2px #1e2430, 0 0 0 4px var(--c); }
-  .new-cat { width: 252px; padding: 10px; }
+  .new-cat, .cat-menu { width: 252px; }
+  .new-cat { padding: 10px; }
+  /* Pick your own: a bright rainbow swatch; once used, the chosen colour sits in its middle. */
+  .sw-c.custom { display: grid; place-items: center; background: conic-gradient(#ff5f5f, #ffd24f, #6dff8a, #4fe0ff, #6a8bff, #e06bff, #ff5f5f); box-shadow: none; }
+  .sw-c.custom em { width: 12px; height: 12px; border-radius: 50%; box-shadow: 0 0 0 2px #1e2430; }
+  .sw-c.custom.on { box-shadow: 0 0 0 2px #1e2430, 0 0 0 4px var(--c); }
+  .cpk { margin: 4px 10px 8px; }
+  /* The picker's own colour fields: gradients are the control itself here. */
+  .cpk .sv { position: relative; height: 120px; border-radius: 8px; cursor: crosshair; background: linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, hsl(var(--h), 100%, 50%)); }
+  .cpk .hue { position: relative; height: 12px; margin-top: 10px; border-radius: 6px; cursor: pointer; background: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00); }
+  .cpk i { position: absolute; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #0008; pointer-events: none; }
+  .cpk .hue i { top: 6px; }
+  .cpk .hex { display: flex; align-items: center; gap: 8px; height: 32px; margin-top: 10px; padding: 0 10px; border-radius: 8px; background: var(--canvas); border: 1px solid #2b303b; font-variant-numeric: tabular-nums; }
+  .cpk-warn { margin: 6px 0 0; font-size: 11.5px; color: #edbc72; }
   .nc-in { display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 12px; border-radius: 8px; background: var(--canvas); border: 1px solid var(--accent); margin-bottom: 4px; }
   .nc-in .ph { color: var(--muted); font-size: 13px; }
   .nc-row { display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 0 10px; border-radius: 7px; cursor: pointer; color: var(--secondary); }
@@ -444,8 +457,29 @@ const TASKS = [
   { id: 'd2', t: '릴리스 노트 작성', cat: 'work', due: at(-1, 15), done: true },
 ];
 const cat = id => CATS.find(c => c.id === id);
-const PALETTE = ['#6294ff', '#4fc3d9', '#44c98b', '#9ccc65', '#f2c14e', '#ff9f5a', '#f0838b', '#f06292', '#e57ad6', '#b58cff', '#7986cb', '#8a93a3'];
-const swatches = (current, attr) => '<div class="swatches">' + PALETTE.map(c => '<span class="sw-c ' + (c === current ? 'on' : '') + '" style="--c:' + c + '" ' + attr + '="' + c + '" title="' + c + '"></span>').join('') + '</div>';
+const PALETTE = ['#6294ff', '#4fc3d9', '#44c98b', '#9ccc65', '#f2c14e', '#ff9f5a', '#f0838b', '#f06292', '#e57ad6', '#b58cff', '#8a93a3'];
+const swatches = (current, attr) => {
+  const custom = !PALETTE.includes(current);
+  return '<div class="swatches">' + PALETTE.map(c => '<span class="sw-c ' + (c === current ? 'on' : '') + '" style="--c:' + c + '" ' + attr + '="' + c + '" title="' + c + '"></span>').join('') +
+    '<span class="sw-c custom ' + (custom ? 'on' : '') + '" style="--c:' + (custom ? current : '#fff') + '" data-custom="1" title="직접 고르기">' + (custom ? '<em style="background:' + current + '"></em>' : '') + '</span></div>' +
+    (s.customOpen ? customPicker(current, attr) : '');
+};
+// HSV square + hue bar + hex field. Warns when the colour is hard to see on the dark surfaces.
+const hex2rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+const lum = h => { const c = hex2rgb(h).map(v => { v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); }); return .2126 * c[0] + .7152 * c[1] + .0722 * c[2]; };
+const contrast = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + .05) / (y + .05); };
+function hsv2hex(h, sv, v) {
+  const f = n => { const k = (n + h / 60) % 6; return v - v * sv * Math.max(0, Math.min(k, 4 - k, 1)); };
+  return '#' + [f(5), f(3), f(1)].map(x => Math.round(x * 255).toString(16).padStart(2, '0')).join('');
+}
+function customPicker(current, attr) {
+  const weak = contrast(current, '#1a1e25') < 3;
+  return '<div class="cpk" data-cpattr="' + attr + '">' +
+    '<div class="sv" data-sv="1" style="--h:' + s.hue + '"><i style="left:' + (s.sat * 100) + '%;top:' + ((1 - s.val) * 100) + '%"></i></div>' +
+    '<div class="hue" data-hue="1"><i style="left:' + (s.hue / 360 * 100) + '%"></i></div>' +
+    '<div class="hex"><span class="dot" style="background:' + current + '"></span><span class="nt">' + current.toUpperCase() + '</span></div>' +
+    (weak ? '<p class="cpk-warn">어두운 바탕에서 잘 안 보일 수 있어요.</p>' : '') + '</div>';
+}
 const pad = n => String(n).padStart(2, '0');
 const WD = '일월화수목금토';
 const dayDiff = t => Math.round((new Date(t).setHours(0, 0, 0, 0) - new Date(NOW).setHours(0, 0, 0, 0)) / D);
@@ -476,7 +510,7 @@ const GROUPS = [
   { id: 'none', name: '기한 없음', test: t => !t.due },
 ];
 
-const s = { w: 1440, view: 'list', panel: 'auto', rail: 'auto', group: 'date', density: 'normal', catMenu: null, newCat: false, catY: 300, newColor: '#4fc3d9', newSecret: false, ctxX: 380, ctxY: 300, dpDay: 0, dpTime: 1439, dpOn: false, dpAt: 'ctx', noneTop: false, left: true, state: 'selected',
+const s = { w: 1440, view: 'list', panel: 'auto', rail: 'auto', group: 'date', density: 'normal', catMenu: null, newCat: false, catY: 300, newColor: '#4fc3d9', newSecret: false, customOpen: false, hue: 190, sat: .6, val: .85, ctxX: 380, ctxY: 300, dpDay: 0, dpTime: 1439, dpOn: false, dpAt: 'ctx', noneTop: false, left: true, state: 'selected',
   nav: 'all', selected: 't2', picked: 0, tab: null, closed: { done: true }, viewMenu: false, drawer: false, sideOpen: false, guides: false, mark: false, fit: false,
   done: Object.fromEntries(TASKS.map(t => [t.id, !!t.done])), imp: Object.fromEntries(TASKS.map(t => [t.id, !!t.imp])) };
 const SIZES = { 1440: 960, 1180: 800, 960: 720, 760: 640 };
@@ -771,8 +805,6 @@ function win() {
 function notes() {
   const mode = s.w >= 1280 ? '넓은 창: 메뉴 + 목록 + 패널' : s.w >= 1000 ? '중간 창: 메뉴는 아이콘만, 패널 320px' : s.w >= 800 ? '좁은 창: 패널은 위에 겹쳐 열림' : '아주 좁은 창: 메뉴는 ☰ 버튼으로';
   return '<div class="notes"><div class="now">' + s.w + '×' + SIZES[s.w] + ' · ' + mode + '</div><h3 class="q">정할 것</h3><ul class="q">' + [
-    '<b>카테고리 색 정하는 곳</b>: 카테고리 우클릭 메뉴(이름 바꾸기 · 색 · 삭제)와 만들 때 창(이름 · 색 · 비밀 여부). 지금 앱은 카테고리 화면 머리글의 색 버튼. 머리글 버튼도 남길지.',
-    '<b>색 고르기</b>: 정해 둔 12색에서만(시안) vs 12색 + 직접 고르기. 지금 앱에서 고른 색은 그대로 보임.',
     '<b>오른쪽 시간 칸과 "시간 표시" 설정</b>: 다른 것 다 정한 뒤 따로 시안.',
   ].map(x => '<li>' + x + '</li>').join('') + '</ul></div>';
 }
@@ -799,17 +831,29 @@ function render() {
 }
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-set],[data-nav],[data-task],[data-check],[data-star],[data-sec],[data-view],[data-tab],[data-pick],[data-closepanel],[data-viewmenu],[data-drawer],[data-sideopen]');
+  const pk = e.target.closest('[data-custom],[data-sv],[data-hue]');
+  if (pk) {
+    const box = pk.closest('.cpk'), attr = box ? box.dataset.cpattr : null, r = pk.getBoundingClientRect();
+    if (pk.dataset.custom) s.customOpen = !s.customOpen;
+    else if (pk.dataset.sv) { s.sat = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)); s.val = Math.min(1, Math.max(0, 1 - (e.clientY - r.top) / r.height)); }
+    else if (pk.dataset.hue) s.hue = Math.round(Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)) * 360);
+    if (attr || pk.dataset.sv || pk.dataset.hue) {
+      const c = hsv2hex(s.hue, s.sat, s.val), which = attr || (s.newCat ? 'data-newcolor' : 'data-setcolor');
+      if (which === 'data-newcolor') s.newColor = c; else if (cat(s.catMenu)) cat(s.catMenu).color = c;
+    }
+    render(); return;
+  }
   const catEl = e.target.closest('[data-setcolor],[data-newcolor],[data-newsecret],[data-catclose],[data-newcat]');
   if (catEl) {
     const d2 = catEl.dataset;
-    if (d2.setcolor) { cat(s.catMenu).color = d2.setcolor; }
-    else if (d2.newcolor) s.newColor = d2.newcolor;
+    if (d2.setcolor) { cat(s.catMenu).color = d2.setcolor; s.customOpen = false; }
+    else if (d2.newcolor) { s.newColor = d2.newcolor; s.customOpen = false; }
     else if (d2.newsecret) s.newSecret = !s.newSecret;
     else if (d2.catclose) s.newCat = false;
     else if (d2.newcat) { const r = catEl.getBoundingClientRect(), b = catEl.closest('.body').getBoundingClientRect(); s.newCat = true; s.catMenu = null; s.catY = Math.round(r.top - b.top); }
     render(); return;
   }
-  if ((s.catMenu || s.newCat) && !e.target.closest('.cat-menu, .new-cat')) { s.catMenu = null; s.newCat = false; render(); return; }
+  if ((s.catMenu || s.newCat) && !e.target.closest('.cat-menu, .new-cat')) { s.catMenu = null; s.newCat = false; s.customOpen = false; render(); return; }
   const opener = e.target.closest('[data-dpopen]');
   if (opener) {
     const t = TASKS.find(x => x.id === s.selected), from = opener.dataset.dpopen;
