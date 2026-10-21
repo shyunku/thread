@@ -726,7 +726,7 @@ const NAV = [
   { id: 'week', name: '다음 7일', icon: I.week, list: () => TASKS.filter(t => shown(t) && t.due && dayDiff(t.due) < 7) },
   { id: 'imp', name: '중요', icon: I.star(false), list: () => TASKS.filter(t => shown(t) && s.imp[t.id]) },
 ];
-const navList = id => (NAV.find(n => n.id === id) || { list: () => TASKS.filter(t => taskCats(t).some(c => c.id === id)) }).list();
+const navList = id => (NAV.find(n => n.id === id) || { list: () => TASKS.filter(t => taskCats(t).some(c => c.id === id) && (cat(id)?.secret || shown(t))) }).list();
 const navCount = id => navList(id).filter(open).length;
 
 function layout() {
@@ -1069,7 +1069,9 @@ function toolbar() {
       <strong>표시</strong>${b('guides', true, '정렬선')}${b('guides', false, '끔')}<span class="sep"></span>${b('mark', true, '바뀌는 부분')}${b('mark', false, '끔')}<span class="sep"></span>${b('fit', false, '실제 크기')}${b('fit', true, '맞춤(70%)')}</div>`;
 }
 function render() {
-  const keep = {};
+  const keep = {}, popKey = () => s.state === 'picker' ? 'dp:' + s.dpAt : s.pk ? 'pk:' + s.pk.kind + s.pk.at : '';
+  const pop = document.querySelector('.dp, .pk'), popScroll = pop && popKey() === render.popKey ? pop.scrollTop : 0;
+  if (s.state !== 'context') s.ctxSub = false;
   document.querySelectorAll('.scroll, .tl-body, .pbody').forEach((el, i) => { keep[s.view + i] = el.scrollTop; });
   document.getElementById('toolbar').innerHTML = toolbar();
   const st = document.getElementById('stage');
@@ -1077,6 +1079,8 @@ function render() {
   st.innerHTML = win() + notes();
   document.querySelectorAll('.scroll, .tl-body, .pbody').forEach((el, i) => { if (keep[s.view + i]) el.scrollTop = keep[s.view + i]; });
   fitPopups();
+  render.popKey = popKey();
+  const pop2 = document.querySelector('.dp, .pk'); if (pop2 && popScroll) pop2.scrollTop = popScroll;
 }
 // Keep floating menus and pickers inside the app window (8px margin): move them, and scroll inside if still too tall.
 function fitPopups() {
@@ -1089,6 +1093,8 @@ function fitPopups() {
     if (el.style.bottom && el.style.bottom !== 'auto' && r.top < wr.top + m) {
       el.style.maxHeight = Math.floor((r.bottom - wr.top - m) / z) + 'px'; el.style.overflowY = 'auto'; r = el.getBoundingClientRect();
     }
+    const sb = el.offsetWidth - el.clientWidth;
+    if (el.style.overflowY === 'auto' && sb > 0) { el.style.width = parseFloat(getComputedStyle(el).width) + sb + 'px'; r = el.getBoundingClientRect(); }
     let dy = 0, dx = 0;
     if (r.bottom > wr.bottom - m) dy = wr.bottom - m - r.bottom;
     if (r.top + dy < wr.top + m) dy = wr.top + m - r.top;
@@ -1117,8 +1123,9 @@ function fitSub(mi) {
   if (over > 0) sub.style.top = Math.round(sub.offsetTop - over / Z()) + 'px';
 }
 document.addEventListener('click', e => {
-  const tbKey = e.target.closest('#toolbar [data-set]')?.dataset.set.split(':')[0];
-  if (tbKey && !['pickStyle', 'guides', 'mark', 'secretIcon'].includes(tbKey)) { s.pk = null; s.catMenu = null; s.newCat = false; s.customOpen = false; s.hello = false; if (s.state === 'context' || s.state === 'picker') s.state = 'selected'; }
+  const tbSet = e.target.closest('#toolbar [data-set]')?.dataset.set, tbKey = tbSet?.split(':')[0];
+  if (['pickStyle', 'guides', 'mark', 'secretIcon'].includes(tbKey)) { const v = tbSet.slice(tbKey.length + 1); s[tbKey] = v === 'true' ? true : v === 'false' ? false : v; render(); return; }
+  if (tbKey) { s.pk = null; s.catMenu = null; s.newCat = false; s.customOpen = false; s.hello = false; if (s.state === 'context' || s.state === 'picker') s.state = 'selected'; }
   const el = e.target.closest('[data-set],[data-nav],[data-task],[data-check],[data-star],[data-sec],[data-view],[data-tab],[data-pick],[data-closepanel],[data-viewmenu],[data-drawer],[data-sideopen]');
   const pk = e.target.closest('[data-custom],[data-sv],[data-hue]');
   if (pk) {
@@ -1194,6 +1201,7 @@ document.addEventListener('click', e => {
   if (ctxEl) {
     const c = ctxEl.dataset.ctx, p = ctxEl.dataset.dp, t = TASKS.find(x => x.id === s.selected);
     if (c === 'none') return;
+    if (c === 'open') { s.state = 'selected'; s.tab = null; if (layout().overlayPanel) s.drawer = true; render(); return; }
     if (c === 'pick') { s.state = 'picker'; s.dpAt = 'ctx'; s.dpDay = t.due ? dayDiff(t.due) : 0; s.dpOn = !!t.due && !(new Date(t.due).getHours() === 23 && new Date(t.due).getMinutes() === 59); s.dpTime = s.dpOn ? new Date(t.due).getHours() * 60 + new Date(t.due).getMinutes() : 1439; }
     else if (c === 'star') { s.imp[t.id] = !s.imp[t.id]; s.state = 'selected'; }
     else if (c && c.startsWith('cat:')) { const id = c.slice(4), list = taskCats(t).map(x => x.id); t.cats = list.includes(id) ? list.filter(x => x !== id) : [...list, id]; t.cat = t.cats[0] || null; s.ctxSub = true; }
@@ -1218,7 +1226,7 @@ document.addEventListener('click', e => {
   if (!el) { if (s.viewMenu) { s.viewMenu = false; render(); } return; }
   const d = el.dataset;
   if (!d.viewmenu && !(d.set && /^(group|density|left|noneTop):/.test(d.set))) s.viewMenu = false;
-  if (d.set) { const [k, v] = d.set.split(':'); s[k] = v === 'true' ? true : v === 'false' ? false : /^\d+$/.test(v) ? +v : v; if (k === 'state') { s.tab = null; if (v === 'picker') s.dpAt = 'ctx'; if (s.nav === 'diary') s.nav = 'all'; } if (k === 'panel') s.tab = null; if (k === 'w') { s.drawer = false; s.sideOpen = false; } }
+  if (d.set) { const [k, v] = d.set.split(':'); s[k] = v === 'true' ? true : v === 'false' ? false : /^\d+$/.test(v) ? +v : v; if (k === 'state') { s.tab = null; if (v === 'picker') s.dpAt = 'ctx'; if (s.nav === 'diary') s.nav = 'all'; } if (k === 'panel' || k === 'view') s.tab = null; if (k === 'w') { s.drawer = false; s.sideOpen = false; } }
   else if (d.check) {
     const row = el.closest('.task, .tl-task');
     if (row && !s.done[d.check] && !row.classList.contains('leaving')) {
@@ -1260,9 +1268,16 @@ document.addEventListener('click', e => {
   const cancel = () => {
     if (!drag) return;
     if (drag.on) { drag.rows.forEach(el => { el.style.transform = ''; el.classList.remove('lifted'); }); drag.side.classList.remove('sorting'); drag.ghost.remove(); }
+    if (drag.on) swallowNext = true;
     drag = null;
   };
-  document.addEventListener('keydown', e => { if (e.key === 'Escape' && drag) { cancel(); e.stopImmediatePropagation(); } }, true);
+  let swallowNext = false;
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    if (settling) { e.stopImmediatePropagation(); return; }
+    if (drag) { const lifted = drag.on; cancel(); if (lifted) e.stopImmediatePropagation(); }
+  }, true);
+  document.addEventListener('mouseup', e => { if (swallowNext && e.button === 0) { swallowNext = false; swallowUntil = performance.now() + 400; } }, true);
   document.addEventListener('mousedown', e => {
     const row = e.button === 0 && !settling && e.target.closest('.side .cat-row');
     if (!row) return;
@@ -1285,6 +1300,13 @@ document.addEventListener('click', e => {
       side.classList.add('sorting'); drag.row.classList.add('lifted');
       // An open category menu would point at the wrong row once rows move.
       if (s.catMenu || s.newCat) { s.catMenu = null; s.newCat = false; s.customOpen = false; document.querySelectorAll('.cat-menu, .new-cat').forEach(el => el.remove()); side.querySelectorAll('.menu-on').forEach(el => el.classList.remove('menu-on')); }
+      if (s.state === 'context' || s.state === 'picker' || s.pk || s.viewMenu) {
+        if (s.state === 'context' || s.state === 'picker') s.state = 'selected';
+        s.pk = null; s.ctxSub = false; s.viewMenu = false;
+        document.querySelectorAll('.win .dp, .win .pk, .win .pane > .menu-pop').forEach(el => el.remove());
+        // The toolbar and the view-options button show the closed state right away (the window itself is not redrawn mid-drag).
+        document.getElementById('toolbar').innerHTML = toolbar(); document.querySelectorAll('.win [data-viewmenu].on').forEach(el => el.classList.remove('on'));
+      }
       document.getElementById('tip')?.classList.remove('on');
     }
     const minTop = drag.top0 - drag.from * drag.h, maxTop = minTop + (drag.rows.length - 1) * drag.h;
@@ -1299,7 +1321,7 @@ document.addEventListener('click', e => {
   });
   document.addEventListener('mouseup', e => {
     if (!drag || e.button !== 0) return;
-    if (!drag.row.isConnected) { cancel(); return; }
+    if (!drag.row.isConnected) { const on = drag.on; cancel(); swallowNext = false; if (on) swallowUntil = performance.now() + 400; return; }
     const d = drag; drag = null;
     if (!d.on) return;
     swallowUntil = performance.now() + 400;
@@ -1322,13 +1344,16 @@ document.addEventListener('contextmenu', e => {
   if (catRow) {
     e.preventDefault();
     const r = catRow.getBoundingClientRect(), b = catRow.closest('.body').getBoundingClientRect();
+    s.pk = null; if (s.state === 'context' || s.state === 'picker') s.state = 'selected';
     s.catMenu = catRow.dataset.catrow; s.newCat = false; s.catY = Math.round((r.top - b.top) / Z()); render(); return;
   }
   const row = e.target.closest('[data-task]'), pane = e.target.closest('.pane.main') || (e.target.closest('.pane.aside .agenda') && document.querySelector('.pane.main'));
   if (!row || !pane) return;
   e.preventDefault();
   const r = pane.getBoundingClientRect(), z = s.fit ? 0.7 : 1;
-  s.selected = row.dataset.task; s.state = 'context'; s.tab = null; s.viewMenu = false;
+  if (!e.target.closest('.pane.aside')) s.tab = null; else if (s.view !== 'calendar') s.tab = panelTab();
+  s.pk = null; s.catMenu = null; s.newCat = false; s.customOpen = false;
+  s.selected = row.dataset.task; s.state = 'context'; s.viewMenu = false;
   const wr = pane.closest('.win').getBoundingClientRect();
   s.ctxX = Math.min((e.clientX - r.left) / z, (wr.right - r.left) / z - 244); s.ctxY = (e.clientY - r.top) / z; s.ctxSub = false;
   render();
