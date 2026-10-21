@@ -6,8 +6,108 @@
 <title>Thread PC 메인 개편 시안 (#102)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
+  /* Oxanium with its vertical metrics overridden so Korean (Noto Sans KR, the fallback) sits centred in the line:
+     Oxanium ascent 0.79 / descent 0.21 put the baseline too high for Hangul ink (0.83 up, 0.08 down), so text looked
+     about 1-2px high everywhere. 87.5% / 12.5% keeps the same line height and centres Hangul; Latin caps land within 0.5px. */
+  /* latin-ext */
+  @font-face {
+    font-family: 'Oxanium';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    ascent-override: 95%;
+    descent-override: 5%;
+    line-gap-override: 0%;
+    src: url(https://fonts.gstatic.com/s/oxanium/v21/RrQQboN_4yJ0JmiMe2zE0YBB.woff2) format('woff2');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+  }
+  /* latin */
+  @font-face {
+    font-family: 'Oxanium';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    ascent-override: 95%;
+    descent-override: 5%;
+    line-gap-override: 0%;
+    src: url(https://fonts.gstatic.com/s/oxanium/v21/RrQQboN_4yJ0JmiMe2LE0Q.woff2) format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  }
+  /* latin-ext */
+  @font-face {
+    font-family: 'Oxanium';
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    ascent-override: 95%;
+    descent-override: 5%;
+    line-gap-override: 0%;
+    src: url(https://fonts.gstatic.com/s/oxanium/v21/RrQQboN_4yJ0JmiMe2zE0YBB.woff2) format('woff2');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+  }
+  /* latin */
+  @font-face {
+    font-family: 'Oxanium';
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    ascent-override: 95%;
+    descent-override: 5%;
+    line-gap-override: 0%;
+    src: url(https://fonts.gstatic.com/s/oxanium/v21/RrQQboN_4yJ0JmiMe2LE0Q.woff2) format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  }
+  /* latin-ext */
+  @font-face {
+    font-family: 'Oxanium';
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+    ascent-override: 95%;
+    descent-override: 5%;
+    line-gap-override: 0%;
+    src: url(https://fonts.gstatic.com/s/oxanium/v21/RrQQboN_4yJ0JmiMe2zE0YBB.woff2) format('woff2');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+  }
+  /* latin */
+  @font-face {
+    font-family: 'Oxanium';
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+    ascent-override: 95%;
+    descent-override: 5%;
+    line-gap-override: 0%;
+    src: url(https://fonts.gstatic.com/s/oxanium/v21/RrQQboN_4yJ0JmiMe2LE0Q.woff2) format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  }
+  /* latin-ext */
+  @font-face {
+    font-family: 'Oxanium';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    ascent-override: 95%;
+    descent-override: 5%;
+    line-gap-override: 0%;
+    src: url(https://fonts.gstatic.com/s/oxanium/v21/RrQQboN_4yJ0JmiMe2zE0YBB.woff2) format('woff2');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+  }
+  /* latin */
+  @font-face {
+    font-family: 'Oxanium';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    ascent-override: 95%;
+    descent-override: 5%;
+    line-gap-override: 0%;
+    src: url(https://fonts.gstatic.com/s/oxanium/v21/RrQQboN_4yJ0JmiMe2LE0Q.woff2) format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  }
+  
   :root { --page: #0b0d10; --ui-border: #2b303b; --ui-text: #edf1f7; --ui-muted: #8792a4; --ui-panel: #15181e; --ui-sel: #253858;
     --canvas: #101216; --panel: #14171d; --surface: #1a1e25; --raise: #222731; --hover: #1d2129; --line: #232831; --text: #edf1f7;
     --secondary: #a3acbb; --muted: #7f8a9c; --faint: #5f697a; --accent: #6294ff; --accent-soft: #1b2741; --danger: #f0838b; --success: #70d5a0; --star: #f2c14e;
@@ -134,7 +234,7 @@
   @keyframes ck-pop { 0% { transform: scale(.8); } 60% { transform: scale(1.12); } 100% { transform: scale(1); } }
   @media (prefers-reduced-motion: reduce) { .fall { animation: none; opacity: 0; transition: opacity 200ms; } }
   /* Korean text (Noto Sans KR) sits about 1.5px high in its line box; nudge labels that sit beside icons. */
-  .nt { position: relative; top: 2px; }
+  .nt { position: relative; top: 0; }
   .ghost.sq { width: 32px; min-width: 32px; padding: 0; }
   /* The last header button's icon ends on the 32px edge, like the stars below. */
   .head .row1 > .ghost:last-child { margin-right: -8px; }
