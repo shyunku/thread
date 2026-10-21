@@ -1158,18 +1158,14 @@ function win() {
 function notes() {
   const mode = s.w >= 1280 ? '넓은 창: 메뉴 + 목록 + 패널' : s.w >= 1000 ? '중간 창: 메뉴는 아이콘만, 패널 320px' : s.w >= 800 ? '좁은 창: 패널은 위에 겹쳐 열림' : '아주 좁은 창: 메뉴는 ☰ 버튼으로';
   return '<div class="notes"><div class="now">' + s.w + '×' + SIZES[s.w] + ' · ' + mode + '</div><h3 class="q">정할 것</h3><ul class="q">' + [
-    '<b>오른쪽 시간 칸과 설정 > 시간 표시</b>(툴바 "시간 칸" · "설정 화면 보기"): <b>위 기한 + 아래 남은 시간</b>이면 설정은 기한 형식 · 남은 시간 형식만 남고(남은/기한 고르기는 없어짐), 기한 형식에 묶음 이름과 겹치지 않는 "묶음 맞춤"(오늘 묶음은 시각만, 이번 주는 요일 + 시각)을 새 기본값으로. 지금 "기한"으로 쓰는 사람은 남은 시간이 꺼진 채로 옮겨짐. <b>설정에서 고른 것 위</b>면 지금 설정 그대로, 다른 하나가 아래에 연하게.',
-    '<b>12/24시간</b>(툴바 "시각"): 24시간이면 날짜 창의 오전/오후가 없어지고 시는 00~23, 자주 쓰는 시각은 09:00처럼, 칩 · 상세 · 시계 · 타임라인 모두 21:00 꼴.',
-    '<b>주 시작 · 이번 주</b>(툴바 "주 시작" · "이번 주" · "오늘"): 달력 셋(날짜 창 · 캘린더 · 오른쪽 캘린더 탭)은 주 시작 요일부터. "달력 주 + 다음 주"는 이번 주 = 이번 주 남은 날, 그 뒤 7일은 다음 주, 그 뒤는 나중에. "오늘부터 6일"은 지금 시안대로. 토 · 일로 바꿔 보면 차이가 보임. 날짜 창 빠른 날짜의 이번 주 토요일은 오늘 · 내일과 같으면 빠지고, 다음 주 월요일은 다음 주(주 시작 기준)의 월요일.',
-    '<b>하위 할 일</b>(툴바 "하위 할 일"): 기한이 있으면 오른쪽에 작게(지나면 빨갛게), 마우스를 올리면 기한 · 삭제 버튼, 이름을 누르면 그 자리에서 고치기(Enter 저장, Esc 취소).',
+    '없음. 시안 확정(구현 중).',
   ].map(x => '<li>' + x + '</li>').join('') + '</ul></div>';
 }
 function toolbar() {
   const b = (k, v, l) => `<button class="${s[k] === v ? 'on' : ''}" data-set="${k}:${v}">${l}</button>`;
   return `<div class="line"><strong>창 크기</strong>${b('w', 1440, '1440×960')}${b('w', 1180, '1180×800')}${b('w', 960, '960×720')}${b('w', 760, '760×640')}<span class="sep"></span>
       <strong>가운데</strong>${b('view', 'list', '목록')}${b('view', 'calendar', '캘린더')}${b('view', 'timeline', '타임라인')}</div>
-        <div class="line dec"><strong>시간 칸</strong>${b('timeMerge', 'stack', '위 기한 + 아래 남은 시간')}${b('timeMerge', 'pref', '설정에서 고른 것 위')}${s.timeMerge === 'pref' ? '<span class="sep"></span><strong>시간 표시</strong>' + b('timeDisplay', 'remain', '남은 시간') + b('timeDisplay', 'due', '기한') : ''}<span class="sep"></span>
-      <strong>기한 형식</strong>${s.timeMerge === 'stack' ? b('dueFmt', 'group', '묶음 맞춤') : ''}${b('dueFmt', 'simple', '간단히')}${b('dueFmt', 'auto', '자동')}${b('dueFmt', 'exact', '정확히')}${b('dueFmt', 'full', '자세히')}<span class="sep"></span>
+        <div class="line dec"><strong>기한 형식</strong>${s.timeMerge === 'stack' ? b('dueFmt', 'group', '묶음 맞춤') : ''}${b('dueFmt', 'simple', '간단히')}${b('dueFmt', 'auto', '자동')}${b('dueFmt', 'exact', '정확히')}${b('dueFmt', 'full', '자세히')}<span class="sep"></span>
       <strong>남은 시간</strong>${b('remainFmt', 'simple', '간단히')}${b('remainFmt', 'normal', '보통')}${b('remainFmt', 'detailed', '자세히')}<span class="sep"></span>${b('showSettings', true, '설정 화면 보기')}</div>
     <div class="line dec"><strong>시각</strong>${b('h24', false, '12시간')}${b('h24', true, '24시간')}<span class="sep"></span>
       <strong>주 시작</strong>${b('weekStart', 0, '일요일')}${b('weekStart', 1, '월요일')}<span class="sep"></span>
