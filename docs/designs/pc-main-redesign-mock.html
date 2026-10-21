@@ -69,7 +69,7 @@
   .row-s .n { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 16px; text-align: right; }
   .row-s .n.due { color: var(--danger); }
   /* Date and time at the top of the menu (user decision), on the 20px edge. */
-  .clock { margin: 0 0 14px; padding: 12px 10px 12px; border-radius: 10px; background: var(--surface); }
+  .clock { margin: 0 0 14px; padding: 12px 14px 9px; border-radius: 10px; background: var(--surface); }
   .clock .cd { display: block; font-size: 12px; line-height: 18px; color: var(--muted); }
   .clock b { display: block; margin-top: 6px; font-size: 24px; line-height: 30px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
   .clock b small { font-size: 16px; font-weight: 500; color: var(--muted); margin-left: 1px; }
@@ -182,6 +182,8 @@
   .hacts span { height: 28px; padding: 0 8px; border-radius: 7px; display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--secondary); background: var(--raise); }
   /* Checkbox and star sit in the middle of the two-line block (user decision). */
   .task > .ck, .task > .st { align-self: center; margin-top: 0; }
+  /* A row with no second line keeps its title in the middle. */
+  .task.no-meta > .tx { align-self: center; }
   .compact .task { min-height: 44px; padding: 12px 14px; }
   .compact .task .meta { display: none; }
   .compact .task .t .ic-cat { display: inline-block; }
@@ -412,7 +414,7 @@ const GROUPS = [
   { id: 'none', name: '기한 없음', test: t => !t.due },
 ];
 
-const s = { w: 1440, view: 'list', panel: 'auto', rail: 'auto', group: 'date', density: 'normal', noneTop: false, left: true, state: 'selected',
+const s = { w: 1440, view: 'list', panel: 'auto', rail: 'auto', group: 'date', density: 'normal', ctxX: 380, ctxY: 300, noneTop: false, left: true, state: 'selected',
   nav: 'all', selected: 't2', picked: 0, tab: null, closed: { done: true }, viewMenu: false, drawer: false, sideOpen: false, guides: false, mark: false, fit: false,
   done: Object.fromEntries(TASKS.map(t => [t.id, !!t.done])), imp: Object.fromEntries(TASKS.map(t => [t.id, !!t.imp])) };
 const SIZES = { 1440: 960, 1180: 800, 960: 720, 760: 640 };
@@ -457,7 +459,7 @@ function taskRow(t, opts = {}) {
   const hov = s.state === 'hover' && t.id === 't4';
   const sel = s.selected === t.id && ['selected', 'hover', 'context'].includes(s.state);
   const title = opts.q ? t.t.replace(opts.q, `<mark>${opts.q}</mark>`) : t.t;
-  return `<div class="task ${done ? 'done' : ''} ${sel ? 'sel' : ''} ${hov ? 'hov' : ''}" data-task="${t.id}">
+  return `<div class="task ${done ? 'done' : ''} ${sel ? 'sel' : ''} ${hov ? 'hov' : ''} ${meta.length ? '' : 'no-meta'}" data-task="${t.id}">
     <span class="ck ${done ? 'done' : ''}" data-check="${t.id}">${done ? I.check : ''}</span>
     <div class="tx"><div class="t"><i class="ic-cat" style="background:${c ? c.color : 'transparent'}"></i>${title}</div>${meta.length ? `<div class="meta">${meta.join('')}</div>` : ''}</div>
     <div class="hacts"><span>${I.cal} 날짜</span><span>${I.more}</span></div>
@@ -529,10 +531,10 @@ function contextMenu() {
   // Every item has a 16px icon column so the labels share one edge.
   const ic = d => '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + d + '</svg>';
   const mi = (icon, label, kb = '', cls = '') => '<div class="mi ' + cls + '"><span class="mic">' + icon + '</span><span class="nt">' + label + '</span>' + (kb ? '<span class="kb">' + kb + '</span>' : '') + '</div>';
-  return '<div class="menu-pop" style="top:300px;left:380px">' +
+  return '<div class="menu-pop" style="top:' + s.ctxY + 'px;left:' + s.ctxX + 'px">' +
     mi(ic('<path d="M5 12h14M13 6l6 6-6 6"/>'), '열기', 'Enter') + '<div class="sp"></div>' +
     '<div class="hd">기한</div>' + mi(I.sun, '오늘') + mi(I.week, '내일') + mi(I.cal, '날짜 고르기…') + mi(ic('<path d="M6 6l12 12M18 6L6 18"/>'), '기한 없애기') + '<div class="sp"></div>' +
-    mi(I.star(true, 15), '중요 해제') + mi(ic('<path d="M20 12l-8 8-9-9V3h8z"/><circle cx="7.5" cy="7.5" r="1.2"/>'), '카테고리…') + mi(ic('<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>'), '복제') + '<div class="sp"></div>' +
+    (s.imp[s.selected] ? mi(I.star(true, 15), '중요 해제') : mi(I.star(false, 15), '중요로 표시')) + mi(ic('<path d="M20 12l-8 8-9-9V3h8z"/><circle cx="7.5" cy="7.5" r="1.2"/>'), '카테고리…') + mi(ic('<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>'), '복제') + '<div class="sp"></div>' +
     mi(ic('<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>'), '삭제', 'Del', 'danger') + '</div>';
 }
 function calendarPane(L) {
@@ -549,7 +551,7 @@ function calendarPane(L) {
   return `<section class="pane main chg">
     <div class="head ${L.hideSide ? 'has-menu' : ''}"><div class="row1">${headLeft(L)}<h1>2026년 10월</h1>${headNav()}${headRight(L)}</div>
       <p class="finding">이번 달 남은 할 일 ${TASKS.filter(t => t.due && open(t) && new Date(t.due).getMonth() === 9).length}개 · 날짜를 누르면 ${L.overlayPanel ? '그날 할 일이 열려요' : '오른쪽에 그날 할 일이 보여요'}</p></div>
-    <div class="cal"><div class="grid">${cells}</div></div>${quickAdd()}${s.viewMenu ? viewMenu() : ''}</section>`;
+    <div class="cal"><div class="grid">${cells}</div></div>${quickAdd()}${s.viewMenu ? viewMenu() : ''}${s.state === 'context' ? contextMenu() : ''}</section>`;
 }
 function timelinePane(L) {
   // Day columns from the focused day; as many as fit the pane (at least 240px each).
@@ -578,7 +580,7 @@ function timelinePane(L) {
   return `<section class="pane main chg">
     <div class="head ${L.hideSide ? 'has-menu' : ''}"><div class="row1">${headLeft(L)}<h1>10월 ${NOW.getDate()}일 – ${last.getMonth() === NOW.getMonth() ? '' : (last.getMonth() + 1) + '월 '}${last.getDate()}일</h1>${headNav()}${headRight(L)}</div>
       <p class="finding">${cols}일 · 남은 할 일 ${TASKS.filter(t => t.due && open(t) && dayDiff(t.due) >= 0 && dayDiff(t.due) < cols).length}개${over ? ` · <b>기한 지난 할 일 ${over}개</b>는 목록에서 볼 수 있어요` : ''}</p></div>
-    <div class="tl">${days.map(col).join('')}</div>${quickAdd()}${s.viewMenu ? viewMenu() : ''}</section>`;
+    <div class="tl">${days.map(col).join('')}</div>${quickAdd()}${s.viewMenu ? viewMenu() : ''}${s.state === 'context' ? contextMenu() : ''}</section>`;
 }
 
 // ---------- Right panel ----------
@@ -680,6 +682,7 @@ function render() {
 }
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-set],[data-nav],[data-task],[data-check],[data-star],[data-sec],[data-view],[data-tab],[data-pick],[data-closepanel],[data-viewmenu],[data-drawer],[data-sideopen]');
+  if (s.state === 'context' && !e.target.closest('.menu-pop') && !e.target.closest('.toolbar')) { s.state = 'selected'; if (!el) { render(); return; } }
   if (!el) { if (s.viewMenu) { s.viewMenu = false; render(); } return; }
   const d = el.dataset;
   if (!d.viewmenu && !(d.set && /^(group|density|left|noneTop):/.test(d.set))) s.viewMenu = false;
@@ -698,6 +701,17 @@ document.addEventListener('click', e => {
   else if (d.sideopen) { s.sideOpen = d.sideopen === '1'; }
   render();
 });
+// Right-click a task row (list, timeline, day list) to open its menu where the mouse is.
+document.addEventListener('contextmenu', e => {
+  const row = e.target.closest('[data-task]'), pane = e.target.closest('.pane.main');
+  if (!row || !pane) return;
+  e.preventDefault();
+  const r = pane.getBoundingClientRect(), z = s.fit ? 0.7 : 1;
+  s.selected = row.dataset.task; s.state = 'context'; s.tab = null; s.viewMenu = false;
+  s.ctxX = Math.min((e.clientX - r.left) / z, r.width / z - 250); s.ctxY = Math.min((e.clientY - r.top) / z, r.height / z - 380);
+  render();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && s.state === 'context') { s.state = 'selected'; render(); } });
 render();
 </script>
 </body>
