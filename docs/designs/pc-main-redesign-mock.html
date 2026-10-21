@@ -140,7 +140,7 @@
   /* ---------- Window ---------- */
   /* App font (user decision): Oxanium for Latin and digits, Noto Sans KR for Korean. */
   .win, .win button, .win input { font-family: "Oxanium", "Noto Sans KR", sans-serif; }
-  .win { position: relative; display: flex; flex-direction: column; border: 1px solid #2b303b; border-radius: 10px; overflow: hidden; background: var(--canvas); color: var(--text); flex: none; }
+  .win { position: relative; display: flex; flex-direction: column; border: 1px solid #2b303b; border-radius: 10px; overflow: hidden; background: var(--canvas); color: var(--text); flex: none; word-break: keep-all; overflow-wrap: break-word; }
   /* Top bar: unchanged from the current app (TopBar.scss, constants.scss). */
   .top { height: 42px; flex: none; display: flex; align-items: center; background: #13161b; border-bottom: 1px solid #2b303b; position: relative; }
   .top .brand { display: flex; align-items: center; gap: 9px; padding: 0 12px; }
@@ -483,6 +483,17 @@
   .pk-row .ci { width: 16px; display: grid; place-items: center; flex: none; }
   .pk-row .ci .dot { width: 8px; height: 8px; }
   .pk-row.add .nm { color: var(--secondary); }
+  .pk .sp { height: 1px; background: var(--line); margin: 6px 4px; }
+  /* A full-width action, not a list row: accent text and icon, outlined. */
+  .pk-add { display: flex; align-items: center; justify-content: center; gap: 6px; height: 34px; margin: 2px 4px 0; border-radius: 8px; border: 1px dashed #3a4354; color: var(--accent); font-weight: 600; cursor: pointer; }
+  .pk-add:hover { background: #6294ff14; border-color: var(--accent); }
+  .pk-add svg { width: 16px; height: 16px; }
+  .pk-new { display: flex; align-items: center; gap: 8px; margin: 2px 4px 0; }
+  .pk-new .dot { width: 10px; height: 10px; margin-left: 6px; }
+  .pk-new .in { flex: 1; min-width: 0; display: flex; align-items: center; height: 32px; padding: 0 10px; border-radius: 8px; background: var(--canvas); border: 1px solid var(--accent); }
+  .pk-new .caret { width: 1px; height: 15px; margin-left: 1px; background: var(--text); }
+  .pk-new .btn { height: 32px; padding: 0 12px; display: grid; place-items: center; border-radius: 8px; background: var(--accent); color: #fff; font-weight: 600; font-size: 12.5px; cursor: pointer; }
+  .pk .pk-new + .dp-note { padding: 0 6px; }
   .cbx.plus { border-color: transparent; color: var(--muted); }
   .pk-search { display: flex; align-items: center; gap: 8px; height: 32px; margin: 0 6px 6px; padding: 0 10px; border-radius: 8px; background: var(--canvas); border: 1px solid #2b303b; color: var(--muted); }
   .dp-h { display: flex; align-items: center; height: 28px; margin-bottom: 8px; padding-left: 2px; font-size: 14px; font-weight: 600; }
@@ -501,7 +512,7 @@
   .seg2 span.on { background: var(--raise); color: var(--text); font-weight: 600; }
   .dp-field .num { width: 48px; height: 32px; display: grid; place-items: center; border-radius: 8px; background: var(--canvas); border: 1px solid #2b303b; font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
   .dp-field .colon { color: var(--muted); font-weight: 600; }
-  .dp-note { margin: 8px 0 0; font-size: 12px; color: var(--muted); }
+  .dp-note { margin: 8px 0 0; font-size: 12px; line-height: 1.5; color: var(--muted); word-break: keep-all; text-wrap: balance; }
   .dp-foot { display: flex; align-items: center; gap: 6px; margin-top: 12px; }
   .dp-foot .sum { flex: 1; min-width: 0; color: var(--secondary); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .dp-foot .btn { height: 30px; padding: 0 12px; display: grid; place-items: center; border-radius: 8px; background: var(--raise); cursor: pointer; font-size: 12.5px; }
@@ -838,8 +849,10 @@ function repeatPicker() {
   const sub = k => k ? '다음: ' + next(k) : '한 번만';
   return '<div class="pk" style="' + s.pk.style + '"><div class="dp-h"><span class="nt">반복</span><span class="x" data-pk="close">' + I.vsClose + '</span></div>' +
     REPEATS.map(([k]) => '<div class="pk-row ' + (cur === k ? 'on' : '') + '" data-pk="rep:' + k + '"><span class="rd"></span><span class="tx"><span class="nm">' + name[k] + '</span><small>' + sub(k) + '</small></span></div>').join('') +
-    ((!t || !t.due) ? '<p class="dp-note">기한이 없으면 반복을 고를 때 오늘 끝(오후 11:59)이 기한이 돼요.</p>' : '') + '</div>';
+    ((!t || !t.due) ? '<p class="dp-note">기한이 없으면 오늘 오후 11:59가<br>기한이 돼요.</p>' : '') + '</div>';
 }
+// The next palette colour no category uses yet (first one if all are used).
+const nextColor = () => PALETTE.find(c => !CATS.some(x => x.color === c)) || PALETTE[0];
 // Category picker: several at once, with a search box and "새 카테고리".
 function categoryPicker() {
   const t = s.pk.at === 'detail' ? TASKS.find(x => x.id === s.selected) : null;
@@ -847,8 +860,10 @@ function categoryPicker() {
   return '<div class="pk" style="' + s.pk.style + '"><div class="dp-h"><span class="nt">카테고리</span><span class="x" data-pk="close">' + I.vsClose + '</span></div>' +
     '<div class="pk-search">' + I.search + '<span class="nt">카테고리 찾기</span></div>' +
     CATS.map(c => '<div class="pk-row ' + (on.includes(c.id) ? 'on' : '') + '" data-pk="cat:' + c.id + '"><span class="cbx ' + (on.includes(c.id) ? 'on' : '') + '">' + (on.includes(c.id) ? I.check : '') + '</span>' +
-      (c.secret ? '<span class="ci" style="color:' + c.color + '">' + secretSvg(14) + '</span>' : '<span class="ci"><span class="dot" style="background:' + c.color + '"></span></span>') + '<span class="nm lb">' + c.name + '</span></div>').join('') +
-    '<div class="sp"></div><div class="pk-row add" data-pk="newcat"><span class="cbx plus">' + I.plusS + '</span><span class="ci"></span><span class="nm">새 카테고리…</span></div></div>';
+      (c.secret ? '<span class="ci" style="color:' + c.color + '">' + secretSvg(14) + '</span>' : '<span class="ci"><span class="dot" style="background:' + c.color + '"></span></span>') + '<span class="nm lb"' + (c.name.length > 14 ? ' data-tip="' + c.name + '"' : '') + '>' + c.name + '</span></div>').join('') +
+    '<div class="sp"></div>' + (s.pk.creating
+      ? '<div class="pk-new"><span class="dot" style="background:' + nextColor() + '"></span><span class="in"><span class="nt">시험 공부</span><i class="caret"></i></span><span class="btn pri" data-pk="create"><span class="nt">만들기</span></span></div><p class="dp-note">색은 차례대로 정해져요.<br>카테고리를 우클릭해서 바꿀 수 있어요.</p>'
+      : '<div class="pk-add" data-pk="newcat">' + I.plus + '<span class="nt">새 카테고리</span></div>') + '</div>';
 }
 // Due date and time picker (from the context menu, the detail panel's 기한 row and the quick-add 날짜 chip).
 function duePicker() {
@@ -873,7 +888,7 @@ function duePicker() {
     (s.dpOn ? '<div class="dp-field"><span class="seg2"><span class="' + (pm ? '' : 'on') + '" data-dp="ampm:am">오전</span><span class="' + (pm ? 'on' : '') + '" data-dp="ampm:pm">오후</span></span>' +
       '<span class="num">' + h12 + '</span><span class="colon">:</span><span class="num">' + pad(m) + '</span></div>' +
       '<div class="dp-quick">' + presets.map(([v, l]) => '<span class="chip ' + (s.dpTime === v ? 'on' : '') + '" data-dp="at:' + v + '"><span class="nt">' + l + '</span></span>').join('') + '</div>'
-      : '<p class="dp-note">시간 없이 그날 끝(오후 11:59)까지예요. 켜면 오후 11:59부터 바꿀 수 있어요.</p>') + '</div>' +
+      : '<p class="dp-note">시간 없이 그날 끝(오후 11:59)까지예요.<br>켜면 시각을 바꿀 수 있어요.</p>') + '</div>' +
     '<div class="dp-foot"><span class="sum nt">' + sum + '</span><span class="btn" data-dp="close"><span class="nt">취소</span></span><span class="btn pri" data-dp="close"><span class="nt">정하기</span></span></div></div>';
 }
 function calendarPane(L) {
@@ -1072,7 +1087,11 @@ document.addEventListener('click', e => {
         const id = v.slice(4);
         if (t) { const list = taskCats(t).map(c => c.id); const nextList = list.includes(id) ? list.filter(x => x !== id) : [...list, id]; t.cats = nextList; t.cat = nextList[0] || null; }
         else { const cur = draftIds(); s.draft.cats = cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id]; }
-      } else if (v === 'newcat') { s.pk = null; s.newCat = true; s.catY = 420; }
+      } else if (v === 'newcat') s.pk.creating = true;
+      else if (v === 'create') {
+        const id = 'new' + CATS.length; CATS.push({ id, name: '시험 공부', color: nextColor() }); s.pk.creating = false;
+        if (t) { const list = taskCats(t).map(c => c.id); t.cats = [...list, id]; t.cat = t.cats[0]; } else s.draft.cats = [...draftIds(), id];
+      }
     }
     render(); return;
   }
