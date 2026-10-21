@@ -317,13 +317,13 @@
   .menu-pop .mi .ok { margin-left: auto; color: var(--accent); }
   .menu-pop .mi.has-sub { position: relative; }
   .row-s.menu-on { background: var(--raise); }
-  .swatches { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; padding: 4px 10px 8px; }
+  .swatches { display: grid; grid-template-columns: repeat(6, 24px); column-gap: 8px; row-gap: 12px; padding: 6px 10px 10px; }
   .sw-c { width: 24px; height: 24px; border-radius: 50%; background: var(--c); cursor: pointer; justify-self: center; box-shadow: inset 0 0 0 2px #0003; }
   .sw-c.on { box-shadow: 0 0 0 2px #1e2430, 0 0 0 4px var(--c); }
-  .new-cat, .cat-menu { width: 252px; }
+  .new-cat, .cat-menu { width: 224px; }
   .new-cat { padding: 10px; }
   /* Pick your own: a bright rainbow swatch; once used, the chosen colour sits in its middle. */
-  .sw-c.custom { display: grid; place-items: center; background: conic-gradient(#ff5f5f, #ffd24f, #6dff8a, #4fe0ff, #6a8bff, #e06bff, #ff5f5f); box-shadow: none; }
+  .sw-c.custom { display: grid; place-items: center; background: radial-gradient(circle closest-side, #fff 0%, #fff0 100%), conic-gradient(#ff5f5f, #ffd24f, #6dff8a, #4fe0ff, #6a8bff, #e06bff, #ff5f5f); box-shadow: none; }
   .sw-c.custom em { width: 12px; height: 12px; border-radius: 50%; box-shadow: 0 0 0 2px #1e2430; }
   .sw-c.custom.on { box-shadow: 0 0 0 2px #1e2430, 0 0 0 4px var(--c); }
   .cpk { margin: 4px 10px 8px; }
