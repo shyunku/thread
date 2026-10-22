@@ -3,8 +3,8 @@ import { formatSize, useLatestRelease } from "../release";
 
 const FEATURES = [
   {
-    title: "리스트·캘린더·타임라인",
-    body: "같은 할 일을 목록, 달력, 시간 흐름으로 바꿔 보며 오늘 할 일과 이번 달 일정을 한눈에 확인해요.",
+    title: "목록·캘린더·타임라인",
+    body: "날짜별로 묶은 목록, 달력, 시간 흐름으로 바꿔 보며 오늘과 이번 주 할 일을 한눈에 확인해요.",
     icon: <path d="M4 5h16M4 12h16M4 19h10" />,
   },
   {
@@ -19,7 +19,7 @@ const FEATURES = [
   },
   {
     title: "빠른 검색",
-    body: "Ctrl K로 할 일, 메모, 카테고리를 바로 찾아요.",
+    body: "Ctrl K로 모든 할 일의 제목, 메모, 카테고리를 바로 찾아요.",
     icon: <><circle cx="11" cy="11" r="6" /><path d="M20 20l-4.5-4.5" /></>,
   },
 ];
@@ -85,7 +85,7 @@ export default function Landing() {
         </div>
         <div className="container">
           <figure className="screenshot">
-            <img src={appScreenshot} width="1440" height="900" alt="Thread 메인 화면: 왼쪽 카테고리, 가운데 할 일 목록, 오른쪽 월간 캘린더" />
+            <img src={appScreenshot} width="1440" height="900" alt="Thread 메인 화면: 왼쪽 메뉴와 카테고리, 가운데 날짜별 할 일 목록, 오른쪽 할 일 상세" />
           </figure>
         </div>
       </section>
