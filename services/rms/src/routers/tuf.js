@@ -14,9 +14,14 @@ function downloadName(filePath) {
   if (platform === "mac" && file === "installer.dmg") return `Thread-${version}.dmg`;
   return null;
 }
+// Metadata and the release catalog change on every release, so they are never cached.
+// An installer path holds one version forever (a published version number is never
+// reused) and the app verifies its hash, so the CDN may keep it. Edge downloads are much
+// faster, and app versions up to 2.2.0 give up on a download that takes over 10 seconds.
+const cacheControl = (filePath) => (downloadName(filePath) ? "public, max-age=31536000, immutable" : "no-store");
 const options = { dotfiles: "deny", index: false, redirect: false, fallthrough: false,
   setHeaders(res, filePath) {
-    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("Cache-Control", cacheControl(filePath));
     const name = downloadName(filePath);
     if (name) res.setHeader("Content-Disposition", `attachment; filename="${name}"`);
   } };
@@ -24,3 +29,4 @@ router.use("/metadata", express.static(path.join(root, "metadata"), options));
 router.use("/targets", express.static(path.join(root, "targets"), options));
 module.exports = router;
 module.exports.downloadName = downloadName;
+module.exports.cacheControl = cacheControl;
