@@ -57,7 +57,10 @@ class ApplicationAdapter{
    }
    if(!changes.length)return null;
    // A large structural edit is rejected atomically rather than partially queued.
-   if(!composite||changes.length<=100)return this.replica.enqueue(changes);
+   if(!composite)return this.replica.enqueue(changes);
+   // A composite always lists its deletions last, in one draft or across several.
+   const ordered=[...changes.filter(change=>!change.deleted),...changes.filter(change=>change.deleted)];
+   if(ordered.length<=100)return this.replica.enqueue(ordered);
    // A composite (a category on 100+ tasks, a copy with 100+ subtasks) may not fit one
    // draft. It is queued as several drafts in this same local transaction, deletions
    // last. Each later draft repeats one row of the draft before it (an unchanged
@@ -65,7 +68,6 @@ class ApplicationAdapter{
    // (WAITING_FOR_PREVIOUS_EDIT) and a conflict on that draft rebases it along, still
    // after it. The repeat is dropped as a no-op once rebased, so the order is kept
    // through one conflict; a second conflict on the same draft can still reorder them.
-   const ordered=[...changes.filter(change=>!change.deleted),...changes.filter(change=>change.deleted)];
    let id=null,link=null;
    for(let i=0;i<ordered.length;){
     const size=link?99:100,chunk=ordered.slice(i,i+size);i+=size;

@@ -39,12 +39,11 @@ test("group fold states merge by id and ignore bad ids and values", () => {
   expect(Object.keys(prefsReducer(state, setPrefs({ groupClosed: many })).groupClosed)).toHaveLength(32);
 });
 
-test("the 완료됨 fold and the old listDoneOpen stay in step while the old list view uses it", () => {
-  let state = prefsReducer(fresh(), setPrefs({ listDoneOpen: true }));
-  expect(state).toMatchObject({ listDoneOpen: true, groupClosed: { done: false } });
-  state = prefsReducer(state, setPrefs({ groupClosed: { done: true } }));
-  expect(state).toMatchObject({ listDoneOpen: false, groupClosed: { done: true } });
-  expect(prefsReducer(state, setPrefs({ listTodoOpen: false })).listTodoOpen).toBe(false);
+test("the old list keys (listTodoOpen / listDoneOpen) are gone from the state and patches", () => {
+  const state = prefsReducer(fresh(), setPrefs({ listDoneOpen: true, listTodoOpen: false }));
+  expect(state).not.toHaveProperty("listDoneOpen");
+  expect(state).not.toHaveProperty("listTodoOpen");
+  expect(state.groupClosed).toEqual({ done: true });
 });
 
 test("the old 기한 choice still arriving in a patch turns the remaining time off", () => {
@@ -70,13 +69,15 @@ describe("prefs saved before #102", () => {
   });
 
   test("an open 완료됨 group stays open", () => {
-    expect(migratePrefs(old({ listDoneOpen: true }))).toMatchObject({ groupClosed: { done: false }, listDoneOpen: true });
+    expect(migratePrefs(old({ listDoneOpen: true })).groupClosed).toEqual({ done: false });
     expect(migratePrefs(old({ listDoneOpen: false })).groupClosed).toEqual({ done: true });
+    expect(migratePrefs(old({ listDoneOpen: true }))).not.toHaveProperty("listDoneOpen");
+    expect(migratePrefs(old({ listDoneOpen: true }))).not.toHaveProperty("listTodoOpen");
   });
 
   test("already migrated prefs are kept as they are", () => {
     const now = migratePrefs({ ...old(), showRemain: true, dueFormat: "auto", groupClosed: { done: false, today: true } });
-    expect(now).toMatchObject({ showRemain: true, dueFormat: "auto", groupClosed: { done: false, today: true }, listDoneOpen: true });
+    expect(now).toMatchObject({ showRemain: true, dueFormat: "auto", groupClosed: { done: false, today: true } });
   });
 
   test("garbage falls back to the defaults", () => {
@@ -105,7 +106,7 @@ test("the selector returns the same object until prefs change", () => {
 test("dev preview URL params become typed prefs; bad values are still ignored", () => {
   const params = new URLSearchParams(`showRemain=false&hideDone=true&noneTop=true&weekStart=1&timeFormat=24&groupClosed=${encodeURIComponent(JSON.stringify({ today: true, done: false }))}&dueFormat=auto&tab=general`);
   const state = prefsReducer(fresh(), setPrefs(prefsFromParams(params)));
-  expect(state).toMatchObject({ showRemain: false, hideDone: true, noneTop: true, weekStart: 1, timeFormat: "24", dueFormat: "auto", groupClosed: { today: true, done: false }, listDoneOpen: true });
+  expect(state).toMatchObject({ showRemain: false, hideDone: true, noneTop: true, weekStart: 1, timeFormat: "24", dueFormat: "auto", groupClosed: { today: true, done: false } });
   expect(state).not.toHaveProperty("tab");
   const bad = prefsReducer(fresh(), setPrefs(prefsFromParams(new URLSearchParams("showRemain=no&weekStart=7&groupClosed={bad&timeDisplay=due"))));
   expect(bad).toEqual({ ...fresh(), showRemain: false });

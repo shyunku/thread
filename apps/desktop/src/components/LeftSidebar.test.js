@@ -70,7 +70,7 @@ function Grab() {
   session = useSecretSession();
   return null;
 }
-function setup({ selected = TODO_MENU_TYPE.ALL, mode = "full", tasks, categories, syncStatus } = {}) {
+function setup({ selected = TODO_MENU_TYPE.ALL, mode = "full", tasks, categories, syncStatus, searchQuery = "" } = {}) {
   const cats = categories ?? {
     work: category("work", "업무", "#6294ff", false, "10"),
     study: category("study", "공부", "#b58cff", false, "20"),
@@ -94,6 +94,7 @@ function setup({ selected = TODO_MENU_TYPE.ALL, mode = "full", tasks, categories
     // E2EE status (protocolVersion 3): the category order can be changed.
     syncStatus: syncStatus ?? { protocolVersion: 3, ready: true, connected: true, syncing: false, pending: 0, error: null },
     states: { taskMap: Object.fromEntries(list.map((t) => [t.id, t])), categories: cats },
+    searchQuery,
   };
   setSelected = jest.fn();
   return render(
@@ -613,4 +614,12 @@ test("menus mark the current one with aria-current; ＋ learns the unlock method
   fireEvent.click(screen.getByRole("button", { name: "카테고리 추가" }));
   expect(within(screen.getByRole("dialog", { name: "새 카테고리" })).getByText("열 때 Windows Hello로 확인해요")).toBeTruthy();
   expect(screen.queryByRole("alertdialog")).toBeNull();
+});
+
+test("while searching no menu row is the current one", () => {
+  const { container } = setup({ selected: TODO_MENU_TYPE.TODAY, searchQuery: "리뷰" });
+  expect(container.querySelector(".side-row.on")).toBeNull();
+  expect(container.querySelector("[aria-current]")).toBeNull();
+  const work = setup({ selected: "work", searchQuery: " 업무 " }).container;
+  expect(work.querySelector(".cat-row.on")).toBeNull();
 });

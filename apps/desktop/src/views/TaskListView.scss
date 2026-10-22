@@ -1,66 +1,129 @@
-.task-view.list {
-  min-width: 0;
-  > .todo-item-groups {
-    display: flex;
-    flex-direction: column;
-    gap: 30px;
+// The list body (#102 mock .scroll, .sec, .gbox, .empty, .locked, .search-res, :262-275, :339-348, :609-613).
+.task-view.list.tc-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  // Folding a group keeps the scroll position as it is.
+  overflow-anchor: none;
+  scrollbar-width: thin;
+  scrollbar-color: #2b303b transparent;
+  padding: 0 calc(var(--main-x) - 14px) 80px;
+  box-sizing: border-box;
+
+  // The rows style their own buttons (TaskRow.scss).
+  .tl-sec, .tl-btn, .tl-more {
+    appearance: none;
+    margin: 0;
+    border: 0;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
   }
-  .todo-item-group > .title {
+  .tl-sec svg, .tl-ic svg { display: block; flex: none; }
+
+  .tl-group:first-child > .tl-sec { margin-top: 4px; }
+  .tl-empty + .tl-group > .tl-sec { margin-top: 32px; }
+  .tl-sec {
     display: flex;
     align-items: center;
-    gap: 9px;
-    padding: 0;
-    border: 0;
-    background: none;
+    gap: 8px;
+    width: 100%;
+    height: 36px;
+    margin-top: 20px;
+    padding: 0 14px;
+    background: transparent;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text);
+    text-align: left;
+    border-radius: 8px;
+    &:focus-visible { outline: none; box-shadow: inset 0 0 0 2px #6294ff80; }
+    .tl-c {
+      min-width: 22px;
+      height: 20px;
+      padding: 0 7px;
+      display: grid;
+      place-items: center;
+      border-radius: 10px;
+      background: var(--raise);
+      color: var(--secondary);
+      font-size: 11.5px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      box-sizing: border-box;
+    }
+    .tl-tog {
+      margin-left: auto;
+      width: 28px;
+      height: 28px;
+      margin-right: -6px;
+      display: grid;
+      place-items: center;
+      border-radius: 7px;
+      color: var(--muted);
+    }
+    &:hover .tl-tog { background: var(--raise); color: var(--text); }
+    &.over { color: var(--danger); }
+    &.over .tl-c { background: #3a2226; color: var(--danger); }
+  }
+  .tl-box { border-radius: 10px; background: var(--surface); overflow: hidden; }
+  .tl-more {
+    display: block;
+    margin: 8px auto 0;
+    height: 30px;
+    padding: 0 12px;
+    border-radius: 8px;
+    background: var(--raise);
+    color: var(--secondary);
+    font-size: 12.5px;
+    &:hover { background: #2d3442; color: var(--text); }
+  }
+
+  .tl-empty {
+    margin: 56px auto 0;
+    max-width: 340px;
+    text-align: center;
     color: var(--secondary);
     font-size: 13px;
-    font-weight: 600;
-    margin: 4px 0 14px;
-    cursor: pointer;
-
-    &:hover { color: var(--text); }
+    line-height: 1.5;
+    b { display: block; color: var(--text); font-size: 15px; margin-bottom: 6px; }
   }
-  .todo-item-group > .title::before {
-    content: "";
-    width: 5px;
-    height: 5px;
-    border-right: 1.5px solid var(--muted);
-    border-bottom: 1.5px solid var(--muted);
-    transform: rotate(45deg);
-    margin: -3px 3px 0;
-    transition: transform 0.2s ease, margin 0.2s ease;
+  .tl-btn {
+    display: inline-flex;
+    align-items: center;
+    margin-top: 14px;
+    height: 32px;
+    padding: 0 14px;
+    border-radius: 8px;
+    background: var(--raise);
+    color: var(--text);
+    font-size: 13px;
+    transition: background-color .12s, transform .08s;
+    &:hover { background: #2d3442; }
+    &:active { transform: scale(.94); }
+    &.pri { height: 34px; padding: 0 16px; background: var(--accent); color: #fff; font-weight: 600; }
+    &.pri:hover { background: #7aa5ff; }
+    @media (prefers-reduced-motion: reduce) { &:active { transform: none; } }
   }
-  .todo-item-group.closed > .title {
-    margin-bottom: 0;
-  }
-  .todo-item-group.closed > .title::before {
-    transform: rotate(-45deg);
-    margin: 0 3px 0 1px;
-  }
-  // Done tasks step back so the open ones stand out (task 95).
-  .done-group .todo-item-wrapper {
-    opacity: 0.6;
-    transition: opacity 0.15s ease, border-color 0.15s ease;
-  }
-  .done-group .todo-item-wrapper.selected {
-    opacity: 1;
-  }
-  .empty-list {
-    border: 1px dashed var(--border);
-    border-radius: 9px;
-    padding: 20px 16px;
-    color: var(--muted);
-    font-size: 12px;
-    line-height: 1.6;
-  }
-  .load-more {
-    align-self: flex-start;
-    margin-top: 12px;
-    border: 1px solid var(--border);
-    background: var(--panel);
+  .tl-locked {
+    margin: 64px auto 0;
+    max-width: 420px;
+    text-align: center;
     color: var(--secondary);
-    padding: 9px 12px;
-    border-radius: 7px;
-    font-size: 12px;
+    font-size: 13px;
+    line-height: 1.5;
+    .tl-ic {
+      width: 44px;
+      height: 44px;
+      margin: 0 auto 12px;
+      border-radius: 12px;
+      background: var(--surface);
+      display: grid;
+      place-items: center;
+    }
+    b { display: block; color: var(--text); font-size: 15px; margin-bottom: 6px; }
+    .tl-one { white-space: nowrap; }
   }
+  .tl-sum { margin: 12px 14px 0; font-size: 12px; color: var(--muted); }
 }

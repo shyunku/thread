@@ -85,7 +85,9 @@ const hasMove = (ids, { id, anchorId, after }) => {
 // mode: "full" (232px), "rail" (icons, 56px) or "drawer" (full sidebar in the ☰ drawer).
 const LeftSidebar = ({ setSelectedTodoMenuType, selectedTodoMenuType, mode = "full" }) => {
   const context = useOutletContext();
-  const { localNonce, remoteNonce, states, syncStatus } = context;
+  const { localNonce, remoteNonce, states, syncStatus, searchQuery = "" } = context;
+  // While searching, the results cover every menu, so no menu row shows as the current one.
+  const searching = String(searchQuery).trim().length > 0;
   const { categories, taskMap } = states;
   const rail = mode === "rail";
   const rootRef = useRef(null);
@@ -290,7 +292,7 @@ const LeftSidebar = ({ setSelectedTodoMenuType, selectedTodoMenuType, mode = "fu
         {TODO_MENU_ORDER.map((id) => {
           const label = TODO_MENU_LABEL[id];
           const red = id === TODO_MENU_TYPE.TODAY && overdue;
-          const selected = selectedTodoMenuType === id;
+          const selected = !searching && selectedTodoMenuType === id;
           return (
             <div
               key={id}
@@ -334,7 +336,7 @@ const LeftSidebar = ({ setSelectedTodoMenuType, selectedTodoMenuType, mode = "fu
         </div>
         {sortedCategories.map((category) => {
           const color = colorOf(category);
-          const selected = selectedTodoMenuType === category.id;
+          const selected = !searching && selectedTodoMenuType === category.id;
           return (
             <div
               key={category.id}

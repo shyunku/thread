@@ -1,254 +1,107 @@
 @import "styles/constants.scss";
+// The main pane (#102 mock .pane.main): a fixed header, the scrolling list and the quick add
+// at the bottom. Calendar and timeline keep their own views below the same header.
 .todo-content {
   display: flex;
   flex-direction: column;
   width: 100%;
   min-width: 0;
   height: 100%;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;
   position: relative;
   box-sizing: border-box;
   color: var(--text);
-  padding: 26px 28px 22px;
-  > .header {
-    order: 0;
-    flex-shrink: 0;
-    padding-right: 0;
-  }
-  > .header > .title {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 28px;
-    font-weight: 700;
-    letter-spacing: -0.8px;
-    line-height: 1.3;
-    color: var(--text);
-  }
-  .heading-star {
-    flex: none;
-    font-size: 24px;
-    color: #f2c14e;
-  }
-  .heading-count {
-    display: inline-grid;
-    place-items: center;
-    min-width: 25px;
-    padding: 3px 6px;
-    background: var(--surface);
-    color: var(--secondary);
-    border: 1px solid var(--border);
-    border-radius: 7px;
-    font-size: 14px;
-    letter-spacing: 0;
-  }
-  .workspace-description {
-    margin-top: 8px;
-    color: var(--secondary);
-    font-size: 13px;
-    line-height: 1.5;
-  }
-  .metadata {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-top: 9px;
-    color: var(--muted);
-    font-size: 11px;
-  }
-  .metadata .settings {
-    display: flex;
-  }
-  .metadata .setting-item {
-    position: relative;
-    display: grid;
-    place-items: center;
-    width: 23px;
-    height: 23px;
-    border-radius: 6px;
-    color: white;
+  font-size: 14px;
+  line-height: 1.5;
+
+  .tc-head { flex: none; padding: 20px var(--main-x) 0; }
+  .tc-head :where(button) {
+    appearance: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    font: inherit;
+    color: inherit;
+    background: none;
     cursor: pointer;
   }
-  .metadata .last-modified {
-    line-height: 23px;
-  }
-  .header > .options {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-top: 18px;
-  }
-  .view-modes,
-  .sort-options {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
-  }
-  .sort-options {
-    margin-left: auto;
-  }
-  .view-mode,
-  .sort-option {
-    background: var(--panel);
-    color: var(--secondary);
-    font-size: 12px;
-    border: 1px solid var(--border);
-    padding: 8px 11px;
-    border-radius: 7px;
+  .tc-head svg { display: block; flex: none; }
+  .tc-row1 { display: flex; align-items: center; gap: 8px; height: 32px; min-width: 0; }
+  .tc-title {
+    margin: 0;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 22px;
+    line-height: 32px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
     white-space: nowrap;
   }
-  .view-mode:hover,
-  .sort-option:hover {
-    background: var(--hover);
-    color: var(--text);
+  .tc-finding {
+    margin: 2px 0 0;
+    font-size: 13px;
+    line-height: 20px;
+    color: var(--secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    b { color: var(--danger); font-weight: 600; }
   }
-  .view-mode.selected,
-  .sort-option.activated {
-    color: #c5d7ff;
-    border-color: #6294ff80;
-    background: var(--selected);
-  }
-  .spliter {
-    display: none;
-  }
-  > .workspace-filters {
-    order: 1;
+  &.has-menu .tc-finding { padding-left: 32px; }
+  .tc-push { margin-left: auto; }
+  .tc-gap { flex: none; height: 12px; }
+
+  .tc-seg {
     display: flex;
-    gap: 8px;
-    flex-shrink: 0;
-    margin: 18px 0 14px;
-  }
-  .workspace-filters button {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    padding: 7px 10px;
-    border: 1px solid transparent;
-    border-radius: 6px;
-    background: none;
-    font-size: 12px;
-    color: var(--muted);
-  }
-  .workspace-filters button[aria-pressed="true"] {
+    flex: none;
+    gap: 2px;
+    height: 32px;
+    padding: 2px;
+    border-radius: 8px;
     background: var(--surface);
-    color: var(--text);
-    border-color: var(--border);
+    box-sizing: border-box;
+    button {
+      display: grid;
+      place-items: center;
+      width: 32px;
+      border-radius: 6px;
+      color: var(--secondary);
+      transition: background-color .12s, color .12s;
+      &:hover:not(.on) { background: #262c38; color: var(--text); }
+      &.on { background: var(--raise); color: var(--text); }
+    }
   }
-  .workspace-filters span {
-    color: var(--muted);
-    font-size: 11px;
-  }
-  > .todo-item-add-section {
-    order: 2;
-    flex-shrink: 0;
-    margin-bottom: 26px;
-  }
-  .todo-item-add-section > .input-wrapper {
+  .tc-ghost {
     display: flex;
     align-items: center;
-    min-height: 48px;
-    border: 1px solid var(--border);
-    border-radius: 9px;
-    background: var(--surface);
+    justify-content: center;
+    flex: none;
+    height: 32px;
+    min-width: 32px;
     padding: 0 8px;
-    transition: border-color 0.15s ease;
-  }
-  .todo-item-add-section .input-wrapper.focused {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px #6294ff12;
-  }
-  .todo-item-add-section input {
-    flex: 1;
-    min-width: 60px;
-    height: 46px;
-    color: var(--text);
-    font-size: 14px;
-    padding: 0 8px;
-    outline: none;
-  }
-  .todo-item-add-section input::placeholder {
+    border-radius: 8px;
     color: var(--secondary);
+    font-size: 12.5px;
+    transition: background-color .12s, transform .08s;
+    &:hover { background: var(--hover); }
+    &.on { background: var(--raise); color: var(--text); }
+    &:active { transform: scale(.94); }
+    @media (prefers-reduced-motion: reduce) { &:active { transform: none; } }
+    &.tc-sq { width: 32px; padding: 0; }
   }
-  .quick-add {
-    display: grid;
-    place-items: center;
-    padding: 5px;
-    border: 0;
-    background: none;
-    font-size: 23px;
-    color: var(--accent);
-  }
-  .quick-add:disabled {
-    color: var(--secondary);
-    opacity: 1;
-  }
-  .todo-item-add-section .options {
-    display: flex;
-    align-items: center;
-    color: var(--secondary);
-  }
-  .todo-item-add-section .options > .option {
-    display: flex;
-    align-items: center;
-    height: 38px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 18px;
-  }
-  .todo-item-add-section .options > .option:hover {
-    background: var(--hover);
-  }
-  > .body {
-    order: 3;
+  // The last header button's icon ends on the 32px edge, like the stars below.
+  .tc-row1 > .tc-ghost:last-child { margin-right: -8px; }
+  .side-menu-button { margin-left: -8px; }
+
+  // Calendar and timeline (restyled in phase G).
+  > .tc-other {
     flex: 1;
     min-height: 0;
-  }
-  > .body > .task-view {
-    height: 100%;
-  }
-  @media (min-width: 1101px) {
-    &.split-workspace {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
-      grid-template-rows: auto auto auto minmax(0, 1fr);
-      column-gap: 24px;
-      overflow: hidden;
-      > .header {
-        grid-column: 1;
-        grid-row: 1;
-        padding-right: 8px;
-      }
-      > .workspace-filters {
-        grid-column: 1;
-        grid-row: 2;
-      }
-      > .todo-item-add-section {
-        grid-column: 1;
-        grid-row: 3;
-        margin-right: 8px;
-      }
-      > .body,
-      .task-list-calendar-view {
-        display: contents;
-      }
-      .view-segment.list {
-        grid-column: 1;
-        grid-row: 4;
-      }
-      .view-segment.calendar {
-        grid-column: 2;
-        grid-row: 1 / 5;
-        border-left: 1px solid var(--border);
-        padding-left: 24px;
-      }
-      .split-line {
-        display: none;
-      }
-      .calendar .day-cell {
-        height: clamp(88px, 12vh, 142px);
-      }
-    }
+    overflow: auto;
+    padding: 4px var(--main-x) 20px;
+    box-sizing: border-box;
+    > .task-view, > .task-timeline-view { height: 100%; }
   }
   .view-header {
     display: flex;
@@ -285,11 +138,5 @@
   }
   .view-header .icon-wrapper {
     display: flex;
-  }
-  @media (max-width: 1100px) {
-    padding: 20px;
-    > .body {
-      min-height: auto;
-    }
   }
 }

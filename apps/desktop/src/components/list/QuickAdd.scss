@@ -1,0 +1,118 @@
+// Quick add at the bottom of a view (#102 mock .quick, :252-261).
+.tc-quick {
+  flex: none;
+  margin: 12px calc(var(--main-x) - 14px) 20px;
+  padding: 0 14px;
+  border-radius: 10px;
+  background: var(--surface);
+  position: relative;
+
+  button {
+    appearance: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+  }
+  svg { display: block; flex: none; }
+
+  .qa-in {
+    display: flex;
+    align-items: center;
+    gap: var(--ck-gap);
+    height: 44px;
+    color: var(--muted);
+    font-size: 13.5px;
+  }
+  .qa-plus {
+    width: var(--ck);
+    height: var(--ck);
+    display: grid;
+    place-items: center;
+    flex: none;
+    background: transparent;
+    color: var(--accent);
+    border-radius: 6px;
+    &:disabled { cursor: default; }
+  }
+  input {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    outline: none;
+    background: transparent;
+    color: var(--text);
+    font: inherit;
+    &::placeholder { color: var(--muted); }
+  }
+  kbd {
+    margin-left: auto;
+    flex: none;
+    font: inherit;
+    font-size: 11px;
+    line-height: 1;
+    color: var(--muted);
+    border: 1px solid #2b303b;
+    border-radius: 4px;
+    padding: 3px 5px;
+  }
+  .qa-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 0 0 12px calc(var(--ck) + var(--ck-gap));
+  }
+  .qa-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 24px;
+    max-width: 220px;
+    padding: 0 8px;
+    border-radius: 6px;
+    background: var(--raise);
+    color: var(--secondary);
+    font-size: 12px;
+    white-space: nowrap;
+    transition: background-color .12s, color .12s, transform .08s;
+    &:hover { background: #2d3442; color: var(--text); }
+    &.on { background: var(--accent-soft); color: #a9c3ff; }
+    &.on:hover { background: #6294ff38; }
+    &:active { transform: scale(.94); }
+    @media (prefers-reduced-motion: reduce) { &:active { transform: none; } }
+    > span { line-height: 24px; }
+  }
+  // A chip with a value and its × (mock .chip.has-x / .cx): the × shows on hover or focus.
+  .qa-chip.has-x { position: relative; }
+  .qa-hit {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+    height: 100%;
+    overflow: hidden;
+    background: transparent;
+    > span { line-height: 24px; }
+  }
+  .qa-x {
+    display: none;
+    width: 16px;
+    height: 16px;
+    margin: 0 -4px 0 1px;
+    flex: none;
+    place-items: center;
+    border-radius: 4px;
+    background: transparent;
+    color: #a9c3ff;
+    svg { width: 12px; height: 12px; }
+    &:hover { background: #6294ff40; color: #fff; }
+  }
+  .qa-chip.has-x:hover .qa-x, .qa-chip.has-x:focus-within .qa-x { display: grid; }
+  .qa-lb { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .qa-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+  .qa-shield { display: grid; place-items: center; }
+}

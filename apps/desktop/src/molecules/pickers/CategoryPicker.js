@@ -19,12 +19,13 @@ function tipIfCut(event) {
 // 만들기 in place: onCreate(name, color) gets the next unused palette colour and resolves to the
 // new category's id, which is then ticked with onToggle. Esc in the name field cancels only that.
 // categories: [{ id, title, color, secret }] in display order; selectedIds: ticked ids.
+// initialCreate opens with the name field (the task menu's 새 카테고리…).
 export default function CategoryPicker({
-  categories = [], selectedIds = [], onToggle, onCreate, onClose,
-  anchor, placement = "bottom-start", offset, gap, returnFocus,
+  categories = [], selectedIds = [], onToggle, onCreate, onClose, initialCreate = false,
+  anchor, placement = "bottom-start", offset, gap, returnFocus, ignoreOutside,
 }) {
   const [query, setQuery] = useState("");
-  const [creating, setCreating] = useState(false);
+  const [creating, setCreating] = useState(!!initialCreate && !!onCreate);
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [focusAdd, setFocusAdd] = useState(false);
@@ -90,9 +91,10 @@ export default function CategoryPicker({
       offset={offset}
       gap={gap}
       returnFocus={returnFocus}
+      ignoreOutside={ignoreOutside}
       className="pk"
       label="카테고리"
-      initialFocus={searchRef}
+      initialFocus={creating ? nameRef : searchRef}
       onClose={() => onClose?.()}
     >
       <div className="dp-h">

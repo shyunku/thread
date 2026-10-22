@@ -1,35 +1,32 @@
 import "./TodoContent.scss";
-import React, {
-  createRef,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import { TODO_MENU_TYPE, inMenu, isMenuType, isSecretTask } from "utils/menuFilters";
-import { useSecretSession } from "../hooks/useSecretSession";
-import { SideMenuButton } from "../layouts/homeLayoutContext";
-import Task from "objects/Task";
-import TodoItemAddSection from "./TodoItemAddSection";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { useOutletContext } from "react-router-dom";
+import { v4 } from "uuid";
+import { TODO_MENU_LABEL, TODO_MENU_TYPE, inMenu, isMenuType, isOverdue, isSecretTask } from "utils/menuFilters";
+import { osAuthName, useSecretSession } from "../hooks/useSecretSession";
+import Task from "objects/Task";
 import TaskListView from "views/TaskListView";
-import JsxUtil from "utils/JsxUtil";
 import IpcSender from "utils/IpcSender";
 import Subtask from "objects/Subtask";
 import moment from "moment";
 import Category from "objects/Category";
 import TaskCalendarView from "views/TaskCalendarView";
+import TaskTimelineView from "views/TaskTimelineView";
 import Toast from "molecules/Toast";
-import {
-  fromRelativeTime,
-  printf,
-  toRelativeTime,
-} from "utils/Common";
-import { useSelector } from "react-redux";
-import { accountAuthSlice, accountInfoSlice } from "store/accountSlice";
-import { prefsSelector } from "store/prefsSlice";
+import { fromRelativeTime } from "utils/Common";
+import { START_VIEWS, prefsSelector, setPrefs } from "store/prefsSlice";
+import useClock from "hooks/UseClock";
+import { CategoryPicker, ConfirmDialog, TaskContextMenu, openPopupCount, taskDeleteConfirm } from "molecules/pickers";
+import { moveFocus } from "molecules/pickers/focusNav";
+import { categoryColor } from "utils/categoryColors";
+import { sortCategories } from "utils/categoryOrder";
+import { useHomeLayout } from "layouts/homeLayoutContext";
+import ListHeader from "./list/ListHeader";
+import QuickAdd, { quickAddDefaults } from "./list/QuickAdd";
+import { searchSections, storedOrder } from "./list/listModel";
+import { TaskSelectionContext } from "./list/taskSelection";
+import useTaskCompletion from "./list/useTaskCompletion";
 import {
   applyAddTask,
   applyAddTaskCategory,
@@ -49,27 +46,16 @@ import {
   applyUpdateTaskRepeatPeriod,
   applyUpdateTaskTitle,
 } from "../hooks/UseTransaction";
-import TaskListCalendarView from "../views/TaskListCalendarView";
-import TaskTimelineView from "../views/TaskTimelineView";
-import TaskListTimelineView from "../views/TaskListTimelineView";
-import { IoStar } from "react-icons/io5";
 
-const TASK_VIEW_MODE = {
-  LIST_CALENDAR: "리스트 | 캘린더",
-  LIST: "리스트",
-  CALENDAR: "캘린더",
-  TIMELINE: "타임라인",
-  // LIST_TIMELINE: "리스트 | 타임라인",
-  // DASHBOARD: "대시보드",
+const isEditable = (el) =>
+  el instanceof Element && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
+
+const failed = (label) => ({ success } = {}) => {
+  if (success === false) Toast.error(`${label}하지 못했어요.`);
 };
 
-const SORT_MODE = {
-  DUE_DATE: "기한",
-  REMAIN_DATE: "남은 기한",
-  CREATED_DATE: "생성일",
-};
-
-const TodoContent = (callback, deps) => {
+// children render inside the selection context, next to the main pane (the right panel, phase F).
+const TodoContent = ({ children }) => {
   const props = useOutletContext();
   const {
     selectedTodoMenuType,
@@ -77,13 +63,16 @@ const TodoContent = (callback, deps) => {
     addPromise,
     states,
     searchQuery = "",
+    syncStatus,
   } = props;
 
   const { taskMap, categories } = states;
+  const dispatch = useDispatch();
+  const prefs = useSelector(prefsSelector);
+  const layout = useHomeLayout();
 
-  const [currentSortMode, setCurrentSortMode] = useState(SORT_MODE.DUE_DATE);
   const [lastTxUpdateTime, setLastTxUpdateTime] = useState(null);
-  const [completionFilter, setCompletionFilter] = useState("all");
+  // eslint-disable-next-line no-unused-vars
   const lastUpdateTimeText = useMemo(() => {
     if (lastTxUpdateTime == null) return null;
     const now = Date.now();
@@ -93,124 +82,83 @@ const TodoContent = (callback, deps) => {
     );
   }, [lastTxUpdateTime]);
 
-  // main objects
-  const [selectedTodoItemId, setSelectedTodoItemId] = useState(null);
-  // Initial view follows 설정 > 일반 > 시작할 때 보기.
-  const { startView } = useSelector(prefsSelector);
-  const [taskViewMode, setTaskViewMode] = useState(
-    () => ({ calendar: TASK_VIEW_MODE.CALENDAR, timeline: TASK_VIEW_MODE.TIMELINE })[startView] || TASK_VIEW_MODE.LIST
-  );
-  const [wideWorkspace, setWideWorkspace] = useState(() => window.innerWidth > 1100);
-  useEffect(() => {
-    const onResize = () => setWideWorkspace(window.innerWidth > 1100);
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
-  const renderedViewMode = wideWorkspace &&
-    (taskViewMode === TASK_VIEW_MODE.LIST || taskViewMode === TASK_VIEW_MODE.CALENDAR)
-    ? TASK_VIEW_MODE.LIST_CALENDAR
-    : taskViewMode;
-
-  const isTodayCategory = useMemo(() => {
-    return category?.default && category?.title === TODO_MENU_TYPE.TODAY;
-  }, [category]);
+  // The one selected task (#102); phase F's right panel reads it through useTaskSelection().
+  const [selectedTaskId, setSelectedTaskId] = useState(null);
+  const [menu, setMenu] = useState(null); // task menu: { taskId, point, row }
+  const [newCategoryFor, setNewCategoryFor] = useState(null); // { taskId, point }
+  const [confirm, setConfirm] = useState(null); // delete question: { taskId, title, row }
+  // Initial view follows 설정 > 일반 > 시작할 때 보기; every menu can switch (#102).
+  const [view, setView] = useState(() => (START_VIEWS.includes(prefs.startView) ? prefs.startView : "list"));
 
   /* ------------------------------ Filters ------------------------------ */
   const secretSession = useSecretSession();
+  const customCategory = category != null && category.default === false ? category : null;
   const categoryFilter = useMemo(() => {
     // Built-in menus (#102): 오늘 = due today or overdue, 다음 7일 = due within 7 days.
     if (isMenuType(selectedTodoMenuType)) return (task) => inMenu(selectedTodoMenuType, task);
-    switch (selectedTodoMenuType) {
-      default:
-        return (task) => {
-          if (
-            category != null &&
-            category?.default === false &&
-            task.categories[category?.id] == null
-          ) {
-            return false;
-          }
-          return true;
-        };
-    }
-  }, [category, selectedTodoMenuType]);
+    return (task) => !(customCategory && task.categories[customCategory.id] == null);
+  }, [customCategory, selectedTodoMenuType]);
 
   // A task is secret when any of its categories is secret. Secret tasks show inside their
   // unlocked category, and everywhere while the eye toggle is on (#102).
   const { showSecret, unlocked: secretUnlocked } = secretSession;
+  const locked = !!customCategory?.secret && !secretUnlocked;
   const secretFilter = useMemo(() => {
-    if (category?.secret && !secretUnlocked) return () => false;
-    if (showSecret || category?.secret) return () => true;
+    if (customCategory?.secret && !secretUnlocked) return () => false;
+    if (showSecret || customCategory?.secret) return () => true;
     return (task) => !isSecretTask(task, categories);
-  }, [category, categories, showSecret, secretUnlocked]);
+  }, [customCategory, categories, showSecret, secretUnlocked]);
 
-  // collect all filters to apply to tasks
-  const totalFilters = useMemo(() => {
-    return [categoryFilter, secretFilter];
-  }, [categoryFilter, secretFilter]);
+  const ordered = useMemo(() => storedOrder(taskMap), [taskMap]);
+  const viewTasks = useMemo(
+    () => ordered.filter((task) => categoryFilter(task) && secretFilter(task)),
+    [ordered, categoryFilter, secretFilter]
+  );
 
-  // create a final filter function that combines all filters
-  const finalStandaloneFilter = useMemo(() => {
-    return (task) => {
-      for (let filter of totalFilters) {
-        if (filter(task) === false) return false;
-      }
-      return true;
-    };
-  }, [totalFilters]);
+  const query = searchQuery.trim();
+  const searching = query.length > 0;
 
-  // finally, apply all filters to taskMap
-  const searchedTaskMap = useMemo(() => {
-    const filtered = {};
-    const query = searchQuery.trim().toLocaleLowerCase();
-    for (let task of Object.values(taskMap)) {
-      if (!finalStandaloneFilter(task)) continue;
-      const text = [task.title, task.memo, ...Object.keys(task.categories).map((id) => categories[id]?.title)].join(" ").toLocaleLowerCase();
-      if (!query || text.includes(query)) filtered[task.id] = task;
-    }
-    return filtered;
-  }, [taskMap, finalStandaloneFilter, searchQuery, categories]);
+  // Categories in sidebar order. Secret ones are named only where their tasks show: with the eye
+  // on, or on that (unlocked) category's screen.
+  const categoryList = useMemo(() => sortCategories(Object.values(categories ?? {})), [categories]);
+  const secretNamed = useCallback(
+    (c) => !c.secret || showSecret || c.id === customCategory?.id,
+    [showSecret, customCategory]
+  );
+  const catsOf = useCallback(
+    (task) => categoryList.filter((c) => task.categories?.[c.id] && secretNamed(c)),
+    [categoryList, secretNamed]
+  );
+  const categoryName = useCallback(
+    (cid) => (categories?.[cid] && secretNamed(categories[cid]) ? categories[cid].title : null),
+    [categories, secretNamed]
+  );
+  // What the pickers offer: secret categories only while unlocked.
+  const pickable = useMemo(() => categoryList.filter((c) => !c.secret || secretUnlocked), [categoryList, secretUnlocked]);
 
-  const filteredTaskMap = useMemo(() => Object.fromEntries(
-    Object.entries(searchedTaskMap).filter(([, task]) =>
-      completionFilter === "all" || (completionFilter === "done" ? task.done : !task.done))
-  ), [searchedTaskMap, completionFilter]);
-  const completeCount = Object.values(searchedTaskMap).filter((task) => task.done).length;
-  const visibleCount = Object.keys(searchedTaskMap).length;
-
-  const filteredUndoneTaskCount = useMemo(() => {
-    let length = 0;
-    for (let task of Object.values(filteredTaskMap)) {
-      if (task.done == false) length++;
-    }
-    return length;
-  }, [filteredTaskMap]);
-
-  /* ------------------------------ Sorters ------------------------------ */
-  const sorter = useMemo(() => {
-    switch (currentSortMode) {
-      case SORT_MODE.REMAIN_DATE:
-        return (t1, t2) => {
-          if (t1.dueDate == null && t2.dueDate == null) return 0;
-          if (t1.dueDate == null) return 1;
-          if (t2.dueDate == null) return -1;
-          return moment(t2.dueDate).diff(moment(t1.dueDate));
-        };
-      case SORT_MODE.DUE_DATE:
-        return (t1, t2) => {
-          if (t1.dueDate == null && t2.dueDate == null) return 0;
-          if (t1.dueDate == null) return 1;
-          if (t2.dueDate == null) return -1;
-          return moment(t1.dueDate).diff(moment(t2.dueDate));
-        };
-      case SORT_MODE.CREATED_DATE:
-        return (t1, t2) => {
-          return moment(t2.createdAt).diff(moment(t1.createdAt));
-        };
-      default:
-        return null;
-    }
-  }, [currentSortMode]);
+  // Search looks through every task, whatever the menu (#102). Tasks of hidden secret categories
+  // (eye off) are listed too, marked, with their category names; acting on one asks for the
+  // unlock first. Calendar and timeline show the same results without the hidden ones.
+  const allCatsOf = useCallback((task) => categoryList.filter((c) => task.categories?.[c.id]), [categoryList]);
+  const anyName = useCallback((cid) => categories?.[cid]?.title ?? null, [categories]);
+  const isHiddenHit = useCallback((task) => !showSecret && isSecretTask(task, categories), [showSecret, categories]);
+  const found = useMemo(
+    () => (searching ? searchSections(ordered, query, anyName, { hideDone: prefs.hideDone }) : null),
+    [searching, ordered, query, anyName, prefs.hideDone]
+  );
+  const foundTasks = useMemo(() => (found ? [...found.title, ...found.memo, ...found.category] : []), [found]);
+  const shownTaskMap = useMemo(() => {
+    const map = {};
+    for (const task of searching ? foundTasks.filter((t) => !isHiddenHit(t)) : viewTasks) map[task.id] = task;
+    return map;
+  }, [searching, foundTasks, isHiddenHit, viewTasks]);
+  // Tasks the selection may stay on: the screen's, or the results (hidden hits once unlocked).
+  const visibleIds = useMemo(() => {
+    const ids = new Set();
+    if (searching) for (const t of foundTasks) { if (secretUnlocked || !isHiddenHit(t)) ids.add(t.id); }
+    else for (const t of viewTasks) ids.add(t.id);
+    return ids;
+  }, [searching, foundTasks, secretUnlocked, isHiddenHit, viewTasks]);
 
   const getCategoryListSync = useCallback(() => {
     return new Promise((resolve, reject) => {
@@ -260,6 +208,8 @@ const TodoContent = (callback, deps) => {
         }
       });
     });
+    // Fetched once with the map as it was.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const getSubTaskListSync = useCallback((transition) => {
@@ -325,6 +275,7 @@ const TodoContent = (callback, deps) => {
     await IpcSender.req.system.stateListenReady(true);
   }, [
     addPromise,
+    getCategoryListSync,
     getSubTaskListSync,
     getTaskListSync,
     getTasksCategoriesListSync,
@@ -345,84 +296,55 @@ const TodoContent = (callback, deps) => {
     };
   }, [fetchAll]);
 
-  useEffect(() => {
-    if (isTodayCategory && taskViewMode !== TASK_VIEW_MODE.LIST) {
-      setTaskViewMode(TASK_VIEW_MODE.LIST);
-    }
-  }, [taskViewMode, isTodayCategory]);
-
   /* ------------------------------ Handlers ------------------------------ */
-  const onTaskAdd = (task) => {
+  const onTaskAdd = useCallback((task) => {
     if (!(task instanceof Task)) return;
     IpcSender.req.task.addTask(task.toEntity(), null);
+  }, []);
+
+  // A category made from a picker (quick add, the task menu): the next palette colour comes from
+  // the picker. Resolves to its id once stored.
+  const onCreateCategory = useCallback((title, color) => new Promise((resolve, reject) => {
+    const created = new Category(title, false);
+    created.id = v4();
+    created.color = color;
+    IpcSender.req.category.createCategory(created.toEntity(), ({ success, data } = {}) => {
+      if (success === false) {
+        Toast.error("카테고리를 만들지 못했어요.");
+        reject(new Error("CATEGORY_CREATE_FAILED"));
+      } else resolve(data?.cid ?? created.id);
+    });
+  }), []);
+
+  // Every task change the list and the detail panel (phase F) send.
+  const actions = useMemo(() => ({
+    addTask: onTaskAdd,
+    deleteTask: (tid) => IpcSender.req.task.deleteTask(tid, null),
+    setTitle: (tid, title) => IpcSender.req.task.updateTaskTitle(tid, title, null),
+    // null clears the due; on a repeating task the model clears the repeat with it.
+    setDue: (tid, dueDate) => IpcSender.req.task.updateTaskDueDate(tid, dueDate == null ? null : moment(dueDate).valueOf(), null),
+    setMemo: (tid, memo) => IpcSender.req.task.updateTaskMemo(tid, memo, null),
+    // callback({ success }) answers the change (the list restores a refused completion).
+    setDone: (tid, done, callback) => IpcSender.req.task.updateTaskDone(tid, done, Date.now(), callback ?? null),
+    addCategory: (tid, cid) => IpcSender.req.task.addTaskCategory(tid, cid, null),
+    removeCategory: (tid, cid) => IpcSender.req.task.deleteTaskCategory(tid, cid, null),
+    setRepeat: (tid, repeat) => IpcSender.req.task.updateTaskRepeatPeriod(tid, repeat, null),
+    setImportant: (tid, important) => IpcSender.req.task.updateTaskImportant(tid, important, null),
+    duplicate: (tid) => IpcSender.req.task.duplicateTask(tid, null, failed("복제")),
+    createCategory: onCreateCategory,
+    addSubtask: (tid, subtask) => {
+      if (subtask instanceof Subtask) IpcSender.req.task.createSubtask(subtask.toEntity(), tid, null);
+    },
+    deleteSubtask: (tid, sid) => IpcSender.req.task.deleteSubtask(tid, sid, null),
+    setSubtaskTitle: (tid, sid, title) => IpcSender.req.task.updateSubtaskTitle(tid, sid, title, null),
+    setSubtaskDue: (tid, sid, dueDate) => IpcSender.req.task.updateSubtaskDueDate(tid, sid, dueDate == null ? null : moment(dueDate).valueOf(), null),
+    setSubtaskDone: (tid, sid, done) => IpcSender.req.task.updateSubtaskDone(tid, sid, done, Date.now()),
+  }), [onTaskAdd, onCreateCategory]);
+
+  const toggleCategory = (task, cid) => {
+    if (task.categories?.[cid]) actions.removeCategory(task.id, cid);
+    else actions.addCategory(task.id, cid);
   };
-
-  const onTaskDelete = (tid) => {
-    IpcSender.req.task.deleteTask(tid, null);
-  };
-
-  const onTaskTitleChange = (tid, title) => {
-    IpcSender.req.task.updateTaskTitle(tid, title, null);
-  };
-
-  const onTaskDueDateChange = (tid, dueDate) => {
-    let newDueDate = dueDate;
-    if (newDueDate != null) newDueDate = moment(newDueDate).valueOf();
-    IpcSender.req.task.updateTaskDueDate(tid, newDueDate, null);
-  };
-
-  const onTaskMemoChange = (tid, memo) => {
-    IpcSender.req.task.updateTaskMemo(tid, memo, null);
-  };
-
-  const onTaskDone = (tid, done) => {
-    const now = new Date();
-    IpcSender.req.task.updateTaskDone(tid, done, now.getTime(), null);
-  };
-
-  const onTaskCategoryAdd = (tid, category) => {
-    IpcSender.req.task.addTaskCategory(tid, category.id, null);
-  };
-
-  const onTaskCategoryDelete = (tid, cid) => {
-    IpcSender.req.task.deleteTaskCategory(tid, cid, null);
-  };
-
-  const onTaskRepeatChange = (tid, repeat) => {
-    IpcSender.req.task.updateTaskRepeatPeriod(tid, repeat, null);
-  };
-
-  const onTaskImportantChange = (tid, important) => {
-    IpcSender.req.task.updateTaskImportant(tid, important, null);
-  };
-
-  const onSubtaskAdded = (tid, subtask) => {
-    if (!(subtask instanceof Subtask)) {
-      return;
-    }
-
-    IpcSender.req.task.createSubtask(subtask.toEntity(), tid, null);
-  };
-
-  const onSubtaskDelete = (tid, sid) => {
-    IpcSender.req.task.deleteSubtask(tid, sid, null);
-  };
-
-  const onSubtaskTitleChange = (tid, sid, title) => {
-    IpcSender.req.task.updateSubtaskTitle(tid, sid, title, null);
-  };
-
-  const onSubtaskDueDateChange = (tid, sid, dueDate) => {
-    const newDate = moment(dueDate).valueOf();
-    IpcSender.req.task.updateSubtaskDueDate(tid, sid, newDate, null);
-  };
-
-  const onSubtaskDone = (tid, sid, done) => {
-    const now = new Date();
-    IpcSender.req.task.updateSubtaskDone(tid, sid, done, now.getTime());
-  };
-
-  // printf("taskMap", taskMap);
 
   useEffect(() => {
     // get last update time
@@ -536,158 +458,246 @@ const TodoContent = (callback, deps) => {
     };
   }, [addPromise, taskMap, categories]);
 
-  const taskListViewRef = createRef();
+  /* ------------------------------ Selection ------------------------------ */
+  const openTask = useCallback((tid) => setSelectedTaskId(tid), []);
+  const selectedVisible = !!selectedTaskId && visibleIds.has(selectedTaskId);
+  const selectedTask = selectedVisible ? taskMap[selectedTaskId] ?? null : null;
+  // A task that leaves the screen (deleted, another menu, hidden by the eye or the vault lock, not
+  // in the results) leaves the selection, so nothing shows or acts on it.
+  useEffect(() => {
+    if (selectedTaskId && !selectedVisible) setSelectedTaskId(null);
+  }, [selectedTaskId, selectedVisible]);
+  // The task menu, its 새 카테고리 picker and the delete question close the same way.
+  useEffect(() => {
+    if (menu && !visibleIds.has(menu.taskId)) setMenu(null);
+    if (newCategoryFor && !visibleIds.has(newCategoryFor.taskId)) setNewCategoryFor(null);
+    if (confirm && !visibleIds.has(confirm.taskId)) setConfirm(null);
+  }, [menu, newCategoryFor, confirm, visibleIds]);
 
-  const onScroll = (e) => {
-    if (taskListViewRef.current == null) return;
-    const topOffset = e.target.scrollTop;
-    const bottomOffset =
-      e.target.scrollHeight - e.target.scrollTop - e.target.clientHeight;
+  const askDelete = useCallback((task, row) => setConfirm({ taskId: task.id, title: task.title, row }), []);
 
-    if (bottomOffset < taskListViewRef.current.reachOffset) {
-      taskListViewRef.current.onScrollReachBottom();
-    } else if (topOffset < taskListViewRef.current.reachOffset) {
-      taskListViewRef.current.onScrollReachTop();
-    }
-  };
+  // The latest screen state for the handlers below, which stay the same so rows can skip renders.
+  const live = useRef({});
+  live.current = { categoryList, secretSession };
 
-  const listProps = {
-    taskMap: taskMap,
-    filteredTaskMap: filteredTaskMap,
-    categories: categories,
-    sorter: sorter,
-    selectedId: selectedTodoItemId,
-    selectTodoItemHandler: setSelectedTodoItemId,
-    onTaskDelete: onTaskDelete,
-    onTaskDone: onTaskDone,
-    onTaskTitleChange: onTaskTitleChange,
-    onTaskDueDateChange: onTaskDueDateChange,
-    onTaskMemoChange: onTaskMemoChange,
-    onTaskCategoryAdd: onTaskCategoryAdd,
-    onTaskCategoryDelete: onTaskCategoryDelete,
-    onTaskRepeatChange: onTaskRepeatChange,
-    onTaskImportantChange: onTaskImportantChange,
-    onSubtaskAdded: onSubtaskAdded,
-    onSubtaskDelete: onSubtaskDelete,
-    onSubtaskTitleChange: onSubtaskTitleChange,
-    onSubtaskDueDateChange: onSubtaskDueDateChange,
-    onSubtaskDone: onSubtaskDone,
-  };
+  // A hidden search hit: the unlock first (the dialog tinted with its secret category).
+  const unlockFor = useCallback((task) => {
+    const { categoryList: list, secretSession: session } = live.current;
+    const secretCat = list.find((c) => c.secret && task.categories?.[c.id]);
+    return session.unlock({ color: secretCat ? categoryColor(secretCat) : undefined });
+  }, []);
+
+  // Esc clears the selection unless something above handled it (popups preventDefault their
+  // Esc, a drawer closes first); Del asks to delete the selected (or focused) task when it is on
+  // screen (a hidden search hit after the unlock).
+  useEffect(() => {
+    const onKey = (event) => {
+      if (event.defaultPrevented || openPopupCount() > 0 || isEditable(event.target)) return;
+      if (event.key === "Escape") {
+        if (!selectedTaskId || (layout.hideSide && layout.sideOpen) || (layout.overlayPanel && layout.panelOpen)) return;
+        setSelectedTaskId(null);
+      } else if (event.key === "Delete") {
+        const active = document.activeElement;
+        const inList = !active || active === document.body || !!active.closest?.(".todo-content");
+        const rowEl = event.target instanceof Element ? event.target.closest(".todo-content [data-task-id]") : null;
+        const task = taskMap[rowEl?.dataset.taskId ?? selectedTaskId];
+        if (!inList || !task) return;
+        const rowOf = () => rowEl || document.querySelector(`.todo-content [data-task-id="${task.id}"]`);
+        if (searching && isHiddenHit(task) && !secretSession.unlocked && rowEl) {
+          event.preventDefault();
+          unlockFor(task).then((ok) => ok && askDelete(task, rowOf()));
+          return;
+        }
+        if (!visibleIds.has(task.id)) return;
+        event.preventDefault();
+        askDelete(task, rowOf());
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [selectedTaskId, taskMap, layout.hideSide, layout.sideOpen, layout.overlayPanel, layout.panelOpen, askDelete,
+    searching, isHiddenHit, secretSession.unlocked, visibleIds, unlockFor]);
+
+  // A refused change shows the row again and says so; success is silent.
+  const complete = useTaskCompletion((task, done, onFailed) =>
+    actions.setDone(task.id, done, ({ success } = {}) => {
+      if (success !== false) return;
+      Toast.error(done ? "완료하지 못했어요." : "완료를 취소하지 못했어요.");
+      onFailed?.();
+    }));
+
+  const onSelect = useCallback((task) => setSelectedTaskId(task.id), []);
+  const onToggleStar = useCallback((task) => actions.setImportant(task.id, !task.important), [actions]);
+  const onMenu = useCallback((task, point, row) => {
+    setSelectedTaskId(task.id);
+    setMenu({ taskId: task.id, point, row });
+  }, []);
+  const onRowKeyDown = useCallback((event, task, row) => {
+    if (event.target !== row) return;
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") moveFocus(event, row.closest(".tc-scroll"), ".task-row");
+  }, []);
+
+  const rowHandlers = useMemo(() => ({
+    catsOf: searching ? allCatsOf : catsOf,
+    selectedId: selectedVisible ? selectedTaskId : null,
+    isHidden: searching ? isHiddenHit : null,
+    unlocked: secretUnlocked,
+    onUnlock: unlockFor,
+    onSelect,
+    onToggleDone: complete,
+    onToggleStar,
+    onMenu,
+    onKeyDown: onRowKeyDown,
+  }), [searching, allCatsOf, catsOf, selectedVisible, selectedTaskId, isHiddenHit, secretUnlocked, unlockFor, onSelect, complete,
+    onToggleStar, onMenu, onRowKeyDown]);
+
+  /* ------------------------------ Header ------------------------------ */
+  const isToday = selectedTodoMenuType === TODO_MENU_TYPE.TODAY;
+  const title = searching ? "검색" : TODO_MENU_LABEL[selectedTodoMenuType] ?? customCategory?.title ?? "모든 할 일";
+  const openCount = useMemo(() => viewTasks.filter((t) => !t.done).length, [viewTasks]);
+  const overCount = useClock((now) => {
+    let n = 0;
+    for (const task of viewTasks) if (isOverdue(task, now)) n++;
+    return n;
+  });
+  const summary = searching ? "할 일 제목 · 메모 · 카테고리에서 찾았어요"
+    : locked ? "비밀 카테고리"
+    : openCount === 0 ? "남은 할 일이 없어요"
+    : overCount > 0 ? <>남은 할 일 {openCount}개 · <b>기한 지남 {overCount}개</b></>
+    : `남은 할 일 ${openCount}개`;
+  const eye = !customCategory && !searching ? { on: showSecret, onToggle: () => secretSession.toggleShowSecret() } : null;
+  const onPref = useCallback((patch) => dispatch(setPrefs(patch)), [dispatch]);
+  const onFold = useCallback((id, closed) => dispatch(setPrefs({ groupClosed: { [id]: closed } })), [dispatch]);
+
+  // The locked screen names the way the vault opens.
+  const { method: unlockMethod, probeMethod } = secretSession;
+  useEffect(() => {
+    if (locked) probeMethod?.();
+  }, [locked, probeMethod]);
+  const lockedState = locked ? {
+    color: categoryColor(customCategory),
+    label: unlockMethod === "os" ? `${osAuthName()}로 열기` : unlockMethod === "password" ? "보관함 비밀번호로 열기" : "잠금 풀기",
+    onUnlock: () => secretSession.unlock({ color: categoryColor(customCategory) }),
+  } : null;
+
+  // The star syncs only on the E2EE path; the plaintext sync and legacy paths drop it.
+  const canStar = syncStatus?.protocolVersion === 3;
+  // The 오늘 / 다음 7일 date default is today's end, so a new day refreshes the defaults (the
+  // quick add keeps chips the user changed; only a new screen starts them over).
+  const today = useClock((now) => new Date(now).setHours(0, 0, 0, 0));
+  const quickDefaults = useMemo(
+    () => quickAddDefaults({ menuType: selectedTodoMenuType, category: customCategory, secretUnlocked, now: today, canStar }),
+    [selectedTodoMenuType, customCategory, secretUnlocked, today, canStar]
+  );
+  const quickKey = `${selectedTodoMenuType}|${customCategory?.id ?? ""}|${secretUnlocked}|${canStar}`;
+
+  const selection = useMemo(
+    () => ({ selectedTaskId: selectedVisible ? selectedTaskId : null, setSelectedTaskId, openTask, selectedTask, actions, categories: categoryList, pickable }),
+    [selectedVisible, selectedTaskId, openTask, selectedTask, actions, categoryList, pickable]
+  );
+
+  // Not drawn for a task off the screen even before the effect above closes them.
+  const onScreen = (id) => (visibleIds.has(id) ? taskMap[id] : null);
+  const menuTask = menu ? onScreen(menu.taskId) : null;
+  const newCategoryTask = newCategoryFor ? onScreen(newCategoryFor.taskId) : null;
+  const confirmTask = confirm ? onScreen(confirm.taskId) : null;
 
   return (
-    <div className={"todo-content" + (renderedViewMode === TASK_VIEW_MODE.LIST_CALENDAR ? " split-workspace" : "")} onScroll={onScroll}>
-      <div className="header">
-        <div className="title">
-          <SideMenuButton />
-          {category?.title === TODO_MENU_TYPE.ALL ? "모든 할 일" : category?.title === TODO_MENU_TYPE.TODAY ? "오늘의 할 일"
-            : category?.title === TODO_MENU_TYPE.NEXT_7_DAYS ? "다음 7일"
-            : category?.title === TODO_MENU_TYPE.IMPORTANT ? <><IoStar className="heading-star" aria-hidden="true" />중요</>
-            : category?.title ?? "내 작업"} <span className="heading-count">{filteredUndoneTaskCount}</span>
-        </div>
-        {searchQuery && <p className="workspace-description">{`“${searchQuery}” 검색 결과`}</p>}
-        <div className="metadata">
-          <div className="last-modified">
-            {visibleCount}개의 할 일 · {completeCount}개 완료
-          </div>
-        </div>
-        <div className="options">
-          <div className="view-modes">
-            {Object.keys(TASK_VIEW_MODE).map((mode) => {
-              const curTaskViewMode = TASK_VIEW_MODE[mode];
-              if (curTaskViewMode === TASK_VIEW_MODE.LIST_CALENDAR) return null;
-              if (
-                isTodayCategory &&
-                (curTaskViewMode === TASK_VIEW_MODE.CALENDAR ||
-                  curTaskViewMode === TASK_VIEW_MODE.LIST_CALENDAR)
-              )
-                return null;
-              return (
-                <button type="button" aria-pressed={curTaskViewMode === taskViewMode}
-                  key={mode}
-                  className={
-                    `view-mode` +
-                    JsxUtil.classByEqual(
-                      curTaskViewMode,
-                      taskViewMode,
-                      "selected"
-                    )
-                  }
-                  onClick={(e) => setTaskViewMode(curTaskViewMode)}
-                >
-                  {curTaskViewMode}
-                </button>
-              );
-            })}
-          </div>
-          <div className="sort-options">
-            {taskViewMode === TASK_VIEW_MODE.LIST &&
-              Object.keys(SORT_MODE).map((mode) => {
-                const sortMode = SORT_MODE[mode];
-                return (
-                  <button type="button" aria-pressed={currentSortMode === sortMode}
-                    key={mode}
-                    className={
-                      `sort-option` +
-                      JsxUtil.classByEqual(
-                        currentSortMode,
-                        sortMode,
-                        "activated"
-                      )
-                    }
-                    onClick={(e) => setCurrentSortMode(sortMode)}
-                  >
-                    {sortMode} 순
-                  </button>
-                );
-              })}
-          </div>
-        </div>
-        <div className="spliter"></div>
-      </div>
-      <div className="workspace-filters" aria-label="완료 상태 필터">
-        {[["all", "전체", visibleCount], ["open", "진행 중", visibleCount - completeCount], ["done", "완료됨", completeCount]].map(([value, label, count]) => (
-          <button key={value} aria-pressed={completionFilter === value} onClick={() => setCompletionFilter(value)}>
-            {label} <span>{count}</span>
-          </button>
-        ))}
-      </div>
-      <TodoItemAddSection onTaskAdd={onTaskAdd} category={category} />
-      <div
-        className={
-          "body" +
-          JsxUtil.classByEqual(
-            renderedViewMode,
-            TASK_VIEW_MODE.LIST_CALENDAR,
-            "multiview"
-          )
-        }
-      >
-        {{
-          [TASK_VIEW_MODE.LIST]: (
+    <TaskSelectionContext.Provider value={selection}>
+      <div className={"todo-content no-auto-hover" + (layout.hideSide ? " has-menu" : "")}>
+        <ListHeader
+          title={title}
+          summary={summary}
+          view={view}
+          onView={setView}
+          prefs={prefs}
+          onPref={onPref}
+          eye={eye}
+        />
+        <div className="tc-gap" />
+        {view === "list" ? (
+          <>
             <TaskListView
               key={selectedTodoMenuType}
-              ref={taskListViewRef}
-              {...listProps}
+              tasks={searching ? ordered : viewTasks}
+              prefs={prefs}
+              onFold={onFold}
+              row={rowHandlers}
+              query={query}
+              search={searching}
+              results={found}
+              categoryName={searching ? anyName : categoryName}
+              locked={searching ? null : lockedState}
+              emptyTitle={isToday ? "오늘 할 일을 모두 끝냈어요" : "할 일이 없어요"}
             />
-          ),
-          [TASK_VIEW_MODE.CALENDAR]: (
-            <TaskCalendarView
-              filteredTaskMap={filteredTaskMap}
-              categories={categories}
-            />
-          ),
-          [TASK_VIEW_MODE.TIMELINE]: (
-            <TaskTimelineView filteredTaskMap={filteredTaskMap} />
-          ),
-          [TASK_VIEW_MODE.LIST_CALENDAR]: (
-            <TaskListCalendarView key={selectedTodoMenuType} {...listProps} />
-          ),
-          [TASK_VIEW_MODE.LIST_TIMELINE]: (
-            <TaskListTimelineView key={selectedTodoMenuType} {...listProps} />
-          ),
-        }[renderedViewMode] ?? <div>Currently not supported</div>}
+            {!searching && !locked && (
+              <QuickAdd
+                defaults={quickDefaults}
+                contextKey={quickKey}
+                categories={pickable}
+                onAdd={onTaskAdd}
+                onCreateCategory={onCreateCategory}
+                timeFormat={prefs.timeFormat}
+                canStar={canStar}
+              />
+            )}
+          </>
+        ) : (
+          <div className="tc-other">
+            {view === "calendar" ? (
+              <TaskCalendarView filteredTaskMap={shownTaskMap} categories={categories} />
+            ) : (
+              <TaskTimelineView filteredTaskMap={shownTaskMap} />
+            )}
+          </div>
+        )}
       </div>
-    </div>
+      {children}
+      {menuTask && (
+        <TaskContextMenu
+          key={menu.taskId}
+          point={menu.point}
+          due={menuTask.dueDate}
+          important={!!menuTask.important}
+          categoryIds={Object.keys(menuTask.categories ?? {})}
+          categories={pickable}
+          timeFormat={prefs.timeFormat}
+          weekStart={prefs.weekStart}
+          onOpen={() => openTask(menuTask.id)}
+          onSetDue={(ms) => actions.setDue(menuTask.id, ms)}
+          onToggleImportant={() => actions.setImportant(menuTask.id, !menuTask.important)}
+          onToggleCategory={(cid) => toggleCategory(menuTask, cid)}
+          onNewCategory={() => setNewCategoryFor({ taskId: menuTask.id, point: menu.point })}
+          onDuplicate={() => actions.duplicate(menuTask.id)}
+          onDelete={() => askDelete(menuTask, menu.row)}
+          onClose={() => setMenu(null)}
+        />
+      )}
+      {newCategoryTask && (
+        <CategoryPicker
+          anchor={newCategoryFor.point}
+          placement="point"
+          initialCreate
+          categories={pickable}
+          selectedIds={Object.keys(newCategoryTask.categories ?? {})}
+          onToggle={(cid) => toggleCategory(newCategoryTask, cid)}
+          onCreate={onCreateCategory}
+          onClose={() => setNewCategoryFor(null)}
+        />
+      )}
+      {confirmTask && (
+        <ConfirmDialog
+          {...taskDeleteConfirm(confirm.title)}
+          returnFocus={confirm.row}
+          onChoose={() => {
+            actions.deleteTask(confirmTask.id);
+            if (selectedTaskId === confirmTask.id) setSelectedTaskId(null);
+            setConfirm(null);
+          }}
+          onCancel={() => setConfirm(null)}
+        />
+      )}
+    </TaskSelectionContext.Provider>
   );
 };
 

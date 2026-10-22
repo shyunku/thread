@@ -55,3 +55,32 @@ export const CopyIcon = (p) => (
 );
 // 15px in menus, 26px in the delete confirm tile.
 export const TrashIcon = (p) => <Svg size={15} {...p}><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></Svg>;
+// List rows (12px meta icons) and the list header (#102 mock I.repeat / sub / memo, vList / vCal /
+// vTime, sliders, eye / eye-off, chev).
+export const RepeatIcon = (p) => (
+  <Svg size={12} {...p}><path d="M17 2l3 3-3 3" /><path d="M4 11V9a4 4 0 0 1 4-4h12M7 22l-3-3 3-3" /><path d="M20 13v2a4 4 0 0 1-4 4H4" /></Svg>
+);
+export const SubtaskIcon = (p) => <Svg size={12} {...p}><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01" /></Svg>;
+export const MemoIcon = (p) => <Svg size={12} {...p}><path d="M5 4h14v16H5zM9 9h6M9 13h6" /></Svg>;
+export const SlidersIcon = (p) => (
+  <Svg size={15} {...p}><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12" /><circle cx="16" cy="6" r="2" /><circle cx="10" cy="12" r="2" /><circle cx="18" cy="18" r="2" /></Svg>
+);
+export const ListViewIcon = (p) => (
+  <Svg {...p}><path d="M9 6h11M9 12h11M9 18h11" /><circle cx="4.5" cy="6" r="1" /><circle cx="4.5" cy="12" r="1" /><circle cx="4.5" cy="18" r="1" /></Svg>
+);
+export const CalendarViewIcon = (p) => <Svg {...p}><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></Svg>;
+export const TimelineViewIcon = (p) => (
+  <Svg {...p}><rect x="3" y="4" width="5" height="16" rx="1.5" /><rect x="10" y="4" width="5" height="16" rx="1.5" /><rect x="17" y="4" width="4" height="16" rx="1.5" /></Svg>
+);
+export const EyeIcon = (p) => <Svg {...p}><path d="M2.1 12a10 10 0 0 1 19.8 0 10 10 0 0 1-19.8 0z" /><circle cx="12" cy="12" r="3" /></Svg>;
+export const EyeOffIcon = (p) => (
+  <Svg {...p}>
+    <path d="M3 3l18 18" />
+    <path d="M10.6 5.1A10 10 0 0 1 21.9 12a10.4 10.4 0 0 1-2.6 3.8M6.6 6.6A10.4 10.4 0 0 0 2.1 12 10 10 0 0 0 12 19a9.8 9.8 0 0 0 5.4-1.6" />
+    <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+  </Svg>
+);
+// Group fold arrow: down when open, right when folded.
+export const ChevIcon = ({ open = true, style, ...p }) => (
+  <Svg size={14} style={{ transform: `rotate(${open ? 0 : -90}deg)`, ...style }} {...p}><path d="M6 9l6 6 6-6" /></Svg>
+);

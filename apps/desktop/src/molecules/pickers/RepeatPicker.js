@@ -14,7 +14,7 @@ import Popover from "./Popover";
 // repeatStartAt: the current rule's anchor, for the current period's next date.
 export default function RepeatPicker({
   value = null, base = null, repeatStartAt = null, now, timeFormat, onSelect, onClose,
-  anchor, placement = "bottom-start", offset, gap, returnFocus,
+  anchor, placement = "bottom-start", offset, gap, returnFocus, ignoreOutside,
 }) {
   const prefTf = useTimeFormat();
   const tf = timeFormat === "24" || timeFormat === "12" ? timeFormat : prefTf;
@@ -33,6 +33,7 @@ export default function RepeatPicker({
       offset={offset}
       gap={gap}
       returnFocus={returnFocus}
+      ignoreOutside={ignoreOutside}
       className="pk"
       label="반복"
       initialFocus={firstRef}

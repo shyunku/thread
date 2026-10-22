@@ -1,0 +1,193 @@
+// A list row (#102 mock .task, :276-343). Top level, so the falling copy of a completed row
+// (appended to document.body with .main-scope) keeps its look.
+$ck-ring: #5a6475;
+$accent-hover: #7aa5ff;
+
+.task-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ck-gap);
+  min-height: 64px;
+  padding: 12px 14px;
+  box-sizing: border-box;
+  cursor: pointer;
+  position: relative;
+  color: var(--text);
+  outline: none;
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: left;
+  &:hover { background: var(--raise); }
+  &.sel { background: var(--accent-soft); }
+  &:focus-visible { box-shadow: inset 0 0 0 2px #6294ff80; }
+  // Rule between rows, from the text column; hidden next to a hovered or selected row.
+  & + &::before {
+    content: "";
+    position: absolute;
+    left: calc(14px + var(--ck) + var(--ck-gap));
+    right: 14px;
+    top: 0;
+    height: 1px;
+    background: var(--line);
+  }
+  &:hover::before, &.sel::before, &:hover + &::before, &.sel + &::before { display: none; }
+
+  button {
+    appearance: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    font: inherit;
+    cursor: pointer;
+  }
+  svg { display: block; flex: none; }
+
+  // Check circle: hover shows the accent ring and a faint check, press shrinks it.
+  > .ck {
+    width: var(--ck);
+    height: var(--ck);
+    flex: none;
+    align-self: center;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    border: 2px solid $ck-ring;
+    background: transparent;
+    color: #fff;
+    transition: border-color .12s, background-color .12s, transform .08s;
+    svg { opacity: 0; transition: opacity .12s; }
+    &:not(.done):hover { border-color: var(--accent); background: #6294ff1f; color: var(--accent); }
+    &:not(.done):hover svg { opacity: .7; }
+    &.done { background: var(--accent); border-color: var(--accent); color: #fff; }
+    &.done svg { opacity: 1; }
+    &.done:hover { background: $accent-hover; border-color: $accent-hover; }
+    &:active { transform: scale(.88); }
+    &.pop { animation: task-ck-pop 220ms ease-out; }
+    @media (prefers-reduced-motion: reduce) { &:active { transform: none; } }
+  }
+
+  > .tx { flex: 1; min-width: 0; }
+  .t {
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  &.done .t { color: var(--muted); text-decoration: line-through; }
+  &.no-meta > .tx { align-self: center; }
+  .ic-cat { display: none; width: 7px; height: 7px; border-radius: 50%; margin-right: 8px; vertical-align: 2px; }
+
+  .meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 2px;
+    height: 18px;
+    font-size: 12px;
+    line-height: 18px;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    > span { display: inline-flex; align-items: center; gap: 5px; flex: none; }
+    i { font-style: normal; }
+    .cat { max-width: 160px; min-width: 0; flex: 0 1 auto; }
+    .cat b { font-weight: 400; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+    .cat .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+    .cat .shield { display: grid; place-items: center; flex: none; }
+    .cat .more {
+      flex: none;
+      padding: 0 5px;
+      border-radius: 4px;
+      background: var(--raise);
+      color: var(--secondary);
+      font-weight: 600;
+      font-size: 11px;
+      line-height: 16px;
+    }
+    &.snip > span { flex: 1; min-width: 0; display: block; overflow: hidden; text-overflow: ellipsis; color: var(--secondary); }
+  }
+  // A search hit in a hidden secret category: listed, marked and dimmed (mock .hid-tag, .hidden-hit).
+  .hid-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    margin-left: 8px;
+    padding: 0 6px;
+    height: 18px;
+    border-radius: 5px;
+    background: var(--raise);
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 18px;
+    vertical-align: 1px;
+    text-decoration: none;
+  }
+  &.hidden-hit .t, &.hidden-hit .meta, &.hidden-hit > .rcol { opacity: .62; }
+  mark { background: #36569a; color: #fff; border-radius: 3px; padding: 0 2px; font-weight: 600; }
+
+  // Due on top, the time left below in a fainter tone.
+  > .rcol {
+    min-width: 112px;
+    max-width: 220px;
+    flex: none;
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    .when { display: block; font-size: 13px; line-height: 20px; color: var(--secondary); }
+    .left { display: block; font-size: 12px; line-height: 18px; margin-top: 2px; color: var(--muted); }
+    .when.over { color: var(--danger); }
+    .left.over { color: #cf7a81; }
+  }
+
+  > .st {
+    width: 28px;
+    height: 28px;
+    margin: 0 -6px 0 0;
+    align-self: center;
+    flex: none;
+    display: grid;
+    place-items: center;
+    border-radius: 7px;
+    background: transparent;
+    color: #4d5666;
+    transition: background-color .12s, transform .08s;
+    &:hover { background: var(--raise); }
+    &.on { color: var(--star); }
+    &:active { transform: scale(.94); }
+    @media (prefers-reduced-motion: reduce) { &:active { transform: none; } }
+  }
+
+  // 촘촘 (한 줄): no meta line, the category dot before the title.
+  &.compact { min-height: 44px; }
+  &.compact .meta { display: none; }
+  &.compact .ic-cat { display: inline-block; }
+  &.compact .rcol .left { display: none; }
+  // One line: the title and the due share the middle with the check and the star.
+  &.compact > .tx, &.compact > .rcol { align-self: center; }
+
+  // Completion (mock .fall / .closing): a fixed copy falls 80px and fades while the row closes.
+  &.fall {
+    position: fixed;
+    z-index: 200;
+    margin: 0;
+    pointer-events: none;
+    border-radius: 10px;
+    box-shadow: 0 12px 28px #0008;
+    animation: task-done-fall 408ms cubic-bezier(.32, 0, .67, 0) forwards, task-done-fade 408ms linear forwards;
+    &::before { display: none; }
+  }
+  &.closing {
+    overflow: hidden;
+    transition: height 153ms ease, min-height 153ms ease, padding 153ms ease;
+    min-height: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+  }
+}
+
+@keyframes task-done-fall { from { transform: translateY(0); } to { transform: translateY(80px); } }
+@keyframes task-done-fade { 0% { opacity: 1; } 30% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes task-ck-pop { 0% { transform: scale(.8); } 60% { transform: scale(1.12); } 100% { transform: scale(1); } }

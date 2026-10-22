@@ -25,10 +25,6 @@ const initialState = Object.freeze({
   density: "normal",
   hideDone: false, // 완료한 할 일 숨기기
   groupClosed: Object.freeze({ done: true }), // folded groups by id (utils/dateGroups DATE_GROUP_IDS)
-  // Before #102 the list had only "해야할 일" / "완료됨". The current list view still uses these;
-  // listDoneOpen mirrors groupClosed.done. They go away when the list view is rebuilt.
-  listTodoOpen: true,
-  listDoneOpen: false,
 });
 
 const isPlainObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
@@ -48,11 +44,6 @@ function applyPatch(state, patch) {
   if (LIST_SORTS.includes(patch.sort)) state.sort = patch.sort;
   if (LIST_DENSITIES.includes(patch.density)) state.density = patch.density;
   if (typeof patch.hideDone === "boolean") state.hideDone = patch.hideDone;
-  if (typeof patch.listTodoOpen === "boolean") state.listTodoOpen = patch.listTodoOpen;
-  if (typeof patch.listDoneOpen === "boolean") {
-    state.listDoneOpen = patch.listDoneOpen;
-    state.groupClosed = { ...state.groupClosed, done: !patch.listDoneOpen };
-  }
   // groupClosed merges: setPrefs({ groupClosed: { today: true } }) folds 오늘 and keeps the rest.
   if (isPlainObject(patch.groupClosed)) {
     const next = { ...state.groupClosed };
@@ -62,7 +53,6 @@ function applyPatch(state, patch) {
       next[id] = closed;
     }
     state.groupClosed = next;
-    if (typeof next.done === "boolean") state.listDoneOpen = !next.done;
   }
 }
 
@@ -77,8 +67,12 @@ export function migratePrefs(saved) {
     patch.showRemain = saved.timeDisplay !== "due";
     if (saved.timeDisplay !== "due" && saved.dueFormat === "auto") delete patch.dueFormat;
   }
-  // The 완료됨 fold carries over from listDoneOpen until groups have their own states.
-  if (!isPlainObject(saved.groupClosed)) delete patch.groupClosed;
+  // Before #102 the list had only 해야할 일 / 완료됨: the saved 완료됨 fold (listDoneOpen) carries
+  // over to the 완료됨 group until groups have their own states.
+  if (!isPlainObject(saved.groupClosed)) {
+    delete patch.groupClosed;
+    if (typeof saved.listDoneOpen === "boolean") patch.groupClosed = { done: !saved.listDoneOpen };
+  }
   applyPatch(state, patch);
   return state;
 }

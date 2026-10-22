@@ -33,7 +33,8 @@ function fillerTasks(count) {
 // long=1 adds a long title and a long category name (ellipsis checks);
 // count=<n> fills the list up to n tasks. The secret category "일기" (#102) is always there;
 // its tasks stay out of the counts and lists until it is unlocked.
-function previewView(long = false, count = 0) {
+// empty=1 keeps only the done tasks (the list's empty state).
+function previewView(long = false, count = 0, empty = false) {
   const categories = [
     { cid: "work", title: "업무", color: "#6294ff", secret: false, locked: false, created_at: at(-30, 9) + 60000 },
     { cid: "study", title: "공부", color: "#b58cff", secret: false, locked: false, created_at: at(-30, 9) + 120000 },
@@ -59,8 +60,10 @@ function previewView(long = false, count = 0) {
     { tid: "t13", title: "책장 정리", due: null, cats: [] },
     { tid: "s1", title: "병원 검사 결과 정리", due: at(1, 10), cats: ["diary"] },
     { tid: "s2", title: "오늘 일기 쓰기", due: at(0, 23), cats: ["diary"], repeat: "day" },
+    { tid: "s3", title: "한 주 리뷰 일기", due: at(2, 22), cats: ["diary"] },
   ];
   tasks.push(...fillerTasks(count - tasks.length));
+  if (empty) tasks.splice(0, tasks.length, ...tasks.filter((task) => task.done));
   return {
     categories,
     tasks: tasks.map((task, index) => ({
@@ -75,7 +78,7 @@ function previewView(long = false, count = 0) {
       { sid: "s3", tid: "t1", title: "다음 분기 목표 초안", done: false, done_at: null, due_date: null, created_at: at(-2, 9) },
       { sid: "s4", tid: "t2", title: "온보딩 화면 문구", done: false, done_at: null, due_date: null, created_at: at(-1, 9) },
       { sid: "s5", tid: "t2", title: "아이콘 크기 통일", done: false, done_at: null, due_date: null, created_at: at(-1, 9) },
-    ],
+    ].filter((subtask) => tasks.some((task) => task.tid === subtask.tid)),
     relations: tasks.flatMap((task) => task.cats.map((cid) => ({ tid: task.tid, cid }))),
   };
 }
@@ -96,7 +99,11 @@ export function installAppPreviewIpc(IpcSender, params = new URLSearchParams()) 
   const passwordVault = params.get("vault") === "password";
   IpcSender.vault = {
     ...IpcSender.vault,
-    onLocked: () => () => {},
+    // window.__previewLock() plays a vault lock (the secret categories lock again).
+    onLocked: (_uid, callback) => {
+      window.__previewLock = callback;
+      return () => {};
+    },
     verifyUser: (input = {}, callback) => {
       const method = input.method ?? (passwordVault ? "password" : "os");
       const verified = method === "os" ? !passwordVault : input.password === "preview";
@@ -115,17 +122,19 @@ export function previewSyncStatus(state) {
   return base;
 }
 
-// confirm=task shows the task delete question (#102; the list wires it in phase E).
+// confirm=task shows the task delete question (#102; the list asks it from the task menu and Del).
+// q=<text> starts with that search.
 function PreviewRoot() {
-  const [states, syncStatus, confirmTask] = useMemo(() => {
+  const [states, syncStatus, confirmTask, initialQuery] = useMemo(() => {
     const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
     return [
-      fromSyncV2View(previewView(params.get("long") === "1", Number(params.get("count")) || 0)),
+      fromSyncV2View(previewView(params.get("long") === "1", Number(params.get("count")) || 0, params.get("empty") === "1")),
       previewSyncStatus(params.get("sync")),
       params.get("confirm") === "task",
+      params.get("q") || "",
     ];
   }, []);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [asking, setAsking] = useState(confirmTask);
   return (
     <div className="root-layout">

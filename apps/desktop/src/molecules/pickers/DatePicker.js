@@ -86,7 +86,7 @@ function NumberField({ value, min, max, padded, label, onChange, onFilled, input
 // anchor/placement/offset/gap: see Popover.
 export default function DatePicker({
   value = null, initialDay, now, timeFormat, weekStart, onChange, onCancel,
-  anchor, placement = "bottom-start", offset, gap, returnFocus,
+  anchor, placement = "bottom-start", offset, gap, returnFocus, ignoreOutside,
 }) {
   const prefTf = useTimeFormat(), prefWs = useWeekStart();
   const tf = timeFormat === "24" || timeFormat === "12" ? timeFormat : prefTf;
@@ -138,6 +138,7 @@ export default function DatePicker({
       offset={offset}
       gap={gap}
       returnFocus={returnFocus}
+      ignoreOutside={ignoreOutside}
       className="dp"
       label="기한 정하기"
       onClose={() => onCancel?.()}
