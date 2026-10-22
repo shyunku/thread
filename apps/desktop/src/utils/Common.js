@@ -36,38 +36,6 @@ export const errorf = (varName, variable, ...args) => {
   console.error(`${colorize.red(varName)}`, variable, ...args);
 };
 
-// absolute time to relative time text
-export function toRelativeTime(milli, progress = false) {
-  if (milli == null) return "-";
-
-  const now = Date.now();
-  let diff = now - milli;
-
-  let rel = diff < 0 ? "전" : "후";
-  if (diff < 0) {
-    diff = -diff;
-  }
-
-  const sec = Math.floor(diff / 1000);
-  const min = Math.floor(sec / 60);
-  const hour = Math.floor(min / 60);
-  const day = Math.floor(hour / 24);
-  const week = Math.floor(day / 7);
-  const month = Math.floor(day / 30);
-  const year = Math.floor(day / 365);
-
-  if (year > 10) return `> 10년 ${rel}`;
-  if (year > 0) return `${year}년 ${rel}`;
-  if (month > 0) return `${month}개월 ${rel}`;
-  if (week > 0) return `${week}주 ${rel}`;
-  if (day > 0) return `${day}일 ${rel}`;
-  if (hour > 0) return `${hour}시간 ${rel}`;
-  if (min > 0) return `${min}분 ${rel}`;
-  if (sec > 0) return `${sec}초 ${rel}`;
-  if (diff > 0) return `0 밀리초 ${rel}`;
-  return progress ? "완료" : "방금 전";
-}
-
 const YEAR = 365 * 24 * 60 * 60 * 1000;
 const MONTH = 30 * 24 * 60 * 60 * 1000;
 const DAY = 24 * 60 * 60 * 1000;

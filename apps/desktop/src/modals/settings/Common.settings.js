@@ -14,7 +14,7 @@ const SettingCommon = ({ preview = false }) => {
       <SettingsCard>
         <SettingsRow label="시작할 때 보기" description="앱을 열면 처음 보여 줄 화면">
           <Segmented label="시작할 때 보기" value={prefs.startView} onChange={(startView) => set({ startView })}
-            options={[{ value: "list", label: "리스트" }, { value: "calendar", label: "캘린더" }, { value: "timeline", label: "타임라인" }]} />
+            options={[{ value: "list", label: "목록" }, { value: "calendar", label: "캘린더" }, { value: "timeline", label: "타임라인" }]} />
         </SettingsRow>
         <SettingsRow label="주 시작 요일" description="캘린더의 첫 번째 열">
           <Segmented label="주 시작 요일" value={prefs.weekStart} onChange={(weekStart) => set({ weekStart })}

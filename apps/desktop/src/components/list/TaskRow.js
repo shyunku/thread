@@ -40,11 +40,13 @@ function TimeColumn({ due, done, options }) {
 // secret ones already left out); `cats` is the fixed list for callers without it. Completing
 // goes through onToggleDone(task, rowElement, done), which animates.
 // hidden: a search hit in a hidden secret category (mock hidden-hit): marked, dimmed, and while
-// `needsUnlock` every action first waits for onUnlock(task) → Promise<boolean>.
+// `needsUnlock` every action first waits for onUnlock(task) → Promise<boolean>, and the memo
+// snippet stays out (title and category only, like the mock).
 function TaskRow({
-  task, catsOf, cats: fixedCats, selected = false, compact = false, timeOptions, query = "", snippet = null,
+  task, catsOf, cats: fixedCats, selected = false, compact = false, timeOptions, query = "", snippet: memoSnippet = null,
   hidden = false, needsUnlock = false, onUnlock, onSelect, onToggleDone, onToggleStar, onMenu, onKeyDown,
 }) {
+  const snippet = needsUnlock ? null : memoSnippet;
   const ref = useRef(null);
   const [pop, setPop] = useState(false);
   const cats = (catsOf ? catsOf(task) : fixedCats) ?? [];

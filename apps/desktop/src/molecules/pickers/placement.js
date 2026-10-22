@@ -1,6 +1,5 @@
 // Where a popup goes (#102, mock fitPopups/fitSub). Pure functions in window coordinates.
 export const POPUP_MARGIN = 8; // popups stay this far inside the app window
-const MIN_ROOM = 160; // below this a kept-below popup moves up instead of shrinking
 
 // An anchor as a rect: an element, a ref to one, a DOMRect-like box or a point {x, y}.
 export function anchorRect(anchor) {
@@ -14,17 +13,17 @@ const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
 // placement:
 //   "bottom-start" / "bottom-end": under the anchor; above it when it does not fit below,
-//     else moved up into the window.
+//     else moved up into the window over the anchor (mock fitPopups). Only a popup taller than
+//     the window is capped (with a scroll).
 //   "top-start" / "top-end": above the anchor, held by its bottom edge (the quick-add box):
 //     when too tall it keeps the anchor and caps its height instead of moving.
 //   "point": its top-left corner at the anchor point, moved into the window.
 //   "right-start": a submenu beside the anchor item, flipped to the left side when it would
 //     leave the window, moved up when it would cross the bottom.
 // offset {x, y} moves the anchor first (e.g. the context menu's date picker sits 40px higher).
-// flip: false keeps a "bottom" popup below its anchor (Popover passes it once the first
-// placement chose below, so paging a month or filtering a list does not make it jump to the
-// other side); it caps the height to the room below instead, or moves up when that room is
-// too small (under MIN_ROOM).
+// flip: false keeps a "bottom" popup from flipping above its anchor (Popover passes it once the
+// first placement chose below, so paging a month or filtering a list does not make it jump to
+// the other side); when it does not fit below it moves up into the window instead.
 // Returns { left, top, maxHeight, flipped } where maxHeight is null when the popup fits.
 export function placePopover({ anchor, size, view, placement = "bottom-start", gap = 6, margin = POPUP_MARGIN, offset, flip = true }) {
   const dx = offset?.x || 0, dy = offset?.y || 0;
@@ -46,9 +45,7 @@ export function placePopover({ anchor, size, view, placement = "bottom-start", g
     top = a.bottom + gap;
     if (top + height > view.height - margin) {
       const above = a.top - gap - height;
-      const below = view.height - margin - top;
-      if (!flip && below >= MIN_ROOM) { height = below; maxHeight = below; }
-      else if (flip && above >= margin) { top = above; flipped = true; } else top = view.height - margin - height;
+      if (flip && above >= margin) { top = above; flipped = true; } else top = view.height - margin - height;
     }
   } else {
     top = a.top;

@@ -117,7 +117,8 @@ export default function RightPanel({ view, tasks, catsOf, prefs, canStar, onTask
             data-tip={overlayPanel ? "패널 닫기" : "상세 닫기"}
             onClick={close}
           >
-            <CloseIcon />
+            {/* 18px: the cross is 10px across, like the mock's ✕. */}
+            <CloseIcon size={18} />
           </button>
         )}
       </div>

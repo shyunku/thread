@@ -126,7 +126,8 @@ $picked: #3d6fe6;
     margin: 0 0 16px;
     padding: 0 var(--in);
     > .ck { margin-top: 3px; }
-    > .st { margin: -1px -6px 0 0; }
+    // Centred on the 26px title line; the -1px below keeps the block 26px (mock .dt-title).
+    > .st { margin: -1px -6px -1px 0; }
   }
   .rp-title {
     flex: 1;
@@ -191,7 +192,9 @@ $picked: #3d6fe6;
     border-radius: 10px 10px 0 0;
     i { display: block; height: 100%; background: var(--accent); transition: width .2s; }
   }
+  // 36px including the rule above it (the mock sizes everything border-box).
   .rp-subt {
+    box-sizing: border-box;
     display: flex;
     align-items: center;
     gap: var(--ck-gap);
@@ -211,7 +214,7 @@ $picked: #3d6fe6;
       white-space: nowrap;
       text-align: left;
       cursor: text;
-      line-height: 36px;
+      line-height: 34px;
     }
     &.done .nm { color: var(--muted); text-decoration: line-through; }
     .sdue { flex: none; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -252,7 +255,7 @@ $picked: #3d6fe6;
     input {
       flex: 1;
       min-width: 0;
-      height: 36px;
+      height: 34px;
       padding: 0;
       border: 0;
       background: transparent;

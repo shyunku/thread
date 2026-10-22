@@ -8,7 +8,6 @@ import { dueMs } from "utils/timeDisplay";
 // Shared pieces of the calendar and timeline views (#102).
 
 export const WEEKDAYS = "일월화수목금토";
-export const DAY = 864e5;
 
 // Local midnight of a time, as ms.
 export const dayStart = (value) => new Date(value).setHours(0, 0, 0, 0);

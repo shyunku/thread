@@ -329,12 +329,36 @@ test("deleting a category in use asks first, then takes it off its tasks", () =>
   fireEvent.click(screen.getByText("카테고리 삭제"));
   fireEvent.click(screen.getByRole("button", { name: "삭제" }));
   expect(IpcSender.req.category.deleteCategoryInUse).toHaveBeenCalledWith("work", expect.any(Function));
-  // An unused one is deleted plainly.
+  // An unused one: on E2EE the same in-use delete (a plain delete when nothing uses it).
   fireEvent.contextMenu(catRows(container)[2]);
   fireEvent.click(screen.getByText("카테고리 삭제"));
   expect(screen.getByText("이 카테고리를 쓰는 할 일은 없어요.")).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "삭제" }));
+  expect(IpcSender.req.category.deleteCategoryInUse).toHaveBeenLastCalledWith("exam", expect.any(Function));
+  expect(IpcSender.req.category.deleteCategory).not.toHaveBeenCalled();
+});
+
+test("a category used only by hidden secret tasks still deletes (the count stays what the screen shows)", () => {
+  const { container } = setup({
+    tasks: [task("hiddenOnly", { due: at(1, 9), cats: ["study", "diary"] })],
+  });
+  fireEvent.contextMenu(catRows(container)[1]);
+  fireEvent.click(screen.getByText("카테고리 삭제"));
+  // The hidden task is not counted (the number would give it away)...
+  expect(screen.getByText("이 카테고리를 쓰는 할 일은 없어요.")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "삭제" }));
+  // ...but the delete takes the category off it first instead of failing with CATEGORY_IN_USE.
+  expect(IpcSender.req.category.deleteCategoryInUse).toHaveBeenCalledWith("study", expect.any(Function));
+  expect(IpcSender.req.category.deleteCategory).not.toHaveBeenCalled();
+});
+
+test("without E2EE an unused category is deleted plainly", () => {
+  const { container } = setup({ syncStatus: { protocolVersion: 2, ready: true, connected: true } });
+  fireEvent.contextMenu(catRows(container)[2]);
+  fireEvent.click(screen.getByText("카테고리 삭제"));
+  fireEvent.click(screen.getByRole("button", { name: "삭제" }));
   expect(IpcSender.req.category.deleteCategory).toHaveBeenCalledWith("exam", expect.any(Function));
+  expect(IpcSender.req.category.deleteCategoryInUse).not.toHaveBeenCalled();
 });
 
 const osVault = () =>

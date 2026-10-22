@@ -4,6 +4,40 @@ const mutationTopics={has:topic=>single.has(topic)||compositeTopics.has(topic)};
 const reads={"task/getAllTaskList":"tasks","task/getAllSubtaskList":"subtasks","category/getCategoryList":"categories","tasks_categories/getTasksCategoriesList":"relations"};
 const blocked=new Set(["auth/initializeDatabase","system/migrateLegacyDatabase","system/truncateLegacyDatabase","system/mismatchTxAcceptTheirs","system/mismatchTxAcceptMine","system/initializeState","system/clearStatePermanently"]);
 const passive=new Set(["auth/isDatabaseReady","system/isLegacyMigrationAvailable","system/localLastBlockNumber","system/remoteLastBlockNumber","system/migrateCheckDoneSignal","system/lastTxUpdateTime"]);
+// A mutation that arrives while a vault action holds the vault (a sync, a user check, pairing)
+// waits for it, up to MUTATION_WAIT ms, and then applies in arrival order. The sync engine signs,
+// pushes and settles outbox drafts across awaits, so a change must never land inside a run. Nothing
+// that holds the vault waits for a mutation, so the wait cannot deadlock; a queued change is applied
+// synchronously and the queue starts one sync after it drains.
+const MUTATION_WAIT=10000,MUTATION_POLL=25;
+function queueMutation(service,run){
+ const queue=service.mutationQueue||(service.mutationQueue=[]);
+ return new Promise((resolve,reject)=>{queue.push({run,resolve,reject,until:Date.now()+(service.mutationWait??MUTATION_WAIT)});scheduleDrain(service);});
+}
+function scheduleDrain(service){
+ if(!service.mutationTimer)service.mutationTimer=setTimeout(()=>{service.mutationTimer=null;drainMutations(service);},MUTATION_POLL);
+}
+function drainMutations(service){
+ const queue=service.mutationQueue||[];let applied=false;
+ while(queue.length&&!service.busy){const item=queue.shift();try{item.run();applied=true;item.resolve();}catch(error){item.reject(error);}}
+ // Same wait for every item, so the oldest expires first.
+ for(const now=Date.now();queue.length&&queue[0].until<=now;)queue.shift().reject(Error("VAULT_BUSY"));
+ if(applied&&!service.busy)void service.syncEncrypted().catch(()=>{});
+ if(queue.length)scheduleDrain(service);
+}
+// Applies one mutation and answers it; throws when it cannot (the caller answers the error).
+function applyMutation(service,entry,topic,reqId,args){
+ if(service.active!==entry||entry.uid!==service.runtime().getAccount())throw Error("VAULT_SESSION_CHANGED");
+ if(entry.migrationActive)throw Error("MIGRATION_IN_PROGRESS");
+ if(!entry.applicationActive)throw Error("VAULT_SESSION_CHANGED");
+ const result=entry.controller.use(store=>{
+  const {EncryptedReplica}=require("./replica"),meta=store.get("confirmed","$sync-state");
+  if(!meta)throw Error("SYNC_REQUIRED");
+  return {syncV2Ack:true,clientChangeId:new ApplicationAdapter(new EncryptedReplica(store,meta.scope,{initialize:false})).mutate(topic,args)};
+ });
+ publish(service,entry);
+ service.group?.ipcService.sender(topic,reqId,true,result);
+}
 async function intercept(service,topic,reqId,args){
  const entry=service.active,ipc=service.group?.ipcService;
  if(entry?.migrationActive&&entry.uid===service.runtime().getAccount()&&ipc&&
@@ -20,13 +54,17 @@ async function intercept(service,topic,reqId,args){
   if(topic==="auth/isDatabaseReady"&&args[0]!==entry.uid)throw Error("ACCOUNT_MISMATCH");
   if(topic==="socket/connect"){await service.syncEncrypted();ipc.sender(topic,reqId,true);return true;}
   if(topic==="socket/disconnect"){service.lock();ipc.sender(topic,reqId,true);return true;}
-  if(service.busy&&mutationTopics.has(topic))throw Error("VAULT_BUSY");
+  if(mutationTopics.has(topic)){
+   const run=()=>applyMutation(service,entry,topic,reqId,args);
+   if(service.busy||service.mutationQueue?.length)await queueMutation(service,run);
+   else{run();void service.syncEncrypted().catch(()=>{});}
+   return true;
+  }
   if(topic==="sync-v2/retry"){await service.syncEncrypted();ipc.sender(topic,reqId,true,{ready:true});return true;}
   const result=entry.controller.use(store=>{
    const {EncryptedReplica}=require("./replica"),meta=store.get("confirmed","$sync-state");
    if(!meta)throw Error("SYNC_REQUIRED");
    const replica=new EncryptedReplica(store,meta.scope,{initialize:false}),adapter=new ApplicationAdapter(replica);
-   if(mutationTopics.has(topic))return {syncV2Ack:true,clientChangeId:adapter.mutate(topic,args)};
    if(passive.has(topic))return ["auth/isDatabaseReady","system/migrateCheckDoneSignal"].includes(topic)?true:0;
    if(reads[topic])return adapter.lists()[reads[topic]];
    if(topic==="category/getCategoryTasks")return adapter.lists().relations.filter(row=>row.cid===args[0]);
@@ -37,10 +75,8 @@ async function intercept(service,topic,reqId,args){
   // Only a change (or the window asking for its state) sends the lists; reads already
   // return their data, and sending the whole list after every request was most of the
   // startup cost with many tasks (#98).
-  if(mutationTopics.has(topic))publish(service,entry);
-  else if(topic==="system/stateListenReady")publish(service,entry,{force:true});
+  if(topic==="system/stateListenReady")publish(service,entry,{force:true});
   ipc.sender(topic,reqId,true,result);
-  if(mutationTopics.has(topic))void service.syncEncrypted().catch(()=>{});
  }catch(error){ipc.sender(topic,reqId,false,{syncV2Ack:mutationTopics.has(topic),code:error.message});}
  return true;
 }

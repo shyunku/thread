@@ -1,31 +1,8 @@
 // Shared surfaces use the same tokens as the workspace.
 @import "styles/constants.scss";
-.profile-img {
-  border-radius: 50%;
-  background: var(--selected);
-  color: #b6ceff;
-}
 .login-top-bar .menu-bar {
   height: 44px;
   color: var(--secondary);
-}
-.datetime-picker {
-  border-radius: 12px;
-  background: var(--panel);
-  border-color: var(--border);
-  box-shadow: 0 15px 45px #0007;
-  color: var(--secondary);
-}
-.task-timeline-view .task-list-day-column {
-  border-radius: 10px;
-  background: var(--panel);
-  border-color: var(--border);
-}
-.task-timeline-view .task-list-day-column.today {
-  border-color: var(--accent);
-}
-.task-timeline-view .task-list-day-column.today .task-list-header-row {
-  background: var(--selected);
 }
 .modal {
   height: calc(100% - #{$top-bar-height});
@@ -56,21 +33,6 @@
   box-shadow: 0 20px 70px #0009;
 }
 .custom-prompt .title {
-  color: var(--text);
-}
-.context-menu.default-style {
-  border-radius: 10px;
-  background: #191d25f5;
-  border-color: var(--border);
-  box-shadow: 0 12px 36px #0007;
-  color: var(--secondary);
-}
-.context-menu.default-style > div:not(.seperator) {
-  color: var(--secondary);
-  font-size: 13px;
-}
-.context-menu.default-style > div:not(.seperator):hover {
-  background: var(--hover);
   color: var(--text);
 }
 .custom-loading-wrapper .custom-loading {

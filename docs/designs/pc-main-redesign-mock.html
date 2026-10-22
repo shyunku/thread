@@ -1110,7 +1110,7 @@ function calendarPane(L) {
   }
   return `<section class="pane main chg">
     <div class="head ${L.hideSide ? 'has-menu' : ''}"><div class="row1">${headLeft(L)}${jumpTitle('2026년 10월')}${headNav()}${headRight(L)}</div>${s.jump ? jumpPop() : ''}
-      <p class="finding">이번 달 남은 할 일 ${TASKS.filter(t => t.due && open(t) && new Date(t.due).getMonth() === 9).length}개 · 날짜를 누르면 ${L.overlayPanel ? '그날 할 일이 열려요' : '오른쪽에 그날 할 일이 보여요'}</p></div>
+      <p class="finding">이번 달 남은 할 일 ${TASKS.filter(t => t.due && open(t) && new Date(t.due).getMonth() === 9).length}개</p></div>
     <div class="cal"><div class="grid">${cells}</div></div>${quickAdd()}${s.viewMenu ? viewMenu() : ''}${s.state === 'context' ? contextMenu() : ''}${s.state === 'picker' && s.dpAt !== 'detail' ? duePicker() : ''}${s.pk && s.pk.at === 'quick' ? (s.pk.kind === 'rep' ? repeatPicker() : categoryPicker()) : ''}</section>`;
 }
 function timelinePane(L) {

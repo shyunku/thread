@@ -58,9 +58,23 @@ test("anchors: elements, refs, rects and points", () => {
   expect(anchorRect({ x: 7, y: 8 })).toMatchObject({ left: 7, right: 7, top: 8, bottom: 8 });
 });
 
-test("flip: false keeps a popup below and caps its height, or moves up when the room is too small", () => {
-  const kept = placePopover({ anchor: rect(100, 300), size: { width: 300, height: 500 }, view, flip: false });
-  expect(kept).toEqual({ left: 100, top: 336, maxHeight: 356, flipped: false });
-  const tight = placePopover({ anchor: rect(100, 560), size: { width: 300, height: 400 }, view, flip: false });
-  expect(tight).toMatchObject({ top: 292, flipped: false, maxHeight: null });
+test("flip: false never flips above; a popup that does not fit below moves up whole, uncapped", () => {
+  const fits = placePopover({ anchor: rect(100, 100), size: { width: 300, height: 400 }, view, flip: false });
+  expect(fits).toEqual({ left: 100, top: 136, maxHeight: null, flipped: false });
+  // Room above too, but it stays on its side: moved up over the anchor instead of capped.
+  const kept = placePopover({ anchor: rect(100, 600), size: { width: 300, height: 400 }, view, flip: false });
+  expect(kept).toEqual({ left: 100, top: 292, maxHeight: null, flipped: false });
+  const tight = placePopover({ anchor: rect(100, 300), size: { width: 300, height: 500 }, view, flip: false });
+  expect(tight).toEqual({ left: 100, top: 192, maxHeight: null, flipped: false });
+  // Only taller than the window: capped, 8px from both edges.
+  expect(placePopover({ anchor: rect(100, 300), size: { width: 300, height: 900 }, view, flip: false })).toMatchObject({ top: 8, maxHeight: 684 });
+});
+
+test("the detail 기한 picker in a short window (mock fitPopups): shifted up over its row, never cut", () => {
+  // 960×720 and 760×640: the row at 153–193, the picker 538 tall.
+  const row = { left: 1112, right: 1388, top: 153, bottom: 193 };
+  expect(placePopover({ anchor: row, size: { width: 276, height: 538 }, view: { width: 960, height: 720 } })).toMatchObject({ top: 174, maxHeight: null });
+  expect(placePopover({ anchor: row, size: { width: 276, height: 538 }, view: { width: 760, height: 640 } })).toMatchObject({ top: 94, maxHeight: null });
+  // Re-placed later (kept below): the same spot.
+  expect(placePopover({ anchor: row, size: { width: 276, height: 538 }, view: { width: 760, height: 640 }, flip: false })).toMatchObject({ top: 94, maxHeight: null });
 });

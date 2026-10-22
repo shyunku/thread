@@ -196,3 +196,54 @@ test("an IPC failure (legacy session, locked vault) does not unlock", async () =
   await act(async () => expect(await session.unlock()).toBe(false));
   expect(state()).toBe("false/false");
 });
+
+test("a slow vault answer (a sync holds it) opens the dialog waiting; the OS check keeps it waiting", async () => {
+  jest.useFakeTimers();
+  try {
+    const answers = [];
+    IpcSender.vault.verifyUser.mockImplementation((input, cb) => answers.push([input, cb]));
+    setup();
+    let result;
+    act(() => { result = session.unlock({ color: "#e57ad6" }); });
+    // Nothing yet: a quick answer would open the dialog directly.
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    act(() => { jest.advanceTimersByTime(250); });
+    expect(within(dialog()).getByText("본인 확인을 준비하고 있어요. 잠시만 기다려 주세요.")).toBeTruthy();
+    expect(dialog()).toHaveAttribute("aria-busy", "true");
+    expect(within(dialog()).getByRole("button", { name: "확인" })).toBeDisabled();
+    // The probe answers: the same dialog asks for Windows Hello.
+    act(() => answers[0][1]({ success: true, data: { verified: false, method: "password", code: "PASSWORD_REJECTED", osAvailable: true, passwordAvailable: true } }));
+    expect(within(dialog()).getByText(/Windows Hello로 본인 확인을 해요/)).toBeTruthy();
+    expect(within(dialog()).getByRole("button", { name: "확인" })).not.toBeDisabled();
+    fireEvent.click(within(dialog()).getByRole("button", { name: "확인" }));
+    // While the OS check waits, the dialog stays, busy, and Esc does not drop it.
+    expect(answers[1][0]).toEqual({ method: "os" });
+    expect(dialog()).toHaveAttribute("aria-busy", "true");
+    fireEvent.keyDown(dialog(), { key: "Escape" });
+    expect(screen.queryByRole("alertdialog")).not.toBeNull();
+    await act(async () => answers[1][1]({ success: true, data: { verified: true, method: "os" } }));
+    await expect(result).resolves.toBe(true);
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
+test("cancelling the waiting dialog ends the ask; the late answer is ignored", async () => {
+  jest.useFakeTimers();
+  try {
+    let answer;
+    IpcSender.vault.verifyUser.mockImplementation((input, cb) => { answer = cb; });
+    setup();
+    let result;
+    act(() => { result = session.unlock(); });
+    act(() => { jest.advanceTimersByTime(250); });
+    await act(async () => fireEvent.click(within(dialog()).getByText("취소")));
+    await expect(result).resolves.toBe(false);
+    act(() => answer({ success: true, data: { verified: false, method: "password", code: "PASSWORD_REJECTED", osAvailable: true, passwordAvailable: true } }));
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(state()).toBe("false/false");
+  } finally {
+    jest.useRealTimers();
+  }
+});

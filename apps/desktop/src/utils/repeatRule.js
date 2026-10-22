@@ -60,7 +60,7 @@ function nextLabel(next, base) {
 
 // The repeat picker rows. `base` is the task's due date (or the draft's); without one the rule
 // starts from today's end of day, which also becomes the due date. The current period keeps its
-// own anchor (repeatStartAt) for its name and its next date, like the list row (TodoItem); the
+// own anchor (repeatStartAt) for its name and its next date, like the list row (TaskRow); the
 // others would be anchored on the due date (#102 phase B).
 export function repeatOptions({ base = null, value = null, repeatStartAt = null, now = Date.now() } = {}) {
   const at = dueMs(now) ?? Date.now();

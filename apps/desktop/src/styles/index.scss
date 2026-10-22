@@ -136,15 +136,6 @@ body,
 * {
   &::-webkit-scrollbar {
     width: 5px;
-
-    &::-webkit-scrollbar-thumb {
-      &:not(.scroll-visible) {
-        background-color: transparent;
-      }
-
-      border-radius: 10px;
-      transition: 0.5s background-color linear;
-    }
   }
 
   &:hover {

@@ -325,10 +325,10 @@ test("Esc clears the selection when a stale sideOpen has no drawer; not while th
 test("a subtask due of null clears it (no NaN)", () => {
   view();
   act(() => { selectionProbe.actions.setSubtaskDue("first", "sub", null); });
-  expect(IpcSender.req.task.updateSubtaskDueDate).toHaveBeenLastCalledWith("first", "sub", null, null);
+  expect(IpcSender.req.task.updateSubtaskDueDate).toHaveBeenLastCalledWith("first", "sub", null, expect.any(Function));
   const due = at(1, 9);
   act(() => { selectionProbe.actions.setSubtaskDue("first", "sub", due); });
-  expect(IpcSender.req.task.updateSubtaskDueDate).toHaveBeenLastCalledWith("first", "sub", due.getTime(), null);
+  expect(IpcSender.req.task.updateSubtaskDueDate).toHaveBeenLastCalledWith("first", "sub", due.getTime(), expect.any(Function));
 });
 
 test("decrypted application view: groups by date with the stored order and category names", () => {
@@ -378,7 +378,7 @@ test("un-checking a done task sends it at once; the star toggles", () => {
   fireEvent.click(within(row(container, "second")).getByRole("checkbox", { name: "완료 취소" }));
   expect(IpcSender.req.task.updateTaskDone).toHaveBeenCalledWith("second", false, expect.any(Number), expect.any(Function));
   fireEvent.click(within(row(container, "first")).getByRole("button", { name: "중요로 표시" }));
-  expect(IpcSender.req.task.updateTaskImportant).toHaveBeenCalledWith("first", true, null);
+  expect(IpcSender.req.task.updateTaskImportant).toHaveBeenCalledWith("first", true, expect.any(Function));
 });
 
 test("selection: click selects (shared through useTaskSelection), Enter opens, Esc clears unless a popup took it", () => {
@@ -409,23 +409,23 @@ test("task menu actions go to IPC", () => {
   const menu = () => screen.getByRole("menu", { name: "할 일 메뉴" });
   open();
   fireEvent.click(within(menu()).getByRole("menuitem", { name: "내일" }));
-  expect(IpcSender.req.task.updateTaskDueDate).toHaveBeenLastCalledWith("first", at(1, 18).getTime(), null);
+  expect(IpcSender.req.task.updateTaskDueDate).toHaveBeenLastCalledWith("first", at(1, 18).getTime(), expect.any(Function));
   open();
   fireEvent.click(within(menu()).getByRole("menuitem", { name: "일주일 미루기" }));
-  expect(IpcSender.req.task.updateTaskDueDate).toHaveBeenLastCalledWith("first", at(7, 18).getTime(), null);
+  expect(IpcSender.req.task.updateTaskDueDate).toHaveBeenLastCalledWith("first", at(7, 18).getTime(), expect.any(Function));
   open();
   fireEvent.click(within(menu()).getByRole("menuitem", { name: "기한 없애기" }));
-  expect(IpcSender.req.task.updateTaskDueDate).toHaveBeenLastCalledWith("first", null, null);
+  expect(IpcSender.req.task.updateTaskDueDate).toHaveBeenLastCalledWith("first", null, expect.any(Function));
   open();
   fireEvent.click(within(menu()).getByRole("menuitem", { name: "중요로 표시" }));
-  expect(IpcSender.req.task.updateTaskImportant).toHaveBeenLastCalledWith("first", true, null);
+  expect(IpcSender.req.task.updateTaskImportant).toHaveBeenLastCalledWith("first", true, expect.any(Function));
   open();
   fireEvent.click(within(menu()).getByRole("menuitem", { name: "카테고리" }));
   const sub = screen.getByRole("menu", { name: "카테고리" });
   // Secret categories are offered only while unlocked.
   expect(within(sub).queryByRole("menuitemcheckbox", { name: /비공개/ })).toBeNull();
   fireEvent.click(within(sub).getByRole("menuitemcheckbox", { name: /개발/ }));
-  expect(IpcSender.req.task.deleteTaskCategory).toHaveBeenLastCalledWith("first", "public", null);
+  expect(IpcSender.req.task.deleteTaskCategory).toHaveBeenLastCalledWith("first", "public", expect.any(Function));
   expect(screen.getByRole("menu", { name: "카테고리" })).toBeInTheDocument();
   fireEvent.click(within(sub).getByRole("menuitem", { name: "새 카테고리…" }));
   const name = screen.getByRole("textbox", { name: "새 카테고리 이름" });
@@ -436,6 +436,84 @@ test("task menu actions go to IPC", () => {
   open();
   fireEvent.click(within(menu()).getByRole("menuitem", { name: "복제" }));
   expect(IpcSender.req.task.duplicateTask).toHaveBeenCalledWith("first", null, expect.any(Function));
+});
+
+test("every refused change says so through one helper; a busy vault adds the try-again hint", () => {
+  const errors = jest.spyOn(Toast, "error").mockImplementation(() => {});
+  view();
+  const refuse = (method, reply) => IpcSender.req.task[method].mockImplementationOnce((...args) => args.find((a) => typeof a === "function")?.(reply));
+  const busy = { success: false, data: { syncV2Ack: true, code: "VAULT_BUSY" } };
+  const cases = [
+    ["deleteTask", () => selectionProbe.actions.deleteTask("first"), "할 일을 삭제하지 못했어요."],
+    ["updateTaskTitle", () => selectionProbe.actions.setTitle("first", "x"), "제목을 바꾸지 못했어요."],
+    ["updateTaskMemo", () => selectionProbe.actions.setMemo("first", "x"), "메모를 저장하지 못했어요."],
+    ["updateTaskDueDate", () => selectionProbe.actions.setDue("first", null), "기한을 바꾸지 못했어요."],
+    ["addTaskCategory", () => selectionProbe.actions.addCategory("first", "secret"), "카테고리를 넣지 못했어요."],
+    ["deleteTaskCategory", () => selectionProbe.actions.removeCategory("first", "public"), "카테고리를 빼지 못했어요."],
+    ["updateTaskRepeatPeriod", () => selectionProbe.actions.setRepeat("first", "day"), "반복을 정하지 못했어요."],
+    ["updateTaskImportant", () => selectionProbe.actions.setImportant("first", true), "중요 표시를 바꾸지 못했어요."],
+    ["duplicateTask", () => selectionProbe.actions.duplicate("first"), "복제하지 못했어요."],
+    ["deleteSubtask", () => selectionProbe.actions.deleteSubtask("first", "s"), "하위 할 일을 삭제하지 못했어요."],
+    ["updateSubtaskTitle", () => selectionProbe.actions.setSubtaskTitle("first", "s", "x"), "하위 할 일 이름을 바꾸지 못했어요."],
+    ["updateSubtaskDueDate", () => selectionProbe.actions.setSubtaskDue("first", "s", null), "하위 할 일 기한을 바꾸지 못했어요."],
+    ["updateSubtaskDone", () => selectionProbe.actions.setSubtaskDone("first", "s", true), "하위 할 일을 완료하지 못했어요."],
+  ];
+  for (const [method, run, message] of cases) {
+    refuse(method, { success: false });
+    act(run);
+    expect(errors).toHaveBeenLastCalledWith(message);
+    refuse(method, busy);
+    act(run);
+    expect(errors).toHaveBeenLastCalledWith(`${message} 잠시 뒤에 다시 해 주세요.`);
+  }
+  // Success is silent.
+  errors.mockClear();
+  act(() => selectionProbe.actions.setTitle("first", "y"));
+  expect(errors).not.toHaveBeenCalled();
+  errors.mockRestore();
+});
+
+test("the menu's new category is ticked only once it is stored", async () => {
+  const errors = jest.spyOn(Toast, "error").mockImplementation(() => {});
+  let answer;
+  IpcSender.req.category.createCategory.mockImplementation((category, cb) => { answer = cb; });
+  const { container } = view();
+  fireEvent.contextMenu(row(container, "first"), { clientX: 300, clientY: 200 });
+  fireEvent.click(within(screen.getByRole("menu", { name: "할 일 메뉴" })).getByRole("menuitem", { name: "카테고리" }));
+  fireEvent.click(within(screen.getByRole("menu", { name: "카테고리" })).getByRole("menuitem", { name: "새 카테고리…" }));
+  const name = screen.getByRole("textbox", { name: "새 카테고리 이름" });
+  fireEvent.change(name, { target: { value: "시험" } });
+  fireEvent.keyDown(name, { key: "Enter" });
+  expect(IpcSender.req.task.addTaskCategory).not.toHaveBeenCalled();
+  await act(async () => { answer({ success: false, data: { code: "VAULT_BUSY" } }); });
+  expect(IpcSender.req.task.addTaskCategory).not.toHaveBeenCalled();
+  expect(errors).toHaveBeenCalledWith("카테고리를 만들지 못했어요. 잠시 뒤에 다시 해 주세요.");
+  fireEvent.keyDown(screen.getByRole("textbox", { name: "새 카테고리 이름" }), { key: "Enter" });
+  const sent = IpcSender.req.category.createCategory.mock.calls.at(-1)[0];
+  await act(async () => { answer({ success: true, data: { syncV2Ack: true } }); });
+  expect(IpcSender.req.task.addTaskCategory).toHaveBeenCalledWith("first", sent.cid, expect.any(Function));
+  errors.mockRestore();
+});
+
+test("a new task that the screen hides (secret category, eye off) says where it went", async () => {
+  const info = jest.spyOn(Toast, "info").mockImplementation(() => {});
+  view();
+  const secretTask = () => { const t = makeTask("new-secret", "숨은 일", null); t.addCategory(secretCategory); return t; };
+  act(() => selectionProbe.actions.addTask(secretTask()));
+  expect(info).toHaveBeenCalledWith("비밀 카테고리 할 일은 눈을 켜면 보여요.");
+  // A plain task, or a refused add, gives no such line.
+  info.mockClear();
+  act(() => selectionProbe.actions.addTask(makeTask("plain", "보이는 일", null)));
+  IpcSender.req.task.addTask.mockImplementationOnce((entity, cb) => cb({ success: false }));
+  act(() => selectionProbe.actions.addTask(secretTask()));
+  expect(info).not.toHaveBeenCalled();
+  // With the eye on it shows, so nothing to say.
+  await act(async () => { fireEvent.click(screen.getByRole("button", { name: "비밀 카테고리 보기" })); });
+  fireEvent.click(screen.getByRole("button", { name: "확인" }));
+  await act(async () => {});
+  act(() => selectionProbe.actions.addTask(secretTask()));
+  expect(info).not.toHaveBeenCalled();
+  info.mockRestore();
 });
 
 test("delete asks first, from the menu and with Del on the selected row", async () => {
@@ -454,7 +532,7 @@ test("delete asks first, from the menu and with Del on the selected row", async 
   const again = screen.getByRole("alertdialog", { name: "할 일을 삭제할까요?" });
   expect(again).toHaveTextContent("'운동'을 지워요.");
   fireEvent.click(within(again).getByRole("button", { name: "삭제" }));
-  expect(IpcSender.req.task.deleteTask).toHaveBeenCalledWith("repeat", null);
+  expect(IpcSender.req.task.deleteTask).toHaveBeenCalledWith("repeat", expect.any(Function));
   expect(selectionProbe.selectedTaskId).toBe(null);
   // Del in a text field is left alone.
   fireEvent.click(row(container, "first"));
@@ -470,7 +548,7 @@ test("quick add: context defaults per menu and the one addTask call", () => {
     fireEvent.keyDown(input, { key: "Enter" });
     return IpcSender.req.task.addTask.mock.calls.at(-1);
   };
-  expect(add("새 작업")).toEqual([expect.objectContaining({ title: "새 작업", due_date: null, important: false, categories: {} }), null]);
+  expect(add("새 작업")).toEqual([expect.objectContaining({ title: "새 작업", due_date: null, important: false, categories: {} }), expect.any(Function)]);
   mockContext = { ...mockContext, selectedTodoMenuType: "중요한 할일", category: { title: "중요한 할일", default: true } };
   rerender(ui());
   expect(add("별 작업")[0]).toMatchObject({ title: "별 작업", important: true });

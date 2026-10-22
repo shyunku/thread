@@ -165,8 +165,10 @@ $accent-hover: #7aa5ff;
   &.compact .meta { display: none; }
   &.compact .ic-cat { display: inline-block; }
   &.compact .rcol .left { display: none; }
-  // One line: the title and the due share the middle with the check and the star.
+  // One line: the title and the due share the middle with the check and the star. The title's
+  // glyphs sit 1px low in their 20px line, so it is lifted to the row's centre.
   &.compact > .tx, &.compact > .rcol { align-self: center; }
+  &.compact .t { position: relative; top: -1px; }
 
   // Completion (mock .fall / .closing): a fixed copy falls 80px and fades while the row closes.
   &.fall {

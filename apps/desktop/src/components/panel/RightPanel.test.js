@@ -7,6 +7,7 @@ import Task from "../../objects/Task";
 import Subtask from "../../objects/Subtask";
 import Category from "../../objects/Category";
 import IpcSender from "../../utils/IpcSender";
+import Toast from "../../molecules/Toast";
 import prefsReducer from "../../store/prefsSlice";
 import { SecretSessionProvider } from "../../hooks/useSecretSession";
 import { useTaskSelection } from "../list/taskSelection";
@@ -222,7 +223,7 @@ test("기한 row → date picker below the row → setDue; a second click closes
   expect(screen.getByRole("dialog", { name: "기한 정하기" })).toBeInTheDocument();
   fireEvent.click(within(screen.getByRole("dialog", { name: "기한 정하기" })).getByRole("button", { name: "내일" }));
   fireEvent.click(screen.getByRole("button", { name: "정하기" }));
-  expect(IpcSender.req.task.updateTaskDueDate).toHaveBeenCalledWith("first", at(1, 18).getTime(), null);
+  expect(IpcSender.req.task.updateTaskDueDate).toHaveBeenCalledWith("first", at(1, 18).getTime(), expect.any(Function));
   expect(screen.queryByRole("dialog", { name: "기한 정하기" })).toBeNull();
   fireEvent.click(dueRow);
   expect(screen.getByRole("dialog", { name: "기한 정하기" })).toBeInTheDocument();
@@ -238,7 +239,7 @@ test("반복 on a task without a due: today's end of day first, then the repeat"
   fireEvent.click(within(screen.getByRole("dialog", { name: "반복" })).getByRole("radio", { name: /매일/ }));
   const due = IpcSender.req.task.updateTaskDueDate, rep = IpcSender.req.task.updateTaskRepeatPeriod;
   expect(due).toHaveBeenCalledWith("loose", new Date(2026, 9, 21, 23, 59, 59).getTime(), expect.any(Function));
-  expect(rep).toHaveBeenCalledWith("loose", "day", null);
+  expect(rep).toHaveBeenCalledWith("loose", "day", expect.any(Function));
   expect(due.mock.invocationCallOrder[0]).toBeLessThan(rep.mock.invocationCallOrder[0]);
   // With a due, only the repeat.
   jest.clearAllMocks();
@@ -246,7 +247,7 @@ test("반복 on a task without a due: today's end of day first, then the repeat"
   fireEvent.click(inPanel().getByRole("button", { name: "반복: 안 함" }));
   fireEvent.click(within(screen.getByRole("dialog", { name: "반복" })).getByRole("radio", { name: /매주/ }));
   expect(IpcSender.req.task.updateTaskDueDate).not.toHaveBeenCalled();
-  expect(IpcSender.req.task.updateTaskRepeatPeriod).toHaveBeenCalledWith("first", "week", null);
+  expect(IpcSender.req.task.updateTaskRepeatPeriod).toHaveBeenCalledWith("first", "week", expect.any(Function));
 });
 
 test("a refused due leaves the repeat unsent", () => {
@@ -258,6 +259,46 @@ test("a refused due leaves the repeat unsent", () => {
   expect(IpcSender.req.task.updateTaskRepeatPeriod).not.toHaveBeenCalled();
 });
 
+test("chained changes: the repeat waits for the due, the tick for the new category; refusals say so", async () => {
+  const errors = jest.spyOn(Toast, "error").mockImplementation(() => {});
+  const pickRepeat = (name) => {
+    fireEvent.click(inPanel().getByRole("button", { name: /^반복:/ }));
+    fireEvent.click(within(screen.getByRole("dialog", { name: "반복" })).getByRole("radio", { name }));
+  };
+  IpcSender.req.task.updateTaskDueDate.mockImplementation((tid, due, cb) => cb?.({ success: true }));
+  IpcSender.req.task.updateTaskRepeatPeriod.mockImplementation((tid, period, cb) => cb?.({ success: true }));
+  // A refused due: no repeat, and a toast.
+  IpcSender.req.task.updateTaskDueDate.mockImplementationOnce((tid, due, cb) => cb?.({ success: false }));
+  view();
+  select("loose");
+  pickRepeat(/매일/);
+  expect(IpcSender.req.task.updateTaskRepeatPeriod).not.toHaveBeenCalled();
+  expect(errors).toHaveBeenLastCalledWith("반복을 정하지 못했어요.");
+  // The due stored, the repeat refused by a vault that stayed busy: that says so too.
+  IpcSender.req.task.updateTaskRepeatPeriod.mockImplementationOnce((tid, period, cb) => cb?.({ success: false, data: { code: "VAULT_BUSY" } }));
+  pickRepeat(/매일/);
+  expect(IpcSender.req.task.updateTaskRepeatPeriod).toHaveBeenCalledWith("loose", "day", expect.any(Function));
+  expect(errors).toHaveBeenLastCalledWith("반복을 정하지 못했어요. 잠시 뒤에 다시 해 주세요.");
+  // 새 카테고리: the task gets it only once it is stored.
+  let answer;
+  IpcSender.req.category.createCategory.mockImplementation((category, cb) => { answer = (reply) => cb(reply); });
+  fireEvent.click(inPanel().getByRole("button", { name: /^카테고리/ }));
+  const picker = screen.getByRole("dialog", { name: "카테고리" });
+  fireEvent.click(within(picker).getByRole("button", { name: /새 카테고리/ }));
+  const name = within(picker).getByRole("textbox", { name: "새 카테고리 이름" });
+  fireEvent.change(name, { target: { value: "시험" } });
+  fireEvent.keyDown(name, { key: "Enter" });
+  expect(IpcSender.req.task.addTaskCategory).not.toHaveBeenCalled();
+  await act(async () => { answer({ success: false }); });
+  expect(IpcSender.req.task.addTaskCategory).not.toHaveBeenCalled();
+  expect(errors).toHaveBeenLastCalledWith("카테고리를 만들지 못했어요.");
+  fireEvent.keyDown(within(picker).getByRole("textbox", { name: "새 카테고리 이름" }), { key: "Enter" });
+  const sent = IpcSender.req.category.createCategory.mock.calls.at(-1)[0];
+  await act(async () => { answer({ success: true, data: { syncV2Ack: true } }); });
+  expect(IpcSender.req.task.addTaskCategory).toHaveBeenCalledWith("loose", sent.cid, expect.any(Function));
+  errors.mockRestore();
+});
+
 test("카테고리 row → picker: toggles, secret ones only while unlocked", async () => {
   view();
   select("first");
@@ -265,7 +306,7 @@ test("카테고리 row → picker: toggles, secret ones only while unlocked", as
   const picker = screen.getByRole("dialog", { name: "카테고리" });
   expect(within(picker).queryByRole("checkbox", { name: /비공개/ })).toBeNull();
   fireEvent.click(within(picker).getByRole("checkbox", { name: /개발/ }));
-  expect(IpcSender.req.task.deleteTaskCategory).toHaveBeenCalledWith("first", "public", null);
+  expect(IpcSender.req.task.deleteTaskCategory).toHaveBeenCalledWith("first", "public", expect.any(Function));
   fireEvent.keyDown(picker, { key: "Escape" });
   // After the unlock (eye on) the secret one can be picked.
   await act(async () => { fireEvent.click(screen.getByRole("button", { name: "비밀 카테고리 보기" })); });
@@ -273,7 +314,7 @@ test("카테고리 row → picker: toggles, secret ones only while unlocked", as
   await act(async () => {});
   fireEvent.click(inPanel().getByRole("button", { name: /^카테고리:/ }));
   fireEvent.click(within(screen.getByRole("dialog", { name: "카테고리" })).getByRole("checkbox", { name: /비공개/ }));
-  expect(IpcSender.req.task.addTaskCategory).toHaveBeenCalledWith("first", "secret", null);
+  expect(IpcSender.req.task.addTaskCategory).toHaveBeenCalledWith("first", "secret", expect.any(Function));
 });
 
 test("check and star; no star where it cannot be stored", () => {
@@ -283,7 +324,7 @@ test("check and star; no star where it cannot be stored", () => {
   fireEvent.click(within(title).getByRole("checkbox", { name: "할 일 완료" }));
   expect(IpcSender.req.task.updateTaskDone).toHaveBeenCalledWith("first", true, expect.any(Number), expect.any(Function));
   fireEvent.click(within(title).getByRole("button", { name: "중요로 표시" }));
-  expect(IpcSender.req.task.updateTaskImportant).toHaveBeenCalledWith("first", true, null);
+  expect(IpcSender.req.task.updateTaskImportant).toHaveBeenCalledWith("first", true, expect.any(Function));
   unmount();
   mockContext = { ...mockContext, syncStatus: { protocolVersion: 2 } };
   view();
@@ -309,7 +350,7 @@ test("title: Enter and leaving save, Esc puts it back, Enter while composing doe
   fireEvent.change(title, { target: { value: "  리뷰 끝내기 " } });
   fireEvent.keyDown(title, { key: "Enter" });
   fireEvent.blur(title);
-  expect(IpcSender.req.task.updateTaskTitle).toHaveBeenCalledWith("first", "리뷰 끝내기", null);
+  expect(IpcSender.req.task.updateTaskTitle).toHaveBeenCalledWith("first", "리뷰 끝내기", expect.any(Function));
   // Empty goes back.
   jest.clearAllMocks();
   fireEvent.focus(title);
@@ -334,7 +375,7 @@ test("subtasks: count and bar, check, rename in place, due on the right, 기한 
   expect(rows[1].querySelector(".sdue")).toHaveClass("over");
 
   fireEvent.click(within(rows[1]).getByRole("checkbox", { name: /하위 할 일 완료/ }));
-  expect(IpcSender.req.task.updateSubtaskDone).toHaveBeenCalledWith("first", "s2", true, expect.any(Number));
+  expect(IpcSender.req.task.updateSubtaskDone).toHaveBeenCalledWith("first", "s2", true, expect.any(Number), expect.any(Function));
 
   fireEvent.click(within(rows[1]).getByRole("button", { name: "검토 받기" }));
   let input = within(rows[1]).getByRole("textbox", { name: "하위 할 일 이름" });
@@ -351,23 +392,23 @@ test("subtasks: count and bar, check, rename in place, due on the right, 기한 
   fireEvent.change(input, { target: { value: "검토 끝" } });
   fireEvent.keyDown(input, { key: "Enter" });
   fireEvent.blur(input);
-  expect(IpcSender.req.task.updateSubtaskTitle).toHaveBeenCalledWith("first", "s2", "검토 끝", null);
+  expect(IpcSender.req.task.updateSubtaskTitle).toHaveBeenCalledWith("first", "s2", "검토 끝", expect.any(Function));
 
   fireEvent.click(within(rows[1]).getByRole("button", { name: "기한 바꾸기" }));
   fireEvent.click(within(screen.getByRole("dialog", { name: "기한 정하기" })).getByRole("button", { name: "내일" }));
   fireEvent.click(screen.getByRole("button", { name: "정하기" }));
-  expect(IpcSender.req.task.updateSubtaskDueDate).toHaveBeenCalledWith("first", "s2", at(1, 12).getTime(), null);
+  expect(IpcSender.req.task.updateSubtaskDueDate).toHaveBeenCalledWith("first", "s2", at(1, 12).getTime(), expect.any(Function));
   fireEvent.click(within(rows[1]).getByRole("button", { name: "기한 빼기" }));
-  expect(IpcSender.req.task.updateSubtaskDueDate).toHaveBeenLastCalledWith("first", "s2", null, null);
+  expect(IpcSender.req.task.updateSubtaskDueDate).toHaveBeenLastCalledWith("first", "s2", null, expect.any(Function));
   fireEvent.click(within(rows[0]).getByRole("button", { name: "하위 할 일 삭제" }));
-  expect(IpcSender.req.task.deleteSubtask).toHaveBeenCalledWith("first", "s1", null);
+  expect(IpcSender.req.task.deleteSubtask).toHaveBeenCalledWith("first", "s1", expect.any(Function));
 
   const add = within(p).getByRole("textbox", { name: "하위 할 일 추가" });
   fireEvent.change(add, { target: { value: "배포" } });
   fireEvent.keyDown(add, { key: "Enter", keyCode: 229 });
   expect(IpcSender.req.task.createSubtask).not.toHaveBeenCalled();
   fireEvent.keyDown(add, { key: "Enter" });
-  expect(IpcSender.req.task.createSubtask).toHaveBeenCalledWith(expect.objectContaining({ title: "배포", due_date: null }), "first", null);
+  expect(IpcSender.req.task.createSubtask).toHaveBeenCalledWith(expect.objectContaining({ title: "배포", due_date: null }), "first", expect.any(Function));
   expect(add).toHaveValue("");
 });
 
@@ -380,16 +421,16 @@ test("memo: saved after a pause and on leaving, with the placeholder when empty"
   fireEvent.change(memo, { target: { value: "첫 줄" } });
   expect(IpcSender.req.task.updateTaskMemo).not.toHaveBeenCalled();
   act(() => { jest.advanceTimersByTime(800); });
-  expect(IpcSender.req.task.updateTaskMemo).toHaveBeenCalledWith("loose", "첫 줄", null);
+  expect(IpcSender.req.task.updateTaskMemo).toHaveBeenCalledWith("loose", "첫 줄", expect.any(Function));
   fireEvent.change(memo, { target: { value: "첫 줄\n둘째 줄" } });
   fireEvent.blur(memo);
-  expect(IpcSender.req.task.updateTaskMemo).toHaveBeenLastCalledWith("loose", "첫 줄\n둘째 줄", null);
+  expect(IpcSender.req.task.updateTaskMemo).toHaveBeenLastCalledWith("loose", "첫 줄\n둘째 줄", expect.any(Function));
   expect(IpcSender.req.task.updateTaskMemo).toHaveBeenCalledTimes(2);
   // Switching tasks mid-typing saves to the task it was typed for.
   fireEvent.focus(memo);
   fireEvent.change(memo, { target: { value: "끝" } });
   select("first");
-  expect(IpcSender.req.task.updateTaskMemo).toHaveBeenLastCalledWith("loose", "끝", null);
+  expect(IpcSender.req.task.updateTaskMemo).toHaveBeenLastCalledWith("loose", "끝", expect.any(Function));
 });
 
 test("stamp: 만든 날 · 마지막 수정, left out when unknown", () => {
@@ -555,7 +596,7 @@ test("title: pasted line breaks become spaces", () => {
   fireEvent.change(title, { target: { value: "리뷰\n준비\r\n 끝" } });
   expect(title).toHaveValue("리뷰 준비 끝");
   fireEvent.blur(title);
-  expect(IpcSender.req.task.updateTaskTitle).toHaveBeenCalledWith("first", "리뷰 준비 끝", null);
+  expect(IpcSender.req.task.updateTaskTitle).toHaveBeenCalledWith("first", "리뷰 준비 끝", expect.any(Function));
 });
 
 test("a title or memo being typed is saved when the panel changes task or the window closes", () => {
@@ -565,7 +606,7 @@ test("a title or memo being typed is saved when the panel changes task or the wi
   fireEvent.focus(title);
   fireEvent.change(title, { target: { value: "리뷰 준비 2" } });
   select("loose");
-  expect(IpcSender.req.task.updateTaskTitle).toHaveBeenCalledWith("first", "리뷰 준비 2", null);
+  expect(IpcSender.req.task.updateTaskTitle).toHaveBeenCalledWith("first", "리뷰 준비 2", expect.any(Function));
   // Untouched: nothing.
   jest.clearAllMocks();
   select("first");
@@ -576,12 +617,12 @@ test("a title or memo being typed is saved when the panel changes task or the wi
   fireEvent.focus(memo);
   fireEvent.change(memo, { target: { value: "닫기 직전" } });
   act(() => { window.dispatchEvent(new Event("pagehide")); });
-  expect(IpcSender.req.task.updateTaskMemo).toHaveBeenCalledWith("loose", "닫기 직전", null);
+  expect(IpcSender.req.task.updateTaskMemo).toHaveBeenCalledWith("loose", "닫기 직전", expect.any(Function));
   const t2 = inPanel().getByRole("textbox", { name: "할 일 제목" });
   fireEvent.focus(t2);
   fireEvent.change(t2, { target: { value: "아이디어 정리 끝" } });
   act(() => { window.dispatchEvent(new Event("beforeunload")); });
-  expect(IpcSender.req.task.updateTaskTitle).toHaveBeenCalledWith("loose", "아이디어 정리 끝", null);
+  expect(IpcSender.req.task.updateTaskTitle).toHaveBeenCalledWith("loose", "아이디어 정리 끝", expect.any(Function));
   expect(IpcSender.req.task.updateTaskMemo).toHaveBeenCalledTimes(1);
 });
 

@@ -32,6 +32,10 @@ export function secretMethodLine(method) {
 const DIALOG_TITLE = "비밀 카테고리를 볼까요?";
 const dialogText = (method) =>
   `${method === "os" ? osAuthName() : "보관함 비밀번호"}로 본인 확인을 해요. 앱을 닫거나 잠글 때까지 다시 묻지 않아요.`;
+const WAIT_TEXT = "본인 확인을 준비하고 있어요. 잠시만 기다려 주세요.";
+// The vault answers a check only after a running vault action (a sync) ends, up to about 10s.
+// An answer slower than this opens the dialog in its waiting state instead of showing nothing.
+export const SLOW_ANSWER_MS = 250;
 const FAILED = "잠금을 풀 수 없어요.";
 const BUSY = "잠시 뒤에 다시 해 주세요.";
 const WRONG = "비밀번호가 맞지 않아요.";
@@ -117,9 +121,14 @@ export function SecretSessionProvider({ uid, children }) {
         resolve(ok && generation === generationRef.current);
       };
       finishRef.current = finish;
+      // A slow first answer (a sync holds the vault) shows the dialog waiting; 취소 still ends it.
+      const slow = setTimeout(() => {
+        if (!done) setDialog({ kind: "wait", color, busy: true, cancel: () => finish(false) });
+      }, SLOW_ANSWER_MS);
       // Which way does the vault confirm the user? A password check with no password is
       // refused before any real check, and the answer says what is available.
       IpcSender.vault.verifyUser({ method: "password" }, ({ success, data } = {}) => {
+        clearTimeout(slow);
         if (done) return;
         if (success && isBusy(data)) {
           Toast.warn(BUSY);
@@ -136,8 +145,10 @@ export function SecretSessionProvider({ uid, children }) {
         setDialog({
           kind: "os",
           color,
+          // The dialog stays, waiting, until the OS check answers (it may wait for a sync
+          // first); it cannot be cancelled then, the OS prompt is on its way.
           confirm: () => {
-            setDialog(null);
+            setDialog((d) => d && { ...d, busy: true, cancel: () => {} });
             verifyOs(finish, color, data.passwordAvailable);
           },
           cancel: () => finish(false),
@@ -192,11 +203,12 @@ export function SecretSessionProvider({ uid, children }) {
     children,
     dialog &&
       createElement(ConfirmDialog, {
-        key: dialog.kind,
+        // The waiting dialog turns into the OS one in place; the password one has a field.
+        key: dialog.kind === "password" ? "password" : "ask",
         icon: "shield",
         iconColor: dialog.color || "var(--accent)",
         title: DIALOG_TITLE,
-        body: dialogText(dialog.kind),
+        body: dialog.kind === "wait" ? (method ? dialogText(method) : WAIT_TEXT) : dialogText(dialog.kind),
         input:
           dialog.kind === "password"
             ? { type: "password", label: "보관함 비밀번호", placeholder: "보관함 비밀번호" }

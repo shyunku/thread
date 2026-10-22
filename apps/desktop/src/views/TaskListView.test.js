@@ -157,6 +157,22 @@ test("search: 제목에서 / 메모에서 / 카테고리에서 with highlights a
   expect(container.querySelector('[data-task-id="a"]')).toBeNull();
 });
 
+test("search: a hidden secret memo hit shows no memo text while locked; unlocked it does", () => {
+  const cats = [{ id: "s", title: "일기", color: "#e57ad6", secret: true }];
+  const tasks = [task("h", "산책", on(2, 22), { memo: "비밀 리뷰 메모", categories: { s: true } })];
+  const row = (unlocked) => ({ catsOf: (t) => cats.filter((c) => t.categories[c.id]), isHidden: (t) => !!t.categories.s, unlocked, onUnlock: jest.fn() });
+  const { container, unmount } = setup(tasks, null, { search: true, query: "리뷰", row: row(false) });
+  const hit = container.querySelector('[data-task-id="h"]');
+  expect(groups(container)).toEqual(["s-memo"]);
+  expect(hit.querySelector(".meta.snip")).toBeNull();
+  expect(hit).not.toHaveTextContent("비밀 리뷰 메모");
+  // Title and category, as in the mock.
+  expect(hit.querySelector(".meta .cat")).toHaveTextContent("일기");
+  unmount();
+  const open = setup(tasks, null, { search: true, query: "리뷰", row: row(true) });
+  expect(open.container.querySelector('[data-task-id="h"] .meta.snip')).toHaveTextContent("비밀 리뷰 메모");
+});
+
 test("rows are options of each group's listbox", () => {
   const { container } = setup(sample(), null, { row: { selectedId: "today" } });
   const today = screen.getByRole("listbox", { name: "오늘" });

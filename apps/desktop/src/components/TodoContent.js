@@ -14,7 +14,6 @@ import Category from "objects/Category";
 import TaskCalendarView from "views/TaskCalendarView";
 import TaskTimelineView from "views/TaskTimelineView";
 import Toast from "molecules/Toast";
-import { fromRelativeTime } from "utils/Common";
 import { START_VIEWS, prefsSelector, setPrefs } from "store/prefsSlice";
 import useClock from "hooks/UseClock";
 import { CategoryPicker, ConfirmDialog, TaskContextMenu, openPopupCount, taskDeleteConfirm } from "molecules/pickers";
@@ -52,8 +51,10 @@ import {
 const isEditable = (el) =>
   el instanceof Element && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
 
-const failed = (label) => ({ success } = {}) => {
-  if (success === false) Toast.error(`${label}하지 못했어요.`);
+// The answer callback for a change: a refusal is final (the main process already waited for a
+// busy vault), so it says so. A busy vault gets the "try again" hint.
+const failed = (message) => ({ success, data } = {}) => {
+  if (success === false) Toast.error(data?.code === "VAULT_BUSY" ? `${message} 잠시 뒤에 다시 해 주세요.` : message);
 };
 
 // The selection and the picked day, for the list, the views and the right panel.
@@ -79,17 +80,6 @@ const TodoContent = ({ children }) => {
   const dispatch = useDispatch();
   const prefs = useSelector(prefsSelector);
   const layout = useHomeLayout();
-
-  const [lastTxUpdateTime, setLastTxUpdateTime] = useState(null);
-  // eslint-disable-next-line no-unused-vars
-  const lastUpdateTimeText = useMemo(() => {
-    if (lastTxUpdateTime == null) return null;
-    const now = Date.now();
-    const diff = now - lastTxUpdateTime;
-    return (
-      fromRelativeTime(diff, { showLayerCount: 1 }) + (diff > 0 ? " 전" : " 후")
-    );
-  }, [lastTxUpdateTime]);
 
   // The one selected task (#102); phase F's right panel reads it through useTaskSelection().
   const [selectedTaskId, setSelectedTaskId] = useState(null);
@@ -122,11 +112,13 @@ const TodoContent = ({ children }) => {
   // unlocked category, and everywhere while the eye toggle is on (#102).
   const { showSecret, unlocked: secretUnlocked } = secretSession;
   const locked = !!customCategory?.secret && !secretUnlocked;
+  const secretFilterRef = useRef(null);
   const secretFilter = useMemo(() => {
     if (customCategory?.secret && !secretUnlocked) return () => false;
     if (showSecret || customCategory?.secret) return () => true;
     return (task) => !isSecretTask(task, categories);
   }, [customCategory, categories, showSecret, secretUnlocked]);
+  secretFilterRef.current = secretFilter;
 
   const ordered = useMemo(() => storedOrder(taskMap), [taskMap]);
   const viewTasks = useMemo(
@@ -316,9 +308,15 @@ const TodoContent = ({ children }) => {
   }, [fetchAll]);
 
   /* ------------------------------ Handlers ------------------------------ */
+  // A task added with a secret category on a screen that hides secret tasks (eye off) would
+  // vanish without a word; it says where it went (secretFilterRef: the screen's filter).
   const onTaskAdd = useCallback((task) => {
     if (!(task instanceof Task)) return;
-    IpcSender.req.task.addTask(task.toEntity(), null);
+    const hidden = secretFilterRef.current ? !secretFilterRef.current(task) : false;
+    IpcSender.req.task.addTask(task.toEntity(), (reply = {}) => {
+      if (reply.success === false) failed("할 일을 추가하지 못했어요.")(reply);
+      else if (hidden) Toast.info("비밀 카테고리 할 일은 눈을 켜면 보여요.");
+    });
   }, []);
 
   // A category made from a picker (quick add, the task menu): the next palette colour comes from
@@ -327,56 +325,46 @@ const TodoContent = ({ children }) => {
     const created = new Category(title, false);
     created.id = v4();
     created.color = color;
-    IpcSender.req.category.createCategory(created.toEntity(), ({ success, data } = {}) => {
-      if (success === false) {
-        Toast.error("카테고리를 만들지 못했어요.");
+    IpcSender.req.category.createCategory(created.toEntity(), (reply = {}) => {
+      if (reply.success === false) {
+        failed("카테고리를 만들지 못했어요.")(reply);
         reject(new Error("CATEGORY_CREATE_FAILED"));
-      } else resolve(data?.cid ?? created.id);
+      } else resolve(reply.data?.cid ?? created.id);
     });
   }), []);
 
   // Every task change the list and the detail panel (phase F) send.
+  // Every change says so when it is refused (failed); setDue / setDone / setRepeat take an own
+  // callback({ success }) instead when the caller needs the answer.
   const actions = useMemo(() => ({
     addTask: onTaskAdd,
-    deleteTask: (tid) => IpcSender.req.task.deleteTask(tid, null),
-    setTitle: (tid, title) => IpcSender.req.task.updateTaskTitle(tid, title, null),
+    deleteTask: (tid) => IpcSender.req.task.deleteTask(tid, failed("할 일을 삭제하지 못했어요.")),
+    setTitle: (tid, title) => IpcSender.req.task.updateTaskTitle(tid, title, failed("제목을 바꾸지 못했어요.")),
     // null clears the due; on a repeating task the model clears the repeat with it.
     // callback({ success }) answers it (the panel sends a repeat only after the due it needs).
-    setDue: (tid, dueDate, callback) => IpcSender.req.task.updateTaskDueDate(tid, dueDate == null ? null : moment(dueDate).valueOf(), callback ?? null),
-    setMemo: (tid, memo) => IpcSender.req.task.updateTaskMemo(tid, memo, null),
+    setDue: (tid, dueDate, callback) => IpcSender.req.task.updateTaskDueDate(tid, dueDate == null ? null : moment(dueDate).valueOf(), callback ?? failed("기한을 바꾸지 못했어요.")),
+    setMemo: (tid, memo) => IpcSender.req.task.updateTaskMemo(tid, memo, failed("메모를 저장하지 못했어요.")),
     // callback({ success }) answers the change (the list restores a refused completion).
-    setDone: (tid, done, callback) => IpcSender.req.task.updateTaskDone(tid, done, Date.now(), callback ?? null),
-    addCategory: (tid, cid) => IpcSender.req.task.addTaskCategory(tid, cid, null),
-    removeCategory: (tid, cid) => IpcSender.req.task.deleteTaskCategory(tid, cid, null),
-    setRepeat: (tid, repeat) => IpcSender.req.task.updateTaskRepeatPeriod(tid, repeat, null),
-    setImportant: (tid, important) => IpcSender.req.task.updateTaskImportant(tid, important, null),
-    duplicate: (tid) => IpcSender.req.task.duplicateTask(tid, null, failed("복제")),
+    setDone: (tid, done, callback) => IpcSender.req.task.updateTaskDone(tid, done, Date.now(), callback ?? failed(done ? "완료하지 못했어요." : "완료를 취소하지 못했어요.")),
+    addCategory: (tid, cid) => IpcSender.req.task.addTaskCategory(tid, cid, failed("카테고리를 넣지 못했어요.")),
+    removeCategory: (tid, cid) => IpcSender.req.task.deleteTaskCategory(tid, cid, failed("카테고리를 빼지 못했어요.")),
+    setRepeat: (tid, repeat, callback) => IpcSender.req.task.updateTaskRepeatPeriod(tid, repeat, callback ?? failed("반복을 정하지 못했어요.")),
+    setImportant: (tid, important) => IpcSender.req.task.updateTaskImportant(tid, important, failed("중요 표시를 바꾸지 못했어요.")),
+    duplicate: (tid) => IpcSender.req.task.duplicateTask(tid, null, failed("복제하지 못했어요.")),
     createCategory: onCreateCategory,
     addSubtask: (tid, subtask) => {
-      if (subtask instanceof Subtask) IpcSender.req.task.createSubtask(subtask.toEntity(), tid, null);
+      if (subtask instanceof Subtask) IpcSender.req.task.createSubtask(subtask.toEntity(), tid, failed("하위 할 일을 추가하지 못했어요."));
     },
-    deleteSubtask: (tid, sid) => IpcSender.req.task.deleteSubtask(tid, sid, null),
-    setSubtaskTitle: (tid, sid, title) => IpcSender.req.task.updateSubtaskTitle(tid, sid, title, null),
-    setSubtaskDue: (tid, sid, dueDate) => IpcSender.req.task.updateSubtaskDueDate(tid, sid, dueDate == null ? null : moment(dueDate).valueOf(), null),
-    setSubtaskDone: (tid, sid, done) => IpcSender.req.task.updateSubtaskDone(tid, sid, done, Date.now()),
+    deleteSubtask: (tid, sid) => IpcSender.req.task.deleteSubtask(tid, sid, failed("하위 할 일을 삭제하지 못했어요.")),
+    setSubtaskTitle: (tid, sid, title) => IpcSender.req.task.updateSubtaskTitle(tid, sid, title, failed("하위 할 일 이름을 바꾸지 못했어요.")),
+    setSubtaskDue: (tid, sid, dueDate) => IpcSender.req.task.updateSubtaskDueDate(tid, sid, dueDate == null ? null : moment(dueDate).valueOf(), failed("하위 할 일 기한을 바꾸지 못했어요.")),
+    setSubtaskDone: (tid, sid, done) => IpcSender.req.task.updateSubtaskDone(tid, sid, done, Date.now(), failed(done ? "하위 할 일을 완료하지 못했어요." : "하위 할 일 완료를 취소하지 못했어요.")),
   }), [onTaskAdd, onCreateCategory]);
 
   const toggleCategory = (task, cid) => {
     if (task.categories?.[cid]) actions.removeCategory(task.id, cid);
     else actions.addCategory(task.id, cid);
   };
-
-  useEffect(() => {
-    // get last update time
-    IpcSender.req.system.getLastTxUpdateTime(null);
-    IpcSender.onAll("system/lastTxUpdateTime", ({ success, data }) => {
-      setLastTxUpdateTime(data);
-    });
-
-    return () => {
-      IpcSender.offAll("system/lastTxUpdateTime");
-    };
-  }, []);
 
   useEffect(() => {
     IpcSender.onAll("task/addTask", ({ success, data }) => {

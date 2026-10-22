@@ -81,6 +81,7 @@
 
   // Account band, ruled off from the menu above and bleeding to the sidebar edges.
   > .foot {
+    box-sizing: border-box; // 56px with its top rule, as in the mock
     flex: none;
     margin: 0 calc(10px - var(--side-x)) -10px;
     display: flex;

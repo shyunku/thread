@@ -270,9 +270,12 @@ const LeftSidebar = ({ setSelectedTodoMenuType, selectedTodoMenuType, mode = "fu
       category,
       row,
       props: categoryDeleteConfirm({ title: category.title, secret: category.secret, color: colorOf(category) }, n),
+      // n counts only the tasks this screen may show; hidden secret tasks can still use the
+      // category. On E2EE "take it off its tasks, then delete" covers them (and is a plain delete
+      // when nothing uses it); the plaintext paths know only the plain delete.
       run: (choice) => {
         if (choice === "tasks") IpcSender.req.category.deleteCategoryWithTasks(category.id, done("카테고리를 삭제"));
-        else if (n > 0) IpcSender.req.category.deleteCategoryInUse(category.id, done("카테고리를 삭제"));
+        else if (n > 0 || syncStatus?.protocolVersion === 3) IpcSender.req.category.deleteCategoryInUse(category.id, done("카테고리를 삭제"));
         else IpcSender.req.category.deleteCategory(category.id, done("카테고리를 삭제"));
       },
     });

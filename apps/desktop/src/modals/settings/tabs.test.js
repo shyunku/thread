@@ -26,6 +26,9 @@ beforeEach(() => {
 
 test("general preferences are stored in the persisted prefs slice", () => {
   const { store: s } = wrap(<SettingCommon />);
+  // The same view names as the main screen header (목록 / 캘린더 / 타임라인).
+  const start = screen.getByRole("radiogroup", { name: "시작할 때 보기" });
+  expect(within(start).getAllByRole("radio").map((radio) => radio.textContent)).toEqual(["목록", "캘린더", "타임라인"]);
   fireEvent.click(screen.getByRole("radio", { name: "타임라인" }));
   fireEvent.click(screen.getByRole("radio", { name: "월요일" }));
   fireEvent.click(screen.getByRole("radio", { name: "24시간" }));
