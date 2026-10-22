@@ -7,6 +7,9 @@ import { TooltipLayer } from "../components/Tooltip";
 import HomeLayout from "../layouts/Home.layout";
 import Home from "../pages/Home";
 import { fromSyncV2View } from "../utils/syncV2View";
+import Prompt from "../molecules/Prompt";
+import Toast from "../molecules/Toast";
+import { ConfirmDialog, taskDeleteConfirm } from "../molecules/pickers";
 
 const DAY = 86400000;
 
@@ -28,13 +31,15 @@ function fillerTasks(count) {
 }
 
 // long=1 adds a long title and a long category name (ellipsis checks);
-// count=<n> fills the list up to n tasks.
+// count=<n> fills the list up to n tasks. The secret category "일기" (#102) is always there;
+// its tasks stay out of the counts and lists until it is unlocked.
 function previewView(long = false, count = 0) {
   const categories = [
-    { cid: "work", title: "업무", color: "#6294ff", secret: false, locked: false, created_at: at(-30, 9) },
-    { cid: "study", title: "공부", color: "#b58cff", secret: false, locked: false, created_at: at(-30, 9) },
-    { cid: "life", title: "생활", color: "#44c98b", secret: false, locked: false, created_at: at(-30, 9) },
-    ...(long ? [{ cid: "exam", title: "자격증 및 어학 시험 준비 (2026 하반기)", color: "#f0838b", secret: false, locked: false, created_at: at(-30, 9) }] : []),
+    { cid: "work", title: "업무", color: "#6294ff", secret: false, locked: false, created_at: at(-30, 9) + 60000 },
+    { cid: "study", title: "공부", color: "#b58cff", secret: false, locked: false, created_at: at(-30, 9) + 120000 },
+    { cid: "life", title: "생활", color: "#44c98b", secret: false, locked: false, created_at: at(-30, 9) + 180000 },
+    ...(long ? [{ cid: "exam", title: "자격증 및 어학 시험 준비 (2026 하반기)", color: "#f0838b", secret: false, locked: false, created_at: at(-30, 9) + 240000 }] : []),
+    { cid: "diary", title: "일기", color: "#e57ad6", secret: true, locked: true, created_at: at(-30, 9) + 300000 },
   ];
   const tasks = [
     { tid: "t1", title: "분기 회고 자료 정리", due: inHours(3), cats: ["work"], memo: "지난 분기 지표와 다음 목표 3가지", important: true },
@@ -50,12 +55,16 @@ function previewView(long = false, count = 0) {
     { tid: "t6", title: "주간 장보기", due: at(5, 15), cats: ["life"] },
     { tid: "t7", title: "릴리스 노트 작성", due: at(-1, 18), cats: ["work"], done: true },
     { tid: "t8", title: "치과 예약", due: at(9, 10), cats: ["life"], important: true },
+    { tid: "t12", title: "주간 보고서 제출", due: at(-1, 18), cats: ["work"] },
+    { tid: "t13", title: "책장 정리", due: null, cats: [] },
+    { tid: "s1", title: "병원 검사 결과 정리", due: at(1, 10), cats: ["diary"] },
+    { tid: "s2", title: "오늘 일기 쓰기", due: at(0, 23), cats: ["diary"], repeat: "day" },
   ];
   tasks.push(...fillerTasks(count - tasks.length));
   return {
     categories,
     tasks: tasks.map((task, index) => ({
-      tid: task.tid, title: task.title, memo: task.memo || "", due_date: task.due,
+      tid: task.tid, title: task.title, memo: task.memo || "", due_date: task.due || 0,
       done: !!task.done, done_at: task.done ? at(-1, 17) : null,
       repeat_period: task.repeat || null, repeat_start_at: task.repeat ? task.due : null,
       created_at: at(-7, 9), next: tasks[index + 1]?.tid || null, important: !!task.important,
@@ -83,6 +92,17 @@ export function installAppPreviewIpc(IpcSender, params = new URLSearchParams()) 
   const status = params.get("update");
   const update = status ? { version: "2.0.10", mandatory: params.get("mandatory") === "1", status, autoInstall: ["downloading", "installing"].includes(status) } : null;
   IpcSender.releaseAlerts = { get: ok(update), update: () => {}, cancel: () => {} };
+  // Secret categories (#102): vault=password previews a password-only vault, otherwise OS auth.
+  const passwordVault = params.get("vault") === "password";
+  IpcSender.vault = {
+    ...IpcSender.vault,
+    onLocked: () => () => {},
+    verifyUser: (input = {}, callback) => {
+      const method = input.method ?? (passwordVault ? "password" : "os");
+      const verified = method === "os" ? !passwordVault : input.password === "preview";
+      callback?.({ success: true, data: verified ? { verified, method } : { verified: false, method, code: method === "os" ? "OS_AUTH_UNAVAILABLE" : "PASSWORD_REJECTED", osAvailable: !passwordVault, passwordAvailable: true } });
+    },
+  };
 }
 
 // sync=<state> (synced, syncing, offline, error) sets the synthetic sync status the
@@ -95,22 +115,28 @@ export function previewSyncStatus(state) {
   return base;
 }
 
+// confirm=task shows the task delete question (#102; the list wires it in phase E).
 function PreviewRoot() {
-  const [states, syncStatus] = useMemo(() => {
+  const [states, syncStatus, confirmTask] = useMemo(() => {
     const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
     return [
       fromSyncV2View(previewView(params.get("long") === "1", Number(params.get("count")) || 0)),
       previewSyncStatus(params.get("sync")),
+      params.get("confirm") === "task",
     ];
   }, []);
   const [searchQuery, setSearchQuery] = useState("");
+  const [asking, setAsking] = useState(confirmTask);
   return (
     <div className="root-layout">
       <TopBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
       <TooltipLayer />
+      <Prompt.Prompt />
+      <Toast.Toaster />
       <div className="root-layout__content">
         <Outlet context={{ localNonce: 0, remoteNonce: 0, addPromise: () => {}, states, searchQuery, syncStatus }} />
       </div>
+      {asking && <ConfirmDialog {...taskDeleteConfirm("분기 회고 자료 정리")} onChoose={() => setAsking(false)} onCancel={() => setAsking(false)} />}
     </div>
   );
 }

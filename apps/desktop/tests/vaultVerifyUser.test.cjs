@@ -107,6 +107,6 @@ test("vault/verifyUser replies through the vault IPC wrapper without leaking err
  const contract=require("../public/electron/modules/preload");
  assert.ok(contract.REQUEST_TOPICS.includes("vault/verifyUser"));
  assert.equal(contract.REQUEST_TOPICS.includes("category/checkCategoryPassword"),false);
- for(const topic of ["category/updateCategoryOrder","task/duplicateTask","category/deleteCategoryInUse"])assert.ok(contract.REQUEST_TOPICS.includes(topic),topic);
+ for(const topic of ["category/updateCategoryOrder","task/duplicateTask","category/deleteCategoryInUse","category/deleteCategoryWithTasks"])assert.ok(contract.REQUEST_TOPICS.includes(topic),topic);
  assert.equal(require("../public/electron/modules/windowSecurity").canRequest("popup","vault/verifyUser"),false);
 });

@@ -28,6 +28,7 @@ const mutationTopics = new Set([
 const compositeTopics = new Set([
   "task/duplicateTask",
   "category/deleteCategoryInUse",
+  "category/deleteCategoryWithTasks",
 ]);
 const liveRow = (c) => c && c.operation !== "delete" && c.fields.deleted_at == null;
 function command(topic, args, view) {
@@ -243,6 +244,28 @@ function expand(topic, args, view, now = Date.now()) {
               r.fields.present
           )
           .map((r) => ["task/deleteTaskCategory", [r.parentId, a]]),
+        ["category/deleteCategory", [a]],
+      ];
+    }
+    // Deletes every task that has the category (their subtasks and relations go with
+    // them, see optimistic), then the category. Used for secret categories (#102).
+    case "category/deleteCategoryWithTasks": {
+      if (!liveRow(findRow(view, "category", a))) throw Error("ENTITY_DELETED");
+      const tids = [
+        ...new Set(
+          rows
+            .filter(
+              (r) =>
+                r.entityType === "taskCategory" &&
+                r.entityId === a &&
+                r.fields.present &&
+                liveRow(findRow(view, "task", r.parentId))
+            )
+            .map((r) => r.parentId)
+        ),
+      ];
+      return [
+        ...tids.map((tid) => ["task/deleteTask", [tid]]),
         ["category/deleteCategory", [a]],
       ];
     }

@@ -10,6 +10,7 @@
   }
 }
 
+// Responsive main screen (#102): the mode class (full / rail / drawer) comes from the width.
 .home-layout {
   position: relative;
   display: flex;
@@ -18,55 +19,90 @@
   height: 100%;
   overflow: hidden;
   min-height: 0;
-  > .sidebar-flipper {
+  > .home-layout__main {
+    position: relative;
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    > .page {
+      display: flex;
+      flex: 1;
+      min-width: 0;
+      min-height: 0;
+    }
+  }
+  // Holds the right panel drawer (PanelHost) below 1000px.
+  > .home-layout__overlay {
     position: absolute;
-    left: $left-sidebar-width - 38px;
-    top: 26px;
-    display: grid;
-    place-items: center;
-    width: 26px;
-    height: 30px;
-    padding: 0;
-    box-sizing: border-box;
-    border: 0;
-    border-radius: 7px;
-    background: transparent;
-    color: var(--muted);
-    z-index: 3;
-    transition: left 0.2s ease;
-  }
-  > .sidebar-flipper svg {
-    width: 18px;
-    height: 18px;
-  }
-  > .sidebar-flipper:not(.flipped):hover {
-    background: var(--hover);
-    color: var(--text);
-  }
-  > .sidebar-flipper.flipped {
-    left: 0;
-    width: 18px;
-    height: 88px;
-    padding: 0;
-    border: 0;
-    border-radius: 0 6px 6px 0;
-    background: transparent;
-  }
-  > .sidebar-flipper.flipped svg {
-    display: none;
-  }
-  > .sidebar-flipper.flipped::after {
-    content: "";
-    position: absolute;
-    inset: 0 9px 0 0;
-    border-radius: 0 4px 4px 0;
-    background: var(--secondary);
-    opacity: 0.4;
+    inset: 0;
+    z-index: 15;
     pointer-events: none;
+    &:empty {
+      display: none;
+    }
+    > * {
+      pointer-events: auto;
+    }
   }
-  > .sidebar-flipper.flipped:hover::after,
-  > .sidebar-flipper.flipped:focus-visible::after {
-    background: var(--accent);
-    opacity: 1;
+}
+
+.home-scrim {
+  position: absolute;
+  inset: 0;
+  background: #0006;
+  z-index: 15;
+  &.side {
+    z-index: 24;
+  }
+}
+.home-sidedrawer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 25;
+  box-shadow: 16px 0 40px #0009;
+  display: flex;
+}
+.home-splitter {
+  width: 1px;
+  flex: none;
+  background: var(--line);
+  position: relative;
+  z-index: 2;
+}
+.home-panel {
+  flex: none;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  &.drawer {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    box-shadow: -16px 0 40px #0009;
+    z-index: 20;
+  }
+}
+
+// ☰ in the list header below 800px (mock .ghost.sq.menu-b).
+.side-menu-button {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  margin-left: -8px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--secondary);
+  &:hover {
+    background: var(--hover);
   }
 }

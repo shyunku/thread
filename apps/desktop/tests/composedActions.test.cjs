@@ -139,6 +139,32 @@ test("a conflict on the first draft of a split composite rebases the later draft
  assert.equal(app.lists().categories.length,0);
 });
 
+test("category/deleteCategoryWithTasks deletes the tasks that have the category, their subtasks, then the category, in one change",t=>{
+ const {app,replica}=adapter(t);
+ app.mutate("category/createCategory",[{cid:"diary",title:"Diary",secret:true}]);
+ app.mutate("category/createCategory",[{cid:"home",title:"Home"}]);
+ app.mutate("task/addTask",[{tid:"a",title:"A",categories:["diary","home"]}]);
+ app.mutate("task/addTask",[{tid:"b",title:"B",categories:["diary"],due_date:due,repeat_period:"day"}]);
+ app.mutate("task/addTask",[{tid:"c",title:"C",categories:["home"]}]);
+ app.mutate("task/createSubtask",[{sid:"s",title:"Sub",created_at:5},"b"]);
+ const before=replica.status().pending;
+ assert.ok(app.mutate("category/deleteCategoryWithTasks",["diary"]));
+ assert.equal(replica.status().pending,before+1);
+ const lists=app.lists();
+ assert.deepEqual(lists.tasks.map(row=>row.tid),["c"]);
+ assert.deepEqual(lists.categories.map(row=>row.cid),["home"]);
+ assert.deepEqual(lists.subtasks,[]);
+ assert.deepEqual(lists.relations,[{tid:"c",cid:"home"}]);
+ // The deletions come last in the change set.
+ const changes=replica.pending().at(-1).value.changes;
+ assert.equal(changes.at(-1).deleted,true);
+ // An unused category is simply deleted; a missing one is rejected.
+ app.mutate("category/createCategory",[{cid:"spare",title:"Spare"}]);
+ app.mutate("category/deleteCategoryWithTasks",["spare"]);
+ assert.equal(app.lists().categories.some(row=>row.cid==="spare"),false);
+ assert.throws(()=>app.mutate("category/deleteCategoryWithTasks",["diary"]),/ENTITY_DELETED/);
+});
+
 test("task/duplicateTask copies title, memo, due, repeat, importance, categories and subtasks into one new task",t=>{
  let clock=Date.parse("2026-10-22T00:00:00Z");
  const {app,replica}=adapter(t,()=>clock);
@@ -212,6 +238,10 @@ test("plaintext v2 queues the composites as their steps and drops the star from 
  queued.length=0;
  assert.equal(await service.intercept("category/deleteCategoryInUse","del",["work"]),true);
  assert.deepEqual(queued.map(change=>[change.entityType,change.operation,change.parentId??null]),[["taskCategory","remove","src"],["category","delete",null]]);
+ queued.length=0;
+ assert.equal(await service.intercept("category/deleteCategoryWithTasks","delAll",["work"]),true);
+ assert.deepEqual(queued.map(change=>[change.entityType,change.operation,change.entityId]),[["task","delete","src"],["category","delete","work"]]);
+ assert.equal(events.find(e=>e[0]==="category/deleteCategoryWithTasks")[2],true);
  // The due/repeat patch is plain fields the server knows.
  queued.length=0;
  await service.intercept("task/updateTaskDueDate","due",["src",0]);

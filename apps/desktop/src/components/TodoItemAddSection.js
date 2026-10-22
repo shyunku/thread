@@ -3,11 +3,11 @@ import { useRef, useState } from "react";
 import Task from "objects/Task";
 import DueDateMenu from "molecules/DueDateMenu";
 import TaskRepeatMenu from "molecules/TaskRepeatMenu";
-import { TODO_MENU_TYPE } from "./LeftSidebar";
+import { TODO_MENU_TYPE } from "utils/menuFilters";
 import moment from "moment";
 import { IoAdd } from "react-icons/io5";
 
-const TodoItemAddSection = ({ onTaskAdd, category, expanded }) => {
+const TodoItemAddSection = ({ onTaskAdd, category }) => {
   const [newTodoItemFocused, setNewTodoItemFocused] = useState(false);
   const [newTodoItemContent, setNewTodoItemContent] = useState("");
   const [newTodoItemDate, setNewTodoItemDate] = useState(null);
@@ -36,11 +36,7 @@ const TodoItemAddSection = ({ onTaskAdd, category, expanded }) => {
   };
 
   return (
-    <div
-      className={
-        "todo-item-add-section" + JsxUtil.classByCondition(expanded, "expand")
-      }
-    >
+    <div className="todo-item-add-section">
       <div
         className={
           "input-wrapper" +

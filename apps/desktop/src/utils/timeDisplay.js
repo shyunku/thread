@@ -56,6 +56,14 @@ export function formatMinuteOfDay(minutes, timeFormat = "12", short = false) {
   return short ? formatClockShort(date, timeFormat) : formatClock(date, timeFormat);
 }
 
+// A stored due as ms, or null for none. Stored "no due" is 0 (also null or ""); renderer
+// state may hold Date objects (#102).
+export function dueMs(value) {
+  if (value === null || value === undefined || value === "" || value === 0) return null;
+  const time = value instanceof Date ? value.getTime() : new Date(value).getTime();
+  return Number.isFinite(time) && time > 0 ? time : null;
+}
+
 // A due date without a chosen time is stored at the end of the day (23:59).
 export function hasDueTime(due) {
   const date = new Date(due);

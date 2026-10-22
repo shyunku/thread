@@ -416,6 +416,11 @@ const IpcSender = {
       deleteCategoryInUse: (categoryId, callback) => {
         sender("category/deleteCategoryInUse", callback, categoryId);
       },
+      // Deletes every task that has the category (with their subtasks), then the
+      // category. E2EE and plaintext v2; one change set on E2EE.
+      deleteCategoryWithTasks: (categoryId, callback) => {
+        sender("category/deleteCategoryWithTasks", callback, categoryId);
+      },
       // Moves the category next to anchorId (after it when afterAnchor, else before).
       // E2EE only; see utils/categoryOrder.js for the order and the anchor helper.
       updateCategoryOrder: (categoryId, anchorId, afterAnchor, callback) => {

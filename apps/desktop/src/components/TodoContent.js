@@ -8,7 +8,9 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { TODO_MENU_TYPE } from "components/LeftSidebar";
+import { TODO_MENU_TYPE, inMenu, isMenuType, isSecretTask } from "utils/menuFilters";
+import { useSecretSession } from "../hooks/useSecretSession";
+import { SideMenuButton } from "../layouts/homeLayoutContext";
 import Task from "objects/Task";
 import TodoItemAddSection from "./TodoItemAddSection";
 import { useOutletContext } from "react-router-dom";
@@ -48,9 +50,6 @@ import {
   applyUpdateTaskTitle,
 } from "../hooks/UseTransaction";
 import TaskListCalendarView from "../views/TaskListCalendarView";
-import { VscSymbolColor } from "react-icons/vsc";
-import ColorPicker from "../molecules/ColorPicker";
-import AutoBlurDiv from "../molecules/AutoBlurDiv";
 import TaskTimelineView from "../views/TaskTimelineView";
 import TaskListTimelineView from "../views/TaskListTimelineView";
 import { IoStar } from "react-icons/io5";
@@ -77,7 +76,6 @@ const TodoContent = (callback, deps) => {
     category,
     addPromise,
     states,
-    hideLeftSidebar,
     searchQuery = "",
   } = props;
 
@@ -85,7 +83,6 @@ const TodoContent = (callback, deps) => {
 
   const [currentSortMode, setCurrentSortMode] = useState(SORT_MODE.DUE_DATE);
   const [lastTxUpdateTime, setLastTxUpdateTime] = useState(null);
-  const [colorPickerVisible, setColorPickerVisible] = useState(false);
   const [completionFilter, setCompletionFilter] = useState("all");
   const lastUpdateTimeText = useMemo(() => {
     if (lastTxUpdateTime == null) return null;
@@ -119,15 +116,11 @@ const TodoContent = (callback, deps) => {
   }, [category]);
 
   /* ------------------------------ Filters ------------------------------ */
+  const secretSession = useSecretSession();
   const categoryFilter = useMemo(() => {
+    // Built-in menus (#102): 오늘 = due today or overdue, 다음 7일 = due within 7 days.
+    if (isMenuType(selectedTodoMenuType)) return (task) => inMenu(selectedTodoMenuType, task);
     switch (selectedTodoMenuType) {
-      case TODO_MENU_TYPE.ALL:
-        return () => true;
-      case TODO_MENU_TYPE.TODAY:
-        return (task) =>
-          task.dueDate != null && moment(task.dueDate).isSame(moment(), "day");
-      case TODO_MENU_TYPE.IMPORTANT:
-        return (task) => task.important === true;
       default:
         return (task) => {
           if (
@@ -142,19 +135,14 @@ const TodoContent = (callback, deps) => {
     }
   }, [category, selectedTodoMenuType]);
 
+  // A task is secret when any of its categories is secret. Secret tasks show inside their
+  // unlocked category, and everywhere while the eye toggle is on (#102).
+  const { showSecret, unlocked: secretUnlocked } = secretSession;
   const secretFilter = useMemo(() => {
-    return (task) => {
-      const cidList = Object.keys(task.categories);
-      for (let cid of cidList) {
-        // not current category & it's secret >> hidden
-        const taskCategory = categories[cid];
-        if (cid !== category?.id && taskCategory?.secret) {
-          return false;
-        }
-      }
-      return true;
-    };
-  }, [category, categories]);
+    if (category?.secret && !secretUnlocked) return () => false;
+    if (showSecret || category?.secret) return () => true;
+    return (task) => !isSecretTask(task, categories);
+  }, [category, categories, showSecret, secretUnlocked]);
 
   // collect all filters to apply to tasks
   const totalFilters = useMemo(() => {
@@ -434,11 +422,6 @@ const TodoContent = (callback, deps) => {
     IpcSender.req.task.updateSubtaskDone(tid, sid, done, now.getTime());
   };
 
-  const onCategoryColorChange = (cid, color) => {
-    console.log(cid, color);
-    IpcSender.req.category.updateCategoryColor(cid, color, null);
-  };
-
   // printf("taskMap", taskMap);
 
   useEffect(() => {
@@ -595,7 +578,9 @@ const TodoContent = (callback, deps) => {
     <div className={"todo-content" + (renderedViewMode === TASK_VIEW_MODE.LIST_CALENDAR ? " split-workspace" : "")} onScroll={onScroll}>
       <div className="header">
         <div className="title">
+          <SideMenuButton />
           {category?.title === TODO_MENU_TYPE.ALL ? "모든 할 일" : category?.title === TODO_MENU_TYPE.TODAY ? "오늘의 할 일"
+            : category?.title === TODO_MENU_TYPE.NEXT_7_DAYS ? "다음 7일"
             : category?.title === TODO_MENU_TYPE.IMPORTANT ? <><IoStar className="heading-star" aria-hidden="true" />중요</>
             : category?.title ?? "내 작업"} <span className="heading-count">{filteredUndoneTaskCount}</span>
         </div>
@@ -603,24 +588,6 @@ const TodoContent = (callback, deps) => {
         <div className="metadata">
           <div className="last-modified">
             {visibleCount}개의 할 일 · {completeCount}개 완료
-          </div>
-          <div className={"settings"}>
-            {category?.default === false && (
-              <AutoBlurDiv
-                className={"setting-item"}
-                onClick={(e) => setColorPickerVisible(true)}
-                blurHandler={(e) => setColorPickerVisible(false)}
-                focused={colorPickerVisible}
-                style={{ backgroundColor: category?.color }}
-              >
-                <VscSymbolColor />
-                <ColorPicker
-                  visible={colorPickerVisible}
-                  color={category?.color ?? "#fff"}
-                  setColor={(c) => onCategoryColorChange(category.id, c)}
-                />
-              </AutoBlurDiv>
-            )}
           </div>
         </div>
         <div className="options">
@@ -684,7 +651,7 @@ const TodoContent = (callback, deps) => {
           </button>
         ))}
       </div>
-      <TodoItemAddSection onTaskAdd={onTaskAdd} category={category} expanded={hideLeftSidebar} />
+      <TodoItemAddSection onTaskAdd={onTaskAdd} category={category} />
       <div
         className={
           "body" +

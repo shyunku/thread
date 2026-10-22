@@ -1,0 +1,305 @@
+// Sidebar popups of the #102 main screen (mock .menu-pop, .new-cat, .cat-menu). They are
+// Popovers (molecules/pickers: .tp-pop gives the surface, the stack and the placement), in body
+// with .main-scope, so everything is scoped by class here.
+.tp-pop.side-pop {
+  width: 224px;
+  padding: 6px;
+  border-radius: 10px;
+  &.new-cat {
+    padding: 10px;
+  }
+  .hd {
+    padding: 8px 10px 2px;
+    font-size: 11.5px;
+    color: var(--muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .mi {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    height: 32px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--secondary);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    &:hover {
+      background: var(--raise);
+      color: var(--text);
+    }
+    &.danger {
+      color: var(--danger);
+    }
+    .mic {
+      width: 16px;
+      height: 16px;
+      display: grid;
+      place-items: center;
+      flex: none;
+      color: var(--muted);
+    }
+    &.danger .mic {
+      color: var(--danger);
+    }
+  }
+  .sp {
+    height: 1px;
+    background: var(--line);
+    margin: 4px 6px;
+  }
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex: none;
+  }
+  svg {
+    display: block;
+    flex: none;
+  }
+}
+
+.side-pop {
+  .swatches {
+    display: grid;
+    grid-template-columns: repeat(6, 24px);
+    column-gap: 8px;
+    row-gap: 12px;
+    padding: 6px 10px 10px;
+  }
+  .sw-c {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: var(--c);
+    cursor: pointer;
+    justify-self: center;
+    box-shadow: inset 0 0 0 2px #0003;
+    &.on {
+      box-shadow: 0 0 0 2px #1e2430, 0 0 0 4px var(--c);
+    }
+    // Pick your own: a bright rainbow; once used, the chosen colour sits in its middle.
+    &.custom {
+      display: grid;
+      place-items: center;
+      background: radial-gradient(circle closest-side, #fff 0%, #fff0 100%),
+        conic-gradient(#ff5f5f, #ffd24f, #6dff8a, #4fe0ff, #6a8bff, #e06bff, #ff5f5f);
+      box-shadow: none;
+    }
+    &.custom.on {
+      box-shadow: 0 0 0 2px #1e2430, 0 0 0 4px var(--c);
+    }
+    &.custom em {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      box-shadow: 0 0 0 2px #1e2430;
+    }
+  }
+  .cpk {
+    margin: 4px 10px 8px;
+    .sv {
+      position: relative;
+      height: 120px;
+      border-radius: 8px;
+      cursor: crosshair;
+      touch-action: none;
+      &:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+      background: linear-gradient(to top, #000, transparent),
+        linear-gradient(to right, #fff, hsl(calc(var(--h) * 1deg), 100%, 50%));
+    }
+    .hue {
+      position: relative;
+      height: 12px;
+      margin-top: 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      touch-action: none;
+      &:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+      background: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00);
+    }
+    i {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      margin: -6px 0 0 -6px;
+      box-sizing: border-box;
+      border-radius: 50%;
+      border: 2px solid #fff;
+      box-shadow: 0 0 0 1px #0008;
+      pointer-events: none;
+    }
+    .hue i {
+      top: 6px;
+    }
+    .hex {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      height: 32px;
+      margin-top: 10px;
+      padding: 0 10px;
+      box-sizing: border-box;
+      border-radius: 8px;
+      background: var(--canvas);
+      border: 1px solid #2b303b;
+      font-variant-numeric: tabular-nums;
+      &:focus-within {
+        border-color: var(--accent);
+      }
+      input {
+        flex: 1;
+        min-width: 0;
+        padding: 0;
+        border: 0;
+        outline: 0;
+        background: transparent;
+        color: var(--text);
+        font: inherit;
+        font-variant-numeric: tabular-nums;
+      }
+    }
+  }
+  .cpk-warn {
+    margin: 6px 0 0;
+    font-size: 11.5px;
+    color: #edbc72;
+  }
+  .nc-in {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 36px;
+    padding: 0 12px;
+    box-sizing: border-box;
+    border-radius: 8px;
+    background: var(--canvas);
+    border: 1px solid var(--accent);
+    margin-bottom: 4px;
+    input {
+      flex: 1;
+      min-width: 0;
+      padding: 0;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: var(--text);
+      font: inherit;
+      font-size: 13px;
+      &::placeholder {
+        color: var(--muted);
+      }
+    }
+  }
+  .nc-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 36px;
+    padding: 6px 10px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--secondary);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    &:hover {
+      background: var(--raise);
+    }
+  }
+  .nc-tx {
+    display: flex;
+    flex-direction: column;
+    white-space: nowrap;
+    small {
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 11.5px;
+    }
+  }
+  .cbx {
+    width: 16px;
+    height: 16px;
+    box-sizing: border-box;
+    border-radius: 4px;
+    border: 2px solid #5a6475;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    flex: none;
+    &.on {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+    svg {
+      width: 10px;
+      height: 10px;
+    }
+  }
+}
+
+// Footer buttons of the ＋ popup (mock .dp-foot .btn).
+.main-scope .pop-foot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  .sum {
+    flex: 1;
+    min-width: 0;
+  }
+}
+.main-scope .pop-btn {
+  height: 30px;
+  padding: 0 12px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: var(--raise);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12.5px;
+  transition: background-color 0.12s;
+  &:hover {
+    background: #2d3442;
+  }
+  &.pri {
+    background: var(--accent);
+    color: #fff;
+    font-weight: 600;
+    &:hover {
+      background: #7aa5ff;
+    }
+  }
+  &:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+  &:active:not(:disabled) {
+    transform: scale(0.94);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    &:active:not(:disabled) {
+      transform: none;
+    }
+  }
+}

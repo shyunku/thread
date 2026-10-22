@@ -1,41 +1,49 @@
-import {
-  ContextMenu,
-  Seperator,
-  useContextMenu,
-} from "molecules/CustomContextMenu";
-import Prompt from "molecules/Prompt";
-import SubmitInput from "molecules/SubmitInput";
-import Toast from "molecules/Toast";
-import Category from "objects/Category";
-import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  IoAdd,
-  IoClose,
-  IoKey,
-  IoKeySharp,
-  IoLogoBuffer,
-  IoReader,
-  IoStar,
-  IoToday,
-  IoSettingsOutline,
-} from "react-icons/io5";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { useOutletContext } from "react-router-dom";
+import Toast from "molecules/Toast";
+import Category from "objects/Category";
 import { accountInfoSlice } from "store/accountSlice";
-import { printf } from "utils/Common";
-import { sortCategories } from "utils/categoryOrder";
+import { categoryMoveAnchor, sortCategories } from "utils/categoryOrder";
+import { categoryColor, nextPaletteColor } from "utils/categoryColors";
 import IpcSender from "utils/IpcSender";
-import JsxUtil from "utils/JsxUtil";
-import "./LeftSidebar.scss";
-import ProfileImage from "./ProfileImage";
 import {
-  applyCreateCategory,
-  applyDeleteCategory,
-} from "../hooks/UseTransaction";
-import moment from "moment";
+  TODO_MENU_LABEL,
+  TODO_MENU_ORDER,
+  TODO_MENU_TYPE,
+  categoryTaskCount,
+  sidebarCounts,
+} from "utils/menuFilters";
+import "./LeftSidebar.scss";
+import useClock from "../hooks/UseClock";
+import { secretMethodLine, useSecretSession } from "../hooks/useSecretSession";
 import Clock from "./Clock";
 import { openModal } from "../molecules/Modal";
+import {
+  AllIcon,
+  ConfirmDialog,
+  GearIcon,
+  PlusIcon,
+  ShieldIcon,
+  StarIcon,
+  SunIcon,
+  WeekIcon,
+  categoryDeleteConfirm,
+  closeAllPopups,
+} from "../molecules/pickers";
 import { MODAL_TYPES } from "../routers/ModalRouter";
+import { CategoryMenu, NewCategoryPopup } from "./sidebar/CategoryPopups";
+import useCategoryDrag from "./sidebar/useCategoryDrag";
+
+// The menu ids live in utils/menuFilters; kept here for the existing imports.
+export { TODO_MENU_TYPE };
+
+const MENU_ICON = {
+  [TODO_MENU_TYPE.ALL]: <AllIcon />,
+  [TODO_MENU_TYPE.TODAY]: <SunIcon />,
+  [TODO_MENU_TYPE.NEXT_7_DAYS]: <WeekIcon />,
+  [TODO_MENU_TYPE.IMPORTANT]: <StarIcon />,
+};
 
 const activateWithKeyboard = (event) => {
   if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {
@@ -44,321 +52,375 @@ const activateWithKeyboard = (event) => {
   }
 };
 
-export const TODO_MENU_TYPE = {
-  ALL: "모든 할일",
-  TODAY: "오늘의 할일",
-  IMPORTANT: "중요한 할일",
+// The account band's second line, from the sync-v2 status (E2EE and plaintext v2) or, on
+// the legacy path, from the block nonces.
+export function syncLine(status, { offlineMode = false, localNonce, remoteNonce } = {}) {
+  if (status) {
+    if (status.error) return { state: "error", text: "동기화 오류" };
+    if (!status.ready || status.connected === false) return { state: "offline", text: "오프라인" };
+    if (status.syncing || status.pending > 0) return { state: "syncing", text: "동기화 중…" };
+    return { state: "synced", text: "모두 동기화됨" };
+  }
+  if (offlineMode) return { state: "offline", text: "오프라인" };
+  if (remoteNonce == null || localNonce !== remoteNonce) return { state: "syncing", text: "동기화 중…" };
+  return { state: "synced", text: "모두 동기화됨" };
+}
+
+// The category order (sort_rank) is E2EE-only: the E2EE status says protocolVersion 3, and
+// the legacy and plaintext v2 paths answer the move with UNSUPPORTED_*. Seen once, the
+// sidebar stops offering the drag for the rest of the run (all sidebar instances).
+let orderRefused = false;
+export const orderSupported = (syncStatus) => !orderRefused && syncStatus?.protocolVersion === 3;
+export const resetOrderSupportForTests = () => {
+  orderRefused = false;
+};
+const isUnsupported = (data) => /^UNSUPPORTED_/.test(data?.code ?? "");
+
+// Whether the synced order has the move: the category right after (or before) its anchor.
+const hasMove = (ids, { id, anchorId, after }) => {
+  const i = ids.indexOf(id), j = ids.indexOf(anchorId);
+  return i >= 0 && j >= 0 && i === j + (after ? 1 : -1);
 };
 
-export const TODO_MENU_TYPE_TO_ICON = {
-  [TODO_MENU_TYPE.ALL]: <IoLogoBuffer />,
-  [TODO_MENU_TYPE.TODAY]: <IoToday />,
-  [TODO_MENU_TYPE.IMPORTANT]: <IoStar style={{ color: "#f2c14e" }} />,
-};
-
-const TODO_MENU_TYPE_TO_LABEL = {
-  [TODO_MENU_TYPE.ALL]: "모든 할 일",
-  [TODO_MENU_TYPE.TODAY]: "오늘",
-  [TODO_MENU_TYPE.IMPORTANT]: "중요",
-};
-
-const LeftSidebar = ({
-  setSelectedTodoMenuType,
-  selectedTodoMenuType,
-  hideLeftSidebar,
-}) => {
+// mode: "full" (232px), "rail" (icons, 56px) or "drawer" (full sidebar in the ☰ drawer).
+const LeftSidebar = ({ setSelectedTodoMenuType, selectedTodoMenuType, mode = "full" }) => {
   const context = useOutletContext();
-  const { localNonce, remoteNonce, addPromise, states } = context;
+  const { localNonce, remoteNonce, states, syncStatus } = context;
   const { categories, taskMap } = states;
+  const rail = mode === "rail";
+  const rootRef = useRef(null);
+  const addRef = useRef(null);
+  const secret = useSecretSession();
+  const [, setRefused] = useState(orderRefused);
+  const canSort = orderSupported(syncStatus);
 
   const accountInfo = useSelector(accountInfoSlice);
   const offlineMode = accountInfo?.offlineMode ?? false;
-  const username =
-    accountInfo?.username ??
-    accountInfo?.googleEmail ??
-    accountInfo?.uid ??
-    "Unknown";
+  const username = accountInfo?.username ?? accountInfo?.googleEmail ?? accountInfo?.uid ?? "Unknown";
   const profileImageUrl =
-    (offlineMode
-      ? accountInfo?.profileImageUrl
-      : accountInfo?.googleProfileImageUrl) ?? null;
+    (offlineMode ? accountInfo?.profileImageUrl : accountInfo?.googleProfileImageUrl) ?? null;
+  const sync = syncLine(syncStatus, { offlineMode, localNonce, remoteNonce });
 
-  const [syncStatus, syncText] = useMemo(() => {
-    if (offlineMode) return ["offline", "오프라인 (편집 불가)"];
-    if (remoteNonce == null) return ["synchronizing", "동기화 중"];
-    if (localNonce === remoteNonce) return ["synchronized", "동기화 완료"];
-    return ["synchronizing", `동기화 중 - ${localNonce} / ${remoteNonce}`];
-  }, [offlineMode, localNonce, remoteNonce]);
+  /* ----------------------------- Order (drag) ----------------------------- */
+  const syncedOrder = useMemo(() => sortCategories(Object.values(categories)), [categories]);
+  // The dropped order, shown until the synced order has the move. Each drop has a number, so
+  // the reply of an older drop does not end a newer one.
+  const [pending, setPending] = useState(null); // { seq, ids, move, acked }
+  const dropSeq = useRef(0);
+  const sortedCategories = useMemo(() => {
+    if (!pending) return syncedOrder;
+    const byId = Object.fromEntries(syncedOrder.map((c) => [c.id, c]));
+    const kept = pending.ids.map((id) => byId[id]).filter(Boolean);
+    return [...kept, ...syncedOrder.filter((c) => !pending.ids.includes(c.id))];
+  }, [pending, syncedOrder]);
+  const syncedIds = useMemo(() => syncedOrder.map((c) => c.id), [syncedOrder]);
+  const lastSynced = useRef(syncedIds);
+  useEffect(() => {
+    const changed = lastSynced.current !== syncedIds;
+    lastSynced.current = syncedIds;
+    // The synced order has the move, or the state after the reply came (the truth now).
+    if (pending && (hasMove(syncedIds, pending.move) || (changed && pending.acked))) setPending(null);
+  }, [syncedIds, pending]);
 
-  // The synced user order (sort_rank), the same as mobile.
-  const sortedCategories = useMemo(
-    () => sortCategories(Object.values(categories)),
-    [categories]
+  /* --------------------------- Colour overrides --------------------------- */
+  // The colour picked in the menu, shown until the synced colour arrives: { color, sent, seq,
+  // acked }. A preview (sent false) lasts while the menu is open.
+  const [colorDraft, setColorDraft] = useState({});
+  const colorSeq = useRef(0);
+  const lastCategories = useRef(categories);
+  useEffect(() => {
+    const changed = lastCategories.current !== categories;
+    lastCategories.current = categories;
+    setColorDraft((prev) => {
+      const next = { ...prev };
+      let removed = false;
+      for (const cid in prev) {
+        const draft = prev[cid];
+        const done = draft.sent && (categoryColor(categories[cid]) === draft.color || (changed && draft.acked));
+        if (!categories[cid] || done) {
+          delete next[cid];
+          removed = true;
+        }
+      }
+      return removed ? next : prev;
+    });
+  }, [categories]);
+  const colorOf = (category) => colorDraft[category.id]?.color ?? categoryColor(category);
+  const dropPreview = useCallback(
+    (cid) =>
+      setColorDraft((prev) => {
+        if (!prev[cid] || prev[cid].sent) return prev;
+        const next = { ...prev };
+        delete next[cid];
+        return next;
+      }),
+    []
   );
 
-  const undoneTaskCountMap = useMemo(() => {
-    const cntMap = {};
-    let totalUndone = 0,
-      todayUndone = 0,
-      importantUndone = 0;
-    for (const category of sortedCategories) {
-      cntMap[category.id] = 0;
-    }
-    for (const tid in taskMap) {
-      const task = taskMap[tid];
-      if (!task.done) {
-        for (const cid in task.categories) {
-          if (cntMap[cid] == null) {
-            cntMap[cid] = 0;
-            console.warn(`Task ${tid} has invalid category ${cid}`);
-          }
-          cntMap[cid] += 1;
-        }
-        totalUndone++;
-        if (
-          task.dueDate != null &&
-          moment(task.dueDate).isSame(moment(), "day")
-        )
-          todayUndone++;
-        if (task.important === true) importantUndone++;
-      }
-    }
-    cntMap[TODO_MENU_TYPE.ALL] = totalUndone;
-    cntMap[TODO_MENU_TYPE.TODAY] = todayUndone;
-    cntMap[TODO_MENU_TYPE.IMPORTANT] = importantUndone;
-    return cntMap;
-  }, [sortedCategories, taskMap]);
+  /* -------------------------------- Counts -------------------------------- */
+  // Recounted every minute so 오늘 / 다음 7일 / overdue follow the clock.
+  const minute = useClock((now) => Math.floor(now / 60000));
+  const { counts, overdue } = useMemo(
+    () => sidebarCounts(taskMap, categories, { showSecret: secret.showSecret, now: Date.now() }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [taskMap, categories, secret.showSecret, minute]
+  );
 
-  const createCategoryCxt = useContextMenu({ clearInputsOnBlur: true });
-  const addSecretCategoryCxt = useContextMenu({ clearInputsOnBlur: true });
+  /* -------------------------------- Popups -------------------------------- */
+  const [menu, setMenu] = useState(null); // { cid, anchor, row }
+  const [creating, setCreating] = useState(null); // { anchor }
+  const [confirm, setConfirm] = useState(null);
+  const menuRef = useRef(null);
+  menuRef.current = menu;
+  // Closing the menu drops a colour still being previewed (a knob let go by Esc).
+  const closeMenu = useCallback(() => {
+    if (menuRef.current) dropPreview(menuRef.current.cid);
+    setMenu(null);
+  }, [dropPreview]);
+  const closeCreating = useCallback(() => setCreating(null), []);
 
-  const tryAddCategory = (categoryName) => {
-    const category = new Category(categoryName, false);
-    IpcSender.req.category.createCategory(category.toEntity(), null);
-    createCategoryCxt.closer();
+  const popupAnchor = (target) => {
+    const side = rootRef.current?.getBoundingClientRect();
+    const row = target.getBoundingClientRect();
+    return { top: Math.round(row.top), left: Math.round((side?.left ?? 0) + (rail ? 60 : 226)) };
   };
 
-  const tryAddSecretCategory = (categoryName) => {
-    const category = new Category(categoryName, true);
-    IpcSender.req.category.createCategory(category.toEntity(), null);
-    addSecretCategoryCxt.closer();
+  useCategoryDrag(rootRef, {
+    enabled: canSort,
+    // A lifted row closes every open popup, the task menus and pickers of the list too.
+    onLift: () => {
+      closeMenu();
+      setCreating(null);
+      closeAllPopups();
+    },
+    onDrop: (id, from, to) => {
+      const ids = sortedCategories.map((c) => c.id);
+      const move = categoryMoveAnchor(ids, id, to);
+      if (!move) return;
+      const next = ids.filter((x) => x !== id);
+      next.splice(to, 0, id);
+      const seq = ++dropSeq.current;
+      setPending({ seq, ids: next, move: { id, ...move }, acked: false });
+      IpcSender.req.category.updateCategoryOrder(id, move.anchorId, move.after, ({ success, data } = {}) => {
+        setPending((p) => (p?.seq !== seq ? p : success ? { ...p, acked: true } : null));
+        if (success) return;
+        if (isUnsupported(data)) {
+          orderRefused = true;
+          setRefused(true);
+          Toast.warn("이 계정에서는 카테고리 순서를 바꿀 수 없어요.");
+        } else Toast.warn("카테고리 순서를 바꾸지 못했어요.");
+      });
+    },
+  });
+
+  /* ------------------------------- Actions -------------------------------- */
+  const openCategory = async (category) => {
+    if (category.secret && !secret.unlocked) {
+      const ok = await secret.unlock({ color: colorOf(category) });
+      if (!ok) return;
+    }
+    setSelectedTodoMenuType(category.id);
   };
 
-  const tryDeleteCategory = (e, categoryId) => {
-    e.stopPropagation();
-    IpcSender.req.category.getCategoryTasks(categoryId, ({ success, data }) => {
-      if (success) {
-        if (data.length > 0) {
-          Toast.warn(
-            `${data.length}개의 항목에서 해당 카테고리를 사용중입니다.`
-          );
-          return;
-        }
-
-        IpcSender.req.category.deleteCategory(categoryId, null);
-      }
+  const createCategory = ({ title, color, secret: isSecret }) => {
+    const category = new Category(title, isSecret);
+    category.color = color;
+    IpcSender.req.category.createCategory(category.toEntity(), ({ success } = {}) => {
+      if (success === false) Toast.error("카테고리를 만들지 못했어요.");
     });
   };
 
-  const onCustomCategorySelect = (e, categoryId) => {
-    e.stopPropagation();
-    const category = categories[categoryId];
-    if (category) {
-      if (category.secret == true) {
-        // Secret categories open the way the vault opens (#102): OS auth when the vault
-        // uses it, otherwise the vault password. The session-wide unlock comes in the
-        // sidebar redesign; this keeps the category usable until then.
-        const open = () => setSelectedTodoMenuType(categoryId);
-        IpcSender.vault.verifyUser({}, ({ success, data } = {}) => {
-          if (!success) return Toast.error("잠금을 풀 수 없습니다.");
-          if (data?.verified) return open();
-          if (data?.method !== "password" || data.code !== "PASSWORD_REJECTED") {
-            if (data?.code !== "OS_AUTH_CANCELLED") Toast.error("잠금을 풀 수 없습니다.");
-            return;
-          }
-          Prompt.float(
-            "비밀 카테고리",
-            `'${category.title}' 카테고리를 열려면 보관함 비밀번호를 입력해주세요.`,
-            {
-              inputs: [
-                { key: "password", placeholder: "비밀번호", type: "password" },
-              ],
-              onConfirm: (input) =>
-                new Promise((resolve) => {
-                  IpcSender.vault.verifyUser(
-                    { method: "password", password: input.password },
-                    ({ success, data } = {}) => {
-                      if (success && data?.verified) {
-                        open();
-                        return resolve(true);
-                      }
-                      Toast.error("비밀번호가 일치하지 않습니다.");
-                      resolve(false);
-                    }
-                  );
-                }),
-            }
-          );
-        });
-      } else {
-        setSelectedTodoMenuType(categoryId);
-      }
-    }
+  const renameCategory = (cid, title) => {
+    IpcSender.req.category.updateCategoryTitle(cid, title, ({ success } = {}) => {
+      if (success === false) Toast.error("이름을 바꾸지 못했어요.");
+    });
   };
 
-  useEffect(() => {
-    IpcSender.onAll("category/createCategory", ({ success, data }) => {
-      applyCreateCategory({ success, data, addPromise });
+  const changeColor = (cid, color, final) => {
+    if (!final) return setColorDraft((prev) => ({ ...prev, [cid]: { color, sent: false } }));
+    const seq = ++colorSeq.current;
+    setColorDraft((prev) => ({ ...prev, [cid]: { color, sent: true, seq, acked: false } }));
+    IpcSender.req.category.updateCategoryColor(cid, color, ({ success } = {}) => {
+      setColorDraft((prev) => {
+        if (prev[cid]?.seq !== seq) return prev;
+        const next = { ...prev };
+        if (success === false) delete next[cid];
+        else next[cid] = { ...prev[cid], acked: true };
+        return next;
+      });
+      if (success === false) Toast.error("색을 바꾸지 못했어요.");
     });
+  };
 
-    IpcSender.onAll("category/deleteCategory", ({ success, data }) => {
-      applyDeleteCategory({ success, data, addPromise });
+  const done = (label) => ({ success } = {}) => {
+    if (success === false) Toast.error(`${label}하지 못했어요.`);
+  };
+
+  const askDelete = async (category, row) => {
+    closeMenu();
+    // A secret category is deleted only while unlocked.
+    if (category.secret && !secret.unlocked) {
+      const ok = await secret.unlock({ color: colorOf(category) });
+      if (!ok) return;
+    }
+    const n = categoryTaskCount(taskMap, categories, category.id, { showSecret: secret.showSecret });
+    setConfirm({
+      category,
+      row,
+      props: categoryDeleteConfirm({ title: category.title, secret: category.secret, color: colorOf(category) }, n),
+      run: (choice) => {
+        if (choice === "tasks") IpcSender.req.category.deleteCategoryWithTasks(category.id, done("카테고리를 삭제"));
+        else if (n > 0) IpcSender.req.category.deleteCategoryInUse(category.id, done("카테고리를 삭제"));
+        else IpcSender.req.category.deleteCategory(category.id, done("카테고리를 삭제"));
+      },
     });
+  };
 
-    return () => {
-      IpcSender.offAll("category/createCategory");
-      IpcSender.offAll("category/deleteCategory");
-    };
-  }, [states]);
+  /* -------------------------------- Render -------------------------------- */
+  const menuCategory = menu && categories[menu.cid];
 
   return (
-    <div
-      className={
-        "component left-sidebar" +
-        JsxUtil.classByCondition(hideLeftSidebar, "hide")
-      }
+    <aside
+      ref={rootRef}
+      className={`component left-sidebar no-auto-hover ${mode}${rail ? " rail" : ""}`}
+      aria-label="메뉴"
     >
-      <Clock />
-      <div className="todo-menu-groups">
-        <div className="todo-menu-group standard">
-          <div className="header">
-            <div className="title">내 작업</div>
-            <div className="buttons"></div>
-          </div>
-          <div className="todo-menus">
-            {Object.values(TODO_MENU_TYPE).map((menuType) => (
-              <div
-                key={menuType}
-                role="button"
-                tabIndex={0}
-                aria-pressed={selectedTodoMenuType === menuType}
-                onKeyDown={activateWithKeyboard}
-                className={`todo-menu default ${
-                  selectedTodoMenuType === menuType ? "selected" : ""
-                }`}
-                onClick={() => setSelectedTodoMenuType(menuType)}
-              >
-                <div className="icon-wrapper">
-                  {TODO_MENU_TYPE_TO_ICON[menuType]}
-                </div>
-                <div className={"content"}>
-                  {/*undoneTaskCountMap*/}
-                  <div className="title">{TODO_MENU_TYPE_TO_LABEL[menuType]}</div>
-                  <div className={"task-count"}>
-                    {" "}
-                    {undoneTaskCountMap?.[menuType] ?? "?"}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="todo-menu-group custom">
-          <div className="header">
-            <div className="title">카테고리</div>
-            <div className="buttons">
-              <div className="button">
-                <div
-                  className="visible"
-                  role="button" tabIndex={0} aria-label="카테고리 추가" onKeyDown={activateWithKeyboard}
-                  ref={createCategoryCxt.openerRef}
-                  onClick={createCategoryCxt.opener}
-                >
-                  <IoAdd />
-                </div>
-                <ContextMenu
-                  className="category-create-menu"
-                  defaultStyle={true}
-                  sticky={true}
-                  reference={createCategoryCxt.ref}
-                >
-                  <SubmitInput
-                    placeholder="새로운 카테고리 생성"
-                    onSubmit={tryAddCategory}
-                    maxLength={20}
-                  />
-                </ContextMenu>
-              </div>
-              <div className="button">
-                <div
-                  className="visible key"
-                  role="button" tabIndex={0} aria-label="보안 카테고리 추가" onKeyDown={activateWithKeyboard}
-                  ref={addSecretCategoryCxt.openerRef}
-                  onClick={addSecretCategoryCxt.opener}
-                >
-                  <IoKey />
-                </div>
-                <ContextMenu
-                  className="category-create-menu"
-                  defaultStyle={true}
-                  sticky={true}
-                  reference={addSecretCategoryCxt.ref}
-                >
-                  <SubmitInput
-                    placeholder="새로운 보안 카테고리 생성"
-                    maxLength={20}
-                    onSubmit={tryAddSecretCategory}
-                  />
-                </ContextMenu>
-              </div>
+      <Clock compact={rail} />
+      <div className="side-scroll">
+        {TODO_MENU_ORDER.map((id) => {
+          const label = TODO_MENU_LABEL[id];
+          const red = id === TODO_MENU_TYPE.TODAY && overdue;
+          const selected = selectedTodoMenuType === id;
+          return (
+            <div
+              key={id}
+              role="button"
+              tabIndex={0}
+              aria-current={selected ? "page" : undefined}
+              aria-label={label}
+              data-tip={label}
+              data-menu={id}
+              onKeyDown={activateWithKeyboard}
+              className={"side-row" + (selected ? " on" : "")}
+              onClick={() => setSelectedTodoMenuType(id)}
+            >
+              <span className="ic">{MENU_ICON[id]}</span>
+              <span className="lbl">{label}</span>
+              <span className={"n" + (red ? " due" : "")}>{counts[id] || ""}</span>
+              {red && <i className="badge" />}
             </div>
-          </div>
-          <div className="todo-menus">
-            {sortedCategories.map((category) => (
-              <div
-                className={
-                  "todo-menu" +
-                  JsxUtil.classByEqual(
-                    selectedTodoMenuType,
-                    category.id,
-                    "selected"
-                  )
-                }
-                key={category.id}
-                role="button" tabIndex={0} aria-pressed={selectedTodoMenuType === category.id} onKeyDown={activateWithKeyboard}
-                onClick={(e) => onCustomCategorySelect(e, category.id)}
-              >
-                <div className="icon-wrapper" style={{ color: category.color }}>
-                  {category.secret ? <IoKeySharp /> : <span className="category-dot" />}
-                </div>
-                <div className={"content"}>
-                  <div className="title">{category.title}</div>
-                  <div className={"task-count"}>
-                    {undoneTaskCountMap?.[category.id] ?? "?"}
-                  </div>
-                </div>
-                <div
-                  className="delete-btn"
-                  role="button" tabIndex={0} aria-label={`${category.title} 카테고리 삭제`} onKeyDown={activateWithKeyboard}
-                  onClick={(e) => tryDeleteCategory(e, category.id)}
-                >
-                  <IoClose />
-                </div>
-              </div>
-            ))}
-          </div>
+          );
+        })}
+        <div className="grp">
+          <span className="grp-t">카테고리</span>
+          <span
+            ref={addRef}
+            className="grp-add"
+            role="button"
+            tabIndex={0}
+            aria-label="카테고리 추가"
+            aria-expanded={!!creating}
+            data-tip="카테고리 추가"
+            onKeyDown={activateWithKeyboard}
+            onClick={(e) => {
+              if (creating) return setCreating(null);
+              closeMenu();
+              secret.probeMethod?.();
+              setCreating({ anchor: popupAnchor(e.currentTarget) });
+            }}
+          >
+            <PlusIcon size={14} />
+          </span>
         </div>
+        {sortedCategories.map((category) => {
+          const color = colorOf(category);
+          const selected = selectedTodoMenuType === category.id;
+          return (
+            <div
+              key={category.id}
+              role="button"
+              tabIndex={0}
+              aria-current={selected ? "page" : undefined}
+              aria-label={category.secret ? `${category.title} (비밀)` : category.title}
+              data-tip={category.title}
+              data-catrow={category.id}
+              onKeyDown={activateWithKeyboard}
+              className={
+                "side-row cat-row" + (selected ? " on" : "") + (menu?.cid === category.id ? " menu-on" : "")
+              }
+              onClick={() => openCategory(category)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setCreating(null);
+                if (menu) dropPreview(menu.cid);
+                setMenu({ cid: category.id, anchor: popupAnchor(e.currentTarget), row: e.currentTarget });
+              }}
+            >
+              <span className="ic" style={category.secret ? { color } : undefined}>
+                {category.secret ? <ShieldIcon /> : <span className="dot" style={{ background: color }} />}
+              </span>
+              <span className="lbl">{category.title}</span>
+              <span className="n">{category.secret ? "" : counts[category.id] || ""}</span>
+            </div>
+          );
+        })}
       </div>
-      <div className="account-section">
-        <ProfileImage src={profileImageUrl} size={36} />
-        <div className="profile-summary">
-          <div className="email">{username}</div>
-          <div className="account-caption">{accountInfo?.googleEmail || "나의 작업 공간"}</div>
-        </div>
-        <button className="account-settings" aria-label="환경설정" title="환경설정"
-          onClick={() => openModal(MODAL_TYPES.SETTINGS)}><IoSettingsOutline /></button>
+      <div className="foot">
+        <span className="av">
+          {profileImageUrl ? <img src={profileImageUrl} alt="" /> : String(username).trim().charAt(0).toUpperCase()}
+        </span>
+        <span className="who">
+          <span className="name">{username}</span>
+          <small className={"sync " + sync.state}>
+            <i />
+            {sync.text}
+          </small>
+        </span>
+        <button
+          type="button"
+          className="gear"
+          aria-label="설정"
+          data-tip={rail ? `설정 · ${sync.text}` : "설정"}
+          onClick={() => openModal(MODAL_TYPES.SETTINGS)}
+        >
+          <GearIcon />
+        </button>
       </div>
-    </div>
+      {menuCategory && (
+        <CategoryMenu
+          key={menuCategory.id}
+          category={menuCategory}
+          color={colorOf(menuCategory)}
+          anchor={menu.anchor}
+          returnFocus={menu.row}
+          onClose={closeMenu}
+          onRename={(title) => renameCategory(menuCategory.id, title)}
+          onColor={(color, final) => changeColor(menuCategory.id, color, final)}
+          onDelete={() => askDelete(menuCategory, menu.row)}
+        />
+      )}
+      {creating && (
+        <NewCategoryPopup
+          anchor={creating.anchor}
+          defaultColor={nextPaletteColor(categories)}
+          secretLine={secretMethodLine(secret.method)}
+          opener={addRef}
+          onClose={closeCreating}
+          onCreate={createCategory}
+        />
+      )}
+      {confirm && (
+        <ConfirmDialog
+          {...confirm.props}
+          returnFocus={confirm.row}
+          onChoose={(choice) => {
+            setConfirm(null);
+            confirm.run(choice);
+          }}
+          onCancel={() => setConfirm(null)}
+        />
+      )}
+    </aside>
   );
 };
 

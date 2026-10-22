@@ -70,6 +70,7 @@ test("#102 helpers send the composed topics and report only this account's vault
   sender.req.task.duplicateTask("t1", "copy");
   sender.req.task.duplicateTask("t2");
   sender.req.category.deleteCategoryInUse("c1");
+  sender.req.category.deleteCategoryWithTasks("c3");
   sender.req.category.updateCategoryOrder("c1", "c2", true);
   sender.vault.verifyUser();
   sender.vault.verifyUser({ method: "password", password: "synthetic" });
@@ -77,6 +78,7 @@ test("#102 helpers send the composed topics and report only this account's vault
     ["task/duplicateTask", "t1", { tid: "copy" }],
     ["task/duplicateTask", "t2", undefined],
     ["category/deleteCategoryInUse", "c1"],
+    ["category/deleteCategoryWithTasks", "c3"],
     ["category/updateCategoryOrder", "c1", "c2", true],
     ["vault/verifyUser", {}],
     ["vault/verifyUser", { method: "password", password: "synthetic" }],

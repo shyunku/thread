@@ -64,7 +64,7 @@ export function dayLabel(date) {
 
 // The date picker's quick days. 이번 주 토요일 is left out when it is today or tomorrow, or
 // when this calendar week has no Saturday left (Monday start on a Sunday).
-// 다음 주 월요일 is the Monday of the next calendar week.
+// 다음 주 월요일 is the Monday of the next calendar week, left out when it is tomorrow.
 export function quickDays(now, weekStart = 0) {
   const today = new Date(now).getDay(), left = daysLeftInWeek(now, weekStart);
   const saturday = (6 - today + 7) % 7;
@@ -73,7 +73,7 @@ export function quickDays(now, weekStart = 0) {
     { id: "today", label: "오늘", offset: 0 },
     { id: "tomorrow", label: "내일", offset: 1 },
     ...(saturday > 1 && saturday <= left ? [{ id: "saturday", label: "이번 주 토요일", offset: saturday }] : []),
-    { id: "monday", label: "다음 주 월요일", offset: monday },
+    ...(monday > 1 ? [{ id: "monday", label: "다음 주 월요일", offset: monday }] : []),
   ];
   return days.map((day) => {
     const date = addDays(now, day.offset);

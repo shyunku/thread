@@ -1,3 +1,4 @@
+/* global BigInt */
 // Sidebar category order (#102). Same rule as the shared model's compareRank
 // (packages/e2ee/src/model/optimistic.js), so a move lands where the user dropped it:
 // sort_rank first (categories without one come after, as before #102), then created_at,

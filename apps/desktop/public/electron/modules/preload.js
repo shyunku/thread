@@ -88,6 +88,7 @@ const REQUEST_TOPICS = Object.freeze([
   "category/createCategory",
   "category/deleteCategory",
   "category/deleteCategoryInUse",
+  "category/deleteCategoryWithTasks",
   "category/updateCategoryTitle",
   "category/getCategoryTasks",
   "category/updateCategoryColor",

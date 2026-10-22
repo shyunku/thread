@@ -121,3 +121,9 @@
     }
   }
 }
+
+// While a main-screen popup is open (#102 popupStack), a press on the title bar must reach the
+// page to close it, so the bar stops being a window-drag region until then.
+body.has-main-popup .component.top-bar {
+  -webkit-app-region: no-drag;
+}

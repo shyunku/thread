@@ -1,33 +1,44 @@
-.clock {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  //height: 80px;
-  padding: 15px;
-  background-color: #10151c;
-  border-bottom: 1px solid #363636;
-  box-sizing: border-box;
-
-  .date {
-    font-size: 13px;
-    color: #577294;
-    font-weight: bold;
+// Date and time at the top of the sidebar (#102 mock .clock).
+.side-clock {
+  flex: none;
+  margin: 0 0 14px;
+  padding: 12px 14px 9px;
+  border-radius: 10px;
+  background: var(--surface);
+  .cd {
+    display: block;
+    font-size: 12px;
+    line-height: 18px;
+    color: var(--muted);
+    white-space: nowrap;
   }
-
-  .time {
-    display: flex;
-    align-items: flex-end;
-    margin-top: 10px;
-    color: #79aeee;
-
-    .by-sec {
-      font-size: 29px;
-    }
-
-    .by-milli {
-      font-size: 13px;
-      color: rgba(59, 125, 189, 0.5);
-      margin-bottom: 2px;
-    }
+  b {
+    display: block;
+    margin-top: 6px;
+    font-size: 24px;
+    line-height: 30px;
+    font-weight: 600;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+  }
+  b small {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--muted);
+    margin-left: 1px;
+  }
+  &.rail {
+    padding: 8px 0;
+    text-align: center;
+  }
+  .cr {
+    display: block;
+    font-size: 11px;
+    line-height: 15px;
+    color: var(--secondary);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
   }
 }

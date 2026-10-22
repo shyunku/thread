@@ -87,7 +87,8 @@ describe("date picker quick days", () => {
   });
 
   test("Sunday: with a Monday start this week's Saturday has passed; with a Sunday start it is ahead", () => {
-    expect(summary(day(25), 1)).toEqual(["오늘 10/25", "내일 10/26", "다음 주 월요일 10/26"]);
+    // 다음 주 월요일 would be tomorrow here, so it is left out like a Saturday that is tomorrow.
+    expect(summary(day(25), 1)).toEqual(["오늘 10/25", "내일 10/26"]);
     expect(summary(day(25), 0)).toEqual(["오늘 10/25", "내일 10/26", "이번 주 토요일 10/31", "다음 주 월요일 11/2"]);
   });
 
