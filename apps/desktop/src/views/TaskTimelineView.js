@@ -8,11 +8,13 @@ import useTaskCompletion, { restoreRow } from "components/list/useTaskCompletion
 import useClock from "hooks/UseClock";
 import { moveFocus } from "molecules/pickers/focusNav";
 import { CheckIcon, StarIcon } from "molecules/pickers/icons";
+import MiniMonth from "molecules/pickers/MiniMonth";
+import Popover from "molecules/pickers/Popover";
 import Toast from "molecules/Toast";
 import { prefsSelector } from "store/prefsSlice";
 import { isOverdue } from "utils/menuFilters";
 import { dueMs, formatClock, formatClockShort, hasDueTime } from "utils/timeDisplay";
-import { CategoryMark, ViewHeader, ViewNav, WEEKDAYS, addDays, dayStart, markCategory, taskCategories, tasksByDay, useElementSize } from "./viewParts";
+import { CategoryMark, JumpTitle, ViewHeader, ViewNav, WEEKDAYS, addDays, dayStart, markCategory, taskCategories, tasksByDay, useElementSize } from "./viewParts";
 
 // Day columns that fit the pane (#102 mock timelinePane): at least 240px each, 12px apart,
 // inside the 32px gutters; 1 to 5.
@@ -47,6 +49,45 @@ function rangeTitle(first, last, today) {
   const tail = (b.getFullYear() !== a.getFullYear() ? `${b.getFullYear()}년 ` : "") +
     (b.getFullYear() !== a.getFullYear() || b.getMonth() !== a.getMonth() ? `${b.getMonth() + 1}월 ` : "") + `${b.getDate()}일`;
   return `${head} – ${tail}`;
+}
+
+// The title's jump popup (mock jumpPop, timeline): the month calendar of the pickers with the
+// first column's day picked; ‹ › change the month. A day (or 오늘로) becomes the first column
+// and closes the popup. Arrow keys only move the pick inside the popup; Enter takes it.
+export function DayJump({ anchor, first, today, weekStart, onPick, onClose }) {
+  const [cursor, setCursor] = useState(first);
+  const [shown, setShown] = useState(() => ({ year: new Date(first).getFullYear(), month: new Date(first).getMonth() }));
+  const rootRef = useRef(null);
+  const byKey = useRef(false);
+  const [initial] = useState(() => ({ get current() { return rootRef.current?.querySelector('.tp-mm-c[tabindex="0"]'); } }));
+  return (
+    <Popover anchor={anchor} placement="bottom-start" gap={12} className="tc-jump-pop tl" label="날짜로 가기" initialFocus={initial} returnFocus={anchor} onClose={onClose}>
+      <div ref={rootRef} onKeyDownCapture={(event) => { byKey.current = event.key.startsWith("Arrow"); }}>
+        <MiniMonth
+          year={shown.year}
+          month={shown.month}
+          picked={cursor}
+          today={today}
+          weekStart={weekStart}
+          arrowTips
+          onPick={(date) => {
+            const day = dayStart(date);
+            if (!byKey.current) { onPick(day); return; }
+            byKey.current = false;
+            setCursor(day);
+            setShown({ year: date.getFullYear(), month: date.getMonth() });
+          }}
+          onMonth={(delta) => setShown(({ year, month }) => {
+            const d = new Date(year, month + delta, 1);
+            return { year: d.getFullYear(), month: d.getMonth() };
+          })}
+        />
+      </div>
+      <div className="jp-foot">
+        <button type="button" className="jp-btn" onClick={() => onPick(today)}>오늘로</button>
+      </div>
+    </Popover>
+  );
 }
 
 // A row like the list's (check, title, meta, read-only star; mock .tl-task). Click opens the
@@ -136,7 +177,8 @@ function TimelineRow({ task, cats, selected, timeFormat, now, onOpen, onMenu, on
 
 // The timeline (#102 mock timelinePane): day columns from the picked day, as many as fit the
 // pane. Each has a header (date, weekday, 오늘, open count) and the hours that have tasks; today's
-// column has the 지금 line. ‹ › move a day, 오늘 goes back to today (the picked day moves with
+// column has the 지금 line. ‹ › move a day (a week with Shift), the title jumps to a day, 오늘 goes
+// back to today (the picked day moves with
 // them, so the quick add and the panel follow). Columns scroll on their own, so the wheel does
 // not change days.
 // Props from TodoContent: filteredTaskMap, categories, catsOf?, header?, renderQuickAdd(day)?,
@@ -201,12 +243,30 @@ const TaskTimelineView = ({ filteredTaskMap, categories, catsOf, header, renderQ
         header={header}
         title={rangeTitle(first, last, today)}
         summary={summary}
+        heading={(
+          <JumpTitle
+            title={rangeTitle(first, last, today)}
+            tip="날짜로 가기"
+            renderPopup={({ anchor, close }) => (
+              <DayJump
+                anchor={anchor}
+                first={first}
+                today={today}
+                weekStart={prefs.weekStart === 1 ? 1 : 0}
+                onPick={(day) => { setPickedDay(day); close(); }}
+                onClose={close}
+              />
+            )}
+          />
+        )}
         nav={(
           <ViewNav
             prevLabel="하루 전"
             nextLabel="하루 뒤"
-            onPrev={() => setPickedDay(addDays(first, -1))}
-            onNext={() => setPickedDay(addDays(first, 1))}
+            prevTip="하루 전 · Shift 한 주 전"
+            nextTip="하루 뒤 · Shift 한 주 뒤"
+            onPrev={(event) => setPickedDay(addDays(first, event?.shiftKey ? -7 : -1))}
+            onNext={(event) => setPickedDay(addDays(first, event?.shiftKey ? 7 : 1))}
             onToday={() => setPickedDay(today)}
           />
         )}

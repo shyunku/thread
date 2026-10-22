@@ -21,7 +21,8 @@ export function monthCells(year, month, weekStart = 0) {
 // Today has the accent ring, the picked day the deep blue fill, both together a halo.
 // Arrow keys move the pick (onPick) by a day or a week, PageUp/PageDown change the month.
 // marks(date) can return "open" or "over" for the 4px dot under a day (calendar tab).
-export default function MiniMonth({ year, month, picked, today = new Date(), weekStart = 0, onPick, onMonth, marks, className = "" }) {
+// arrowTips gives the month arrows a tooltip (the timeline's jump popup).
+export default function MiniMonth({ year, month, picked, today = new Date(), weekStart = 0, onPick, onMonth, marks, arrowTips = false, className = "" }) {
   const gridRef = useRef(null);
   const cells = monthCells(year, month, weekStart);
   const pickedInView = picked && cells.some((d) => sameDay(d, picked) && d.getMonth() === month);
@@ -53,8 +54,8 @@ export default function MiniMonth({ year, month, picked, today = new Date(), wee
       <div className="tp-mm-h">
         <span className="tp-mm-title" aria-live="polite">{year}년 {month + 1}월</span>
         <span className="tp-mm-nav">
-          <button type="button" className="tp-mm-arrow" aria-label="이전 달" onClick={() => onMonth?.(-1)}><PrevIcon /></button>
-          <button type="button" className="tp-mm-arrow" aria-label="다음 달" onClick={() => onMonth?.(1)}><NextIcon /></button>
+          <button type="button" className="tp-mm-arrow" aria-label="이전 달" data-tip={arrowTips ? "이전 달" : undefined} onClick={() => onMonth?.(-1)}><PrevIcon /></button>
+          <button type="button" className="tp-mm-arrow" aria-label="다음 달" data-tip={arrowTips ? "다음 달" : undefined} onClick={() => onMonth?.(1)}><NextIcon /></button>
         </span>
       </div>
       <div className="tp-mm-g" role="group" aria-label={`${year}년 ${month + 1}월`} ref={gridRef} onKeyDown={onKeyDown}>

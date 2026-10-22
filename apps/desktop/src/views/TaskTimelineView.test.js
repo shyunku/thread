@@ -175,3 +175,76 @@ test("in search the summary says it shows the results", () => {
   setup({ searchNote: "검색 결과 2개", filteredTaskMap: { a: task("a", "보고서", at(0, 18)) } });
   expect(document.querySelector(".tc-finding")).toHaveTextContent(/^검색 결과 2개 · 4일 · 남은 할 일 1개/);
 });
+
+test("‹ › tooltips name the Shift step; Shift+press moves a week", () => {
+  paneWidth = 64 + 240;
+  setup();
+  const prev = screen.getByRole("button", { name: "하루 전" }), next = screen.getByRole("button", { name: "하루 뒤" });
+  expect(prev).toHaveAttribute("data-tip", "하루 전 · Shift 한 주 전");
+  expect(next).toHaveAttribute("data-tip", "하루 뒤 · Shift 한 주 뒤");
+  fireEvent.click(next, { shiftKey: true });
+  expect(picked).toBe(startOfDay(at(7, 0)));
+  expect(screen.getByRole("heading", { name: "10월 28일" })).toBeInTheDocument();
+  fireEvent.click(prev, { shiftKey: true });
+  fireEvent.click(prev, { shiftKey: true });
+  expect(picked).toBe(startOfDay(at(-7, 0)));
+  fireEvent.click(prev);
+  expect(picked).toBe(startOfDay(at(-8, 0)));
+});
+
+test("the title opens the day popup: the month calendar with today ringed and the first day picked", () => {
+  paneWidth = 1047;
+  setup({ initialDay: at(2, 0) }, { weekStart: 1 });
+  const title = screen.getByRole("button", { name: "10월 23일 – 25일" });
+  expect(title).toHaveAttribute("data-tip", "날짜로 가기");
+  fireEvent.click(title);
+  const pop = screen.getByRole("dialog", { name: "날짜로 가기" });
+  expect(title).toHaveClass("on");
+  expect(within(pop).getByText("2026년 10월")).toBeInTheDocument();
+  const weekdays = [...pop.querySelectorAll(".tp-mm-w")].map((el) => el.textContent);
+  expect(weekdays).toEqual(["월", "화", "수", "목", "금", "토", "일"]);
+  const day = (label) => within(pop).getByRole("button", { name: label });
+  expect(day("10월 21일 수요일")).toHaveClass("today");
+  expect(day("10월 21일 수요일")).not.toHaveClass("picked");
+  expect(day("10월 23일 금요일")).toHaveClass("picked");
+  expect(document.activeElement).toBe(day("10월 23일 금요일"));
+  expect(within(pop).getByRole("button", { name: "다음 달" })).toHaveAttribute("data-tip", "다음 달");
+  fireEvent.click(within(pop).getByRole("button", { name: "다음 달" }));
+  expect(within(pop).getByText("2026년 11월")).toBeInTheDocument();
+  // A day becomes the first column; the popup closes and focus goes back to the title.
+  fireEvent.click(day("11월 4일 수요일"));
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(picked).toBe(startOfDay(new Date(2026, 10, 4)));
+  expect(screen.getByRole("heading", { name: "11월 4일 – 6일" })).toBeInTheDocument();
+  expect(document.activeElement).toBe(screen.getByRole("button", { name: "11월 4일 – 6일" }));
+});
+
+test("the day popup: arrows move the pick without closing, Enter takes it; 오늘로; Esc closes", () => {
+  paneWidth = 64 + 240;
+  setup({ initialDay: at(5, 0) });
+  fireEvent.click(screen.getByRole("button", { name: "10월 26일" }));
+  let pop = screen.getByRole("dialog", { name: "날짜로 가기" });
+  fireEvent.keyDown(document.activeElement, { key: "ArrowDown" });
+  expect(screen.getByRole("dialog")).toBeInTheDocument();
+  expect(picked).toBe(startOfDay(at(5, 0)));
+  // A week later is in November: the popup's month follows the pick.
+  expect(within(pop).getByText("2026년 11월")).toBeInTheDocument();
+  const nov2 = within(pop).getByRole("button", { name: "11월 2일 월요일" });
+  expect(nov2).toHaveClass("picked");
+  expect(document.activeElement).toBe(nov2);
+  fireEvent.keyDown(nov2, { key: "Enter" });
+  fireEvent.click(nov2);
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(picked).toBe(startOfDay(new Date(2026, 10, 2)));
+  fireEvent.click(screen.getByRole("button", { name: "11월 2일" }));
+  pop = screen.getByRole("dialog", { name: "날짜로 가기" });
+  fireEvent.click(within(pop).getByRole("button", { name: "오늘로" }));
+  expect(picked).toBe(startOfDay(NOW));
+  expect(screen.queryByRole("dialog")).toBeNull();
+  const title = screen.getByRole("button", { name: "10월 21일" });
+  fireEvent.click(title);
+  fireEvent.keyDown(document.activeElement, { key: "Escape" });
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(document.activeElement).toBe(title);
+  expect(picked).toBe(startOfDay(NOW));
+});

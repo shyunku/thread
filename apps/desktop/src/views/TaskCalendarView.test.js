@@ -219,3 +219,96 @@ test("in search the summary says it shows the results", () => {
   setup({ searchNote: "검색 결과 3개" });
   expect(document.querySelector(".tc-finding")).toHaveTextContent(/^검색 결과 3개 · 이번 달 남은 할 일 0개/);
 });
+
+test("the summary is only the month's open tasks (no hint about pressing a day)", () => {
+  const tasks = { a: task("a", "보고서", at(2026, 9, 25, 9)), b: task("b", "다음 달", at(2026, 10, 2, 9)) };
+  setup({ filteredTaskMap: tasks });
+  expect(document.querySelector(".tc-finding")).toHaveTextContent(/^이번 달 남은 할 일 1개$/);
+  fireEvent.click(screen.getByRole("button", { name: "다음 달" }));
+  expect(document.querySelector(".tc-finding")).toHaveTextContent(/^11월 남은 할 일 1개$/);
+  expect(screen.queryByText(/날짜를 누르면/)).toBeNull();
+});
+
+test("‹ › tooltips name the Shift step; Shift+press moves a year", () => {
+  setup();
+  const prev = screen.getByRole("button", { name: "이전 달" }), next = screen.getByRole("button", { name: "다음 달" });
+  expect(prev).toHaveAttribute("data-tip", "이전 달 · Shift 이전 해");
+  expect(next).toHaveAttribute("data-tip", "다음 달 · Shift 다음 해");
+  fireEvent.click(next, { shiftKey: true });
+  expect(screen.getByRole("heading", { name: "2027년 10월" })).toBeInTheDocument();
+  fireEvent.click(prev, { shiftKey: true });
+  fireEvent.click(prev, { shiftKey: true });
+  expect(screen.getByRole("heading", { name: "2025년 10월" })).toBeInTheDocument();
+  expect(picked).toBe(startOfDay(NOW));
+});
+
+test("the title opens the month popup: the shown month filled, the current ringed, ‹ › change the year", () => {
+  setup();
+  const title = screen.getByRole("button", { name: "2026년 10월" });
+  expect(title).toHaveAttribute("data-tip", "달로 가기");
+  expect(title).toHaveAttribute("aria-expanded", "false");
+  fireEvent.click(title);
+  const pop = screen.getByRole("dialog", { name: "달로 가기" });
+  expect(title).toHaveAttribute("aria-expanded", "true");
+  expect(title).toHaveClass("on");
+  expect(title).not.toHaveAttribute("data-tip");
+  const months = () => within(pop).getAllByRole("button").filter((el) => el.classList.contains("jp-m"));
+  expect(months().map((el) => el.textContent)).toEqual(["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"]);
+  expect(months()[9]).toHaveClass("cur", "today");
+  expect(document.activeElement).toBe(months()[9]);
+  expect(within(pop).getByText("2026년")).toBeInTheDocument();
+  // A different month shown: it is filled, the current one only ringed.
+  fireEvent.click(title);
+  expect(screen.queryByRole("dialog")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "다음 달" }));
+  fireEvent.click(screen.getByRole("button", { name: "2026년 11월" }));
+  const pop2 = screen.getByRole("dialog", { name: "달로 가기" });
+  const m2 = within(pop2).getAllByRole("button").filter((el) => el.classList.contains("jp-m"));
+  expect(m2[10]).toHaveClass("cur");
+  expect(m2[10]).not.toHaveClass("today");
+  expect(m2[9]).toHaveClass("today");
+  expect(m2[9]).not.toHaveClass("cur");
+  fireEvent.click(within(pop2).getByRole("button", { name: "다음 해" }));
+  expect(within(pop2).getByText("2027년")).toBeInTheDocument();
+  expect(pop2.querySelector(".jp-m.cur, .jp-m.today")).toBeNull();
+  expect(within(pop2).getByRole("button", { name: "이전 해" })).toHaveAttribute("data-tip", "이전 해");
+});
+
+test("picking a month shows it and closes the popup; the picked day stays; 이번 달 comes back", () => {
+  setup();
+  fireEvent.click(screen.getByRole("button", { name: "2026년 10월" }));
+  let pop = screen.getByRole("dialog", { name: "달로 가기" });
+  fireEvent.click(within(pop).getByRole("button", { name: "다음 해" }));
+  fireEvent.click(within(pop).getByRole("button", { name: "3월" }));
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(screen.getByRole("heading", { name: "2027년 3월" })).toBeInTheDocument();
+  expect(picked).toBe(startOfDay(NOW));
+  expect(document.activeElement).toBe(screen.getByRole("button", { name: "2027년 3월" }));
+  fireEvent.click(screen.getByRole("button", { name: "2027년 3월" }));
+  pop = screen.getByRole("dialog", { name: "달로 가기" });
+  expect(within(pop).getByText("2027년")).toBeInTheDocument();
+  fireEvent.click(within(pop).getByRole("button", { name: "이번 달" }));
+  expect(screen.getByRole("heading", { name: "2026년 10월" })).toBeInTheDocument();
+  expect(screen.queryByRole("dialog")).toBeNull();
+});
+
+test("the month popup: arrow keys move between months, Esc and a press outside close it", () => {
+  setup();
+  const title = screen.getByRole("button", { name: "2026년 10월" });
+  fireEvent.click(title);
+  const pop = screen.getByRole("dialog", { name: "달로 가기" });
+  const month = (n) => within(pop).getByRole("button", { name: `${n}월` });
+  fireEvent.keyDown(month(10), { key: "ArrowDown" });
+  expect(document.activeElement).toBe(month(12));
+  fireEvent.keyDown(month(12), { key: "ArrowUp" });
+  fireEvent.keyDown(month(8), { key: "ArrowLeft" });
+  expect(document.activeElement).toBe(month(7));
+  fireEvent.keyDown(document.activeElement, { key: "Escape" });
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(document.activeElement).toBe(title);
+  fireEvent.click(title);
+  expect(screen.getByRole("dialog")).toBeInTheDocument();
+  fireEvent.mouseDown(document.body);
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(screen.getByRole("heading", { name: "2026년 10월" })).toBeInTheDocument();
+});

@@ -239,8 +239,8 @@
   .jm.today { box-shadow: inset 0 0 0 1.5px var(--accent); color: #a9c3ff; font-weight: 700; }
   .jm.cur { background: #3d6fe6; color: #fff; font-weight: 700; box-shadow: none; }
   .jm.cur.today { box-shadow: 0 0 0 2px #1e2430, 0 0 0 3.5px #6294ff8c; }
-  .jump-pop.tl { display: flex; flex-direction: column; }
-  .jump-pop.tl .mini { padding: 0; width: auto; flex: none; }
+  .jump-pop.jtl { display: flex; flex-direction: column; }
+  .jump-pop.jtl .mini { padding: 0; width: auto; flex: none; }
   .jump-foot { display: flex; justify-content: flex-end; margin-top: 8px; }
   .jump-foot .btn { height: 28px; padding: 0 12px; display: grid; place-items: center; border-radius: 8px; background: var(--raise); cursor: pointer; font-size: 12.5px; }
   .jump-foot .btn:hover { background: #2d3442; }
@@ -974,7 +974,7 @@ function jumpPop() {
   const first = new Date(2026, 9, 1), start = new Date(first); start.setDate(1 - (first.getDay() - s.weekStart + 7) % 7);
   let g = weekOrder().map(i => [WD[i], i]).map(([w, i]) => '<span class="w ' + (i === 0 ? 'sun' : i === 6 ? 'sat' : '') + '">' + w + '</span>').join('');
   for (let i = 0; i < 35; i++) { const d = new Date(start); d.setDate(start.getDate() + i); const n = Math.round((d - todayStart()) / D); g += '<span class="c ' + (d.getMonth() !== 9 ? 'out' : '') + ' ' + (n === 0 ? 'today' : '') + ' ' + (n === 0 ? 'picked' : '') + ' ' + (d.getDay() === 0 ? 'sun' : d.getDay() === 6 ? 'sat' : '') + '" data-jumppick="1"><b>' + d.getDate() + '</b></span>'; }
-  return '<div class="jump-pop tl"><div class="mini ps-fill"><div class="mh">2026년 10월<span><i data-tip="이전 달">' + I.prev + '</i><i data-tip="다음 달">' + I.next + '</i></span></div><div class="mg">' + g + '</div></div><div class="jump-foot"><span class="btn" data-jumppick="1"><span class="nt">오늘로</span></span></div></div>';
+  return '<div class="jump-pop jtl"><div class="mini ps-fill"><div class="mh">2026년 10월<span><i data-tip="이전 달">' + I.prev + '</i><i data-tip="다음 달">' + I.next + '</i></span></div><div class="mg">' + g + '</div></div><div class="jump-foot"><span class="btn" data-jumppick="1"><span class="nt">오늘로</span></span></div></div>';
 }
 const eyeOn = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.1 12a10 10 0 0 1 19.8 0 10 10 0 0 1-19.8 0z"/><circle cx="12" cy="12" r="3"/></svg>';
 const eyeOff = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M10.6 5.1A10 10 0 0 1 21.9 12a10.4 10.4 0 0 1-2.6 3.8M6.6 6.6A10.4 10.4 0 0 0 2.1 12 10 10 0 0 0 12 19a9.8 9.8 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';

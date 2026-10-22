@@ -57,3 +57,10 @@ test("the eye toggles the secret categories and is left out when not given", () 
   rerender(<ListHeader title="t" summary="" view="list" onView={() => {}} prefs={prefs} onPref={() => {}} eye={null} />);
   expect(screen.queryByRole("button", { name: /비밀 카테고리/ })).toBeNull();
 });
+
+test("heading replaces the plain title (the calendar's and timeline's title button)", () => {
+  setup({ heading: <h1 className="tc-title"><button type="button">2026년 10월</button></h1> });
+  expect(screen.getByRole("heading", { name: "2026년 10월" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "2026년 10월" })).toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: "모든 할 일" })).toBeNull();
+});

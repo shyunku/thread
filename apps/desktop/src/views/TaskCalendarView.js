@@ -4,12 +4,14 @@ import { useSelector } from "react-redux";
 import { usePickedDay } from "components/panel/pickedDay";
 import useClock from "hooks/UseClock";
 import { useHomeLayout } from "layouts/homeLayoutContext";
+import { NextIcon, PrevIcon } from "molecules/pickers/icons";
 import { monthCells } from "molecules/pickers/MiniMonth";
+import Popover from "molecules/pickers/Popover";
 import { prefsSelector } from "store/prefsSlice";
 import { weekdayOrder } from "utils/dateGroups";
 import { isOverdue } from "utils/menuFilters";
 import { dueMs } from "utils/timeDisplay";
-import { CategoryMark, ViewHeader, ViewNav, WEEKDAYS, addDays, dayStart, markCategory, taskCategories, tasksByDay, useElementSize } from "./viewParts";
+import { CategoryMark, JumpTitle, ViewHeader, ViewNav, WEEKDAYS, addDays, dayStart, markCategory, taskCategories, tasksByDay, useElementSize } from "./viewParts";
 
 // A day's items: open first, then by due (mock calendarPane).
 export function daySort(tasks) {
@@ -37,6 +39,57 @@ export function cellItems(tasks, lines = Infinity) {
 
 const monthOf = (ms) => { const d = new Date(ms); return { year: d.getFullYear(), month: d.getMonth() }; };
 
+// The title's jump popup (mock jumpPop, calendar): the months of a year, ‹ › change the year.
+// The shown month is filled, the current month ringed. A month (or 이번 달) shows that month and
+// closes the popup. Arrow keys move between the months (a row has 4).
+export function MonthJump({ anchor, shown, current, onPick, onClose }) {
+  const [year, setYear] = useState(shown.year);
+  const gridRef = useRef(null);
+  const focusMonth = year === shown.year ? shown.month : year === current.year ? current.month : 0;
+  const [initial] = useState(() => ({ get current() { return gridRef.current?.querySelector(`[data-month="${focusMonth}"]`); } }));
+  const onKeyDown = (event) => {
+    const steps = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -4, ArrowDown: 4 };
+    const from = Number(event.target.dataset?.month);
+    if (steps[event.key] === undefined || Number.isNaN(from)) return;
+    event.preventDefault();
+    const to = Math.min(11, Math.max(0, from + steps[event.key]));
+    gridRef.current?.querySelector(`[data-month="${to}"]`)?.focus();
+  };
+  return (
+    <Popover anchor={anchor} placement="bottom-start" gap={12} className="tc-jump-pop" label="달로 가기" initialFocus={initial} returnFocus={anchor} onClose={onClose}>
+      <div className="jp-h">
+        <span aria-live="polite">{year}년</span>
+        <span className="jp-nav">
+          <button type="button" className="jp-arrow" aria-label="이전 해" data-tip="이전 해" onClick={() => setYear((y) => y - 1)}><PrevIcon /></button>
+          <button type="button" className="jp-arrow" aria-label="다음 해" data-tip="다음 해" onClick={() => setYear((y) => y + 1)}><NextIcon /></button>
+        </span>
+      </div>
+      <div className="jp-grid" role="group" aria-label={`${year}년`} ref={gridRef} onKeyDown={onKeyDown}>
+        {Array.from({ length: 12 }, (_, m) => {
+          const isShown = year === shown.year && m === shown.month, isCurrent = year === current.year && m === current.month;
+          return (
+            <button
+              key={m}
+              type="button"
+              className={"jp-m" + (isShown ? " cur" : "") + (isCurrent ? " today" : "")}
+              data-month={m}
+              aria-pressed={isShown}
+              aria-current={isCurrent ? "date" : undefined}
+              tabIndex={m === focusMonth ? 0 : -1}
+              onClick={() => onPick({ year, month: m })}
+            >
+              {m + 1}월
+            </button>
+          );
+        })}
+      </div>
+      <div className="jp-foot">
+        <button type="button" className="jp-btn" onClick={() => onPick(current)}>이번 달</button>
+      </div>
+    </Popover>
+  );
+}
+
 // The main calendar (#102 mock calendarPane): a month grid from 주 시작 요일, as many weeks as the
 // month needs; a day shows up to 3 one-line items (category dot, the shield for a secret task;
 // red when overdue, struck through when done) and "…외 N개". A press picks the day, which the
@@ -58,6 +111,8 @@ const TaskCalendarView = ({ filteredTaskMap, categories, catsOf, header, renderQ
   useEffect(() => { setShownMonth(monthOf(picked)); }, [picked]);
   const { year, month } = shownMonth;
   const moveMonth = (delta) => setShownMonth(({ year: y, month: m }) => monthOf(new Date(y, m + delta, 1)));
+  // ‹ › move a month, a year with Shift.
+  const step = (event, dir) => moveMonth(dir * (event?.shiftKey ? 12 : 1));
 
   const days = useMemo(() => tasksByDay(filteredTaskMap, { hideDone: !!prefs.hideDone }), [filteredTaskMap, prefs.hideDone]);
   const cells = useMemo(() => monthCells(year, month, weekStart), [year, month, weekStart]);
@@ -75,7 +130,7 @@ const TaskCalendarView = ({ filteredTaskMap, categories, catsOf, header, renderQ
   }
   const current = monthOf(today);
   const monthName = current.year === year && current.month === month ? "이번 달" : `${month + 1}월`;
-  const summary = `${searchNote ? `${searchNote} · ` : ""}${monthName} 남은 할 일 ${openInMonth}개 · 날짜를 누르면 ${layout.overlayPanel ? "그날 할 일이 열려요" : "오른쪽에 그날 할 일이 보여요"}`;
+  const summary = `${searchNote ? `${searchNote} · ` : ""}${monthName} 남은 할 일 ${openInMonth}개`;
 
   const pick = (ms) => {
     setPickedDay(dayStart(ms));
@@ -163,12 +218,29 @@ const TaskCalendarView = ({ filteredTaskMap, categories, catsOf, header, renderQ
         header={header}
         title={`${year}년 ${month + 1}월`}
         summary={summary}
+        heading={(
+          <JumpTitle
+            title={`${year}년 ${month + 1}월`}
+            tip="달로 가기"
+            renderPopup={({ anchor, close }) => (
+              <MonthJump
+                anchor={anchor}
+                shown={shownMonth}
+                current={current}
+                onPick={(m) => { setShownMonth({ year: m.year, month: m.month }); close(); }}
+                onClose={close}
+              />
+            )}
+          />
+        )}
         nav={(
           <ViewNav
             prevLabel="이전 달"
             nextLabel="다음 달"
-            onPrev={() => moveMonth(-1)}
-            onNext={() => moveMonth(1)}
+            prevTip="이전 달 · Shift 이전 해"
+            nextTip="다음 달 · Shift 다음 해"
+            onPrev={(event) => step(event, -1)}
+            onNext={(event) => step(event, 1)}
             onToday={() => { setShownMonth(monthOf(today)); setPickedDay(today); }}
           />
         )}
