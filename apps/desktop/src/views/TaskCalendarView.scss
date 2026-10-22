@@ -1,242 +1,119 @@
+// The main calendar (#102 mock .cal, :359-378). The day number takes the picker styles: today
+// has the accent ring, the picked day the deep blue fill, both together a halo.
+$sun: #f0838b;
+$sat: #7aa5ff;
+$out: #4d5666;
+$out-sun: #7a4a50;
+$out-sat: #44587f;
+$picked: #3d6fe6;
+$picked-hover: #4a7cf0;
+
+// ‹ 오늘 › after the title of the calendar and the timeline (mock headNav).
+.todo-content .tc-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 8px;
+  flex: none;
+}
+
 .task-view.calendar {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  min-width: 0;
-  .calendar-view {
+
+  .cv-body {
+    flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
+    padding: 16px var(--main-x) 0;
   }
-  .calendar-view-body {
-    border: 1px solid var(--border);
-    border-radius: 9px;
-    overflow: hidden;
-  }
-  .week-cells,
-  .day-cells {
+  .cv-grid {
+    flex: 1;
+    min-height: 0;
     display: grid;
     grid-template-columns: repeat(7, minmax(0, 1fr));
-    column-gap: 0;
-    background: var(--border);
+    gap: 1px;
+    background: var(--line);
+    border-radius: 10px;
+    overflow: hidden;
   }
-  .day-cells {
-    row-gap: 0;
-  }
-  .week-cell {
-    position: relative;
-    text-align: center;
-    padding: 10px 0;
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--secondary);
+  // Weeks are ARIA rows only; the cells stay items of the grid.
+  .cv-row { display: contents; }
+  .cv-wd {
     background: var(--panel);
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 28px;
+    &.sun { color: $sun; }
+    &.sat { color: $sat; }
   }
-  .week-cell.sunday {
-    color: var(--danger);
-  }
-  .week-cell.saturday {
-    color: var(--accent);
-  }
-  .day-cell {
-    container-type: inline-size;
-    position: relative;
-    min-width: 0;
-    height: clamp(76px, 9vh, 116px);
-    padding: 7px;
+  .cv-day {
     background: var(--canvas);
-    box-sizing: border-box;
+    padding: 6px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--secondary);
+    min-width: 0;
+    min-height: 0;
     overflow: hidden;
     cursor: pointer;
+    outline: none;
+    transition: background-color .12s;
+    &:hover { background: #13161b; }
+    &:focus-visible { box-shadow: inset 0 0 0 2px #6294ff80; }
+    &.out { color: $out; }
   }
-  // Two CSS pixels keep a solid device-pixel core at fractional display scales.
-  .day-cell::after,
-  .week-cell::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    border-right: 2px solid var(--border);
-    border-bottom: 2px solid var(--border);
-    z-index: 1;
-  }
-  .day-cell.selected::after {
-    border-color: var(--accent);
-  }
-  .day-cell:hover {
-    background: #1a202b;
-  }
-  .day-cell:not(.current-month) {
-    background: var(--panel);
-  }
-  .day-cell:not(.current-month) .date {
-    color: #727d8f;
-  }
-  .day-cell.selected {
-    background: #1d293e;
-    box-shadow: inset 0 0 0 1px var(--accent);
-  }
-  .day-cell.today .date {
-    background: var(--accent);
-    color: #0b1730;
-    font-weight: 700;
-  }
-  .day-cell-header {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-  .date {
-    display: grid;
+  .cv-d {
+    display: inline-grid;
     place-items: center;
-    width: 21px;
-    height: 21px;
-    border-radius: 5px;
-    font-size: 12px;
-    color: var(--text);
+    min-width: 22px;
+    height: 22px;
+    padding: 0 5px;
+    margin: 0 0 4px 0;
+    border-radius: 6px;
+    box-sizing: border-box;
+    font-variant-numeric: tabular-nums;
+    transition: background-color .1s, color .1s;
   }
-  .sunday .date {
-    color: var(--danger);
-  }
-  .saturday .date {
-    color: var(--accent);
-  }
-  .task-count {
-    color: var(--muted);
-    font-size: 9px;
-    white-space: nowrap;
-    overflow: hidden;
-  }
-  .tasks {
+  .cv-day.sun .cv-d { color: $sun; }
+  .cv-day.sat .cv-d { color: $sat; }
+  .cv-day.out.sun .cv-d { color: $out-sun; }
+  .cv-day.out.sat .cv-d { color: $out-sat; }
+  .cv-day:not(.picked):hover .cv-d { background: var(--raise); }
+  .cv-day.today .cv-d { background: none; color: #a9c3ff; font-weight: 700; box-shadow: inset 0 0 0 1.5px var(--accent); }
+  .cv-day.picked .cv-d { background: $picked; color: #fff; font-weight: 700; box-shadow: none; }
+  .cv-day.picked:hover .cv-d { background: $picked-hover; }
+  .cv-day.today.picked .cv-d { box-shadow: 0 0 0 2px var(--canvas), 0 0 0 3.5px #6294ff8c; }
+  .cv-day:active .cv-d { transform: scale(.94); }
+  @media (prefers-reduced-motion: reduce) { .cv-day:active .cv-d { transform: none; } }
+
+  .cv-ev {
     display: flex;
-    flex-direction: column;
-    gap: 4px;
-    margin-top: 5px;
-    max-height: calc(100% - 25px);
-    overflow-y: auto;
-  }
-  .task {
-    display: flex;
-    flex-shrink: 0;
-    gap: 5px;
     align-items: center;
-    position: relative;
-    padding: 5px 5px 5px 10px;
-    border-radius: 4px;
+    gap: 6px;
+    height: 22px;
+    margin-top: 2px;
+    padding: 0 6px;
+    line-height: 16px;
+    border-radius: 5px;
     background: var(--surface);
     color: var(--text);
-    font-size: 12px;
-    min-width: 0;
-  }
-  .task.hovered,
-  .task:hover {
-    background: var(--selected);
-  }
-  .task .title {
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .task .color-label {
-    position: absolute;
-    left: 3px;
-    width: 3px;
-    height: 9px;
-    border-radius: 3px;
-    background: var(--accent);
-  }
-  .task .subtasks {
-    font-size: 9px;
-    color: var(--muted);
-  }
-  .task .remain-time {
-    display: none;
-    opacity: 0.4;
-    flex-shrink: 0;
-    white-space: nowrap;
-  }
-  @container (min-width: 100px) {
-    .task .remain-time {
-      display: block;
-    }
-  }
-  .task.done {
-    color: var(--muted);
-    text-decoration: line-through;
-  }
-  .task.overdue:not(.done) {
-    color: var(--danger);
-  }
-  .selected-day {
-    margin-top: 14px;
-    border: 1px solid var(--border);
-    border-radius: 9px;
-    background: var(--panel);
-    padding: 18px;
-  }
-  .selected-day h3 {
-    color: var(--text);
-    font-size: 14px;
-    font-weight: 600;
-    margin-bottom: 11px;
-  }
-  .selected-day p {
-    color: var(--muted);
-    font-size: 12px;
-    line-height: 1.5;
-  }
-  .selected-day-task {
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    margin: 4px -8px 0;
-    padding: 5px 8px;
-    border-radius: 6px;
-    font-size: 12px;
-    line-height: 1.5;
-    color: var(--secondary);
-    overflow-wrap: anywhere;
-    transition: background-color 0.15s ease, opacity 0.15s ease;
-
-    &.hovered,
-    &:hover { background: var(--hover); }
-    &.done { opacity: 0.5; }
-    &.done .selected-day-task__title { text-decoration: line-through; }
-  }
-  .selected-day-task__title {
-    flex: 1;
-    min-width: 0;
-  }
-  .selected-day-task__time {
-    flex-shrink: 0;
-    color: var(--muted);
     font-size: 11.5px;
     white-space: nowrap;
-
-    &.overdue { color: var(--danger); }
-  }
-  .task-dot,
-  .done-dot {
-    display: block;
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--accent);
-    flex-shrink: 0;
-  }
-  // Done reads as gray, not as another color (#96, same as mobile): 40% in the end,
-  // since the done row itself is at 50%.
-  .done-dot {
-    background: var(--muted);
-    opacity: 0.8;
-  }
-  @media (max-width: 850px) {
-    .day-cell {
-      padding: 5px;
-    }
-    .task-count,
-    .task .subtasks {
-      display: none;
-    }
+    overflow: hidden;
+    box-sizing: border-box;
+    b { font-weight: 400; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; position: relative; top: 1px; }
+    .dot { width: 6px; height: 6px; border-radius: 50%; flex: none; }
+    .shield { display: grid; place-items: center; flex: none; }
+    svg { display: block; }
+    &.over { color: var(--danger); }
+    &.done { color: var(--muted); text-decoration: line-through; }
+    &.more { background: none; color: var(--muted); padding-left: 6px; }
   }
 }

@@ -65,12 +65,39 @@
   box-shadow: 16px 0 40px #0009;
   display: flex;
 }
+// Drag to resize the inline panel (mock .splitter): a 7px hit area around the 1px line.
 .home-splitter {
   width: 1px;
   flex: none;
   background: var(--line);
   position: relative;
   z-index: 2;
+  cursor: col-resize;
+  touch-action: none;
+  outline: none;
+  transition: background-color .12s;
+  &::after {
+    content: "";
+    position: absolute;
+    left: -3px;
+    right: -3px;
+    top: 0;
+    bottom: 0;
+  }
+  &:focus-visible {
+    background: var(--accent);
+  }
+}
+// While dragging: the resize cursor everywhere and no text selection.
+body.panel-resizing {
+  cursor: col-resize !important;
+  user-select: none;
+  * {
+    cursor: col-resize !important;
+  }
+  .home-splitter {
+    background: var(--accent);
+  }
 }
 .home-panel {
   flex: none;

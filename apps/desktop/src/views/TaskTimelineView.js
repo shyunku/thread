@@ -1,332 +1,267 @@
-import { useEffect, useMemo, useState } from "react";
-import moment from "moment";
+import "components/list/TaskRow.scss";
 import "./TaskTimelineView.scss";
-import JsxUtil from "../utils/JsxUtil";
-import { fromRelativeTime } from "../utils/Common";
-import { IoPlay, IoPlayBack, IoPlayForward } from "react-icons/io5";
-import { useTimeFormat, withTimeFormat } from "utils/timeFormat";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useSelector } from "react-redux";
+import { usePickedDay } from "components/panel/pickedDay";
+import { useTaskSelection } from "components/list/taskSelection";
+import useTaskCompletion, { restoreRow } from "components/list/useTaskCompletion";
+import useClock from "hooks/UseClock";
+import { moveFocus } from "molecules/pickers/focusNav";
+import { CheckIcon, StarIcon } from "molecules/pickers/icons";
+import Toast from "molecules/Toast";
+import { prefsSelector } from "store/prefsSlice";
+import { isOverdue } from "utils/menuFilters";
+import { dueMs, formatClock, formatClockShort, hasDueTime } from "utils/timeDisplay";
+import { CategoryMark, ViewHeader, ViewNav, WEEKDAYS, addDays, dayStart, markCategory, taskCategories, tasksByDay, useElementSize } from "./viewParts";
 
-const TIMELINE_VIEW_COLS = 4;
+// Day columns that fit the pane (#102 mock timelinePane): at least 240px each, 12px apart,
+// inside the 32px gutters; 1 to 5.
+export const MAX_COLUMNS = 5;
+export function timelineColumns(paneWidth) {
+  return Math.max(1, Math.min(MAX_COLUMNS, Math.floor((paneWidth - 64 + 12) / 252)));
+}
 
-const TaskTimelineView = ({ filteredTaskMap, splited }) => {
-  const [hoveredTaskId, setHoveredTaskId] = useState(null);
-  /** @type {[Date, Function]} */
-  const [focusedDate, setFocusedDate] = useState(new Date());
-  const splitMode = useMemo(() => {
-    return splited ?? false;
-  }, [splited]);
+// A due without a chosen time (23:59) goes under 하루 끝, after the hours.
+export const END_OF_DAY_HOUR = 24;
+const hourOf = (due) => (hasDueTime(due) ? new Date(due).getHours() : END_OF_DAY_HOUR);
 
-  const timelineTasks = useMemo(() => {
-    // const filterLowerBound = new moment(focusedDate)
-    //   .startOf("day")
-    //   .subtract(3, "day");
-    // const filterUpperBound = new moment(focusedDate).endOf("day").add(3, "day");
-    // const filteredTasks = Object.values(filteredTaskMap).filter((task) => {
-    //   const taskDate = new moment(task.date);
-    //   return (
-    //     taskDate.isAfter(filterLowerBound) &&
-    //     taskDate.isBefore(filterUpperBound)
-    //   );
-    // });
-    const classifiedTasks = {};
-    Object.values(filteredTaskMap).forEach((task) => {
-      const dayCode = new moment(task.dueDate).format("YYYYMMDD");
-      if (!classifiedTasks[dayCode]) {
-        classifiedTasks[dayCode] = {};
-      }
-      classifiedTasks[dayCode][task.id] = task;
-    });
-    return classifiedTasks;
-  }, [focusedDate, filteredTaskMap]);
+// A column's tasks by due, in hour groups: [{ hour, tasks }]; only hours that have tasks.
+export function hourGroups(tasks) {
+  const groups = [];
+  for (const task of [...tasks].sort((a, b) => dueMs(a.dueDate) - dueMs(b.dueDate))) {
+    const hour = hourOf(dueMs(task.dueDate));
+    const last = groups[groups.length - 1];
+    if (last && last.hour === hour) last.tasks.push(task);
+    else groups.push({ hour, tasks: [task] });
+  }
+  return groups;
+}
 
-  const timelineScrollHandler = (e) => {
-    const isNext = e.deltaY > 0 || (e.deltaY === 0 && e.deltaX > 0);
-    const isPrev = e.deltaY < 0 || (e.deltaY === 0 && e.deltaX < 0);
-    if (!isNext && !isPrev) return;
+const hourLabel = (hour, timeFormat) => (hour === END_OF_DAY_HOUR ? "하루 끝" : formatClockShort(new Date(2000, 0, 1, hour), timeFormat));
 
-    setFocusedDate((prev) => {
-      const next = new Date(prev);
-      next.setDate(next.getDate() + (isNext ? 1 : -1));
-      return next;
-    });
-  };
+// "10월 21일 – 25일", "10월 30일 – 11월 3일"; the year when it is not this year.
+function rangeTitle(first, last, today) {
+  const a = new Date(first), b = new Date(last), year = new Date(today).getFullYear();
+  const head = `${a.getFullYear() !== year ? `${a.getFullYear()}년 ` : ""}${a.getMonth() + 1}월 ${a.getDate()}일`;
+  if (first === last) return head;
+  const tail = (b.getFullYear() !== a.getFullYear() ? `${b.getFullYear()}년 ` : "") +
+    (b.getFullYear() !== a.getFullYear() || b.getMonth() !== a.getMonth() ? `${b.getMonth() + 1}월 ` : "") + `${b.getDate()}일`;
+  return `${head} – ${tail}`;
+}
 
-  const onPrevYear = () => {
-    setFocusedDate(new moment(focusedDate).subtract(1, "year").toDate());
-  };
-
-  const onPrevMonth = () => {
-    setFocusedDate(new moment(focusedDate).subtract(1, "month").toDate());
-  };
-
-  const onCurrentMonth = () => {
-    setFocusedDate(new moment());
-  };
-
-  const onNextMonth = () => {
-    setFocusedDate(new moment(focusedDate).add(1, "month").toDate());
-  };
-
-  const onNextYear = () => {
-    setFocusedDate(new moment(focusedDate).add(1, "year").toDate());
-  };
-
-  return (
-    <div className={`task-timeline-view`} onWheel={timelineScrollHandler}>
-      <div className="timeline-view-header view-header">
-        <div className="options">
-          <div className="option ltr" onClick={onPrevYear}>
-            <div className="icon-wrapper">
-              <IoPlayBack />
-            </div>
-            <div className="label">지난 해</div>
-          </div>
-          <div className="option ltr" onClick={onPrevMonth}>
-            <div className="icon-wrapper">
-              <IoPlay style={{ transform: `rotate(180deg)` }} />
-            </div>
-            <div className="label">지난 달</div>
-          </div>
-          <div className="option" onClick={onCurrentMonth}>
-            <div className="label">현재</div>
-          </div>
-          <div className="option rtl" onClick={onNextMonth}>
-            <div className="label">다음 달</div>
-            <div className="icon-wrapper">
-              <IoPlay />
-            </div>
-          </div>
-          <div className="option rtl" onClick={onNextYear}>
-            <div className="label">다음 해</div>
-            <div className="icon-wrapper">
-              <IoPlayForward />
-            </div>
-          </div>
-        </div>
-      </div>
-      <div
-        className={
-          "view-body" + JsxUtil.classByCondition(splitMode, "split-mode")
-        }
-      >
-        {Array(2 * TIMELINE_VIEW_COLS + 1)
-          .fill(0)
-          .map((_, index) => {
-            const date = new Date(focusedDate);
-            date.setDate(date.getDate() + index - TIMELINE_VIEW_COLS);
-            const dayCode = moment(date).format("YYYYMMDD");
-            const tasks = timelineTasks[dayCode] ?? {};
-
-            const style = {};
-            if (splitMode) {
-              style.top = `calc((100% + 30px) * ${
-                index - TIMELINE_VIEW_COLS
-              }px)`;
-            } else {
-              style.left = `calc(50% + ${
-                (500 + 30) * (index - TIMELINE_VIEW_COLS)
-              }px)`;
-            }
-
-            return (
-              <TaskTimelineDayColumn
-                key={dayCode}
-                targetDate={date}
-                current={index === TIMELINE_VIEW_COLS}
-                tasks={tasks}
-                style={style}
-                onClick={() => setFocusedDate(date)}
-              />
-            );
-          })}
-      </div>
-    </div>
-  );
-};
-
-const TaskTimelineDayColumn = ({ targetDate, tasks, current, ...rest }) => {
-  const focusedDateLabel = useMemo(() => {
-    return moment(targetDate).format("YY년 MM월 DD일 (ddd)");
-  }, [targetDate]);
-
-  const isToday = useMemo(() => {
-    return moment(targetDate).isSame(new Date(), "day");
-  }, [targetDate]);
-
-  const isSaturday = useMemo(() => {
-    return moment(targetDate).day() === 6;
-  }, [targetDate]);
-
-  const isSunday = useMemo(() => {
-    return moment(targetDate).day() === 0;
-  }, [targetDate]);
-
-  const classifiedTasks = useMemo(() => {
-    const classifiedTasks = {};
-    Object.values(tasks).forEach((task) => {
-      const hourCode = moment(task.dueDate).format("YYYYMMDDHH");
-      if (!classifiedTasks[hourCode]) {
-        classifiedTasks[hourCode] = {};
-      }
-      classifiedTasks[hourCode][task.id] = task;
-    });
-    return classifiedTasks;
-  }, [tasks]);
-
-  return (
-    <div
-      className={
-        "task-list-day-column" +
-        JsxUtil.classByCondition(isToday, "today") +
-        JsxUtil.classByCondition(current, "current") +
-        JsxUtil.classByCondition(isSaturday, "saturday") +
-        JsxUtil.classByCondition(isSunday, "sunday")
-      }
-      {...rest}
-    >
-      <div className={"task-list-header-row"}>{focusedDateLabel}</div>
-      <div className={"task-list-body-row"}>
-        {Array(24)
-          .fill(0)
-          .map((_, index) => {
-            const date = new Date(targetDate);
-            date.setHours(index);
-            const hourCode = moment(date).format("YYYYMMDDHH");
-            const hourTasks = classifiedTasks[hourCode] ?? {};
-            return (
-              <TaskTimelineTimeColumn
-                targetDate={date}
-                tasks={hourTasks}
-                key={date.getTime()}
-              />
-            );
-          })}
-        <div className={"time-cell-header"}></div>
-      </div>
-    </div>
-  );
-};
-
-const TaskTimelineTimeColumn = ({ targetDate, tasks, ...rest }) => {
-  const timeFormat = useTimeFormat();
-  const isCurrentSection = useMemo(() => {
-    return moment(targetDate).isSame(new Date(), "hour");
-  }, [targetDate]);
-
-  const isAfternoon = useMemo(() => {
-    return moment().format("a") === "오후";
-  }, []);
-
-  const currentSectionRatio = useMemo(() => {
-    const currentSectionStart = new moment(targetDate).startOf("hour");
-    const currentSectionEnd = new moment(targetDate).endOf("hour");
-    const currentSectionDuration = currentSectionEnd.diff(
-      currentSectionStart,
-      "seconds"
-    );
-    const currentSectionPassed = new moment().diff(
-      currentSectionStart,
-      "seconds"
-    );
-    return currentSectionPassed / currentSectionDuration;
-  }, [targetDate]);
-
-  const sortedTasks = useMemo(() => {
-    return Object.values(tasks).sort((a, b) => {
-      return new Date(a.dueDate).valueOf() - new Date(b.dueDate).valueOf();
-    });
-  }, [tasks]);
-
-  return (
-    <div className={"time-cell-row"} {...rest}>
-      <div className={"time-cell-header"}>
-        {moment(targetDate).format(withTimeFormat("a h시", timeFormat))}
-      </div>
-      <div className={"time-cell-body"}>
-        {isCurrentSection && (
-          <div
-            className={"current-time-indicator"}
-            style={{ top: `${currentSectionRatio * 100}%` }}
-          >
-            <div className={"line"}></div>
-            <div
-              className={
-                "label" + JsxUtil.classByCondition(isAfternoon, "afternoon")
-              }
-            >
-              {moment().format(withTimeFormat("a h시 mm분 ss초", timeFormat))}
-            </div>
-          </div>
-        )}
-        <div className={"time-cell-body-inner"}>
-          <div className={"time-tasks"}>
-            {sortedTasks.map((task) => {
-              return <TimelineTaskCell task={task} key={task.id} />;
-            })}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const TimelineTaskCell = ({ task }) => {
-  const [counter, setCounter] = useState(0);
-
-  const dueDate = useMemo(() => {
-    if (task.dueDate == null) {
-      return null;
-    }
-    return new Date(task.dueDate);
-  }, [task.dueDate]);
-
-  const overdue = useMemo(() => {
-    if (dueDate == null) {
-      return false;
-    }
-    return dueDate.valueOf() < Date.now();
-  }, [dueDate, counter]);
-
-  // const remainMilliSeconds = useMemo(() => {
-  //   if (dueDate == null) {
-  //     return null;
-  //   }
-  //   const remain = dueDate.valueOf() - Date.now();
-  //   return remain;
-  // }, [dueDate, counter]);
-
-  // const remainTimeText = useMemo(() => {
-  //   if (dueDate == null) {
-  //     return "미정";
-  //   }
-  //   return (
-  //     fromRelativeTime(
-  //       remainMilliSeconds < 0 ? -remainMilliSeconds : remainMilliSeconds,
-  //       {
-  //         showLayerCount: 2,
-  //       }
-  //     ) + (remainMilliSeconds < 0 ? " 지남" : " 남음")
-  //   );
-  // }, [dueDate, counter]);
+// A row like the list's (check, title, meta, read-only star; mock .tl-task). Click opens the
+// detail, right-click the task menu, Space completes.
+function TimelineRow({ task, cats, selected, timeFormat, now, onOpen, onMenu, onToggleDone, onKeyDown }) {
+  const ref = useRef(null);
+  const [pop, setPop] = useState(false);
+  const done = !!task.done;
+  const due = dueMs(task.dueDate);
+  const first = markCategory(cats);
+  const timeText = due !== null && hasDueTime(due) && new Date(due).getMinutes() ? formatClock(new Date(due), timeFormat) : "";
+  const overdue = isOverdue(task, now);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCounter((c) => c + 1);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
+    if (!pop) return undefined;
+    const timer = setTimeout(() => setPop(false), 1200);
+    return () => clearTimeout(timer);
+  }, [pop]);
+  // Done tasks stay in the timeline (struck through): show the row again after the fall.
+  useEffect(() => {
+    if (done && ref.current) restoreRow(ref.current);
+  }, [done]);
+
+  const complete = () => {
+    if (done) return onToggleDone?.(task, ref.current, false);
+    if (pop) return undefined;
+    setPop(true);
+    onToggleDone?.(task, ref.current, true);
+    return undefined;
+  };
 
   return (
     <div
-      className={
-        "task-item" +
-        JsxUtil.classByCondition(overdue, "overdue") +
-        JsxUtil.classByCondition(task.done, "done")
-      }
+      ref={ref}
+      className={"task-row tv-task" + (done ? " done" : "") + (selected ? " sel" : "") + (first || timeText ? "" : " no-meta")}
+      data-task-id={task.id}
+      tabIndex={0}
+      role="option"
+      aria-selected={selected}
+      aria-label={task.title}
+      onClick={() => onOpen?.(task.id)}
+      onContextMenu={(event) => {
+        if (!onMenu) return;
+        event.preventDefault();
+        onMenu(event, task.id);
+      }}
+      onKeyDown={(event) => {
+        if (event.target === ref.current && (event.key === "Enter" || event.key === " ")) {
+          event.preventDefault();
+          if (event.repeat) return;
+          if (event.key === "Enter") onOpen?.(task.id);
+          else complete();
+          return;
+        }
+        onKeyDown?.(event, ref.current);
+      }}
     >
-      <div className={"title"}>{task.title}</div>
-      {/* <div className={"remain-time"}>({remainTimeText})</div> */}
-      <div className="minute">{moment(dueDate).format("m분")}</div>
+      <button
+        type="button"
+        className={"ck" + (done || pop ? " done" : "") + (pop && !done ? " pop" : "")}
+        role="checkbox"
+        aria-checked={done || pop}
+        aria-label={done ? "완료 취소" : "할 일 완료"}
+        tabIndex={-1}
+        onClick={(event) => { event.stopPropagation(); complete(); }}
+      >
+        <CheckIcon />
+      </button>
+      <div className="tx">
+        <div className="t">{task.title}</div>
+        {(first || timeText) && (
+          <div className="meta">
+            {first && (
+              <span className="cat">
+                <CategoryMark category={first} />
+                <b>{first.title}</b>
+              </span>
+            )}
+            {timeText && <span className={overdue ? "over" : ""}>{timeText}</span>}
+          </div>
+        )}
+      </div>
+      {task.important && <span className="st on" role="img" aria-label="중요"><StarIcon filled size={17} /></span>}
+    </div>
+  );
+}
+
+// The timeline (#102 mock timelinePane): day columns from the picked day, as many as fit the
+// pane. Each has a header (date, weekday, 오늘, open count) and the hours that have tasks; today's
+// column has the 지금 line. ‹ › move a day, 오늘 goes back to today (the picked day moves with
+// them, so the quick add and the panel follow). Columns scroll on their own, so the wheel does
+// not change days.
+// Props from TodoContent: filteredTaskMap, categories, catsOf?, header?, renderQuickAdd(day)?,
+// onTaskContextMenu(event, taskId)?, onOpenTask(taskId)?, onToggleDone(task, row, done)?,
+// searchNote? (in search: "검색 결과 N개", put before the summary).
+const TaskTimelineView = ({ filteredTaskMap, categories, catsOf, header, renderQuickAdd, onTaskContextMenu, onOpenTask, onToggleDone, searchNote }) => {
+  const prefs = useSelector(prefsSelector);
+  const timeFormat = prefs.timeFormat === "24" ? "24" : "12";
+  const { pickedDay, setPickedDay } = usePickedDay();
+  const { selectedTaskId, openTask, actions } = useTaskSelection();
+  const today = useClock((t) => dayStart(t));
+  const now = useClock((t) => Math.floor(t / 60000) * 60000);
+  const first = pickedDay ?? today;
+
+  const paneRef = useRef(null);
+  const { width } = useElementSize(paneRef);
+  const count = timelineColumns(width);
+  const columns = useMemo(() => Array.from({ length: count }, (_, i) => addDays(first, i)), [first, count]);
+
+  const days = useMemo(() => tasksByDay(filteredTaskMap, { hideDone: !!prefs.hideDone }), [filteredTaskMap, prefs.hideDone]);
+
+  // Completion like the list's (pop, fall); TodoContent's when given.
+  const ownComplete = useTaskCompletion((task, done, onFailed) =>
+    actions?.setDone?.(task.id, done, ({ success } = {}) => {
+      if (success !== false) return;
+      Toast.error(done ? "완료하지 못했어요." : "완료를 취소하지 못했어요.");
+      onFailed?.();
+    }));
+  const complete = onToggleDone ?? ownComplete;
+  const open = onOpenTask ?? openTask;
+
+  let openCount = 0, overCount = 0;
+  const last = columns[columns.length - 1];
+  for (const task of Object.values(filteredTaskMap ?? {})) {
+    const due = dueMs(task?.dueDate);
+    if (due === null || task.done) continue;
+    if (due >= first && due < addDays(last, 1)) openCount++;
+    if (isOverdue(task, now)) overCount++;
+  }
+  const summary = (
+    <>
+      {searchNote && `${searchNote} · `}{count}일 · {openCount ? `남은 할 일 ${openCount}개` : "남은 할 일이 없어요"}
+      {overCount > 0 && <> · <b>기한 지난 할 일 {overCount}개</b>는 목록에서 볼 수 있어요</>}
+    </>
+  );
+
+  // Today's column starts at the 지금 line.
+  const colsRef = useRef(null);
+  useEffect(() => {
+    const line = colsRef.current?.querySelector(".tv-col.today .tv-now");
+    const body = line?.closest(".tv-body");
+    if (body) body.scrollTop = Math.max(0, line.offsetTop - body.offsetTop - 48);
+  }, [first, count]);
+
+  const onRowKey = (event, row) => {
+    if (event.target === row) moveFocus(event, row.closest(".tv-body"), ".tv-task");
+  };
+
+  return (
+    <div className="task-timeline-view" ref={paneRef}>
+      <ViewHeader
+        header={header}
+        title={rangeTitle(first, last, today)}
+        summary={summary}
+        nav={(
+          <ViewNav
+            prevLabel="하루 전"
+            nextLabel="하루 뒤"
+            onPrev={() => setPickedDay(addDays(first, -1))}
+            onNext={() => setPickedDay(addDays(first, 1))}
+            onToday={() => setPickedDay(today)}
+          />
+        )}
+      />
+      <div className="tv-cols" ref={colsRef}>
+        {columns.map((day) => {
+          const date = new Date(day);
+          const tasks = days[day] ?? [];
+          const groups = hourGroups(tasks);
+          const isToday = day === today;
+          const nowHour = new Date(now).getHours();
+          const nowLine = <div key="now" className="tv-now"><span>지금 {formatClockShort(new Date(now), timeFormat)}</span></div>;
+          const body = [];
+          let nowDrawn = !isToday;
+          for (const group of groups) {
+            if (!nowDrawn && group.hour > nowHour) { body.push(nowLine); nowDrawn = true; }
+            const label = hourLabel(group.hour, timeFormat);
+            body.push(
+              <div key={`h${group.hour}`} className="tv-group">
+                <div className="tv-hour">{label}</div>
+                <div className="tv-box" role="listbox" aria-label={label}>
+                  {group.tasks.map((task) => (
+                    <TimelineRow
+                      key={task.id}
+                      task={task}
+                      cats={taskCategories(task, categories, catsOf)}
+                      selected={task.id === selectedTaskId}
+                      timeFormat={timeFormat}
+                      now={now}
+                      onOpen={open}
+                      onMenu={onTaskContextMenu}
+                      onToggleDone={complete}
+                      onKeyDown={onRowKey}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          }
+          if (!nowDrawn) body.push(nowLine);
+          if (!tasks.length) body.push(<div key="empty" className="tv-empty">할 일 없음</div>);
+          return (
+            <section key={day} className={"tv-col" + (isToday ? " today" : "")} aria-label={`${date.getMonth() + 1}월 ${date.getDate()}일 ${WEEKDAYS[date.getDay()]}요일`}>
+              <div className="tv-head">
+                <b>{date.getDate()}</b>
+                <span>{WEEKDAYS[date.getDay()]}요일</span>
+                {isToday && <em>오늘</em>}
+                <span className="cnt" aria-label={`남은 할 일 ${tasks.filter((t) => !t.done).length}개`}>{tasks.filter((t) => !t.done).length}</span>
+              </div>
+              <div className="tv-body">{body}</div>
+            </section>
+          );
+        })}
+      </div>
+      {renderQuickAdd?.(first)}
     </div>
   );
 };

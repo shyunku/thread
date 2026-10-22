@@ -109,6 +109,9 @@ class Task extends Mutatable {
       ctx.repeatPeriod = null;
     }
     ctx.important = ctx.important === true;
+    // 마지막 수정 in the detail panel (#102). Only E2EE rows carry it; kept out of the entityMap
+    // so it is never sent back.
+    ctx.updatedAt = entity?.updated_at > 0 ? new Date(entity.updated_at) : null;
     return ctx;
   }
 

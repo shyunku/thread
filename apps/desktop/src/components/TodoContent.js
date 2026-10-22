@@ -21,8 +21,10 @@ import { CategoryPicker, ConfirmDialog, TaskContextMenu, openPopupCount, taskDel
 import { moveFocus } from "molecules/pickers/focusNav";
 import { categoryColor } from "utils/categoryColors";
 import { sortCategories } from "utils/categoryOrder";
-import { useHomeLayout } from "layouts/homeLayoutContext";
+import { PanelHost, useHomeLayout } from "layouts/homeLayoutContext";
 import ListHeader from "./list/ListHeader";
+import RightPanel, { PanelOpenButton } from "./panel/RightPanel";
+import { PickedDayContext, startOfDay } from "./panel/pickedDay";
 import QuickAdd, { quickAddDefaults } from "./list/QuickAdd";
 import { searchSections, storedOrder } from "./list/listModel";
 import { TaskSelectionContext } from "./list/taskSelection";
@@ -53,6 +55,13 @@ const isEditable = (el) =>
 const failed = (label) => ({ success } = {}) => {
   if (success === false) Toast.error(`${label}하지 못했어요.`);
 };
+
+// The selection and the picked day, for the list, the views and the right panel.
+const ScreenContexts = ({ selection, pickedDay, children }) => (
+  <TaskSelectionContext.Provider value={selection}>
+    <PickedDayContext.Provider value={pickedDay}>{children}</PickedDayContext.Provider>
+  </TaskSelectionContext.Provider>
+);
 
 // children render inside the selection context, next to the main pane (the right panel, phase F).
 const TodoContent = ({ children }) => {
@@ -89,6 +98,16 @@ const TodoContent = ({ children }) => {
   const [confirm, setConfirm] = useState(null); // delete question: { taskId, title, row }
   // Initial view follows 설정 > 일반 > 시작할 때 보기; every menu can switch (#102).
   const [view, setView] = useState(() => (START_VIEWS.includes(prefs.startView) ? prefs.startView : "list"));
+  // The picked day of the calendar view and the panel's calendar tab (usePickedDay). It follows
+  // today (also past midnight) until the user picks another day.
+  const today = useClock((now) => startOfDay(now));
+  const [userPick, setUserPick] = useState(null);
+  const pickedDay = userPick ?? today;
+  const setPickedDay = useCallback((day) => {
+    const ms = startOfDay(day);
+    setUserPick(ms === startOfDay(Date.now()) ? null : ms);
+  }, []);
+  const pickedDayValue = useMemo(() => ({ pickedDay, setPickedDay }), [pickedDay, setPickedDay]);
 
   /* ------------------------------ Filters ------------------------------ */
   const secretSession = useSecretSession();
@@ -322,7 +341,8 @@ const TodoContent = ({ children }) => {
     deleteTask: (tid) => IpcSender.req.task.deleteTask(tid, null),
     setTitle: (tid, title) => IpcSender.req.task.updateTaskTitle(tid, title, null),
     // null clears the due; on a repeating task the model clears the repeat with it.
-    setDue: (tid, dueDate) => IpcSender.req.task.updateTaskDueDate(tid, dueDate == null ? null : moment(dueDate).valueOf(), null),
+    // callback({ success }) answers it (the panel sends a repeat only after the due it needs).
+    setDue: (tid, dueDate, callback) => IpcSender.req.task.updateTaskDueDate(tid, dueDate == null ? null : moment(dueDate).valueOf(), callback ?? null),
     setMemo: (tid, memo) => IpcSender.req.task.updateTaskMemo(tid, memo, null),
     // callback({ success }) answers the change (the list restores a refused completion).
     setDone: (tid, done, callback) => IpcSender.req.task.updateTaskDone(tid, done, Date.now(), callback ?? null),
@@ -459,7 +479,22 @@ const TodoContent = ({ children }) => {
   }, [addPromise, taskMap, categories]);
 
   /* ------------------------------ Selection ------------------------------ */
-  const openTask = useCallback((tid) => setSelectedTaskId(tid), []);
+  // Showing a task's detail: below 1000px the panel drawer opens; the calendar view's panel has
+  // only 선택한 날, so the detail opens beside the list (mock).
+  const shell = useRef({});
+  shell.current = { view, layout };
+  const revealDetail = useCallback(() => {
+    const { view: current, layout: l } = shell.current;
+    if (current === "calendar") setView("list");
+    if (l.overlayPanel) l.setPanelOpen(true);
+  }, []);
+  // Counted so the panel shows the detail again for the task already selected (useTaskSelection).
+  const [detailRequest, setDetailRequest] = useState(0);
+  const openTask = useCallback((tid) => {
+    setSelectedTaskId(tid);
+    setDetailRequest((n) => n + 1);
+    revealDetail();
+  }, [revealDetail]);
   const selectedVisible = !!selectedTaskId && visibleIds.has(selectedTaskId);
   const selectedTask = selectedVisible ? taskMap[selectedTaskId] ?? null : null;
   // A task that leaves the screen (deleted, another menu, hidden by the eye or the vault lock, not
@@ -478,7 +513,7 @@ const TodoContent = ({ children }) => {
 
   // The latest screen state for the handlers below, which stay the same so rows can skip renders.
   const live = useRef({});
-  live.current = { categoryList, secretSession };
+  live.current = { categoryList, secretSession, visibleIds };
 
   // A hidden search hit: the unlock first (the dialog tinted with its secret category).
   const unlockFor = useCallback((task) => {
@@ -526,12 +561,24 @@ const TodoContent = ({ children }) => {
       onFailed?.();
     }));
 
-  const onSelect = useCallback((task) => setSelectedTaskId(task.id), []);
+  const onSelect = useCallback((task) => openTask(task.id), [openTask]);
   const onToggleStar = useCallback((task) => actions.setImportant(task.id, !task.important), [actions]);
   const onMenu = useCallback((task, point, row) => {
     setSelectedTaskId(task.id);
     setMenu({ taskId: task.id, point, row });
   }, []);
+  // For items outside the list (calendar, timeline, the panel's day list): the same task menu at
+  // the pointer, and 열기. Only tasks on the screen. returnEl: where focus goes back after the
+  // delete question (the calendar's day cell; its items cannot take focus), else the item.
+  const onTaskContextMenu = useCallback((event, taskId, returnEl) => {
+    event?.preventDefault?.();
+    if (!live.current.visibleIds.has(taskId)) return;
+    setSelectedTaskId(taskId);
+    setMenu({ taskId, point: { x: event?.clientX ?? 0, y: event?.clientY ?? 0 }, row: returnEl ?? event?.currentTarget ?? null });
+  }, []);
+  const onOpenTask = useCallback((taskId) => {
+    if (live.current.visibleIds.has(taskId)) openTask(taskId);
+  }, [openTask]);
   const onRowKeyDown = useCallback((event, task, row) => {
     if (event.target !== row) return;
     if (event.key === "ArrowDown" || event.key === "ArrowUp") moveFocus(event, row.closest(".tc-scroll"), ".task-row");
@@ -584,16 +631,37 @@ const TodoContent = ({ children }) => {
   const canStar = syncStatus?.protocolVersion === 3;
   // The 오늘 / 다음 7일 date default is today's end, so a new day refreshes the defaults (the
   // quick add keeps chips the user changed; only a new screen starts them over).
-  const today = useClock((now) => new Date(now).setHours(0, 0, 0, 0));
   const quickDefaults = useMemo(
     () => quickAddDefaults({ menuType: selectedTodoMenuType, category: customCategory, secretUnlocked, now: today, canStar }),
     [selectedTodoMenuType, customCategory, secretUnlocked, today, canStar]
   );
   const quickKey = `${selectedTodoMenuType}|${customCategory?.id ?? ""}|${secretUnlocked}|${canStar}`;
+  // The calendar and timeline's quick add, preselected to their picked day (null: none, e.g. in
+  // search or on a locked category). The day is not part of the key: another day moves only an
+  // untouched date chip and keeps the chips the user chose.
+  const renderQuickAdd = useCallback((day) => (searching || locked ? null : (
+    <QuickAdd
+      defaults={quickAddDefaults({ menuType: selectedTodoMenuType, category: customCategory, secretUnlocked, day, now: today, canStar })}
+      contextKey={quickKey}
+      categories={pickable}
+      onAdd={onTaskAdd}
+      onCreateCategory={onCreateCategory}
+      timeFormat={prefs.timeFormat}
+      canStar={canStar}
+    />
+  )), [searching, locked, selectedTodoMenuType, customCategory, secretUnlocked, today, canStar, quickKey, pickable, onTaskAdd,
+    onCreateCategory, prefs.timeFormat]);
+  // Below 1000px the panel is a drawer; this header button opens it.
+  const headerExtra = layout.overlayPanel ? <PanelOpenButton onOpen={() => layout.setPanelOpen(true)} /> : null;
+  // The calendar and timeline draw their own header (title, month nav) with these.
+  const header = { view, onView: setView, prefs, onPref, eye, extra: headerExtra };
+  // In search they show the results, and their summary says so.
+  const searchNote = searching ? `검색 결과 ${Object.keys(shownTaskMap).length}개` : null;
+  const otherViewProps = { header, catsOf: rowHandlers.catsOf, renderQuickAdd, onTaskContextMenu, onOpenTask, onToggleDone: complete, searchNote };
 
   const selection = useMemo(
-    () => ({ selectedTaskId: selectedVisible ? selectedTaskId : null, setSelectedTaskId, openTask, selectedTask, actions, categories: categoryList, pickable }),
-    [selectedVisible, selectedTaskId, openTask, selectedTask, actions, categoryList, pickable]
+    () => ({ selectedTaskId: selectedVisible ? selectedTaskId : null, setSelectedTaskId, openTask, detailRequest, selectedTask, actions, categories: categoryList, pickable }),
+    [selectedVisible, selectedTaskId, openTask, detailRequest, selectedTask, actions, categoryList, pickable]
   );
 
   // Not drawn for a task off the screen even before the effect above closes them.
@@ -603,20 +671,22 @@ const TodoContent = ({ children }) => {
   const confirmTask = confirm ? onScreen(confirm.taskId) : null;
 
   return (
-    <TaskSelectionContext.Provider value={selection}>
+    <ScreenContexts selection={selection} pickedDay={pickedDayValue}>
       <div className={"todo-content no-auto-hover" + (layout.hideSide ? " has-menu" : "")}>
-        <ListHeader
-          title={title}
-          summary={summary}
-          view={view}
-          onView={setView}
-          prefs={prefs}
-          onPref={onPref}
-          eye={eye}
-        />
-        <div className="tc-gap" />
-        {view === "list" ? (
+        {/* A locked secret category shows the list's locked state in every view. */}
+        {view === "list" || (locked && !searching) ? (
           <>
+            <ListHeader
+              title={title}
+              summary={summary}
+              view={view}
+              onView={setView}
+              prefs={prefs}
+              onPref={onPref}
+              eye={eye}
+              extra={headerExtra}
+            />
+            <div className="tc-gap" />
             <TaskListView
               key={selectedTodoMenuType}
               tasks={searching ? ordered : viewTasks}
@@ -643,15 +713,23 @@ const TodoContent = ({ children }) => {
             )}
           </>
         ) : (
-          <div className="tc-other">
-            {view === "calendar" ? (
-              <TaskCalendarView filteredTaskMap={shownTaskMap} categories={categories} />
-            ) : (
-              <TaskTimelineView filteredTaskMap={shownTaskMap} />
-            )}
-          </div>
+          view === "calendar" ? (
+            <TaskCalendarView filteredTaskMap={shownTaskMap} categories={categories} {...otherViewProps} />
+          ) : (
+            <TaskTimelineView filteredTaskMap={shownTaskMap} categories={categories} {...otherViewProps} />
+          )
         )}
       </div>
+      <PanelHost>
+        <RightPanel
+          view={view}
+          tasks={shownTaskMap}
+          catsOf={rowHandlers.catsOf}
+          prefs={prefs}
+          canStar={canStar}
+          onTaskContextMenu={onTaskContextMenu}
+        />
+      </PanelHost>
       {children}
       {menuTask && (
         <TaskContextMenu
@@ -697,7 +775,7 @@ const TodoContent = ({ children }) => {
           onCancel={() => setConfirm(null)}
         />
       )}
-    </TaskSelectionContext.Provider>
+    </ScreenContexts>
   );
 };
 

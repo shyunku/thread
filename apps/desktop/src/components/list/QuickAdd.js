@@ -38,14 +38,22 @@ export function buildQuickTask(title, draft) {
 
 const composing = (event) => event.nativeEvent?.isComposing || event.keyCode === 229;
 
-const sameDraft = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+// New defaults on the same screen: each chip still at the old default takes the new one; chips
+// the user changed stay (another picked day moves only an untouched date).
+const followDefaults = (draft, was, next) => {
+  const out = { ...draft };
+  for (const key of Object.keys(next)) if (same(draft[key], was?.[key])) out[key] = next[key];
+  return out;
+};
 
 // The quick-add bar at the bottom of a view (#102 mock quickAdd): "+", the title field (Enter
 // adds; Ctrl+N focuses it) and the chips 날짜 / 반복 / 카테고리 / 중요, whose pickers open above
 // the bar. A set date or category chip has a × on hover that takes it out (the date also over
 // the screen's default). After adding, the chips go back to `defaults` (see quickAddDefaults).
-// contextKey: the screen (menu, category, picked day); a new one starts the chips over. When only
-// the defaults move (today's date at midnight), untouched chips follow them and changed ones stay.
+// contextKey: the screen (menu, category); a new one starts the chips over. When only the
+// defaults move (today's date at midnight, another picked day), untouched chips follow them and
+// changed ones stay.
 // Without it every change of `defaults` starts over.
 // categories: the ones that can be chosen [{ id, title, color, secret }];
 // onAdd(task); onCreateCategory(name, color) → Promise<id> (the picker's 새 카테고리).
@@ -67,7 +75,7 @@ export default function QuickAdd({ defaults, contextKey, categories = [], onAdd,
     const was = seen.current;
     seen.current = { screenKey, defaults };
     if (was.screenKey !== screenKey) setDraft(defaults);
-    else setDraft((d) => (sameDraft(d, was.defaults) ? defaults : d));
+    else setDraft((d) => followDefaults(d, was.defaults, defaults));
     // defaultsKey stands for defaults.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [defaultsKey, screenKey]);

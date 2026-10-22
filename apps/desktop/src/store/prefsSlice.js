@@ -7,6 +7,9 @@ export const START_VIEWS = ["list", "calendar", "timeline"];
 export const LIST_GROUPS = ["date", "none"]; // 날짜별 / 묶지 않기 (기한 순)
 export const LIST_SORTS = ["due", "created"]; // inside a group: 기한 순 / 생성일 순 (newest first)
 export const LIST_DENSITIES = ["normal", "compact"]; // 보통 (두 줄) / 촘촘 (한 줄)
+// Right panel width the splitter drag leaves (#102), in px; null = the layout's default.
+export const PANEL_WIDTH_MIN = 320;
+export const PANEL_WIDTH_MAX = 480;
 const GROUP_ID = /^[a-z][a-z0-9-]{0,31}$/;
 const MAX_GROUP_STATES = 32;
 
@@ -25,6 +28,7 @@ const initialState = Object.freeze({
   density: "normal",
   hideDone: false, // 완료한 할 일 숨기기
   groupClosed: Object.freeze({ done: true }), // folded groups by id (utils/dateGroups DATE_GROUP_IDS)
+  panelWidth: null, // dragged right panel width (PANEL_WIDTH_MIN–MAX); null follows the layout
 });
 
 const isPlainObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
@@ -44,6 +48,10 @@ function applyPatch(state, patch) {
   if (LIST_SORTS.includes(patch.sort)) state.sort = patch.sort;
   if (LIST_DENSITIES.includes(patch.density)) state.density = patch.density;
   if (typeof patch.hideDone === "boolean") state.hideDone = patch.hideDone;
+  // null (double-click on the splitter) goes back to the layout's default.
+  if (patch.panelWidth === null) state.panelWidth = null;
+  else if (Number.isFinite(patch.panelWidth) && patch.panelWidth >= PANEL_WIDTH_MIN && patch.panelWidth <= PANEL_WIDTH_MAX)
+    state.panelWidth = Math.round(patch.panelWidth);
   // groupClosed merges: setPrefs({ groupClosed: { today: true } }) folds 오늘 and keeps the rest.
   if (isPlainObject(patch.groupClosed)) {
     const next = { ...state.groupClosed };
@@ -98,7 +106,7 @@ export function prefsFromParams(params) {
   const patch = {};
   for (const [key, value] of params) {
     if (value === "true" || value === "false") patch[key] = value === "true";
-    else if (key === "weekStart") patch[key] = Number(value);
+    else if (key === "weekStart" || key === "panelWidth") patch[key] = Number(value);
     else if (key === "groupClosed") {
       try { patch[key] = JSON.parse(value); } catch { /* ignored like any other bad value */ }
     } else patch[key] = value;

@@ -1,6 +1,6 @@
 @import "styles/constants.scss";
 // The main pane (#102 mock .pane.main): a fixed header, the scrolling list and the quick add
-// at the bottom. Calendar and timeline keep their own views below the same header.
+// at the bottom. The calendar and timeline views draw their own header, body and quick add.
 .todo-content {
   display: flex;
   flex-direction: column;
@@ -93,50 +93,4 @@
   // The last header button's icon ends on the 32px edge, like the stars below.
   .tc-row1 > .tc-ghost:last-child { margin-right: -8px; }
   .side-menu-button { margin-left: -8px; }
-
-  // Calendar and timeline (restyled in phase G).
-  > .tc-other {
-    flex: 1;
-    min-height: 0;
-    overflow: auto;
-    padding: 4px var(--main-x) 20px;
-    box-sizing: border-box;
-    > .task-view, > .task-timeline-view { height: 100%; }
-  }
-  .view-header {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 16px;
-  }
-  .view-header .current-year-month {
-    font-size: 21px;
-    font-weight: 650;
-    letter-spacing: -0.5px;
-  }
-  .view-header .options {
-    display: flex;
-    gap: 5px;
-    margin-left: auto;
-  }
-  .view-header .option {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid var(--border);
-    background: var(--panel);
-    color: var(--secondary);
-    padding: 7px 9px;
-    border-radius: 6px;
-    font-size: 12px;
-    cursor: pointer;
-    min-height: 30px;
-  }
-  .view-header .option:hover {
-    color: var(--text);
-    border-color: var(--accent);
-  }
-  .view-header .icon-wrapper {
-    display: flex;
-  }
 }

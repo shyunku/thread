@@ -5,10 +5,13 @@ import { createContext, useContext } from "react";
 // - selectedTaskId: the task id or null.
 // - setSelectedTaskId(id | null).
 // - openTask(id): 열기 (Enter, the task menu): selects the task; the panel shows its detail.
+// - detailRequest: counts openTask calls, so the panel shows the detail again for a task that
+//   was already selected.
 export const TaskSelectionContext = createContext({
   selectedTaskId: null,
   setSelectedTaskId: () => {},
   openTask: () => {},
+  detailRequest: 0,
 });
 
 export function useTaskSelection() {

@@ -1,238 +1,93 @@
+// The timeline (#102 mock .tl, :382-404): day columns 240px or wider, 12px apart, inside the
+// 32px gutters. Rows are list rows (.task-row, TaskRow.scss) made smaller.
 .task-timeline-view {
-  display: flex;
-  width: 100%;
+  flex: 1;
+  min-height: 0;
   height: 100%;
+  min-width: 0;
+  display: flex;
   flex-direction: column;
 
-  .timeline-view-header {
-    justify-content: flex-end;
-  }
-
-  .view-body {
-    display: flex;
+  .tv-cols {
     flex: 1;
-    position: relative;
-    mask-image: linear-gradient(
-      to right,
-      rgba(0, 0, 0, 0) 0%,
-      rgba(0, 0, 0, 1) 10%,
-      rgba(0, 0, 0, 1) 90%,
-      rgba(0, 0, 0, 0) 100%
-    );
-
-    &.split-mode {
-      flex-direction: column !important;
-      height: 100%;
-    }
-  }
-
-  .task-list-day-column {
+    min-height: 0;
     display: flex;
-    flex-direction: column;
-    position: absolute;
-    width: 500px;
-    height: 100%;
-    top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    transition: 0.3s ease;
-    border: 1px solid #313b46;
-    box-sizing: border-box;
-    background: #101317;
-
-    &:hover {
-      border: 1px solid #5481c9;
+    gap: 12px;
+    padding: 16px var(--main-x) 0;
+    overflow: hidden;
+  }
+  .tv-col { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .tv-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 36px;
+    flex: none;
+    color: var(--secondary);
+    font-size: 12.5px;
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+    b { font-size: 18px; color: var(--text); font-variant-numeric: tabular-nums; }
+    em {
+      font-style: normal;
+      font-size: 11.5px;
+      font-weight: 600;
+      line-height: 18px;
+      color: #fff;
+      background: var(--accent);
+      padding: 0 6px;
+      border-radius: 5px;
     }
-
-    &.current {
-      border: 1px solid #6f7f98;
-      // box-shadow: 0 0 15px 2px rgba(255, 106, 106, 0.65);
-    }
-
-    &.today {
-      border: 1px solid #b75757;
-      .task-list-header-row {
-        background-color: rgb(121, 61, 61);
-        color: white;
-      }
-    }
-
-    &.saturday .task-list-header-row {
-      color: #6089cb;
-    }
-
-    &.sunday .task-list-header-row {
-      color: #db5f5f;
-    }
-
-    .task-list-header-row {
-      display: flex;
-      padding: 8px 0;
-      align-items: center;
-      justify-content: center;
-      background: black;
-      border-bottom: 1px solid #313b46;
-    }
-
-    .task-list-body-row {
-      display: flex;
-      flex-direction: column;
-      height: 100%;
-      background-color: rgb(14, 14, 15);
-      overflow: hidden;
-
-      .time-cell-row {
-        display: flex;
-        flex: 1;
-        border-bottom: 1px solid rgba(49, 59, 70, 0.53);
-        align-items: center;
-        // overflow-x: hidden;
-        // overflow: hidden;
-
-        .time-cell-header {
-          display: flex;
-          align-items: center;
-          width: 80px;
-          min-width: 80px;
-          background-color: black;
-          justify-content: center;
-          font-size: 12px;
-          height: 100%;
-        }
-
-        .time-cell-body {
-          display: flex;
-          flex-direction: column;
-          position: relative;
-          flex: 1;
-          height: 100%;
-          z-index: 4;
-
-          .current-time-indicator {
-            position: absolute;
-            width: 100%;
-            height: 1px;
-            background: #ff5858;
-            top: 0;
-            left: 0;
-            z-index: 5;
-
-            & > .label {
-              position: absolute;
-              bottom: -15px;
-              right: 8px;
-              font-size: 12px;
-              color: #ff8080;
-              font-weight: 300;
-
-              &.afternoon {
-                bottom: unset;
-                top: -15px;
-              }
-            }
-          }
-
-          .time-cell-body-inner {
-            overflow-x: overlay;
-            height: 100%;
-
-            .time-tasks {
-              display: flex;
-              width: 100%;
-              //flex-direction: column;
-              padding: 5px 8px;
-              box-sizing: border-box;
-              // flex-direction: column;
-              flex-wrap: wrap;
-              row-gap: 5px;
-              column-gap: 5px;
-              height: 100%;
-              align-items: center;
-
-              .task-item {
-                display: flex;
-                align-items: center;
-                padding: 5px 8px;
-                background-color: rgb(37, 38, 42);
-                font-size: 12px;
-                border-radius: 3px;
-                transition: 0.2s ease;
-                cursor: pointer;
-                flex: 0 0 calc(50% - 20px);
-                position: relative;
-                overflow: hidden;
-                z-index: 4;
-
-                &:not(:last-child) {
-                  // margin-right: 5px;
-                }
-
-                &.done {
-                  opacity: 0.3;
-                }
-
-                &:not(.done).overdue {
-                  background-color: rgb(52, 25, 25);
-                  color: #b04f4f;
-
-                  & > .minute {
-                    background-color: #502d2d;
-                    color: #a15858;
-                  }
-
-                  &:hover,
-                  &.hovered {
-                    background-color: rgb(87, 42, 42);
-                    color: #d96262;
-
-                    & > .minute {
-                      background-color: rgb(136, 70, 70) !important;
-                      color: #ee9e9e !important;
-                    }
-                  }
-                }
-
-                &:hover,
-                &.hovered {
-                  background-color: rgb(60, 67, 80);
-                  color: white;
-                  & > .minute {
-                    background-color: rgb(57, 85, 126);
-                  }
-                }
-
-                & > .title {
-                  flex: 1;
-                  padding-right: 40px;
-                  overflow: hidden;
-                  text-overflow: ellipsis;
-                  white-space: nowrap;
-                }
-
-                & > .remain-time {
-                  margin-left: 10px;
-                  color: rgb(109, 134, 175);
-                  font-weight: 300;
-                }
-
-                & > .minute {
-                  position: absolute;
-                  right: 0;
-                  top: 0;
-                  height: 100%;
-                  padding: 5px;
-                  margin-left: 5px;
-                  box-sizing: border-box;
-                  background-color: rgb(45, 56, 73);
-                  width: 40px;
-                  text-align: center;
-                  transition: 0.2s ease;
-                }
-              }
-            }
-          }
-        }
-      }
+    .cnt {
+      margin-left: auto;
+      min-width: 22px;
+      height: 20px;
+      padding: 0 7px;
+      box-sizing: border-box;
+      display: grid;
+      place-items: center;
+      border-radius: 10px;
+      background: var(--raise);
+      color: var(--secondary);
+      font-size: 11.5px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
     }
   }
+  .tv-col.today .tv-head { border-bottom-color: var(--accent); }
+  .tv-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: #2b303b transparent;
+    padding: 4px 0 80px;
+  }
+  .tv-hour { margin: 12px 0 6px; font-size: 12px; line-height: 18px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .tv-box { border-radius: 10px; background: var(--surface); overflow: hidden; }
+  .tv-now {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 16px 0 4px;
+    color: var(--danger);
+    font-size: 11.5px;
+    font-weight: 600;
+    line-height: 18px;
+    white-space: nowrap;
+    &::after { content: ""; flex: 1; height: 1px; background: var(--danger); opacity: .7; }
+  }
+  .tv-empty { margin-top: 16px; color: var(--faint); font-size: 12.5px; }
+}
+
+// Top level, so the falling copy of a completed row (on document.body) keeps its size.
+.task-row.tv-task {
+  min-height: 0;
+  padding: 12px;
+  align-items: center;
+  &::before { left: calc(12px + var(--ck) + var(--ck-gap)); right: 12px; }
+  .t { font-size: 13px; }
+  .meta .over { color: var(--danger); }
+  > .st { pointer-events: none; }
 }

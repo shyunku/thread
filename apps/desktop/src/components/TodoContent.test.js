@@ -209,6 +209,23 @@ test("search lists hidden secret tasks marked; acting on one unlocks first", asy
   expect(row(container, "secret-task")).toHaveClass("hidden-hit", "sel");
 });
 
+test("a locked secret category shows the locked state in the calendar and timeline too", async () => {
+  mockContext = { ...mockContext, selectedTodoMenuType: "secret", category: secretCategory };
+  const { container } = view();
+  fireEvent.click(screen.getByRole("button", { name: "캘린더" }));
+  expect(screen.getByText("이 카테고리는 잠겨 있어요")).toBeInTheDocument();
+  expect(container.querySelector(".task-view.calendar")).toBeNull();
+  expect(screen.getByRole("button", { name: "캘린더" })).toHaveAttribute("aria-pressed", "true");
+  fireEvent.click(screen.getByRole("button", { name: "타임라인" }));
+  expect(screen.getByText("이 카테고리는 잠겨 있어요")).toBeInTheDocument();
+  expect(container.querySelector(".task-timeline-view")).toBeNull();
+  await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Windows Hello로 열기" })); });
+  fireEvent.click(screen.getByRole("button", { name: "확인" }));
+  await act(async () => {});
+  expect(container.querySelector(".task-timeline-view")).not.toBeNull();
+  expect(screen.queryByText("이 카테고리는 잠겨 있어요")).toBeNull();
+});
+
 test("search: no hidden hits in the calendar; a locked category screen shows the results", async () => {
   mockContext = { ...mockContext, selectedTodoMenuType: "secret", category: secretCategory, searchQuery: "작업" };
   const { container, rerender } = view();
@@ -217,9 +234,12 @@ test("search: no hidden hits in the calendar; a locked category screen shows the
   fireEvent.click(screen.getByRole("button", { name: "캘린더" }));
   expect(container.querySelector(".task-view.calendar")).not.toBeNull();
   expect(screen.queryByText("비공개 작업")).toBeNull();
+  // The summary says it shows search results.
+  expect(container.querySelector(".tc-finding")).toHaveTextContent(/^검색 결과 0개 · /);
   mockContext = { ...mockContext, searchQuery: "리뷰" };
   rerender(ui());
   expect(screen.getAllByText("리뷰 준비").length).toBeGreaterThan(0);
+  expect(container.querySelector(".tc-finding")).toHaveTextContent(/^검색 결과 1개 · /);
 });
 
 test("the selection leaves a task that gets hidden; Del then asks nothing", async () => {

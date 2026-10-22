@@ -111,3 +111,29 @@ test("dev preview URL params become typed prefs; bad values are still ignored", 
   const bad = prefsReducer(fresh(), setPrefs(prefsFromParams(new URLSearchParams("showRemain=no&weekStart=7&groupClosed={bad&timeDisplay=due"))));
   expect(bad).toEqual({ ...fresh(), showRemain: false });
 });
+
+test("panel width: null follows the layout; only whole px in 320–480 are kept; null resets", () => {
+  expect(fresh().panelWidth).toBeNull();
+  let state = prefsReducer(fresh(), setPrefs({ panelWidth: 412.4 }));
+  expect(state.panelWidth).toBe(412);
+  for (const bad of [319, 481, NaN, Infinity, "400", true, {}, []]) {
+    expect(prefsReducer(state, setPrefs({ panelWidth: bad })).panelWidth).toBe(412);
+  }
+  // A patch without the key leaves it; an explicit null is the double-click reset.
+  expect(prefsReducer(state, setPrefs({ density: "compact" })).panelWidth).toBe(412);
+  expect(prefsReducer(state, setPrefs({ panelWidth: undefined })).panelWidth).toBe(412);
+  state = prefsReducer(state, setPrefs({ panelWidth: null }));
+  expect(state.panelWidth).toBeNull();
+  expect(prefsReducer(state, setPrefs({ panelWidth: 320 })).panelWidth).toBe(320);
+  expect(prefsReducer(state, setPrefs({ panelWidth: 480 })).panelWidth).toBe(480);
+});
+
+test("panel width from saved prefs: older stores get the layout default, bad values are dropped", () => {
+  expect(migratePrefs({ timeFormat: "24" }).panelWidth).toBeNull();
+  expect(migratePrefs({ panelWidth: 440 }).panelWidth).toBe(440);
+  expect(migratePrefs({ panelWidth: 900 }).panelWidth).toBeNull();
+  expect(migratePrefs({ panelWidth: "440" }).panelWidth).toBeNull();
+  expect(prefsSelector({ prefs: { showRemain: true } }).panelWidth).toBeNull();
+  expect(prefsReducer(fresh(), setPrefs(prefsFromParams(new URLSearchParams("panelWidth=440")))).panelWidth).toBe(440);
+  expect(prefsReducer(fresh(), setPrefs(prefsFromParams(new URLSearchParams("panelWidth=wide")))).panelWidth).toBeNull();
+});

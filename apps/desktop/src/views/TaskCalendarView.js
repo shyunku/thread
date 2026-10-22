@@ -1,444 +1,200 @@
-import moment from "moment";
-import { useSelector } from "react-redux";
-import { prefsSelector } from "store/prefsSlice";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { IoPlay, IoPlayBack, IoPlayForward } from "react-icons/io5";
-import { fastInterval, fromRelativeTime } from "utils/Common";
-import JsxUtil from "utils/JsxUtil";
-import TaskTimeText from "components/TaskTimeText";
-import useClock from "hooks/UseClock";
 import "./TaskCalendarView.scss";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useSelector } from "react-redux";
+import { usePickedDay } from "components/panel/pickedDay";
+import useClock from "hooks/UseClock";
+import { useHomeLayout } from "layouts/homeLayoutContext";
+import { monthCells } from "molecules/pickers/MiniMonth";
+import { prefsSelector } from "store/prefsSlice";
+import { weekdayOrder } from "utils/dateGroups";
+import { isOverdue } from "utils/menuFilters";
+import { dueMs } from "utils/timeDisplay";
+import { CategoryMark, ViewHeader, ViewNav, WEEKDAYS, addDays, dayStart, markCategory, taskCategories, tasksByDay, useElementSize } from "./viewParts";
 
-// Selected-day list order (#101): least time left first, so overdue on top; no due date last.
-export function sortByDue(tasks) {
-  const dueOf = (task) => (task.dueDate == null ? Infinity : moment(task.dueDate).valueOf());
-  return [...tasks].sort((a, b) => {
-    const da = dueOf(a), db = dueOf(b);
-    return da === db ? 0 : da < db ? -1 : 1;
-  });
+// A day's items: open first, then by due (mock calendarPane).
+export function daySort(tasks) {
+  return [...tasks].sort((a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0) || dueMs(a.dueDate) - dueMs(b.dueDate));
 }
 
-const TaskCalendarView = ({
-  taskMap,
-  filteredTaskMap,
-  setHoveredTaskId: sharedSetHoveredTaskId,
-  hoveredTaskId: sharedHoveredTaskId,
-  categories,
-}) => {
-  // In the split view the list shares hover with this calendar; alone, it keeps its own.
-  const [localHoveredTaskId, setLocalHoveredTaskId] = useState(null);
-  const setHoveredTaskId = sharedSetHoveredTaskId ?? setLocalHoveredTaskId;
-  const hoveredTaskId = sharedSetHoveredTaskId ? sharedHoveredTaskId : localHoveredTaskId;
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [watchingMonth, setWatchingMonth] = useState(new Date());
-  const [hoveredDate, setHoveredDate] = useState(null);
-  const [selectedDate, setSelectedDate] = useState(moment().format("YYYY-M-D"));
+// Item lines a day cell has room for, from its height (padding 6+6, the day number 22+4, a line
+// 22+2). Unknown height (not laid out) → room for all.
+const DAY_HEAD = 38;
+const LINE = 24;
+export const MAX_ITEMS = 3;
+export function cellLines(cellHeight) {
+  if (!(cellHeight > 0)) return Infinity;
+  return Math.max(0, Math.floor((cellHeight - DAY_HEAD) / LINE));
+}
 
-  const dateTaskMap = useMemo(() => {
-    const dateMap = {};
-    for (let tid in filteredTaskMap) {
-      if (filteredTaskMap[tid].dueDate == null) continue;
-      const dayDateKey = moment(filteredTaskMap[tid].dueDate).format(
-        "YYYY-M-D"
-      );
-      if (dateMap[dayDateKey] == null) dateMap[dayDateKey] = [];
-      dateMap[dayDateKey].push(filteredTaskMap[tid]);
+// Which items a cell shows: up to 3 (fewer when the cell is short), then "…외 N개" (only
+// "할 일 N개" when a single line is left).
+export function cellItems(tasks, lines = Infinity) {
+  const fit = Math.min(MAX_ITEMS + 1, lines);
+  if (tasks.length <= Math.min(MAX_ITEMS, fit)) return { shown: tasks, more: 0 };
+  const shown = tasks.slice(0, Math.max(0, Math.min(MAX_ITEMS, fit - 1)));
+  return { shown, more: tasks.length - shown.length };
+}
+
+const monthOf = (ms) => { const d = new Date(ms); return { year: d.getFullYear(), month: d.getMonth() }; };
+
+// The main calendar (#102 mock calendarPane): a month grid from 주 시작 요일, as many weeks as the
+// month needs; a day shows up to 3 one-line items (category dot, the shield for a secret task;
+// red when overdue, struck through when done) and "…외 N개". A press picks the day, which the
+// right panel lists ("선택한 날") and the quick add starts from. Right-click on an item opens
+// the task menu. The grid follows the screen's tasks (menu, category, search: filteredTaskMap).
+// Props from TodoContent: filteredTaskMap, categories, catsOf?, header?, renderQuickAdd(day)?,
+// onTaskContextMenu(event, taskId, returnEl)?, searchNote? (in search: "검색 결과 N개", put
+// before the summary).
+const TaskCalendarView = ({ filteredTaskMap, categories, catsOf, header, renderQuickAdd, onTaskContextMenu, searchNote }) => {
+  const prefs = useSelector(prefsSelector);
+  const weekStart = prefs.weekStart === 1 ? 1 : 0;
+  const { pickedDay, setPickedDay } = usePickedDay();
+  const layout = useHomeLayout();
+  const today = useClock((now) => dayStart(now));
+  const picked = pickedDay ?? today;
+
+  const [shownMonth, setShownMonth] = useState(() => monthOf(picked));
+  // The month follows the picked day (a press on another month's day, the panel, 오늘).
+  useEffect(() => { setShownMonth(monthOf(picked)); }, [picked]);
+  const { year, month } = shownMonth;
+  const moveMonth = (delta) => setShownMonth(({ year: y, month: m }) => monthOf(new Date(y, m + delta, 1)));
+
+  const days = useMemo(() => tasksByDay(filteredTaskMap, { hideDone: !!prefs.hideDone }), [filteredTaskMap, prefs.hideDone]);
+  const cells = useMemo(() => monthCells(year, month, weekStart), [year, month, weekStart]);
+  const weeks = cells.length / 7;
+
+  const gridRef = useRef(null);
+  const { height: gridHeight } = useElementSize(gridRef);
+  const lines = gridHeight > 0 ? cellLines((gridHeight - 28 - weeks) / weeks) : Infinity;
+
+  const monthStart = new Date(year, month, 1).getTime(), monthEnd = new Date(year, month + 1, 1).getTime();
+  let openInMonth = 0;
+  for (const task of Object.values(filteredTaskMap ?? {})) {
+    const due = dueMs(task?.dueDate);
+    if (!task.done && due !== null && due >= monthStart && due < monthEnd) openInMonth++;
+  }
+  const current = monthOf(today);
+  const monthName = current.year === year && current.month === month ? "이번 달" : `${month + 1}월`;
+  const summary = `${searchNote ? `${searchNote} · ` : ""}${monthName} 남은 할 일 ${openInMonth}개 · 날짜를 누르면 ${layout.overlayPanel ? "그날 할 일이 열려요" : "오른쪽에 그날 할 일이 보여요"}`;
+
+  const pick = (ms) => {
+    setPickedDay(dayStart(ms));
+    // Narrow windows: the panel is a drawer; picking a day opens it on that day's list.
+    if (layout.overlayPanel) layout.setPanelOpen?.(true);
+  };
+
+  // Arrow keys move the pick by a day or a week; focus follows it, also into another month once
+  // its grid is drawn.
+  const keyboard = useRef(false);
+  useEffect(() => {
+    if (!keyboard.current) return;
+    const el = gridRef.current?.querySelector(`[data-day="${picked}"]`);
+    if (!el) return;
+    keyboard.current = false;
+    el.focus({ preventScroll: true });
+  });
+  const onKeyDown = (event) => {
+    const steps = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 };
+    if (event.target.getAttribute?.("role") !== "gridcell") return;
+    if (steps[event.key] !== undefined) {
+      event.preventDefault();
+      keyboard.current = true;
+      setPickedDay(addDays(picked, steps[event.key]));
+    } else if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      pick(Number(event.target.dataset.day));
     }
-    return dateMap;
-  }, [filteredTaskMap]);
-
-  const selectedDayTasks = useMemo(() => sortByDue(dateTaskMap[selectedDate] || []), [dateTaskMap, selectedDate]);
-
-  const currentMoment = useMemo(() => {
-    return moment(currentDate);
-  }, [currentDate]);
-  const watchingMoment = useMemo(() => {
-    return moment(watchingMonth);
-  }, [watchingMonth]);
-
-  const prevMonthLastDate = useMemo(() => {
-    return new Date(watchingMonth.getFullYear(), watchingMonth.getMonth(), 0);
-  }, [watchingMonth]);
-  const curMonthFirstDay = useMemo(() => {
-    return new Date(
-      watchingMonth.getFullYear(),
-      watchingMonth.getMonth(),
-      1
-    ).getDay();
-  }, [watchingMonth]);
-  // 설정 > 일반 > 주 시작 요일 (0 = Sunday, 1 = Monday)
-  const weekStart = useSelector(prefsSelector).weekStart === 1 ? 1 : 0;
-  const leadingDays = (curMonthFirstDay - weekStart + 7) % 7;
-  const curMonthLastDate = useMemo(() => {
-    return new Date(
-      watchingMonth.getFullYear(),
-      watchingMonth.getMonth() + 1,
-      0
-    );
-  }, [watchingMonth]);
-
-  useEffect(() => {
-    const interval = fastInterval(() => {
-      setCurrentDate(new Date());
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // At midnight a selection that was "today" follows to the new day (and its month).
-  const todayKey = currentMoment.format("YYYY-M-D");
-  const lastTodayKey = useRef(todayKey);
-  useEffect(() => {
-    const previous = lastTodayKey.current;
-    if (previous === todayKey) return;
-    lastTodayKey.current = todayKey;
-    if (selectedDate !== previous) return;
-    setSelectedDate(todayKey);
-    if (moment(watchingMonth).isSame(moment(previous, "YYYY-M-D"), "month")) setWatchingMonth(new Date());
-  }, [todayKey]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const onPrevYear = () => {
-    setWatchingMonth(
-      new Date(watchingMonth.getFullYear() - 1, watchingMonth.getMonth(), 1)
-    );
   };
 
-  const onPrevMonth = () => {
-    setWatchingMonth(
-      new Date(watchingMonth.getFullYear(), watchingMonth.getMonth() - 1, 1)
-    );
-  };
+  const now = useClock((t) => Math.floor(t / 60000) * 60000); // overdue by the minute
+  const pickedInGrid = cells.some((d) => d.getTime() === picked);
+  const focusDay = pickedInGrid ? picked : new Date(year, month, 1).getTime();
 
-  const onCurrentMonth = () => {
-    setWatchingMonth(new Date());
-  };
-
-  const onNextMonth = () => {
-    setWatchingMonth(
-      new Date(watchingMonth.getFullYear(), watchingMonth.getMonth() + 1, 1)
-    );
-  };
-
-  const onNextYear = () => {
-    setWatchingMonth(
-      new Date(watchingMonth.getFullYear() + 1, watchingMonth.getMonth(), 1)
+  // One day of the grid.
+  const dayCell = (date) => {
+    const ms = date.getTime(), wd = date.getDay();
+    const list = daySort(days[ms] ?? []);
+    const { shown, more } = cellItems(list, lines);
+    const isToday = ms === today, isPicked = ms === picked;
+    const cls = ["cv-day", date.getMonth() !== month && "out", isToday && "today", isPicked && "picked", wd === 0 ? "sun" : wd === 6 ? "sat" : ""]
+      .filter(Boolean).join(" ");
+    return (
+      <div
+        key={ms}
+        className={cls}
+        role="gridcell"
+        data-day={ms}
+        tabIndex={ms === focusDay ? 0 : -1}
+        aria-selected={isPicked}
+        aria-current={isToday ? "date" : undefined}
+        aria-label={`${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일${list.length ? ` 할 일 ${list.length}개` : ""}`}
+        onClick={() => pick(ms)}
+      >
+        <span className="cv-d">{date.getDate()}</span>
+        {shown.map((task) => {
+          const mark = markCategory(taskCategories(task, categories, catsOf));
+          return (
+            <div
+              key={task.id}
+              className={"cv-ev" + (task.done ? " done" : isOverdue(task, now) ? " over" : "")}
+              data-task-id={task.id}
+              onContextMenu={(event) => {
+                if (!onTaskContextMenu) return;
+                event.preventDefault();
+                event.stopPropagation();
+                // Items cannot take focus: after the menu (and a delete question) focus
+                // goes back to the day.
+                onTaskContextMenu(event, task.id, event.currentTarget.closest('[role="gridcell"]'));
+              }}
+            >
+              <CategoryMark category={mark} size={11} />
+              <b>{task.title}</b>
+            </div>
+          );
+        })}
+        {more > 0 && <div className="cv-ev more"><b>{shown.length ? `…외 ${more}개` : `할 일 ${more}개`}</b></div>}
+      </div>
     );
   };
 
   return (
     <div className="task-view calendar">
-      <div className="calendar-view">
-        <div className="calendar-view-header view-header">
-          <div className="current-year-month">
-            {watchingMoment.format("YYYY년 M월")}
-          </div>
-          <div className="options">
-            <button className="option ltr" aria-label="이전 연도" title="이전 연도" onClick={onPrevYear}>
-              <div className="icon-wrapper">
-                <IoPlayBack />
-              </div>
-            </button>
-            <button className="option ltr" aria-label="이전 달" title="이전 달" onClick={onPrevMonth}>
-              <div className="icon-wrapper">
-                <IoPlay style={{ transform: `rotate(180deg)` }} />
-              </div>
-            </button>
-            <button className="option" onClick={onCurrentMonth}>
-              <div className="label">오늘</div>
-            </button>
-            <button className="option rtl" aria-label="다음 달" title="다음 달" onClick={onNextMonth}>
-              <div className="icon-wrapper">
-                <IoPlay />
-              </div>
-            </button>
-            <button className="option rtl" aria-label="다음 연도" title="다음 연도" onClick={onNextYear}>
-              <div className="icon-wrapper">
-                <IoPlayForward />
-              </div>
-            </button>
-          </div>
-        </div>
-        <div className="calendar-view-body">
-          <div className="week-cells">
-            {Array(7)
-              .fill(0)
-              .map((_, index) => {
-                const dayIndex = (weekStart + index) % 7;
-                return (
-                  <div
-                    className={
-                      "week-cell cell" +
-                      JsxUtil.classByCondition(
-                        hoveredDate?.getDay() == dayIndex,
-                        "focused"
-                      ) +
-                      JsxUtil.classByCondition(dayIndex == 0, "sunday") +
-                      JsxUtil.classByCondition(dayIndex == 6, "saturday")
-                    }
-                    key={index}
-                  >
-                    {moment().day(dayIndex).format("dd")}
-                  </div>
-                );
-              })}
-          </div>
-          <div className="day-cells">
-            {Array(leadingDays)
-              .fill(0)
-              .map((_, index) => (
-                <DayCell
-                  key={index}
-                  year={watchingMoment.year()}
-                  month={watchingMoment.month() - 1}
-                  selectedDate={selectedDate} onDateSelect={setSelectedDate}
-                  day={
-                    moment(prevMonthLastDate).date() -
-                    leadingDays +
-                    index +
-                    1
-                  }
-                  currentMoment={currentMoment}
-                  dateTaskMap={dateTaskMap}
-                  setHoveredTaskId={setHoveredTaskId}
-                  hoveredTaskId={hoveredTaskId}
-                  categories={categories}
-                />
-              ))}
-            {Array(curMonthLastDate.getDate())
-              .fill(0)
-              .map((_, index) => (
-                <DayCell
-                  key={index}
-                  year={watchingMoment.year()}
-                  month={watchingMoment.month()}
-                  selectedDate={selectedDate} onDateSelect={setSelectedDate}
-                  day={index + 1}
-                  currentMoment={currentMoment}
-                  dateTaskMap={dateTaskMap}
-                  currentMonth={true}
-                  setHoveredTaskId={setHoveredTaskId}
-                  hoveredTaskId={hoveredTaskId}
-                  categories={categories}
-                />
-              ))}
-            {(weekStart + 6 - curMonthLastDate.getDay()) % 7 > 0 &&
-              Array((weekStart + 6 - curMonthLastDate.getDay()) % 7)
-                .fill(0)
-                .map((_, index) => (
-                  <DayCell
-                    key={index}
-                    year={watchingMoment.year()}
-                    month={watchingMoment.month() + 1}
-                    selectedDate={selectedDate} onDateSelect={setSelectedDate}
-                    day={index + 1}
-                    currentMoment={currentMoment}
-                    dateTaskMap={dateTaskMap}
-                    setHoveredTaskId={setHoveredTaskId}
-                    hoveredTaskId={hoveredTaskId}
-                    categories={categories}
-                  />
-                ))}
-          </div>
-        </div>
-      </div>
-      <section className="selected-day" aria-label="선택한 날짜의 할 일">
-        <h3>{moment(selectedDate, "YYYY-M-D").format("M월 D일 (ddd)")}</h3>
-        {selectedDayTasks.length === 0
-          ? <p>등록된 할 일이 없어요. 여유로운 하루를 계획해보세요.</p>
-          : selectedDayTasks.map((task) => (
-            <SelectedDayTask key={task.id} task={task}
-              hovered={hoveredTaskId === task.id} setHoveredTaskId={setHoveredTaskId} />
-          ))}
-      </section>
-    </div>
-  );
-};
-
-export const SelectedDayTask = ({ task, hovered, setHoveredTaskId }) => {
-  const dueAt = task.dueDate == null ? null : moment(task.dueDate).valueOf();
-  const overdue = useClock((now) => dueAt != null && dueAt < now);
-  return (
-    <div
-      className={"selected-day-task" + JsxUtil.classByCondition(task.done, "done") +
-        JsxUtil.classByCondition(hovered, "hovered")}
-      onMouseEnter={() => setHoveredTaskId?.(task.id)}
-      onMouseLeave={() => setHoveredTaskId?.(null)}
-    >
-      <span className={task.done ? "done-dot" : "task-dot"} />
-      <span className="selected-day-task__title">{task.title}</span>
-      {dueAt != null && (
-        <TaskTimeText dueDate={dueAt}
-          className={"selected-day-task__time" + JsxUtil.classByCondition(overdue && !task.done, "overdue")} />
-      )}
-    </div>
-  );
-};
-
-const DayCell = ({
-  currentMoment,
-  year,
-  month,
-  day,
-  dateTaskMap,
-  currentMonth = false,
-  selectedDate,
-  onDateSelect,
-  setHoveredTaskId,
-  hoveredTaskId,
-  categories,
-  ...rest
-}) => {
-  const cellDate = useMemo(() => {
-    return moment(new Date(year, month, day));
-  }, [year, month, day]);
-  const isToday = useMemo(() => {
-    return cellDate.isSame(currentMoment, "day");
-  }, [cellDate, currentMoment]);
-  const isSunday = useMemo(() => {
-    return cellDate.day() === 0;
-  }, [cellDate]);
-  const isSaturday = useMemo(() => {
-    return cellDate.day() === 6;
-  }, [cellDate]);
-
-  const dateKey = `${year}-${month + 1}-${day}`;
-  const tasks = dateTaskMap[dateKey] || [];
-
-  const sortedTasks = useMemo(() => {
-    return [...tasks].sort((a, b) => {
-      if (a.done && !b.done) return 1;
-      if (!a.done && b.done) return -1;
-
-      const aMoment = moment(a.dueDate);
-      const bMoment = moment(b.dueDate);
-      if (aMoment.isBefore(bMoment)) return -1;
-      if (aMoment.isAfter(bMoment)) return 1;
-      return 0;
-    });
-  }, [tasks]);
-
-  return (
-    <div
-      role="button" tabIndex={0} aria-label={cellDate.format("YYYY년 M월 D일")} aria-pressed={selectedDate === dateKey}
-      onClick={() => onDateSelect(dateKey)}
-      onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onDateSelect(dateKey); } }}
-      className={
-        "day-cell cell" +
-        JsxUtil.classByCondition(selectedDate === dateKey, "selected") +
-        JsxUtil.classByCondition(isToday, "today") +
-        JsxUtil.classByCondition(currentMonth, "current-month") +
-        JsxUtil.classByCondition(isSunday, "sunday") +
-        JsxUtil.classByCondition(isSaturday, "saturday")
-      }
-      {...rest}
-    >
-      <div className="day-cell-header">
-        <div className="date">{day}</div>
-        {sortedTasks.length > 0 && (
-          <div className="task-count">{sortedTasks.length}개 항목</div>
+      <ViewHeader
+        header={header}
+        title={`${year}년 ${month + 1}월`}
+        summary={summary}
+        nav={(
+          <ViewNav
+            prevLabel="이전 달"
+            nextLabel="다음 달"
+            onPrev={() => moveMonth(-1)}
+            onNext={() => moveMonth(1)}
+            onToday={() => { setShownMonth(monthOf(today)); setPickedDay(today); }}
+          />
         )}
-      </div>
-      <div className="tasks scroll-visible">
-        {sortedTasks.map((task) => {
-          return (
-            <TaskCell
-              task={task}
-              key={task.id}
-              setHoveredTaskId={setHoveredTaskId}
-              hoveredTaskId={hoveredTaskId}
-              categories={categories}
-            />
-          );
-        })}
-      </div>
-    </div>
-  );
-};
-
-const TaskCell = ({ task, setHoveredTaskId, hoveredTaskId, categories }) => {
-  const [counter, setCounter] = useState(0);
-
-  const dueDate = useMemo(() => {
-    if (task.dueDate == null) return null;
-    return moment(task.dueDate).toDate();
-  }, [task.dueDate]);
-
-  const overDue = useMemo(() => {
-    if (dueDate == null) return false;
-    return dueDate.valueOf() < Date.now();
-  }, [dueDate, counter]);
-
-  const subtasks = useMemo(() => {
-    return Object.values(task.subtasks ?? {});
-  });
-
-  const remainMilliSeconds = useMemo(() => {
-    if (dueDate == null) {
-      return null;
-    }
-    const remain = dueDate.valueOf() - Date.now();
-    return remain;
-  }, [dueDate, counter]);
-
-  const remainTimeText = useMemo(() => {
-    if (dueDate == null) {
-      return "미정";
-    }
-    return fromRelativeTime(
-      remainMilliSeconds < 0 ? -remainMilliSeconds : remainMilliSeconds,
-      {
-        showLayerCount: 1,
-        showMillisec: false,
-      }
-    );
-  }, [dueDate, counter]);
-
-  const categoryColor = useMemo(() => {
-    for (let cid in categories) {
-      if (task.categories.hasOwnProperty(cid)) {
-        const category = categories[cid];
-        if (category.color != null) {
-          return category.color;
-        }
-      }
-    }
-    return null;
-  }, [categories]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCounter((c) => c + 1);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  return (
-    <div
-      className={
-        "task" +
-        JsxUtil.classByCondition(task.done, "done") +
-        JsxUtil.classByEqual(hoveredTaskId, task.id, "hovered") +
-        JsxUtil.classByCondition(overDue, "overdue")
-      }
-      key={task.id}
-      onMouseEnter={() => setHoveredTaskId?.(task.id)}
-      onMouseLeave={() => setHoveredTaskId?.(null)}
-    >
-      <div
-        className={"color-label"}
-        style={{ backgroundColor: categoryColor }}
-      ></div>
-      <div className="title">{task.title}</div>
-      {subtasks.length > 0 && (
-        <div className="subtasks">
-          ({task.getFulfilledSubTaskCount()}/{subtasks.length})
+      />
+      <div className="cv-body">
+        <div
+          className="cv-grid"
+          ref={gridRef}
+          role="grid"
+          aria-label={`${year}년 ${month + 1}월`}
+          style={{ gridTemplateRows: `28px repeat(${weeks}, minmax(0, 1fr))` }}
+          onKeyDown={onKeyDown}
+        >
+          <div className="cv-row" role="row">
+            {weekdayOrder(weekStart).map((wd) => (
+              <div key={`w${wd}`} className={"cv-wd" + (wd === 0 ? " sun" : wd === 6 ? " sat" : "")} role="columnheader">{WEEKDAYS[wd]}</div>
+            ))}
+          </div>
+          {Array.from({ length: weeks }, (_, w) => (
+            <div key={`r${w}`} className="cv-row" role="row">
+              {cells.slice(w * 7, w * 7 + 7).map(dayCell)}
+            </div>
+          ))}
         </div>
-      )}
-      {dueDate != null && !task.done && remainMilliSeconds != null && (
-        <div className="remain-time">
-          {remainTimeText}
-          {remainMilliSeconds < 0 ? " 지남" : ""}
-        </div>
-      )}
+      </div>
+      {renderQuickAdd?.(picked)}
     </div>
   );
 };

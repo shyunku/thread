@@ -1,6 +1,6 @@
 import LeftSidebar from "components/LeftSidebar";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { Outlet, useOutletContext } from "react-router-dom";
 
 import "./Home.layout.scss";
@@ -9,6 +9,7 @@ import { SecretSessionProvider } from "../hooks/useSecretSession";
 import { applyCreateCategory, applyDeleteCategory } from "../hooks/UseTransaction";
 import { trapTab } from "../molecules/pickers/Popover";
 import { accountInfoSlice } from "../store/accountSlice";
+import { prefsSelector, setPrefs } from "../store/prefsSlice";
 import IpcSender from "../utils/IpcSender";
 import { TODO_MENU_TYPE } from "../utils/menuFilters";
 import { HomeLayoutContext, layoutForWidth, useWindowWidth } from "./homeLayoutContext";
@@ -17,8 +18,12 @@ const HomeLayout = () => {
   const props = useOutletContext();
   const uid = useSelector(accountInfoSlice)?.uid;
   const [selectedTodoMenuType, setSelectedTodoMenuType] = useState(TODO_MENU_TYPE.ALL);
+  const dispatch = useDispatch();
   const width = useWindowWidth();
-  const facts = useMemo(() => layoutForWidth(width), [width]);
+  // The panel width dragged on the splitter, remembered on this device (prefs.panelWidth).
+  const storedPanelW = useSelector(prefsSelector)?.panelWidth ?? null;
+  const facts = useMemo(() => layoutForWidth(width, storedPanelW), [width, storedPanelW]);
+  const setPanelWidth = useCallback((px) => dispatch(setPrefs({ panelWidth: px })), [dispatch]);
   const [sideOpen, setSideOpen] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const [overlayEl, setOverlayEl] = useState(null);
@@ -100,8 +105,8 @@ const HomeLayout = () => {
   }, []);
 
   const layout = useMemo(
-    () => ({ ...facts, sideOpen, setSideOpen, panelOpen, setPanelOpen, overlayEl }),
-    [facts, sideOpen, panelOpen, overlayEl]
+    () => ({ ...facts, sideOpen, setSideOpen, panelOpen, setPanelOpen, setPanelWidth, overlayEl }),
+    [facts, sideOpen, panelOpen, setPanelWidth, overlayEl]
   );
 
   const sidebarProps = {

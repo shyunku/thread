@@ -34,7 +34,8 @@ function fillerTasks(count) {
 // count=<n> fills the list up to n tasks. The secret category "일기" (#102) is always there;
 // its tasks stay out of the counts and lists until it is unlocked.
 // empty=1 keeps only the done tasks (the list's empty state).
-function previewView(long = false, count = 0, empty = false) {
+// notime=1 adds a task due today without a chosen time (23:59, "하루 끝").
+function previewView(long = false, count = 0, empty = false, noTime = false) {
   const categories = [
     { cid: "work", title: "업무", color: "#6294ff", secret: false, locked: false, created_at: at(-30, 9) + 60000 },
     { cid: "study", title: "공부", color: "#b58cff", secret: false, locked: false, created_at: at(-30, 9) + 120000 },
@@ -58,6 +59,7 @@ function previewView(long = false, count = 0, empty = false) {
     { tid: "t8", title: "치과 예약", due: at(9, 10), cats: ["life"], important: true },
     { tid: "t12", title: "주간 보고서 제출", due: at(-1, 18), cats: ["work"] },
     { tid: "t13", title: "책장 정리", due: null, cats: [] },
+    ...(noTime ? [{ tid: "t14", title: "독서 30분", due: at(0, 23, 59), cats: ["life"] }] : []),
     { tid: "s1", title: "병원 검사 결과 정리", due: at(1, 10), cats: ["diary"] },
     { tid: "s2", title: "오늘 일기 쓰기", due: at(0, 23), cats: ["diary"], repeat: "day" },
     { tid: "s3", title: "한 주 리뷰 일기", due: at(2, 22), cats: ["diary"] },
@@ -70,12 +72,12 @@ function previewView(long = false, count = 0, empty = false) {
       tid: task.tid, title: task.title, memo: task.memo || "", due_date: task.due || 0,
       done: !!task.done, done_at: task.done ? at(-1, 17) : null,
       repeat_period: task.repeat || null, repeat_start_at: task.repeat ? task.due : null,
-      created_at: at(-7, 9), next: tasks[index + 1]?.tid || null, important: !!task.important,
+      created_at: at(-7, 9), updated_at: at(0, 10) + 12 * 60000, next: tasks[index + 1]?.tid || null, important: !!task.important,
     })),
     subtasks: [
       { sid: "s1", tid: "t1", title: "매출 지표 정리", done: true, done_at: at(0, 10), due_date: null, created_at: at(-2, 9) },
       { sid: "s2", tid: "t1", title: "팀 피드백 요약", done: true, done_at: at(0, 11), due_date: null, created_at: at(-2, 9) },
-      { sid: "s3", tid: "t1", title: "다음 분기 목표 초안", done: false, done_at: null, due_date: null, created_at: at(-2, 9) },
+      { sid: "s3", tid: "t1", title: "다음 분기 목표 초안", done: false, done_at: null, due_date: at(1, 18), created_at: at(-2, 9) },
       { sid: "s4", tid: "t2", title: "온보딩 화면 문구", done: false, done_at: null, due_date: null, created_at: at(-1, 9) },
       { sid: "s5", tid: "t2", title: "아이콘 크기 통일", done: false, done_at: null, due_date: null, created_at: at(-1, 9) },
     ].filter((subtask) => tasks.some((task) => task.tid === subtask.tid)),
@@ -128,7 +130,7 @@ function PreviewRoot() {
   const [states, syncStatus, confirmTask, initialQuery] = useMemo(() => {
     const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
     return [
-      fromSyncV2View(previewView(params.get("long") === "1", Number(params.get("count")) || 0, params.get("empty") === "1")),
+      fromSyncV2View(previewView(params.get("long") === "1", Number(params.get("count")) || 0, params.get("empty") === "1", params.get("notime") === "1")),
       previewSyncStatus(params.get("sync")),
       params.get("confirm") === "task",
       params.get("q") || "",

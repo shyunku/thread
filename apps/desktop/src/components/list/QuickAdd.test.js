@@ -153,6 +153,27 @@ test("a new day moves untouched chips only; a new screen starts them over", () =
   expect(screen.getByRole("button", { name: "기한 10월 23일" })).toBeInTheDocument();
 });
 
+test("another picked day on the same screen moves only the untouched date; chosen chips stay", () => {
+  const store = configureStore({ reducer: { prefs: prefsReducer } });
+  const onAdd = jest.fn();
+  const day = (d) => quickAddDefaults({ menuType: TODO_MENU_TYPE.ALL, day: d, now: NOW });
+  const ui = (defaults) => <Provider store={store}><QuickAdd defaults={defaults} contextKey="all|calendar" categories={cats} onAdd={onAdd} /></Provider>;
+  const { rerender } = render(ui(day(new Date(2026, 9, 23))));
+  fireEvent.click(screen.getByRole("button", { name: "카테고리 고르기" }));
+  fireEvent.click(screen.getByRole("checkbox", { name: /업무/ }));
+  fireEvent.keyDown(document.activeElement, { key: "Escape" });
+  rerender(ui(day(new Date(2026, 9, 27))));
+  expect(screen.getByRole("button", { name: "기한 10월 27일" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "카테고리 업무" })).toBeInTheDocument();
+  // A date the user picked stays too.
+  fireEvent.click(screen.getByRole("button", { name: "기한 10월 27일" }));
+  fireEvent.click(screen.getByRole("button", { name: "내일" }));
+  fireEvent.click(screen.getByRole("button", { name: "정하기" }));
+  rerender(ui(day(new Date(2026, 9, 29))));
+  expect(screen.getByRole("button", { name: "기한 10월 22일" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "카테고리 업무" })).toBeInTheDocument();
+});
+
 test("중요 is left out where the star cannot be stored", () => {
   const { onAdd, input } = setup({ due: null, repeat: null, categoryIds: [], important: true }, { canStar: false });
   expect(screen.queryByRole("button", { name: "중요" })).toBeNull();

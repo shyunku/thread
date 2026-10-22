@@ -65,7 +65,8 @@ export function ViewMenu({ anchor, ignore, prefs, onPref, onClose }) {
 
 // The list pane's header (#102 mock listPane head): ☰ (drawer layout), title, view switch, view
 // options, the eye (secret categories; not on category screens or in search) and the summary.
-export default function ListHeader({ title, summary, view, onView, prefs, onPref, eye, extra }) {
+// `nav` sits right after the title (the calendar's and timeline's ‹ 오늘 ›).
+export default function ListHeader({ title, summary, view, onView, prefs, onPref, eye, extra, nav }) {
   const [menu, setMenu] = useState(false);
   const optionsRef = useRef(null);
   const rowRef = useRef(null);
@@ -82,6 +83,7 @@ export default function ListHeader({ title, summary, view, onView, prefs, onPref
       <div className="tc-row1" ref={rowRef}>
         <SideMenuButton className="tc-ghost tc-sq" />
         <h1 className="tc-title">{title}</h1>
+        {nav}
         <span className="tc-push" />
         <div className="tc-seg" role="group" aria-label="보기">
           {VIEWS.map(({ id, label, Icon }) => (
