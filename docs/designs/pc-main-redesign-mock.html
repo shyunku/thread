@@ -255,6 +255,11 @@
   .quick .in { display: flex; align-items: center; gap: var(--ck-gap); height: 44px; color: var(--muted); font-size: 13.5px; }
   .quick .in .plus { width: var(--ck); display: grid; place-items: center; color: var(--accent); }
   .quick .chip[data-dpopen], .quick .chip[data-pkopen] { cursor: pointer; }
+  .quick .chip.has-x { position: relative; }
+  .quick .chip .cx { display: none; width: 16px; height: 16px; margin: 0 -4px 0 1px; place-items: center; border-radius: 4px; color: #a9c3ff; }
+  .quick .chip .cx svg { width: 12px; height: 12px; }
+  .quick .chip.has-x:hover .cx { display: grid; }
+  .quick .chip .cx:hover { background: #6294ff40; color: #fff; }
   .quick .chips { display: flex; gap: 6px; padding: 0 0 12px calc(var(--ck) + var(--ck-gap)); flex-wrap: wrap; }
   .chip { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 8px; border-radius: 6px; background: var(--raise); color: var(--secondary); font-size: 12px; white-space: nowrap; }
   .chip.on { background: var(--accent-soft); color: #a9c3ff; }
@@ -318,6 +323,9 @@
   .meta .cat { max-width: 160px; } .meta .cat b { font-weight: 400; overflow: hidden; text-overflow: ellipsis; }
   .meta .cat .dot { width: 7px; height: 7px; }
   .meta .cat .shield { display: grid; place-items: center; }
+  /* Search hits in hidden secret categories: listed, marked, and opening them asks for the unlock. */
+  .hid-tag { display: inline-flex; align-items: center; gap: 3px; margin-left: 8px; padding: 0 6px; height: 18px; border-radius: 5px; background: var(--raise); color: var(--muted); font-size: 11px; font-weight: 500; vertical-align: 1px; }
+  .task.hidden-hit .t, .task.hidden-hit .meta, .task.hidden-hit .rcol { opacity: .62; }
   .meta .cat .more { padding: 0 5px; border-radius: 4px; background: var(--raise); color: var(--secondary); font-weight: 600; font-size: 11px; line-height: 16px; }
   /* Right column: due time, and under it the time left in a fainter tone (can be hidden). */
   .rcol { width: auto; min-width: 112px; max-width: 220px; flex: none; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -708,6 +716,7 @@ const TASKS = [
   { id: 't10', t: '책장 정리', cat: null, due: null },
   { id: 's1', t: '병원 검사 결과 정리', cat: 'diary', due: at(1, 10) },
   { id: 's2', t: '오늘 일기 쓰기', cat: 'diary', due: at(0, 23), repeat: '매일' },
+  { id: 's3', t: '한 주 리뷰 일기', cat: 'diary', due: at(2, 22) },
   { id: 'd1', t: '장보기', cat: 'life', due: at(0, 12), done: true },
   { id: 'd2', t: '릴리스 노트 작성', cat: 'work', due: at(-1, 15), done: true },
 ];
@@ -899,8 +908,9 @@ function taskRow(t, opts = {}) {
     t.memo ? `<span data-tip="메모 있음">${I.memo}</span>` : ''].filter(Boolean);
   const hov = s.state === 'hover' && t.id === 't4';
   const sel = s.selected === t.id && ['selected', 'hover', 'context', 'picker'].includes(s.state);
-  const title = opts.q ? t.t.replace(opts.q, `<mark>${opts.q}</mark>`) : t.t;
-  return `<div class="task ${done ? 'done' : ''} ${sel ? 'sel' : ''} ${hov ? 'hov' : ''} ${meta.length ? '' : 'no-meta'}" data-task="${t.id}">
+  const hidden = opts.q && !shown(t);
+  const title = (opts.q ? t.t.replace(opts.q, `<mark>${opts.q}</mark>`) : t.t) + (hidden ? `<span class="hid-tag" data-tip="비밀 카테고리 할 일이에요. 열면 본인 확인을 해요">${secretSvg(11)}<span class="nt">숨김</span></span>` : '');
+  return `<div class="task ${done ? 'done' : ''} ${sel ? 'sel' : ''} ${hov ? 'hov' : ''} ${meta.length ? '' : 'no-meta'} ${hidden ? 'hidden-hit' : ''}" ${hidden ? 'data-unlock="1"' : `data-task="${t.id}"`}>
     <span class="ck ${done ? 'done' : ''}" data-check="${t.id}">${I.check}</span>
     <div class="tx"><div class="t"><i class="ic-cat" style="background:${c ? c.color : 'transparent'}"></i>${title}</div>${meta.length ? `<div class="meta">${meta.join('')}</div>` : ''}</div>
     <div class="hacts"><span>${I.cal} 날짜</span><span>${I.more}</span></div>
@@ -915,7 +925,7 @@ function sec(id, name, rows, cls = '', opts) {
 function listBody() {
   if (s.state === 'search') {
     const q = '리뷰', titleHits = TASKS.filter(t => t.t.includes(q)), memoHits = TASKS.filter(t => !t.t.includes(q) && (t.memo || '').includes(q));
-    return `<div class="search-res">${sec('s-title', '제목에서', titleHits, '', { q })}${memoHits.length ? sec('s-memo', '메모에서', memoHits, '', { q }) : ''}<p class="search-sum">제목 ${titleHits.length}개 · 메모 ${memoHits.length}개 · 카테고리 0개</p></div>`;
+    return `<div class="search-res">${sec('s-title', '제목에서', titleHits, '', { q })}${memoHits.length ? sec('s-memo', '메모에서', memoHits, '', { q }) : ''}<p class="search-sum">제목 ${titleHits.length}개 · 메모 ${memoHits.length}개 · 카테고리 0개${titleHits.some(t => !shown(t)) ? ' · 숨김 ' + titleHits.filter(t => !shown(t)).length + '개 포함' : ''}</p></div>`;
   }
   if (cat(s.nav)?.secret && !s.secretUnlocked) return `<div class="locked"><div class="ic" style="color:${cat(s.nav).color}">${secretSvg(22)}</div><b>이 카테고리는 잠겨 있어요</b><span class="one">열면 할 일이 보이고, 앱을 닫거나 잠그면 다시 잠겨요.</span><br><span class="btn" data-unlock="1"><span class="nt">Windows Hello로 열기</span></span></div>`;
   const items = s.state === 'empty' ? [] : navList(s.nav);
@@ -943,10 +953,10 @@ function quickAdd() {
   const pd = new Date(NOW); pd.setDate(pd.getDate() + s.picked);
   const dn = draftDay(), db = dayBase(dn), dd = s.draft.due;
   const dayChip = dn === null ? `<span class="chip" data-dpopen="quick">${I.cal}<span class="nt">날짜</span></span>`
-    : `<span class="chip on" data-dpopen="quick">${I.cal}<span class="nt">${db.getMonth() + 1}월 ${db.getDate()}일${dd && dd.on ? ' ' + clockShort(dd.time) : ''}</span></span>`;
+    : `<span class="chip on has-x" data-dpopen="quick">${I.cal}<span class="nt">${db.getMonth() + 1}월 ${db.getDate()}일${dd && dd.on ? ' ' + clockShort(dd.time) : ''}</span><span class="cx" data-chipclear="due" data-tip="날짜 빼기">${I.vsClose}</span></span>`;
   const c = s.view === 'list' ? cat(s.nav) : null;
   return `<div class="quick chg"><div class="in"><span class="plus">${I.plus}</span><span class="nt">할 일 추가 · 예: 내일 오후 3시 회의</span><kbd>Ctrl N</kbd></div>
-    <div class="chips">${dayChip}<span class="chip ${s.draft.repeat ? 'on' : ''}" data-pkopen="rep:quick">${I.repeat}<span class="nt">${s.draft.repeat ? repeatName(s.draft.repeat, db) : '반복'}</span></span>${draftCats().length ? draftCats().map(x => `<span class="chip on" data-pkopen="cat:quick"><span class="dot" style="background:${x.color}"></span><span class="nt">${x.name}</span></span>`).join('') : `<span class="chip" data-pkopen="cat:quick"><span class="dot" style="background:var(--muted)"></span><span class="nt">카테고리</span></span>`}<span class="chip ${s.view === 'list' && s.nav === 'imp' ? 'on' : ''}">${I.star(s.view === 'list' && s.nav === 'imp', 13)}<span class="nt">중요</span></span></div></div>`;
+    <div class="chips">${dayChip}<span class="chip ${s.draft.repeat ? 'on' : ''}" data-pkopen="rep:quick">${I.repeat}<span class="nt">${s.draft.repeat ? repeatName(s.draft.repeat, db) : '반복'}</span></span>${draftCats().length ? draftCats().map(x => `<span class="chip on has-x" data-pkopen="cat:quick"><span class="dot" style="background:${x.color}"></span><span class="nt">${x.name}</span><span class="cx" data-chipclear="cat:${x.id}" data-tip="카테고리 빼기">${I.vsClose}</span></span>`).join('') : `<span class="chip" data-pkopen="cat:quick"><span class="dot" style="background:var(--muted)"></span><span class="nt">카테고리</span></span>`}<span class="chip ${s.view === 'list' && s.nav === 'imp' ? 'on' : ''}">${I.star(s.view === 'list' && s.nav === 'imp', 13)}<span class="nt">중요</span></span></div></div>`;
 }
 function listPane(L) {
   const nav = NAV.find(n => n.id === s.nav) || cat(s.nav);
@@ -994,7 +1004,7 @@ function contextMenu() {
 // The draft's date (quick add): what the date picker set, else the view's own day (today in 오늘, the picked day in
 // calendar/timeline), else none.
 const Z = () => s.fit ? 0.7 : 1;
-const draftDay = () => s.draft.due ? s.draft.due.day : s.view === 'calendar' ? s.picked : s.view === 'timeline' ? 0 : s.nav === 'today' ? 0 : null;
+const draftDay = () => s.draft.due ? s.draft.due.day : s.draft.noDay ? null : s.view === 'calendar' ? s.picked : s.view === 'timeline' ? 0 : s.nav === 'today' ? 0 : null;
 const dayBase = n => { const d = new Date(NOW); d.setDate(d.getDate() + (n || 0)); d.setHours(23, 59, 0, 0); return d; };
 const clockShort = mins => hm(Math.floor(mins / 60), mins % 60, true);
 // "매주 수요일" etc. for a repeat key on a given date.
@@ -1330,6 +1340,13 @@ document.addEventListener('click', e => {
     render(); return;
   }
   if (s.pk && !e.target.closest('.pk')) { s.pk = null; if (!e.target.closest('[data-dpopen]')) { render(); return; } }
+  const clr = e.target.closest('[data-chipclear]');
+  if (clr) {
+    const v = clr.dataset.chipclear;
+    if (v === 'due') { s.draft.due = null; s.draft.noDay = true; }
+    else s.draft.cats = draftIds().filter(id => id !== v.slice(4));
+    render(); return;
+  }
   const opener = e.target.closest('[data-dpopen]');
   if (opener) {
     const t = TASKS.find(x => x.id === s.selected), from = opener.dataset.dpopen;
@@ -1356,7 +1373,7 @@ document.addEventListener('click', e => {
     else if (c) s.state = 'selected';
     if (p === 'close') s.state = 'selected';
     else if (p === 'ok') {
-      if (s.dpAt === 'quick') s.draft.due = { day: s.dpDay, on: s.dpOn, time: s.dpTime };
+      if (s.dpAt === 'quick') { s.draft.due = { day: s.dpDay, on: s.dpOn, time: s.dpTime }; s.draft.noDay = false; }
       else if (t) t.due = at(s.dpDay, Math.floor((s.dpOn ? s.dpTime : 1439) / 60), (s.dpOn ? s.dpTime : 1439) % 60);
       s.state = 'selected';
     }
