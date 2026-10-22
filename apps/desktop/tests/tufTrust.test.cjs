@@ -49,7 +49,7 @@ test("application discovery uses a verified catalog and refuses modified cache b
   }
  }
  const exported={exports:{}};
- vm.runInNewContext(fs.readFileSync(require.resolve("../public/electron/e2ee/trustedUpdates"),"utf8"),{URL,module:exported,require:id=>id==="tuf-js"?{Updater:Client}:require(id)});
+ vm.runInNewContext(fs.readFileSync(require.resolve("../public/electron/e2ee/trustedUpdates"),"utf8"),{URL,fetch,module:exported,require:id=>id==="tuf-js"?{Updater:Client,BaseFetcher:class{}}:require(id)});
  const trust=new exported.exports.TrustedUpdates({rootFile,cacheDir:path.join(dir,"cache"),repositoryURL:"https://fixture.invalid/tuf/",platform:"win",arch:"ia32",installedVersion:"1.1.3"});
  const release=await trust.latest();assert.equal(release.version,"1.1.4");assert.equal(release.mandatory,true);
  // Periodic checks, download and pre-install verification all work in one process.

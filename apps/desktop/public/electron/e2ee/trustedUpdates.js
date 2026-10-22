@@ -1,7 +1,33 @@
 const fs = require("node:fs");
 const path = require("node:path");
-const { Updater } = require("tuf-js");
+const { Updater, BaseFetcher } = require("tuf-js");
+const { DownloadHTTPError } = require("tuf-js/dist/error");
 const versions = require("compare-versions");
+// tuf-js applies its fetchTimeout to the whole request, body included, so an installer
+// that took longer than that to arrive was always aborted (2.2.0 on a ~10 MB/s line).
+// Give up only when the server goes quiet: no response within connectTimeout, or no
+// bytes for idleTimeout. Small metadata files are still bounded by connectTimeout.
+class IdleTimeoutFetcher extends BaseFetcher {
+  constructor({connectTimeout=10000,idleTimeout=30000,fetchImpl=fetch}={}){super();this.connectTimeout=connectTimeout;this.idleTimeout=idleTimeout;this.fetchImpl=fetchImpl;}
+  async fetch(url){
+    const controller=new AbortController();let timer=null;
+    const stop=()=>{if(timer)clearTimeout(timer);timer=null;};
+    const arm=ms=>{stop();timer=setTimeout(()=>controller.abort(Object.assign(Error("UPDATE_DOWNLOAD_STALLED"),{name:"TimeoutError"})),ms);};
+    arm(this.connectTimeout);
+    let response;
+    try{response=await this.fetchImpl(url,{signal:controller.signal});}catch(error){stop();throw error;}
+    if(!response.ok||!response.body){stop();throw new DownloadHTTPError("Failed to download",response.status);}
+    const reader=response.body.getReader(),idle=this.idleTimeout;
+    arm(idle);
+    return new ReadableStream({
+      async pull(out){
+        try{const {done,value}=await reader.read();if(done){stop();out.close();return;}arm(idle);out.enqueue(value);}
+        catch(error){stop();out.error(error);}
+      },
+      cancel(reason){stop();return reader.cancel(reason);},
+    });
+  }
+}
 function validateTarget(info, { platform, arch, version, installedVersion }) {
   const meta = info?.custom?.thread;
   if (!meta || meta.schema !== 1 || meta.platform !== platform || meta.arch !== arch ||
@@ -36,6 +62,7 @@ class TrustedUpdates {
       metadataBaseUrl: new URL("metadata/",url.href.endsWith("/")?url:new URL(url.href+"/")).href,
       targetBaseUrl: new URL("targets/",url.href.endsWith("/")?url:new URL(url.href+"/")).href,
       config: { fetchTimeout:10000,fetchRetries:0,maxRootRotations:32,maxDelegations:16,targetsMaxLength:1024*1024 },
+      fetcher: new IdleTimeoutFetcher(),
     };
     this.#options={platform,arch,installedVersion};
   }
@@ -100,4 +127,4 @@ class TrustedUpdates {
     });
   }
 }
-module.exports={TrustedUpdates,validateTarget};
+module.exports={TrustedUpdates,validateTarget,IdleTimeoutFetcher};
