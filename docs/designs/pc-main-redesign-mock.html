@@ -224,6 +224,26 @@
   .head { padding: 20px var(--main-x) 0; }
   .head .row1 { display: flex; align-items: center; gap: 8px; height: 32px; }
   .head h1 { margin: 0; font-size: 22px; line-height: 32px; font-weight: 700; letter-spacing: -0.01em; white-space: nowrap; }
+  /* Calendar / timeline title: a button that opens the jump popup. */
+  .head h1.jump { display: flex; align-items: center; gap: 4px; margin-left: -8px; padding: 0 6px 0 8px; border-radius: 8px; cursor: pointer; }
+  .head h1.jump:hover, .head h1.jump.on { background: var(--raise); }
+  .head h1.jump .jc { display: grid; place-items: center; color: var(--muted); }
+  .jump-pop { position: absolute; z-index: 36; top: 64px; left: calc(var(--main-x) - 8px); width: 260px; padding: 10px; border-radius: 12px; background: #1e2430; box-shadow: 0 14px 36px #000a; font-size: 13px; }
+  .jump-pop .mh { display: flex; align-items: center; height: 28px; padding: 0 4px; font-weight: 600; }
+  .jump-pop .mh span:last-child { margin-left: auto; display: flex; gap: 2px; color: var(--muted); font-weight: 400; }
+  .jump-pop .mh i { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 6px; cursor: pointer; }
+  .jump-pop .mh i:hover { background: var(--raise); color: var(--text); }
+  .jm-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 6px; }
+  .jm { height: 34px; display: grid; place-items: center; border-radius: 8px; color: var(--secondary); cursor: pointer; }
+  .jm:hover { background: var(--raise); color: var(--text); }
+  .jm.today { box-shadow: inset 0 0 0 1.5px var(--accent); color: #a9c3ff; font-weight: 700; }
+  .jm.cur { background: #3d6fe6; color: #fff; font-weight: 700; box-shadow: none; }
+  .jm.cur.today { box-shadow: 0 0 0 2px #1e2430, 0 0 0 3.5px #6294ff8c; }
+  .jump-pop.tl { display: flex; flex-direction: column; }
+  .jump-pop.tl .mini { padding: 0; width: auto; flex: none; }
+  .jump-foot { display: flex; justify-content: flex-end; margin-top: 8px; }
+  .jump-foot .btn { height: 28px; padding: 0 12px; display: grid; place-items: center; border-radius: 8px; background: var(--raise); cursor: pointer; font-size: 12.5px; }
+  .jump-foot .btn:hover { background: #2d3442; }
   .head .finding { margin: 2px 0 0; font-size: 13px; line-height: 20px; color: var(--secondary); }
   .head .finding b { color: var(--danger); font-weight: 600; }
   .seg { display: flex; padding: 2px; gap: 2px; border-radius: 8px; background: var(--surface); height: 32px; }
@@ -814,7 +834,7 @@ function groupsNow() {
   return [...head, ...mid, { id: 'none', name: '기한 없음', test: t => !t.due }];
 }
 
-const s = { w: 1440, view: 'list', panel: 'auto', rail: 'auto', group: 'date', density: 'normal', confirm: null, confirmCat: null, timeMerge: 'stack', dueFmt: 'group', remainFmt: 'normal', timeDisplay: 'remain', h24: false, weekStart: 0, weekMode: 'cal', todayShift: 0, showSettings: false, subHover: false, subEdit: false, dpBottom: 128, ctxSub: false, pickStyle: 'fill', catDrag: null, pk: null, draft: { repeat: '', cats: null }, secretIcon: 'shield', eyePos: 'head', showSecret: false, secretUnlocked: false, hello: false, helloFor: null, catMenu: null, newCat: false, catY: 300, newColor: '#4fc3d9', newSecret: false, customOpen: false, hue: 190, sat: .6, val: .85, ctxX: 380, ctxY: 300, dpDay: 0, dpTime: 1439, dpOn: false, dpAt: 'ctx', noneTop: false, left: true, state: 'selected',
+const s = { w: 1440, view: 'list', panel: 'auto', rail: 'auto', group: 'date', density: 'normal', jump: false, confirm: null, confirmCat: null, timeMerge: 'stack', dueFmt: 'group', remainFmt: 'normal', timeDisplay: 'remain', h24: false, weekStart: 0, weekMode: 'cal', todayShift: 0, showSettings: false, subHover: false, subEdit: false, dpBottom: 128, ctxSub: false, pickStyle: 'fill', catDrag: null, pk: null, draft: { repeat: '', cats: null }, secretIcon: 'shield', eyePos: 'head', showSecret: false, secretUnlocked: false, hello: false, helloFor: null, catMenu: null, newCat: false, catY: 300, newColor: '#4fc3d9', newSecret: false, customOpen: false, hue: 190, sat: .6, val: .85, ctxX: 380, ctxY: 300, dpDay: 0, dpTime: 1439, dpOn: false, dpAt: 'ctx', noneTop: false, left: true, state: 'selected',
   nav: 'all', selected: 't2', picked: 0, tab: null, closed: { done: true }, viewMenu: false, drawer: false, sideOpen: false, guides: false, mark: false, fit: false,
   done: Object.fromEntries(TASKS.map(t => [t.id, !!t.done])), imp: Object.fromEntries(TASKS.map(t => [t.id, !!t.imp])) };
 const SIZES = { 1440: 960, 1180: 800, 960: 720, 760: 640 };
@@ -941,7 +961,21 @@ function listBody() {
 }
 // Shared header ends so the view switch never moves between views.
 const headLeft = L => L.hideSide ? `<span class="ghost sq menu-b" data-sideopen="1" data-tip="메뉴">${I.menu}</span>` : '';
-const headNav = () => `<span class="ghost sq" data-tip="이전" style="margin-left:8px">${I.prev}</span><span class="ghost"><span class="nt">오늘</span></span><span class="ghost sq" data-tip="다음">${I.next}</span>`;
+const headNav = () => s.view === 'timeline'
+  ? `<span class="ghost sq" data-tip="하루 전 · Shift 한 주 전" style="margin-left:8px">${I.prev}</span><span class="ghost"><span class="nt">오늘</span></span><span class="ghost sq" data-tip="하루 뒤 · Shift 한 주 뒤">${I.next}</span>`
+  : `<span class="ghost sq" data-tip="이전 달 · Shift 이전 해" style="margin-left:8px">${I.prev}</span><span class="ghost"><span class="nt">오늘</span></span><span class="ghost sq" data-tip="다음 달 · Shift 다음 해">${I.next}</span>`;
+// The title opens a jump popup: months of a year (calendar) or a month calendar (timeline).
+const jumpTitle = t => `<h1 class="jump ${s.jump ? 'on' : ''}" data-jump="1" data-tip="${s.view === 'timeline' ? '날짜로 가기' : '달로 가기'}">${t}<span class="jc">${I.chev(true)}</span></h1>`;
+function jumpPop() {
+  if (s.view === 'calendar') {
+    const months = [...Array(12)].map((_, i) => '<span class="jm ' + (i === 9 ? 'cur' : '') + ' ' + (i === NOW.getMonth() ? 'today' : '') + '" data-jumppick="1"><span class="nt">' + (i + 1) + '월</span></span>').join('');
+    return '<div class="jump-pop"><div class="mh"><span class="nt">2026년</span><span><i data-tip="이전 해">' + I.prev + '</i><i data-tip="다음 해">' + I.next + '</i></span></div><div class="jm-grid">' + months + '</div><div class="jump-foot"><span class="btn" data-jumppick="1"><span class="nt">이번 달</span></span></div></div>';
+  }
+  const first = new Date(2026, 9, 1), start = new Date(first); start.setDate(1 - (first.getDay() - s.weekStart + 7) % 7);
+  let g = weekOrder().map(i => [WD[i], i]).map(([w, i]) => '<span class="w ' + (i === 0 ? 'sun' : i === 6 ? 'sat' : '') + '">' + w + '</span>').join('');
+  for (let i = 0; i < 35; i++) { const d = new Date(start); d.setDate(start.getDate() + i); const n = Math.round((d - todayStart()) / D); g += '<span class="c ' + (d.getMonth() !== 9 ? 'out' : '') + ' ' + (n === 0 ? 'today' : '') + ' ' + (n === 0 ? 'picked' : '') + ' ' + (d.getDay() === 0 ? 'sun' : d.getDay() === 6 ? 'sat' : '') + '" data-jumppick="1"><b>' + d.getDate() + '</b></span>'; }
+  return '<div class="jump-pop tl"><div class="mini ps-fill"><div class="mh">2026년 10월<span><i data-tip="이전 달">' + I.prev + '</i><i data-tip="다음 달">' + I.next + '</i></span></div><div class="mg">' + g + '</div></div><div class="jump-foot"><span class="btn" data-jumppick="1"><span class="nt">오늘로</span></span></div></div>';
+}
 const eyeOn = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.1 12a10 10 0 0 1 19.8 0 10 10 0 0 1-19.8 0z"/><circle cx="12" cy="12" r="3"/></svg>';
 const eyeOff = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M10.6 5.1A10 10 0 0 1 21.9 12a10.4 10.4 0 0 1-2.6 3.8M6.6 6.6A10.4 10.4 0 0 0 2.1 12 10 10 0 0 0 12 19a9.8 9.8 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';
 const eyeBtn = (where = 'head') => (where === 'head' ? !cat(s.nav) && s.state !== 'search' : true) && s.eyePos === where ? '<span class="ghost sq eye-' + where + ' ' + (s.showSecret ? 'on' : '') + '" data-eye="1" data-tip="' + (s.showSecret ? '비밀 카테고리 숨기기' : '비밀 카테고리 보기') + '">' + (s.showSecret ? eyeOn : eyeOff) + '</span>' : '';
@@ -1075,7 +1109,7 @@ function calendarPane(L) {
       (evs.length > 3 ? `<div class="ev more"><b>…외 ${evs.length - 3}개</b></div>` : '') + `</div>`;
   }
   return `<section class="pane main chg">
-    <div class="head ${L.hideSide ? 'has-menu' : ''}"><div class="row1">${headLeft(L)}<h1>2026년 10월</h1>${headNav()}${headRight(L)}</div>
+    <div class="head ${L.hideSide ? 'has-menu' : ''}"><div class="row1">${headLeft(L)}${jumpTitle('2026년 10월')}${headNav()}${headRight(L)}</div>${s.jump ? jumpPop() : ''}
       <p class="finding">이번 달 남은 할 일 ${TASKS.filter(t => t.due && open(t) && new Date(t.due).getMonth() === 9).length}개 · 날짜를 누르면 ${L.overlayPanel ? '그날 할 일이 열려요' : '오른쪽에 그날 할 일이 보여요'}</p></div>
     <div class="cal"><div class="grid">${cells}</div></div>${quickAdd()}${s.viewMenu ? viewMenu() : ''}${s.state === 'context' ? contextMenu() : ''}${s.state === 'picker' && s.dpAt !== 'detail' ? duePicker() : ''}${s.pk && s.pk.at === 'quick' ? (s.pk.kind === 'rep' ? repeatPicker() : categoryPicker()) : ''}</section>`;
 }
@@ -1104,7 +1138,7 @@ function timelinePane(L) {
   };
   const over = TASKS.filter(overdue).length;
   return `<section class="pane main chg">
-    <div class="head ${L.hideSide ? 'has-menu' : ''}"><div class="row1">${headLeft(L)}<h1>10월 ${NOW.getDate()}일 – ${last.getMonth() === NOW.getMonth() ? '' : (last.getMonth() + 1) + '월 '}${last.getDate()}일</h1>${headNav()}${headRight(L)}</div>
+    <div class="head ${L.hideSide ? 'has-menu' : ''}"><div class="row1">${headLeft(L)}${jumpTitle('10월 ' + NOW.getDate() + '일 – ' + (last.getMonth() === NOW.getMonth() ? '' : (last.getMonth() + 1) + '월 ') + last.getDate() + '일')}${headNav()}${headRight(L)}</div>${s.jump ? jumpPop() : ''}
       <p class="finding">${cols}일 · 남은 할 일 ${TASKS.filter(t => t.due && open(t) && dayDiff(t.due) >= 0 && dayDiff(t.due) < cols).length}개${over ? ` · <b>기한 지난 할 일 ${over}개</b>는 목록에서 볼 수 있어요` : ''}</p></div>
     <div class="tl">${days.map(col).join('')}</div>${quickAdd()}${s.viewMenu ? viewMenu() : ''}${s.state === 'context' ? contextMenu() : ''}${s.state === 'picker' && s.dpAt !== 'detail' ? duePicker() : ''}${s.pk && s.pk.at === 'quick' ? (s.pk.kind === 'rep' ? repeatPicker() : categoryPicker()) : ''}</section>`;
 }
@@ -1347,6 +1381,9 @@ document.addEventListener('click', e => {
     else s.draft.cats = draftIds().filter(id => id !== v.slice(4));
     render(); return;
   }
+  const jp = e.target.closest('[data-jump],[data-jumppick]');
+  if (jp) { s.jump = jp.dataset.jump ? !s.jump : false; render(); return; }
+  if (s.jump && !e.target.closest('.jump-pop')) { s.jump = false; render(); return; }
   const opener = e.target.closest('[data-dpopen]');
   if (opener) {
     const t = TASKS.find(x => x.id === s.selected), from = opener.dataset.dpopen;
@@ -1520,7 +1557,7 @@ document.addEventListener('contextmenu', e => {
   s.ctxX = Math.min((e.clientX - r.left) / z, (wr.right - r.left) / z - 244); s.ctxY = (e.clientY - r.top) / z; s.ctxSub = false;
   render();
 });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { s.pk = null; s.hello = false; if (s.state === 'context' || s.state === 'picker') s.state = 'selected'; s.catMenu = null; s.newCat = false; render(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { s.jump = false; s.pk = null; s.hello = false; if (s.state === 'context' || s.state === 'picker') s.state = 'selected'; s.catMenu = null; s.newCat = false; render(); } });
 // Tooltips for [data-tip] inside the app window.
 (() => {
   const tip = document.getElementById('tip');
