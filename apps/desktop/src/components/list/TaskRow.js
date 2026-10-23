@@ -26,7 +26,7 @@ function TimeColumn({ due, done, options }) {
   });
   const [when, remain, overdue, past] = text.split(SEP);
   return (
-    <div className="rcol">
+    <div className={"rcol" + (remain ? "" : " one")}>
       <span className={"when" + (overdue ? " over" : "")}>{when}</span>
       {remain && <span className={"left" + (past ? " over" : "")}>{remain}</span>}
     </div>

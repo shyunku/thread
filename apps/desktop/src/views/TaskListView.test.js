@@ -68,6 +68,9 @@ test("the right column: due on top in the due format, remaining time below unles
   expect(row("week").querySelector(".when")).toHaveTextContent("금 오후 7시");
   expect(row("done").querySelector(".left")).toBeNull();
   expect(row("done").querySelector(".when")).not.toHaveClass("over");
+  // A due line alone is centred on the row; with the remaining time below it is not.
+  expect(row("done").querySelector(".rcol")).toHaveClass("one");
+  expect(row("today").querySelector(".rcol")).not.toHaveClass("one");
   // Always there (min-width 112), so titles line up with or without a due.
   expect(row("none").querySelector(".rcol")).toBeEmptyDOMElement();
   unmount();
@@ -75,6 +78,7 @@ test("the right column: due on top in the due format, remaining time below unles
   const today = other.container.querySelector('[data-task-id="today"]');
   expect(today.querySelector(".left")).toBeNull();
   expect(today.querySelector(".when")).toHaveTextContent("26.10.21 21:00");
+  expect(today.querySelector(".rcol")).toHaveClass("one");
 });
 
 test("the remaining time follows the clock", () => {

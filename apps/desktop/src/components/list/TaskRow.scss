@@ -141,6 +141,8 @@ $accent-hover: #7aa5ff;
     .when.over { color: var(--danger); }
     .left.over { color: #cf7a81; }
   }
+  // Only the due line (done, or 남은 시간 보이기 off): centred on the row like the check and star.
+  > .rcol.one { align-self: center; }
 
   > .st {
     width: 28px;
