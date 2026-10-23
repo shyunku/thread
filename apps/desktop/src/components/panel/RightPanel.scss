@@ -113,7 +113,8 @@ $picked: #3d6fe6;
     border-radius: 7px;
     color: #4d5666;
     transition: background-color .12s, transform .08s;
-    &:hover { background: var(--raise); }
+    &:hover { background: #2d3442; }
+    &:hover:not(.on) { color: #f2c14ecc; }
     &.on { color: var(--star); }
     &:active { transform: scale(.94); }
   }

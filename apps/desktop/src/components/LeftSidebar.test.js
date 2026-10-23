@@ -447,10 +447,14 @@ test("the ＋ popup creates a category with the next unused colour and the secre
   expect(container.querySelector(".grp-add")).not.toBeNull();
 });
 
-test("account band shows the name, the sync state and the settings gear", () => {
+test("account band: name and second line, the sync state as a dot on the photo, the settings gear", () => {
   const { container } = setup({ tasks: [], syncStatus: { ready: true, connected: true, syncing: true, pending: 2, error: null } });
   expect(container.querySelector(".foot .name").textContent).toBe("Jo");
-  expect(container.querySelector(".foot .sync").textContent).toBe("동기화 중…");
+  expect(container.querySelector(".foot .who small").textContent).toBeTruthy();
+  const dot = container.querySelector(".foot .sync-dot");
+  expect(dot).toHaveClass("syncing");
+  expect(dot).toHaveAttribute("aria-label", "동기화 중…");
+  expect(container.querySelector(".foot .av-w")).toHaveAttribute("data-tip", "동기화 중…");
   expect(screen.getByRole("button", { name: "설정" })).toHaveAttribute("data-tip", "설정");
   expect(container.querySelector("[title]")).toBeNull();
 });

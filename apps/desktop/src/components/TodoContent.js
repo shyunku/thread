@@ -685,7 +685,7 @@ const TodoContent = ({ children }) => {
 
   return (
     <ScreenContexts selection={selection} pickedDay={pickedDayValue}>
-      <div className={"todo-content no-auto-hover" + (layout.hideSide ? " has-menu" : "")}>
+      <div className={"todo-content no-auto-hover" + (view === "list" ? " is-list" : "") + (layout.hideSide ? " has-menu" : "")}>
         {/* A locked secret category shows the list's locked state in every view. */}
         {view === "list" || (locked && !searching) ? (
           <>

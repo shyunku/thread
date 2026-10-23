@@ -2,6 +2,10 @@
 // The main pane (#102 mock .pane.main): a fixed header, the scrolling list and the quick add
 // at the bottom. The calendar and timeline views draw their own header, body and quick add.
 .todo-content {
+  // The list (#103): rows get 22px inside, their boxes keep a 28px gutter, and the title,
+  // group names and quick add line up with the row text at 50px. --row-x is the inside.
+  --row-x: 14px;
+  &.is-list { --main-x: 50px; --row-x: 22px; }
   display: flex;
   flex-direction: column;
   width: 100%;

@@ -1,8 +1,8 @@
 // Quick add at the bottom of a view (#102 mock .quick, :252-261).
 .tc-quick {
   flex: none;
-  margin: 12px calc(var(--main-x) - 14px) 20px;
-  padding: 0 14px;
+  margin: 12px calc(var(--main-x) - var(--row-x, 14px)) 20px;
+  padding: 0 var(--row-x, 14px);
   border-radius: 10px;
   background: var(--surface);
   position: relative;

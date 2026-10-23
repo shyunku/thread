@@ -86,19 +86,34 @@
     margin: 0 calc(10px - var(--side-x)) -10px;
     display: flex;
     align-items: center;
-    gap: 5px;
-    height: 56px;
-    padding: 0 var(--side-x) 0 calc(var(--side-x) - 5px);
+    gap: 10px;
+    height: 60px;
+    padding: 0 var(--side-x);
     border-top: 1px solid var(--line);
     background: #0e1014;
+    // The photo carries the sync state as a dot on its corner (#103 band A); the text is its tooltip.
+    .av-w { position: relative; flex: none; display: grid; }
+    .sync-dot {
+      position: absolute;
+      right: -1px;
+      bottom: -1px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--muted);
+      box-shadow: 0 0 0 2px #0e1014;
+      &.synced { background: var(--success); }
+      &.syncing { background: var(--accent); }
+      &.error { background: var(--danger); }
+    }
     .av {
-      width: 28px;
-      height: 28px;
+      width: 32px;
+      height: 32px;
       border-radius: 50%;
       background: #2a3242;
       display: grid;
       place-items: center;
-      font-size: 12px;
+      font-size: 13px;
       color: var(--secondary);
       flex: none;
       overflow: hidden;
@@ -118,30 +133,17 @@
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text);
       }
       small {
         display: block;
         color: var(--muted);
         font-size: 11.5px;
         white-space: nowrap;
-      }
-      small i {
-        display: inline-block;
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        margin-right: 5px;
-        vertical-align: 1px;
-        background: var(--muted);
-      }
-      small.synced i {
-        background: var(--success);
-      }
-      small.syncing i {
-        background: var(--accent);
-      }
-      small.error i {
-        background: var(--danger);
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
     }
     .gear {

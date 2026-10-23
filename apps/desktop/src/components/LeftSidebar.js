@@ -98,7 +98,10 @@ const LeftSidebar = ({ setSelectedTodoMenuType, selectedTodoMenuType, mode = "fu
 
   const accountInfo = useSelector(accountInfoSlice);
   const offlineMode = accountInfo?.offlineMode ?? false;
-  const username = accountInfo?.username ?? accountInfo?.googleEmail ?? accountInfo?.uid ?? "Unknown";
+  // An account without a name shows its email as the name (#103); the line below is the email.
+  const email = accountInfo?.googleEmail || "";
+  const username = accountInfo?.username || email || accountInfo?.uid || "내 계정";
+  const accountLine = email && email !== username ? email : "나의 작업 공간";
   const profileImageUrl =
     (offlineMode ? accountInfo?.profileImageUrl : accountInfo?.googleProfileImageUrl) ?? null;
   const sync = syncLine(syncStatus, { offlineMode, localNonce, remoteNonce });
@@ -371,15 +374,15 @@ const LeftSidebar = ({ setSelectedTodoMenuType, selectedTodoMenuType, mode = "fu
         })}
       </div>
       <div className="foot">
-        <span className="av">
-          {profileImageUrl ? <img src={profileImageUrl} alt="" /> : String(username).trim().charAt(0).toUpperCase()}
+        <span className="av-w" data-tip={sync.text}>
+          <span className="av">
+            {profileImageUrl ? <img src={profileImageUrl} alt="" /> : String(username).trim().charAt(0).toUpperCase()}
+          </span>
+          <i className={"sync-dot " + sync.state} role="img" aria-label={sync.text} />
         </span>
         <span className="who">
           <span className="name">{username}</span>
-          <small className={"sync " + sync.state}>
-            <i />
-            {sync.text}
-          </small>
+          <small>{accountLine}</small>
         </span>
         <button
           type="button"

@@ -63,7 +63,7 @@ export default function useTaskCompletion(apply) {
     setTimeout(() => {
       if (!row.isConnected) return finish();
       const rect = row.getBoundingClientRect();
-      const bg = window.getComputedStyle(row).backgroundColor;
+      const style = window.getComputedStyle(row), bg = style.backgroundColor;
       const copy = row.cloneNode(true);
       copy.classList.add("fall", "main-scope");
       copy.setAttribute("aria-hidden", "true");
@@ -74,6 +74,9 @@ export default function useTaskCompletion(apply) {
         width: `${rect.width}px`,
         height: `${rect.height}px`,
         background: !bg || bg === "rgba(0, 0, 0, 0)" || bg === "transparent" ? "var(--raise)" : bg,
+        // The copy lives in body, outside the list that sets the row spacing.
+        paddingLeft: style.paddingLeft,
+        paddingRight: style.paddingRight,
       });
       document.body.appendChild(copy);
       row.style.visibility = "hidden";

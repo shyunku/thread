@@ -8,7 +8,7 @@ $accent-hover: #7aa5ff;
   align-items: flex-start;
   gap: var(--ck-gap);
   min-height: 64px;
-  padding: 12px 14px;
+  padding: 12px var(--row-x, 14px);
   box-sizing: border-box;
   cursor: pointer;
   position: relative;
@@ -156,7 +156,9 @@ $accent-hover: #7aa5ff;
     background: transparent;
     color: #4d5666;
     transition: background-color .12s, transform .08s;
-    &:hover { background: var(--raise); }
+    // The row hover is the raise colour already, so the star gets a lighter tile and a gold preview (#103).
+    &:hover { background: #2d3442; }
+    &:hover:not(.on) { color: #f2c14ecc; }
     &.on { color: var(--star); }
     &:active { transform: scale(.94); }
     @media (prefers-reduced-motion: reduce) { &:active { transform: none; } }

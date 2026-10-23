@@ -8,7 +8,7 @@
   overflow-anchor: none;
   scrollbar-width: thin;
   scrollbar-color: #2b303b transparent;
-  padding: 0 calc(var(--main-x) - 14px) 80px;
+  padding: 0 calc(var(--main-x) - var(--row-x)) 80px;
   box-sizing: border-box;
 
   // The rows style their own buttons (TaskRow.scss).
@@ -31,7 +31,7 @@
     width: 100%;
     height: 36px;
     margin-top: 20px;
-    padding: 0 14px;
+    padding: 0 var(--row-x);
     background: transparent;
     font-size: 13.5px;
     font-weight: 700;
