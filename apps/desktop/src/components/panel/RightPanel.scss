@@ -31,7 +31,7 @@ $picked: #3d6fe6;
     gap: 4px;
     height: 32px;
     flex: none;
-    margin: 20px 0 16px;
+    margin: 20px 0 12px; // + .rp-body padding-top 4px = 16px, so the detail star (1px above the title) is not clipped
     padding: 0 calc(var(--panel-x) - 8px);
   }
   .rp-tab {
@@ -67,7 +67,7 @@ $picked: #3d6fe6;
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: #2b303b transparent;
-    padding: 0 var(--panel-x) 20px;
+    padding: 4px var(--panel-x) 20px;
   }
 
   .rp-box { border-radius: 10px; background: var(--surface); }

@@ -141,7 +141,7 @@ function MemoField({ task }) {
 // time here (decided). canStar false leaves the star out (the plaintext sync and legacy paths
 // drop it).
 export default function DetailPanel({ task, catsOf, prefs, canStar = true }) {
-  const { actions, pickable } = useTaskSelection();
+  const { actions, pickable, complete } = useTaskSelection();
   const tf = prefs?.timeFormat === "24" ? "24" : "12";
   const [open, setOpen] = useState(null); // { kind: "due" | "repeat" | "cat", el }
   const due = dueMs(task.dueDate);
@@ -159,8 +159,14 @@ export default function DetailPanel({ task, catsOf, prefs, canStar = true }) {
   const close = () => setOpen(null);
   const pickerProps = open && { anchor: open.el, placement: "bottom-start", gap: 6, ignoreOutside: [open.el], returnFocus: open.el };
 
+  // Completing here runs the list row's completion (its fall animation, then the change), so the
+  // check shows the new state at once while the change is on its way.
+  const [pendingDone, setPendingDone] = useState(null);
+  useEffect(() => setPendingDone(null), [task.id, task.done]);
+  const shownDone = pendingDone ?? !!task.done;
   const setDone = () => {
-    const done = !task.done;
+    const done = !shownDone;
+    if (complete) { setPendingDone(done); complete(task, done); return; }
     actions.setDone(task.id, done, ({ success } = {}) => {
       if (success === false) Toast.error(done ? "완료하지 못했어요." : "완료를 취소하지 못했어요.");
     });
@@ -202,10 +208,10 @@ export default function DetailPanel({ task, catsOf, prefs, canStar = true }) {
       <div className="rp-dt-title">
         <button
           type="button"
-          className={"ck" + (task.done ? " done" : "")}
+          className={"ck" + (shownDone ? " done" : "")}
           role="checkbox"
-          aria-checked={!!task.done}
-          aria-label={task.done ? "완료 취소" : "할 일 완료"}
+          aria-checked={shownDone}
+          aria-label={shownDone ? "완료 취소" : "할 일 완료"}
           onClick={setDone}
         >
           <CheckIcon />

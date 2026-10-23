@@ -2,7 +2,6 @@ import Modal from "../molecules/Modal";
 import "./Settings.modal.scss";
 import {
   IoDesktopOutline,
-  IoGridOutline,
   IoInformationCircleOutline,
   IoPersonOutline,
   IoSettingsOutline,
@@ -14,18 +13,16 @@ import SettingCommon from "./settings/Common.settings";
 import SettingData from "./settings/Data.settings";
 import SettingAccount from "./settings/Account.settings";
 import SettingSystem from "./settings/System.settings";
-import SettingCustom from "./settings/Custom.settings";
 
 // Each page renders its own heading (SettingsPage) so it can add page actions.
 const SETTING_MENU = {
   GENERAL: { label: "일반", icon: <IoSettingsOutline />, page: (props) => <SettingCommon {...props} /> },
   DATA: { label: "데이터", icon: <IoShieldOutline />, page: (props) => <SettingData {...props} /> },
-  CUSTOM: { label: "사용자 맞춤", icon: <IoGridOutline />, page: (props) => <SettingCustom {...props} /> },
   SYSTEM: { label: "시스템", icon: <IoDesktopOutline />, page: (props) => <SettingSystem {...props} /> },
   ACCOUNT: { label: "계정", icon: <IoPersonOutline />, page: (props) => <SettingAccount {...props} /> },
   ABOUT: { label: "정보", icon: <IoInformationCircleOutline />, page: (props) => <SettingInfo {...props} /> },
 };
-const PREVIEW_MENU = { general: "GENERAL", data: "DATA", custom: "CUSTOM", account: "ACCOUNT", system: "SYSTEM", about: "ABOUT" };
+const PREVIEW_MENU = { general: "GENERAL", data: "DATA", account: "ACCOUNT", system: "SYSTEM", about: "ABOUT" };
 
 const SettingsModal = ({ preview = false, previewTab, previewPanel, ...props }) => {
   const [activeMenu, setActiveMenu] = useState(preview ? PREVIEW_MENU[previewTab] || "GENERAL" : "GENERAL");

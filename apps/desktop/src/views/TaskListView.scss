@@ -42,7 +42,8 @@
     .tl-c {
       min-width: 22px;
       height: 20px;
-      padding: 0 7px;
+      // 2px on top moves the digits 1px down: Oxanium numerals sit high next to the Hangul label.
+      padding: 2px 7px 0;
       display: grid;
       place-items: center;
       border-radius: 10px;

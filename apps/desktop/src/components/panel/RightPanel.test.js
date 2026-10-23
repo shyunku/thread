@@ -322,6 +322,12 @@ test("check and star; no star where it cannot be stored", () => {
   select("first");
   const title = inPanel().getByRole("textbox", { name: "할 일 제목" }).closest(".rp-dt-title");
   fireEvent.click(within(title).getByRole("checkbox", { name: "할 일 완료" }));
+  // The check shows at once; the change goes out after the list row's completion animation.
+  expect(within(title).getByRole("checkbox", { name: "완료 취소" })).toBeChecked();
+  expect(IpcSender.req.task.updateTaskDone).not.toHaveBeenCalled();
+  act(() => { jest.advanceTimersByTime(300); });
+  expect(document.querySelector(".task-row.fall")).not.toBeNull();
+  act(() => { jest.advanceTimersByTime(500); });
   expect(IpcSender.req.task.updateTaskDone).toHaveBeenCalledWith("first", true, expect.any(Number), expect.any(Function));
   fireEvent.click(within(title).getByRole("button", { name: "중요로 표시" }));
   expect(IpcSender.req.task.updateTaskImportant).toHaveBeenCalledWith("first", true, expect.any(Function));

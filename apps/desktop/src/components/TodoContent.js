@@ -510,6 +510,26 @@ const TodoContent = ({ children }) => {
     return session.unlock({ color: secretCat ? categoryColor(secretCat) : undefined });
   }, []);
 
+  // A click elsewhere in the home screen (the sidebar, the list background, empty header space)
+  // clears the selection. Rows, the panel, the quick add, popups, dialogs and the main area's
+  // controls keep it, and so does the click that only dismisses a popup or the panel drawer.
+  useEffect(() => {
+    if (!selectedTaskId) return undefined;
+    let dismissing = false;
+    const onDown = () => { dismissing = openPopupCount() > 0; };
+    const onClick = (event) => {
+      const el = event.target instanceof Element ? event.target : null;
+      if (event.button !== 0 || dismissing || !el?.isConnected || !el.closest(".home-layout")) return;
+      if (el.closest("[data-task-id], .rp, .tc-quick, .tp-pop, .tp-dialog-wrap, .home-splitter, .home-scrim")) return;
+      // In the main area its controls (view switch, view options, eye, month arrows…) keep it too.
+      if (el.closest(".todo-content") && el.closest("button, input, textarea, select, a, [role=button], [role=tab], [role=gridcell]")) return;
+      setSelectedTaskId(null);
+    };
+    document.addEventListener("mousedown", onDown, true);
+    document.addEventListener("click", onClick);
+    return () => { document.removeEventListener("mousedown", onDown, true); document.removeEventListener("click", onClick); };
+  }, [selectedTaskId, setSelectedTaskId]);
+
   // Esc clears the selection unless something above handled it (popups preventDefault their
   // Esc, a drawer closes first); Del asks to delete the selected (or focused) task when it is on
   // screen (a hidden search hit after the unlock).
@@ -549,6 +569,11 @@ const TodoContent = ({ children }) => {
       onFailed?.();
     }));
 
+  // Completion from elsewhere (the panel) animates the task's list row when it is on screen.
+  const completeTask = useCallback((task, done = true) => {
+    const rowEl = document.querySelector(`.todo-content [data-task-id="${CSS.escape(task.id)}"]`);
+    complete(task, rowEl, done);
+  }, [complete]);
   const onSelect = useCallback((task) => openTask(task.id), [openTask]);
   const onToggleStar = useCallback((task) => actions.setImportant(task.id, !task.important), [actions]);
   const onMenu = useCallback((task, point, row) => {
@@ -648,8 +673,8 @@ const TodoContent = ({ children }) => {
   const otherViewProps = { header, catsOf: rowHandlers.catsOf, renderQuickAdd, onTaskContextMenu, onOpenTask, onToggleDone: complete, searchNote };
 
   const selection = useMemo(
-    () => ({ selectedTaskId: selectedVisible ? selectedTaskId : null, setSelectedTaskId, openTask, detailRequest, selectedTask, actions, categories: categoryList, pickable }),
-    [selectedVisible, selectedTaskId, openTask, detailRequest, selectedTask, actions, categoryList, pickable]
+    () => ({ selectedTaskId: selectedVisible ? selectedTaskId : null, setSelectedTaskId, openTask, detailRequest, selectedTask, actions, complete: completeTask, categories: categoryList, pickable }),
+    [selectedVisible, selectedTaskId, openTask, detailRequest, selectedTask, actions, completeTask, categoryList, pickable]
   );
 
   // Not drawn for a task off the screen even before the effect above closes them.

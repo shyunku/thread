@@ -589,3 +589,18 @@ test("Ctrl+N with the Korean layout focuses the quick add", () => {
   fireEvent.keyDown(window, { key: "ㅜ", code: "KeyN", ctrlKey: true });
   expect(screen.getByRole("textbox", { name: "새 할 일" })).toHaveFocus();
 });
+
+test("a click elsewhere in the home screen clears the selection; rows, the panel and the quick add keep it", () => {
+  const { container } = render(<div className="home-layout">{ui()}<nav className="side-probe">사이드바</nav></div>);
+  fireEvent.click(row(container, "first"));
+  expect(selectionProbe.selectedTaskId).toBe("first");
+  fireEvent.click(container.querySelector(".tc-quick input"));
+  expect(selectionProbe.selectedTaskId).toBe("first");
+  fireEvent.click(container.querySelector(".rp") || row(container, "first"));
+  expect(selectionProbe.selectedTaskId).toBe("first");
+  fireEvent.click(container.querySelector(".side-probe"));
+  expect(selectionProbe.selectedTaskId).toBe(null);
+  fireEvent.click(row(container, "first"));
+  fireEvent.click(container.querySelector(".todo-content"));
+  expect(selectionProbe.selectedTaskId).toBe(null);
+});
