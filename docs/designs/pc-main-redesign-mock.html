@@ -364,6 +364,8 @@
   .task > .ck, .task > .st { align-self: center; margin-top: 0; }
   /* A row with no second line keeps its title in the middle. */
   .task.no-meta > .tx { align-self: center; }
+  /* Only the due line (done, or remaining time hidden): centre it on the row like the check and star. */
+  .task > .rcol.one { align-self: center; }
   .compact .task, .task.compact-row { min-height: 44px; padding: 12px 14px; }
   .compact .task .meta, .task.compact-row .meta { display: none; }
   .compact .task .t .ic-cat, .task.compact-row .t .ic-cat { display: inline-block; }
@@ -934,7 +936,7 @@ function taskRow(t, opts = {}) {
     <span class="ck ${done ? 'done' : ''}" data-check="${t.id}">${I.check}</span>
     <div class="tx"><div class="t"><i class="ic-cat" style="background:${c ? c.color : 'transparent'}"></i>${title}</div>${meta.length ? `<div class="meta">${meta.join('')}</div>` : ''}</div>
     <div class="hacts"><span>${I.cal} 날짜</span><span>${I.more}</span></div>
-    <div class="rcol">${t.due ? rightCol(t, done) : ''}</div>
+    <div class="rcol ${t.due && s.left && !done ? '' : 'one'}">${t.due ? rightCol(t, done) : ''}</div>
     <span class="st ${s.imp[t.id] ? 'on' : ''}" data-star="${t.id}" data-tip="${s.imp[t.id] ? '중요 해제' : '중요로 표시'}">${I.star(s.imp[t.id], 19)}</span>
   </div>`;
 }
