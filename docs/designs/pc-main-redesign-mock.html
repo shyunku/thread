@@ -139,6 +139,22 @@
   .mark .chg { outline: 2px dashed #edbc72; outline-offset: -2px; }
   body.shift-on .win .hot { outline: 1px dashed #9aa4b699; outline-offset: -1px; }
   body.shift-on .win [data-opts] { outline: 2px dashed #6fa0ff; outline-offset: -2px; }
+  /* 104.5: the task detail entrance. */
+  @keyframes det-up { from { opacity: 0; transform: translateY(6px); } }
+  @keyframes det-side { from { opacity: 0; transform: translateX(14px); } }
+  @keyframes det-fade { from { opacity: 0; } }
+  .pane.aside .pbody.enter-up { animation: det-up .18s cubic-bezier(.2, .8, .2, 1); }
+  .pane.aside .pbody.enter-side { animation: det-side .2s cubic-bezier(.2, .8, .2, 1); }
+  .pane.aside .pbody.enter-fade { animation: det-fade .15s ease-out; }
+  /* 104.6: a band over the bottom of the scrolling area while there is more below. */
+  .vig { position: relative; height: 0; flex: none; pointer-events: none; }
+  .vig::before { content: ""; position: absolute; left: 0; right: 10px; bottom: 0; opacity: 0; transition: opacity .15s; }
+  .vig.on::before { opacity: 1; }
+  .vig-none::before { display: none; }
+  .vig-shadow::before { height: 28px; background: linear-gradient(to top, #0000008c, transparent); }
+  .vig-fade::before { height: 40px; background: linear-gradient(to bottom, transparent, var(--canvas)); }
+  .vig-wide::before { height: 72px; background: linear-gradient(to bottom, transparent, var(--canvas)); }
+  .tl-col .vig::before { right: 0; }
   .opt-pop { position: fixed; z-index: 500; display: none; min-width: 180px; padding: 8px; border: 1px solid #3a5486; border-radius: 10px; background: #161b24f5; box-shadow: 0 12px 32px #000b; font-size: 12.5px; color: #cfd6e2; }
   .opt-pop.on { display: block; }
   .opt-pop b { display: block; margin: 0 4px 6px; font-size: 11.5px; color: #8b95a7; font-weight: 600; }
@@ -924,7 +940,7 @@ function groupsNow() {
   return [...head, ...mid, { id: 'none', name: '기한 없음', test: t => !t.due }];
 }
 
-const s = { w: 1440, view: 'list', panel: 'auto', rail: 'auto', group: 'date', density: 'normal', lockUi: 'top', lockIcon: 'pad', lockTone: 'soft', pn: '', pnStyle: 'b', pnGap: true, pad: 'now', gut: 40, stv: 'both', starHv: false, foot: 'a', jump: false, confirm: null, confirmCat: null, timeMerge: 'stack', dueFmt: 'group', remainFmt: 'normal', timeDisplay: 'remain', h24: false, weekStart: 0, weekMode: 'cal', todayShift: 0, showSettings: false, subHover: false, subEdit: false, dpBottom: 128, ctxSub: false, pickStyle: 'fill', catDrag: null, pk: null, draft: { repeat: '', cats: null }, secretIcon: 'shield', eyePos: 'head', showSecret: false, secretUnlocked: false, hello: false, helloFor: null, catMenu: null, newCat: false, catY: 300, newColor: '#4fc3d9', newSecret: false, customOpen: false, hue: 190, sat: .6, val: .85, ctxX: 380, ctxY: 300, dpDay: 0, dpTime: 1439, dpOn: false, dpAt: 'ctx', noneTop: false, left: true, state: 'selected',
+const s = { w: 1440, view: 'list', panel: 'auto', rail: 'auto', group: 'date', density: 'normal', lockUi: 'top', lockIcon: 'pad', lockTone: 'soft', detAnim: 'up', vig: 'shadow', pn: '', pnStyle: 'b', pnGap: true, pad: 'now', gut: 40, stv: 'both', starHv: false, foot: 'a', jump: false, confirm: null, confirmCat: null, timeMerge: 'stack', dueFmt: 'group', remainFmt: 'normal', timeDisplay: 'remain', h24: false, weekStart: 0, weekMode: 'cal', todayShift: 0, showSettings: false, subHover: false, subEdit: false, dpBottom: 128, ctxSub: false, pickStyle: 'fill', catDrag: null, pk: null, draft: { repeat: '', cats: null }, secretIcon: 'shield', eyePos: 'head', showSecret: false, secretUnlocked: false, hello: false, helloFor: null, catMenu: null, newCat: false, catY: 300, newColor: '#4fc3d9', newSecret: false, customOpen: false, hue: 190, sat: .6, val: .85, ctxX: 380, ctxY: 300, dpDay: 0, dpTime: 1439, dpOn: false, dpAt: 'ctx', noneTop: false, left: true, state: 'selected',
   nav: 'all', selected: 't2', picked: 0, tab: null, closed: { done: true }, viewMenu: false, drawer: false, sideOpen: false, guides: false, mark: false, fit: false,
   done: Object.fromEntries(TASKS.map(t => [t.id, !!t.done])), imp: Object.fromEntries(TASKS.map(t => [t.id, !!t.imp])) };
 const SIZES = { 1920: 1080, 1440: 960, 1180: 800, 960: 720, 760: 640 };
@@ -1122,7 +1138,7 @@ function listPane(L) {
     <div class="head ${L.hideSide ? 'has-menu' : ''}"><div class="row1">${headLeft(L)}<h1>${title}</h1>${headRight(L)}</div>
       <p class="finding">${finding}</p></div>
     <div style="height:12px"></div>
-    <div class="scroll ${s.density === 'compact' ? 'compact' : ''}">${listBody()}</div>
+    <div class="scroll ${s.density === 'compact' ? 'compact' : ''}">${listBody()}</div><div class="vig vig-${s.vig}"></div>
     ${quick ? quickAdd() : ''}
     ${s.viewMenu ? viewMenu() : ''}${s.state === 'context' ? contextMenu() : ''}${s.state === 'picker' && s.dpAt !== 'detail' ? duePicker() : ''}${s.pk && s.pk.at === 'quick' ? (s.pk.kind === 'rep' ? repeatPicker() : categoryPicker()) : ''}
   </section>`;
@@ -1254,7 +1270,7 @@ function timelinePane(L) {
     }
     if (!nowDrawn) body += `<div class="tl-now"><span>지금 ${clock(NOW)}</span></div>`;
     if (!items.length) body += `<div class="tl-empty">할 일 없음</div>`;
-    return `<div class="tl-col ${n === 0 ? 'today' : ''}"><div class="tl-head"><b>${d.getDate()}</b><span>${WD[d.getDay()]}요일</span>${n === 0 ? '<em>오늘</em>' : ''}<span class="cnt">${items.filter(open).length}</span></div><div class="tl-body">${body}</div></div>`;
+    return `<div class="tl-col ${n === 0 ? 'today' : ''}"><div class="tl-head"><b>${d.getDate()}</b><span>${WD[d.getDay()]}요일</span>${n === 0 ? '<em>오늘</em>' : ''}<span class="cnt">${items.filter(open).length}</span></div><div class="tl-body">${body}</div><div class="vig vig-${s.vig}"></div></div>`;
   };
   const over = TASKS.filter(overdue).length;
   return `<section class="pane main chg">
@@ -1347,8 +1363,8 @@ function win() {
 function notes() {
   const mode = s.w >= 1280 ? '넓은 창: 메뉴 + 목록 + 패널' : s.w >= 1000 ? '중간 창: 메뉴는 아이콘만, 패널 320px' : s.w >= 800 ? '좁은 창: 패널은 위에 겹쳐 열림' : '아주 좁은 창: 메뉴는 ☰ 버튼으로';
   return '<div class="notes"><div class="now">' + s.w + '×' + SIZES[s.w] + ' · ' + mode + '</div><p class="hint"><kbd>Shift</kbd>를 누르고 있으면 누를 수 있는 곳이 점선으로 보임. 파란 점선은 마우스를 올리면 고를 수 있는 후보가 나옴(창 크기는 왼쪽 위 이름, 업데이트 내역은 왼쪽 아래 설정 버튼).</p><h3 class="q">정할 것</h3><ul class="q">' + [
-    '<b>본문 여백</b>(Shift + 제목 줄): 위아래 · 좌우 같은 값, 목록 · 캘린더 · 타임라인 모두. 제목 · 묶음 이름 · 할 일 상자 · 캘린더 칸 · 할 일 추가가 같은 줄에 맞음. 기본 40(2.2.2의 상자 28과 제목 50 사이).',
-    '<b>풀린 잠금 색</b>(Shift + 상단바 자물쇠): 연한 파랑 / 파랑 채움.',
+    '<b>할 일 상세 나타남</b>(Shift + 오른쪽 상세): 할 일을 누를 때마다 상세가 들어오는 방식. 할 일을 바꿔 눌러 보기.',
+    '<b>스크롤 아래 비네트</b>(Shift + 목록 · 타임라인 날짜 칸): 아래에 더 있을 때만 보이고, 끝까지 내리면 사라짐. 타임라인은 날짜 칸마다 따로.',
   ].map(x => '<li>' + x + '</li>').join('') + '</ul></div>';
 }
 function toolbar() {
@@ -1380,8 +1396,8 @@ function toolbar() {
 // Choices shown on Shift + hover. at: where they sit; key: the state they set.
 const OPTS = [
   { at: '.win > .top .brand', key: 'w', title: '창 크기', items: [[1920, '1920×1080'], [1440, '1440×960'], [1180, '1180×800'], [960, '960×720'], [760, '760×640']] },
-  { at: '.pane.main .head', key: 'gut', title: '본문 여백(위아래 · 좌우 같은 값)', items: [[36, '36'], [40, '40'], [44, '44']] },
-  { at: '.top .glock', key: 'lockTone', title: '풀린 잠금 색', items: [['soft', '연한 파랑'], ['fill', '파랑 채움']] },
+  { at: '.pane.aside .pbody', key: 'detAnim', title: '할 일 상세 나타남', items: [['none', '기존(바로)'], ['up', 'A 아래에서 살짝 · 페이드'], ['side', 'B 오른쪽에서 · 페이드'], ['fade', 'C 페이드만']] },
+  { at: '.pane.main .scroll, .tl-col .tl-body', key: 'vig', title: '스크롤 아래 비네트', items: [['none', '기존(없음)'], ['shadow', 'A 안쪽 그림자'], ['fade', 'B 바탕색으로 흐려짐'], ['wide', 'C 흐려짐 넓게']] },
   { at: '.side .foot .gear', key: 'pn', title: '업데이트 내역', items: [['history', '전체 내역 열기'], ['update', '업데이트 뒤 팝업 열기'], ['', '닫기']] },
 ];
 let shiftOn = false;
@@ -1405,7 +1421,19 @@ function render() {
   render.popKey = popKey();
   const pop2 = document.querySelector('.dp, .pk'); if (pop2 && popScroll) pop2.scrollTop = popScroll;
   markHot();
+  const det = panelTab() === 'detail' ? s.selected : null, body = document.querySelector('.pane.aside .pbody');
+  if (det && det !== render.det && body && s.detAnim !== 'none') body.classList.add('enter-' + s.detAnim);
+  render.det = det;
+  updateVig();
 }
+// The vignette shows while the list (or a timeline day) has more below.
+function updateVig() {
+  document.querySelectorAll('.pane.main .scroll, .tl-col .tl-body').forEach(el => {
+    const v = el.nextElementSibling; if (!v || !v.classList.contains('vig')) return;
+    v.classList.toggle('on', el.scrollTop + el.clientHeight < el.scrollHeight - 2);
+  });
+}
+document.addEventListener('scroll', e => { if (e.target.matches?.('.scroll, .tl-body')) updateVig(); }, true);
 (() => {
   const pop = document.getElementById('optpop');
   let at = null, timer = 0;
