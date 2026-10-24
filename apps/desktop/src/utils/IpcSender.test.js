@@ -72,6 +72,7 @@ test("#102 helpers send the composed topics and report only this account's vault
   sender.req.category.deleteCategoryInUse("c1");
   sender.req.category.deleteCategoryWithTasks("c3");
   sender.req.category.updateCategoryOrder("c1", "c2", true);
+  sender.req.device.setDeviceName("d1", "회사 노트북");
   sender.vault.verifyUser();
   sender.vault.verifyUser({ method: "password", password: "synthetic" });
   expect(calls()).toEqual([
@@ -80,6 +81,7 @@ test("#102 helpers send the composed topics and report only this account's vault
     ["category/deleteCategoryInUse", "c1"],
     ["category/deleteCategoryWithTasks", "c3"],
     ["category/updateCategoryOrder", "c1", "c2", true],
+    ["device/setDeviceName", "d1", "회사 노트북"],
     ["vault/verifyUser", {}],
     ["vault/verifyUser", { method: "password", password: "synthetic" }],
   ]);

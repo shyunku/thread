@@ -6,7 +6,7 @@ import { osAuthLabel } from "./format";
 import "./StepDialog.scss";
 
 // Child dialog for multi-step data tasks, shown over the settings window.
-export default function StepDialog({ title, step = 1, total = 1, stepLabel, children, footer, onClose, closable = true }) {
+export default function StepDialog({ title, step = 1, total = 1, stepLabel, children, footer, onClose, closable = true, className = "" }) {
   const ref = useRef(null);
   useEffect(() => {
     const previous = document.activeElement;
@@ -24,7 +24,7 @@ export default function StepDialog({ title, step = 1, total = 1, stepLabel, chil
   }, [closable, onClose]);
   return (
     <div className="step-dialog__scrim">
-      <div className="step-dialog" role="dialog" aria-modal="true" aria-label={title} ref={ref}>
+      <div className={"step-dialog" + (className ? " " + className : "")} role="dialog" aria-modal="true" aria-label={title} ref={ref}>
         <header className="step-dialog__head">
           <h3>{title}</h3>
           {onClose && closable && (

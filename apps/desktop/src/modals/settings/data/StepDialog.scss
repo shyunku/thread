@@ -18,6 +18,9 @@
   box-shadow: 0 24px 70px #000a;
   color: var(--text);
 
+  // A one-field dialog (기기 이름 바꾸기, #77).
+  &--narrow { width: min(440px, calc(100% - 40px)); }
+
   &__head {
     position: relative;
     padding: 18px 56px 0 22px;

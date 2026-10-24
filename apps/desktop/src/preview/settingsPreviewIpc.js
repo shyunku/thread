@@ -2,11 +2,26 @@
 // with synthetic responses so every data-management screen can be reviewed
 // and clicked through without an account, keys, files or the main process.
 let LATENCY = 250;
-const DEVICES = [
-  { id: "d3f1a9c2-own", role: "write", own: true, addedAt: null },
-  { id: "7be04411-laptop", role: "write", own: false, addedAt: Date.now() - 8 * 86400000 },
-  { id: "c90d2e6a-phone", role: "read", own: false, addedAt: Date.now() - 5 * 86400000 },
+// Device names (#77). names=on: the 2.5.0 state, every device wrote its model and this PC may
+// rename; otherwise 2.4.0, where only this PC knows its own model.
+const shortId = (id) => id.replace(/[^a-zA-Z0-9]/g, "").slice(0, 4).toUpperCase();
+const DEVICE_LIST = [
+  { id: "4d6be81f-own", role: "write", own: true, addedAt: null, model: "Windows PC" },
+  { id: "7be0a1c2-laptop", role: "write", own: false, addedAt: Date.now() - 30 * 86400000, model: "Windows PC" },
+  { id: "c90d5b37-phone", role: "write", own: false, addedAt: Date.now() - 27 * 86400000, model: "Galaxy S24" },
+  { id: "2a910dd4-tablet", role: "read", own: false, addedAt: Date.now() - 22 * 86400000, model: "Galaxy S24" },
 ];
+const names = new Map();
+function devicesFor(namesOn) {
+  const list = DEVICE_LIST.map((device) => {
+    const model = namesOn || device.own ? device.model : null;
+    return { ...device, model, name: names.get(device.id) || model, shortId: shortId(device.id), canRename: namesOn };
+  });
+  const counts = new Map();
+  for (const device of list) if (device.name) counts.set(device.name, (counts.get(device.name) || 0) + 1);
+  return list.map((device) => ({ ...device, showId: !device.name || counts.get(device.name) > 1 }));
+}
+let DEVICES = () => devicesFor(false);
 const FINGERPRINT = "4f1c9a7be2d03c58a1f6e9b07d24c3e8a5b19f6d0c7e2a4b8f3d1e6c9a0b5d72";
 const RECOVERY_CODE = "THREAD1-F52B8Q4M-7KXN2PVA-9HD3RT6W-JC8LZ5YE-M2QF7BNU-4VXK9RGD-T6WA3HPC-8NYE5JZL";
 
@@ -18,7 +33,7 @@ function phaseFlow(confirmedPhase = "ACTIVE") {
   let phase = null;
   return (action, _input, callback) => {
     if (action === "status") return reply(callback, { phase });
-    if (action === "devices") return reply(callback, DEVICES);
+    if (action === "devices") return reply(callback, DEVICES());
     if (action === "prepare") { phase = "RECOVERY_UNCONFIRMED"; return reply(callback, { phase }); }
     if (action === "code") return reply(callback, RECOVERY_CODE);
     if (action === "export") return reply(callback, true);
@@ -87,8 +102,15 @@ function pairingFlow() {
   };
 }
 
-export function installSettingsPreviewIpc(IpcSender, { recovery = "confirmed", latency = 250 } = {}) {
+export function installSettingsPreviewIpc(IpcSender, { recovery = "confirmed", latency = 250, deviceNames = false } = {}) {
   LATENCY = latency;
+  DEVICES = () => devicesFor(deviceNames);
+  IpcSender.req = { ...(IpcSender.req || {}), device: { setDeviceName: (id, name, cb) => {
+    if (!deviceNames) return reply(cb, { code: "DEVICE_NAMES_DISABLED" }, false);
+    const value = String(name || "").trim();
+    if (value) names.set(id, value); else names.delete(id);
+    return reply(cb, null);
+  } } };
   let identity = { phase: recovery === "confirmed" ? "RECOVERY_CONFIRMED" : "RECOVERY_UNCONFIRMED", fingerprint: FINGERPRINT };
   IpcSender.syncV2 = { ...(IpcSender.syncV2 || {}), retry: (cb) => reply(cb, { ready: true }) };
   // No Electron bridge in the browser preview: event subscriptions are no-ops.

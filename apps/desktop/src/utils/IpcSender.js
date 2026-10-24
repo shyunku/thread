@@ -448,6 +448,12 @@ const IpcSender = {
         sender("tasks_categories/getTasksCategoriesList", callback);
       },
     },
+    // Device names (#77), E2EE only. Main refuses it while name writing is off.
+    device: {
+      setDeviceName: (deviceId, name, callback) => {
+        sender("device/setDeviceName", callback, deviceId, name);
+      },
+    },
   },
   test: {
     signal: (param) => {

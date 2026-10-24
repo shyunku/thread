@@ -5,6 +5,7 @@ import AddDeviceDialog from "./AddDeviceDialog";
 import FileAddDeviceDialog from "./FileAddDeviceDialog";
 import BackupDialog from "./BackupDialog";
 import RecoverySetupDialog from "./RecoverySetupDialog";
+import DeviceNameDialog from "./DeviceNameDialog";
 
 jest.mock("../../../utils/IpcSender", () => ({ syncV2: { retry: jest.fn() } }));
 jest.mock("../../../utils/pairingQrImage", () => ({ readPairingImage: jest.fn() }));
@@ -54,7 +55,7 @@ test("removing a device rotates keys: prepare with the device, save, confirm, co
   // The typed code is cleared from the field as soon as it is sent.
   expect(codeInput.value).toBe("");
   expect(changed).toHaveBeenCalled();
-  expect(await screen.findByText(/다른 기기 · 7BE0을 해제했어요/)).toBeInTheDocument();
+  expect(await screen.findByText(/다른 기기 · 7BE0을\(를\) 해제했어요/)).toBeInTheDocument();
   expect(await screen.findByText(/다시 보호하고 있어요/)).toBeInTheDocument();
   expect(calls).toContainEqual(["reencryption", "start", { confirmed: true }]);
 });
@@ -184,4 +185,31 @@ test("step dialogs can be closed with the X button unless busy", async () => {
   await act(async () => { render(<AddDeviceDialog vaultCode={"a".repeat(64)} osAvailable onClose={onClose} />); });
   await click("닫기");
   expect(onClose).toHaveBeenCalled();
+});
+
+test("removing a named device uses its name in the steps (#77)", () => {
+  IpcSender.vault = { rotation: group("rotation", {}), reencryption: group("reencryption", {}) };
+  render(<KeyChangeDialog mode="remove" device={{ id: "7be04411", name: "회사 노트북", shortId: "7BE0", showId: false }} osAvailable onClose={jest.fn()} onChanged={jest.fn()} />);
+  expect(screen.getByText(/1\/4 · 회사 노트북$/)).toBeInTheDocument();
+});
+
+test("renaming a device whose model is unknown: no empty name, and the name goes to main as typed", async () => {
+  const saved = [], onSaved = jest.fn(), onClose = jest.fn();
+  IpcSender.req = { device: { setDeviceName: jest.fn((id, name, cb) => { saved.push([id, name]); cb({ success: true }); }) } };
+  render(<DeviceNameDialog device={{ id: "pc-2", name: null, model: null }} onClose={onClose} onSaved={onSaved} />);
+  const field = screen.getByRole("textbox", { name: "기기 이름" });
+  expect(field).toHaveFocus();
+  expect(screen.getByText("연결된 모든 기기에서 같은 이름으로 보여요.")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "저장" })).toBeDisabled();
+  fireEvent.change(field, { target: { value: "   " } });
+  fireEvent.keyDown(field, { key: "Enter" });
+  expect(saved).toEqual([]);
+  fireEvent.change(field, { target: { value: "집 데스크톱" } });
+  // Enter while composing Korean finishes the syllable instead.
+  fireEvent.keyDown(field, { key: "Enter", keyCode: 229 });
+  expect(saved).toEqual([]);
+  await act(async () => { fireEvent.keyDown(field, { key: "Enter" }); });
+  expect(saved).toEqual([["pc-2", "집 데스크톱"]]);
+  expect(onSaved).toHaveBeenCalledWith("집 데스크톱");
+  delete IpcSender.req;
 });

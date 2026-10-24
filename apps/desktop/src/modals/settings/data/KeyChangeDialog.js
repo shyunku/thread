@@ -3,7 +3,8 @@ import IpcSender from "../../../utils/IpcSender";
 import { SettingsButton, SettingsCard, SettingsRow, CheckCard } from "../SettingsUI";
 import StepDialog, { AuthAction, Callout, Code } from "./StepDialog";
 import { vaultAction } from "./vaultIpc";
-import { shortDeviceId } from "./format";
+import { deviceLabel } from "./format";
+import { objectParticle } from "../../../molecules/pickers/deleteConfirm";
 
 const FAILED = "처리하지 못했어요. 연결과 본인 확인을 확인한 뒤 다시 시도해 주세요. 기존 데이터와 복구 키는 그대로예요.";
 const PENDING = ["RECOVERY_UNCONFIRMED", "RECOVERY_CONFIRMED", "COMMITTING"];
@@ -137,7 +138,7 @@ export default function KeyChangeDialog({ mode = "renew", device = null, osAvail
   );
 
   return (
-    <StepDialog title={title} step={step} total={4} stepLabel={removing && step === 1 ? `다른 기기 · ${shortDeviceId(device.id)}` : steps[step]}
+    <StepDialog title={title} step={step} total={4} stepLabel={removing && step === 1 ? deviceLabel(device) : steps[step]}
       footer={footer} onClose={onClose} closable={!busy}>
       {step === 1 && (
         <>
@@ -189,7 +190,7 @@ export default function KeyChangeDialog({ mode = "renew", device = null, osAvail
       )}
       {step === 4 && (
         <>
-          <p className="ok">✓ {removing ? `다른 기기 · ${shortDeviceId(device.id)}을 해제했어요.` : "새 복구 키로 바꿨어요."}</p>
+          <p className="ok">✓ {removing ? `${deviceLabel(device)}${objectParticle(deviceLabel(device))} 해제했어요.` : "새 복구 키로 바꿨어요."}</p>
           {!reencryption ? <p>기존 데이터를 새 열쇠로 다시 보호할 준비를 하고 있어요…</p>
             : reencryption.phase === "DONE" ? <p>기존 데이터도 새 열쇠로 다시 보호했어요.</p>
             : reencryption.phase === "START_FAILED" || reencryption.phase === "PAUSED" ? (

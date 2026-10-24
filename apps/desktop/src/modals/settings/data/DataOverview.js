@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { IoCubeOutline, IoDesktopOutline, IoKeyOutline } from "react-icons/io5";
+import { IoCubeOutline, IoDesktopOutline, IoKeyOutline, IoPhonePortraitOutline } from "react-icons/io5";
 import { Badge, SettingsButton, SettingsCard, SettingsRow, SettingsSection, Skeleton } from "../SettingsUI";
 import { Callout } from "./StepDialog";
 import { vaultAction, vaultCall } from "./vaultIpc";
-import { shortDate, shortDeviceId } from "./format";
+import { deviceName, deviceShortId, shortDate, withShownIds } from "./format";
 import AddDeviceDialog from "./AddDeviceDialog";
+import DeviceMenu from "./DeviceMenu";
+import DeviceNameDialog from "./DeviceNameDialog";
 import KeyChangeDialog from "./KeyChangeDialog";
 import BackupDialog from "./BackupDialog";
 import RecoverySetupDialog from "./RecoverySetupDialog";
@@ -13,6 +15,8 @@ import LegacyReviewDialog from "./LegacyReviewDialog";
 const ROTATION_PENDING = ["RECOVERY_UNCONFIRMED", "RECOVERY_CONFIRMED", "COMMITTING"];
 const REENCRYPTION_ACTIVE = ["READY", "WAITING", "PAUSED"];
 const softly = (promise) => promise.catch(() => undefined);
+// A device that reported a phone model (#77) gets the phone icon; PCs and unknown ones the PC icon.
+const isPhone = (device) => !!device.model && !["Windows PC", "Mac"].includes(device.model);
 // Last loaded values per account: revisiting the tab shows them at once and refreshes behind.
 const overviewCache = new Map();
 
@@ -48,12 +52,11 @@ export default function DataOverview({ uid, vault, ready = true, sync, initialDi
     setReencryption(reencryptionStatus ?? null);
     setLastBackup(backup ?? null);
     setIntakes(pending || []);
-    if (id?.phase === "RECOVERY_CONFIRMED") {
-      try {
-        const list = await vaultAction("rotation", "devices");
-        if (live.current) setDevices(list);
-      } catch { if (live.current) setDevices(null); }
-    } else setDevices(null);
+    // Every connected PC lists the devices (#77); only the owner adds or removes them.
+    try {
+      const list = await vaultAction("rotation", "devices");
+      if (live.current) setDevices(list);
+    } catch { if (live.current) setDevices(null); }
   }, []);
   useEffect(() => { if (ready) void load(); }, [load, uid, ready]);
   useEffect(() => {
@@ -84,7 +87,7 @@ export default function DataOverview({ uid, vault, ready = true, sync, initialDi
     : identity.phase === "RECOVERY_CONFIRMED" ? { value: "✓ 보관됨", tone: "success", sub: "확인 완료" }
     : { value: "⚠ 확인 필요", tone: "warning", sub: "모든 기기를 잃으면 되찾을 수 없어요", action: ["지금 설정", () => setDialog({ type: "recovery" })] };
   const devicesCell = devices === undefined ? loading
-    : devices === null ? { value: "—", sub: owner ? "목록을 불러오지 못했어요" : "처음 만든 기기에서 볼 수 있어요" }
+    : devices === null ? { value: "—", sub: "목록을 불러오지 못했어요" }
     : { value: `${devices.length}대`, sub: "이 PC 포함" };
   const backupCell = lastBackup === undefined ? loading
     : lastBackup ? { value: shortDate(lastBackup.at), sub: `${lastBackup.count}개 항목` }
@@ -125,10 +128,9 @@ export default function DataOverview({ uid, vault, ready = true, sync, initialDi
 
       <SettingsSection title="동기화">{sync}</SettingsSection>
 
-      {(owner || identity === undefined) && (
-        <SettingsSection title="연결된 기기"
-          action={<SettingsButton onClick={() => setDialog({ type: "add" })}>+ 새 기기 추가</SettingsButton>}>
-          <SettingsCard>
+      <SettingsSection title="연결된 기기"
+          action={(owner || identity === undefined) ? <SettingsButton onClick={() => setDialog({ type: "add" })}>+ 새 기기 추가</SettingsButton> : undefined}>
+          <SettingsCard className="device-list">
             {devices === undefined && [0, 1].map((index) => (
               <SettingsRow key={index} icon={<IoDesktopOutline />} label={<Skeleton width={120} />} description={<Skeleton width={160} height={12} />} />
             ))}
@@ -137,17 +139,24 @@ export default function DataOverview({ uid, vault, ready = true, sync, initialDi
                 <SettingsButton onClick={() => void load()}>다시 시도</SettingsButton>
               </SettingsRow>
             )}
-            {devices?.map((device) => (
-              <SettingsRow key={device.id} icon={<IoDesktopOutline />}
-                label={device.own ? "이 PC" : `다른 기기 · ${shortDeviceId(device.id)}`}
-                description={[device.role === "read" ? "보기만 가능" : "편집 가능", device.own ? "현재 사용 중" : device.addedAt ? `${shortDate(device.addedAt)} 연결` : null].filter(Boolean).join(" · ")}>
-                {device.own ? <Badge>이 기기</Badge>
-                  : <SettingsButton variant="danger" onClick={() => setDialog({ type: "key", mode: "remove", device })}>해제</SettingsButton>}
-              </SettingsRow>
-            ))}
+            {devices?.map((device) => {
+              // Names (#77): the short id follows a name that repeats or a device without one.
+              // Renaming (the ⋯ menu) only when this PC may write names; removal stays with the owner.
+              const remove = owner && !device.own ? () => setDialog({ type: "key", mode: "remove", device }) : null;
+              return (
+                <SettingsRow key={device.id} className="device-row" icon={isPhone(device) ? <IoPhonePortraitOutline /> : <IoDesktopOutline />}
+                  label={<span className="device-name"><span className="device-name__text">{deviceName(device)}</span>
+                    {(device.showId ?? !device.name) && <span className="device-name__id">{deviceShortId(device)}</span>}</span>}
+                  description={[device.role === "read" ? "보기만 가능" : "편집 가능", device.own ? "현재 사용 중" : device.addedAt ? `${shortDate(device.addedAt)} 연결` : null].filter(Boolean).join(" · ")}>
+                  {device.own && <Badge>이 기기</Badge>}
+                  {device.canRename
+                    ? <DeviceMenu label={deviceName(device)} onRename={() => setDialog({ type: "name", device })} onRemove={remove || undefined} />
+                    : remove && <SettingsButton variant="danger" onClick={remove}>해제</SettingsButton>}
+                </SettingsRow>
+              );
+            })}
           </SettingsCard>
-        </SettingsSection>
-      )}
+      </SettingsSection>
 
       <SettingsSection title="백업과 복구">
         <SettingsCard>
@@ -175,7 +184,9 @@ export default function DataOverview({ uid, vault, ready = true, sync, initialDi
 
       {dialog?.type === "add" && <AddDeviceDialog vaultCode={identity?.fingerprint} osAvailable={osAvailable} onClose={close} onChanged={load} />}
       {dialog?.type === "key" && <KeyChangeDialog mode={dialog.mode} device={dialog.device} resumePhase={dialog.resume} osAvailable={osAvailable} onClose={close} onChanged={load} />}
-      {dialog?.type === "backup" && <BackupDialog osAvailable={osAvailable} onClose={close} onChanged={load} />}
+      {dialog?.type === "name" && <DeviceNameDialog device={dialog.device} onClose={close}
+        onSaved={(name) => { setDevices((list) => list && withShownIds(list.map((item) => item.id === dialog.device.id ? { ...item, name } : item))); close(); }} />}
+      {dialog?.type === "backup" &&<BackupDialog osAvailable={osAvailable} onClose={close} onChanged={load} />}
       {dialog?.type === "recovery" && <RecoverySetupDialog onClose={close} onChanged={load} />}
       {dialog?.type === "legacy" && <LegacyReviewDialog uid={uid} generation={vault?.generation} intakes={intakes} onClose={() => { close(); void load(); }} />}
     </div>

@@ -42,7 +42,8 @@ const previewPanel = previewParams.get("panel");
 if (settingsPreview) {
   // Dev-only synthetic IPC; this branch is removed from production builds.
   require("./preview/settingsPreviewIpc").installSettingsPreviewIpc(
-    require("./utils/IpcSender").default, { recovery: previewParams.get("recovery") || "confirmed", latency: Number(previewParams.get("latency")) || 250 });
+    require("./utils/IpcSender").default, { recovery: previewParams.get("recovery") || "confirmed", latency: Number(previewParams.get("latency")) || 250,
+      deviceNames: previewParams.get("names") === "on" });
 }
 // Dev-only main window with synthetic tasks, used for website screenshots.
 const appPreview = process.env.NODE_ENV === "development" &&

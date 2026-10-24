@@ -65,6 +65,81 @@
   }
 }
 
+// Connected devices (#77, mock frame ③): the name, then the short id small when it is shown.
+.device-name {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  max-width: 100%;
+  min-width: 0;
+
+  &__text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  &__id { flex: 0 0 auto; color: var(--muted); font-size: 11.5px; font-weight: 500; letter-spacing: .04em; }
+}
+
+.device-menu {
+  position: relative;
+
+  &__more {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: none;
+    color: var(--secondary);
+    font-size: 18px;
+    cursor: pointer;
+
+    &:hover, &--on { background: var(--hover); color: var(--text); }
+    &:focus-visible { outline: 2px solid #83aaff; outline-offset: 1px; }
+  }
+
+  &__list {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    z-index: 5;
+    min-width: 168px;
+    padding: 5px;
+    border: 1px solid #323a48;
+    border-radius: 10px;
+    background: #1b2029;
+    box-shadow: 0 12px 32px #0009;
+
+    button {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      height: 32px;
+      padding: 0 10px;
+      border: 0;
+      border-radius: 7px;
+      background: none;
+      color: var(--text);
+      font: inherit;
+      font-size: 13px;
+      text-align: left;
+      cursor: pointer;
+
+      svg { width: 15px; height: 15px; flex: 0 0 15px; color: var(--secondary); }
+      &:hover, &:focus-visible { background: var(--hover); outline: none; }
+    }
+  }
+
+  &__list &__danger, &__list &__danger svg { color: var(--danger); }
+}
+
+.step-dialog .device-name-dialog {
+  &__input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px #6294ff2e; outline: none; }
+  &__help { margin: 8px 0 0; color: var(--muted); font-size: 12.5px; }
+  &__error { margin: 6px 0 0; color: #f3afb5; font-size: 12.5px; }
+  &__actions { display: flex; gap: 8px; }
+}
+
 // Sync status (confirmed variant E): 8px bar, 3px gap, outer 4px / inner 2px corners.
 .sync-status {
   --pending: #f0a65e;
