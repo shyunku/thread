@@ -122,6 +122,7 @@
   body { word-break: keep-all; overflow-wrap: break-word; margin: 0; background: var(--page); color: var(--ui-text); font: 14px/1.5 Pretendard, "Malgun Gothic", "Segoe UI", sans-serif; }
   button, input { font: inherit; color: inherit; }
   svg { display: block; flex: none; }
+  .toolbar:empty { display: none; }
   .toolbar { position: sticky; top: 0; z-index: 100; display: flex; flex-direction: column; gap: 6px; padding: 10px 16px; background: #0b0d10f2; border-bottom: 1px solid var(--ui-border); }
   .toolbar .line { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
   .toolbar strong { margin-right: 4px; font-size: 12px; color: var(--ui-muted); min-width: 60px; font-weight: 600; }
@@ -136,6 +137,16 @@
   .notes .q { color: #edbc72; } .notes .new { color: #70d5a0; }
   .notes .now { padding: 8px 10px; border-radius: 8px; background: #161b24; color: #cfd6e2; margin-bottom: 10px; }
   .mark .chg { outline: 2px dashed #edbc72; outline-offset: -2px; }
+  body.shift-on .win .hot { outline: 1px dashed #9aa4b699; outline-offset: -1px; }
+  body.shift-on .win [data-opts] { outline: 2px dashed #6fa0ff; outline-offset: -2px; }
+  .opt-pop { position: fixed; z-index: 500; display: none; min-width: 180px; padding: 8px; border: 1px solid #3a5486; border-radius: 10px; background: #161b24f5; box-shadow: 0 12px 32px #000b; font-size: 12.5px; color: #cfd6e2; }
+  .opt-pop.on { display: block; }
+  .opt-pop b { display: block; margin: 0 4px 6px; font-size: 11.5px; color: #8b95a7; font-weight: 600; }
+  .opt-pop button { display: block; width: 100%; margin: 2px 0; padding: 6px 10px; border: 0; border-radius: 7px; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+  .opt-pop button:hover { background: #232a37; }
+  .opt-pop button.on { background: #253858; color: #fff; }
+  .notes .hint { margin: 0 0 10px; color: #8b95a7; font-size: 12.5px; }
+  .notes .hint kbd { padding: 1px 5px; border: 1px solid #3a4252; border-radius: 4px; font: inherit; font-size: 11.5px; color: #cfd6e2; }
 
   /* ---------- Window ---------- */
   /* App font (user decision): Oxanium for Latin and digits, Noto Sans KR for Korean. */
@@ -237,10 +248,11 @@
      the title row sits --ttl-in further in on both sides. */
   .win.gx .head { padding: var(--vpad) calc(var(--box-x) + var(--ttl-in)) 0; }
   .win.gx .jump-pop { left: calc(var(--box-x) + var(--ttl-in) - 8px); }
-  .win.gx .scroll { padding: 0 var(--box-x) 80px; }
-  .win.gx .scroll .task, .win.gx .scroll .sec { padding-left: var(--row-in); padding-right: var(--row-in); }
+  .win.gx .scroll { padding: 0 calc(var(--box-x) - 10px) 80px var(--box-x); scrollbar-gutter: stable; } /* the thin scrollbar takes 10px of the right gutter */
+  .win.gx .scroll .task { padding-left: var(--row-in); padding-right: var(--row-in); }
+  .win.gx .scroll .sec { padding-left: 0; padding-right: var(--row-in); }
   .win.gx .scroll .task + .task::before { left: calc(var(--row-in) + var(--ck) + var(--ck-gap)); right: var(--row-in); }
-  .win.gx .scroll .search-sum { margin-left: var(--row-in); }
+  .win.gx .scroll .search-sum { margin-left: 0; }
   .win.gx .quick { margin: 12px var(--q-x) var(--vpad); padding: 0 var(--q-in); }
   .win.gx .cal, .win.gx .tl { padding: 16px var(--box-x) 0; }
   /* Star hover candidates (#103): the row hover already uses the raise colour, so its background alone does not show. */
@@ -597,8 +609,10 @@
   .eye-top-wrap .ghost { width: 28px; min-width: 28px; height: 28px; }
   .top .glock { color: var(--muted); }
   .top .glock:hover { background: var(--raise); color: var(--text); }
-  .top .glock.on { color: #e57ad6; background: #e57ad61f; }
-  .top .glock.on:hover { background: #e57ad633; }
+  .top .glock.on { color: #7da8ff; background: #6294ff24; }
+  .top .glock.on:hover { background: #6294ff3d; }
+  .top .glock.on.tone-fill { color: #fff; background: var(--accent); }
+  .top .glock.on.tone-fill:hover { background: #4a7cf0; }
   .grp .eye-side { width: 22px; min-width: 22px; height: 22px; margin-left: auto; border-radius: 6px; color: var(--muted); }
   .grp .eye-side + span { margin-left: 6px; }
   .grp .eye-side svg { width: 14px; height: 14px; }
@@ -731,6 +745,7 @@
 <div class="toolbar" id="toolbar"></div>
 <div class="stage" id="stage"></div>
 <div class="tip" id="tip" role="tooltip"></div>
+<div class="opt-pop" id="optpop"></div>
 <script>
 const P = 'fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"';
 // Secret-category icon: the shield (user decision); the other candidates stay for reference.
@@ -909,7 +924,7 @@ function groupsNow() {
   return [...head, ...mid, { id: 'none', name: '기한 없음', test: t => !t.due }];
 }
 
-const s = { w: 1440, view: 'list', panel: 'auto', rail: 'auto', group: 'date', density: 'normal', lockUi: 'top', lockIcon: 'pad', pn: '', pnStyle: 'now', pnGap: true, pad: 'now', gut: 40, vpad: 28, ttl: 'in', stv: 'both', starHv: false, foot: 'a', jump: false, confirm: null, confirmCat: null, timeMerge: 'stack', dueFmt: 'group', remainFmt: 'normal', timeDisplay: 'remain', h24: false, weekStart: 0, weekMode: 'cal', todayShift: 0, showSettings: false, subHover: false, subEdit: false, dpBottom: 128, ctxSub: false, pickStyle: 'fill', catDrag: null, pk: null, draft: { repeat: '', cats: null }, secretIcon: 'shield', eyePos: 'head', showSecret: false, secretUnlocked: false, hello: false, helloFor: null, catMenu: null, newCat: false, catY: 300, newColor: '#4fc3d9', newSecret: false, customOpen: false, hue: 190, sat: .6, val: .85, ctxX: 380, ctxY: 300, dpDay: 0, dpTime: 1439, dpOn: false, dpAt: 'ctx', noneTop: false, left: true, state: 'selected',
+const s = { w: 1440, view: 'list', panel: 'auto', rail: 'auto', group: 'date', density: 'normal', lockUi: 'top', lockIcon: 'pad', lockTone: 'soft', pn: '', pnStyle: 'b', pnGap: true, pad: 'now', gut: 40, stv: 'both', starHv: false, foot: 'a', jump: false, confirm: null, confirmCat: null, timeMerge: 'stack', dueFmt: 'group', remainFmt: 'normal', timeDisplay: 'remain', h24: false, weekStart: 0, weekMode: 'cal', todayShift: 0, showSettings: false, subHover: false, subEdit: false, dpBottom: 128, ctxSub: false, pickStyle: 'fill', catDrag: null, pk: null, draft: { repeat: '', cats: null }, secretIcon: 'shield', eyePos: 'head', showSecret: false, secretUnlocked: false, hello: false, helloFor: null, catMenu: null, newCat: false, catY: 300, newColor: '#4fc3d9', newSecret: false, customOpen: false, hue: 190, sat: .6, val: .85, ctxX: 380, ctxY: 300, dpDay: 0, dpTime: 1439, dpOn: false, dpAt: 'ctx', noneTop: false, left: true, state: 'selected',
   nav: 'all', selected: 't2', picked: 0, tab: null, closed: { done: true }, viewMenu: false, drawer: false, sideOpen: false, guides: false, mark: false, fit: false,
   done: Object.fromEntries(TASKS.map(t => [t.id, !!t.done])), imp: Object.fromEntries(TASKS.map(t => [t.id, !!t.imp])) };
 const SIZES = { 1920: 1080, 1440: 960, 1180: 800, 960: 720, 760: 640 };
@@ -1082,7 +1097,7 @@ const LOCK_ICONS = {
   key: ['자물쇠 + 열쇠 구멍', '<rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><path d="M12 14.5v2.5"/>', '<rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 7.7-1.5"/><path d="M12 14.5v2.5"/>'],
 };
 const lockSvg = open => '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + LOCK_ICONS[s.lockIcon][open ? 2 : 1] + '</svg>';
-const lockBtn = () => '<span class="ghost sq glock ' + (s.showSecret ? 'on' : '') + '" data-eye="1" data-tip="' + (s.showSecret ? '비밀 카테고리 잠그기' : '비밀 카테고리 잠금 풀기') + '">' + lockSvg(s.showSecret) + '</span>';
+const lockBtn = () => '<span class="ghost sq glock tone-' + s.lockTone + ' ' + (s.showSecret ? 'on' : '') + '" data-eye="1" data-tip="' + (s.showSecret ? '비밀 카테고리 잠그기' : '비밀 카테고리 잠금 풀기') + '">' + lockSvg(s.showSecret) + '</span>';
 const eyeBtn = (where = 'head') => s.lockUi === 'top' ? (where === 'top' ? lockBtn() : '') : (where === 'head' ? !cat(s.nav) && s.state !== 'search' : true) && s.eyePos === where ? '<span class="ghost sq eye-' + where + ' ' + (s.showSecret ? 'on' : '') + '" data-eye="1" data-tip="' + (s.showSecret ? '비밀 카테고리 숨기기' : '비밀 카테고리 보기') + '">' + (s.showSecret ? eyeOn : eyeOff) + '</span>' : '';
 const headRight = L => `<span class="push"></span>${viewSeg()}<span class="ghost sq ${s.viewMenu ? 'on' : ''}" data-viewmenu="1" data-tip="보기 옵션">${I.sliders}</span>${eyeBtn()}` +
   (L.overlayPanel && s.panel !== 'off' ? `<span class="ghost sq" data-drawer="1" data-tip="패널 열기">${I.panel}</span>` : '');
@@ -1307,11 +1322,11 @@ function guides(L) {
   const xs = [L.hideSide || L.rail ? null : 20, mainL + 32, mainL + 64, mainR - 32, panelW ? mainR + 1 + 20 : null, panelW ? mainR + 1 + 32 : null, panelW ? s.w - 2 - 20 : null].filter(x => x != null);
   return xs.map(x => `<i class="guide" style="left:${x}px"></i>`).join('');
 }
-// Main pane gutters. now: 2.2.2 as built, which differs per view.
+// Main pane gutters (#104): one value on all four sides, the same in every view. The title, the group names and the
+// box edges share the left line; the rows keep 22 inside.
 function gutters() {
   const list = s.view === 'list';
-  if (s.gut === 'now') return { box: list ? 28 : 32, ttl: list ? 22 : 0, v: 20, qx: list ? 28 : 18, qin: list ? 22 : 14, row: 22 };
-  return { box: s.gut, ttl: s.ttl === 'in' ? 22 : 0, v: s.vpad, qx: s.gut, qin: 22, row: 22 };
+  return { box: s.gut, ttl: 0, v: s.gut, qx: s.gut, qin: 22, row: 22 };
 }
 function win() {
   const L = layout(), H = SIZES[s.w];
@@ -1331,13 +1346,13 @@ function win() {
 
 function notes() {
   const mode = s.w >= 1280 ? '넓은 창: 메뉴 + 목록 + 패널' : s.w >= 1000 ? '중간 창: 메뉴는 아이콘만, 패널 320px' : s.w >= 800 ? '좁은 창: 패널은 위에 겹쳐 열림' : '아주 좁은 창: 메뉴는 ☰ 버튼으로';
-  return '<div class="notes"><div class="now">' + s.w + '×' + SIZES[s.w] + ' · ' + mode + '</div><h3 class="q">정할 것</h3><ul class="q">' + [
-    '<b>비밀 카테고리 잠금</b>(툴바 "비밀 잠금" · "잠금 아이콘"): 상단바 검색 오른쪽 아이콘 하나로 잠금/풀기. 잠기면 왼쪽 메뉴의 비밀 카테고리도 숨기고, 풀면 비밀 카테고리와 그 할 일이 모든 화면에 보임(머리글 눈은 없앰). 풀 때만 Hello/보관함 비밀번호, 잠글 때는 바로. 보관함 잠금과는 별개. 아이콘 고르기.',
-    '<b>본문 여백</b>(툴바 "본문 여백" · "위아래" · "제목"): 목록 · 캘린더 · 타임라인이 같은 값을 씀. 좌우는 할 일 상자 · 캘린더 칸 · 타임라인 줄 · 할 일 추가의 끝, 위아래는 제목 위와 할 일 추가 아래. 할 일 줄 안쪽은 22 그대로. 제목을 할 일 글자 줄에 맞출지(지금 목록) 상자 끝에 맞출지(지금 캘린더 · 타임라인).',
-    '<b>업데이트 내역 글자</b>(툴바 "업데이트 내역"): 항목 글자 굵기 · 색 후보, 버전 줄과 요약 사이 +2px.',
+  return '<div class="notes"><div class="now">' + s.w + '×' + SIZES[s.w] + ' · ' + mode + '</div><p class="hint"><kbd>Shift</kbd>를 누르고 있으면 누를 수 있는 곳이 점선으로 보임. 파란 점선은 마우스를 올리면 고를 수 있는 후보가 나옴(창 크기는 왼쪽 위 이름, 업데이트 내역은 왼쪽 아래 설정 버튼).</p><h3 class="q">정할 것</h3><ul class="q">' + [
+    '<b>본문 여백</b>(Shift + 제목 줄): 위아래 · 좌우 같은 값, 목록 · 캘린더 · 타임라인 모두. 제목 · 묶음 이름 · 할 일 상자 · 캘린더 칸 · 할 일 추가가 같은 줄에 맞음. 기본 40(2.2.2의 상자 28과 제목 50 사이).',
+    '<b>풀린 잠금 색</b>(Shift + 상단바 자물쇠): 연한 파랑 / 파랑 채움.',
   ].map(x => '<li>' + x + '</li>').join('') + '</ul></div>';
 }
 function toolbar() {
+  return '';
   const b = (k, v, l) => `<button class="${s[k] === v ? 'on' : ''}" data-set="${k}:${v}">${l}</button>`;
   return `<div class="line"><strong>창 크기</strong>${b('w', 1920, '1920×1080')}${b('w', 1440, '1440×960')}${b('w', 1180, '1180×800')}${b('w', 960, '960×720')}${b('w', 760, '760×640')}<span class="sep"></span>
       <strong>가운데</strong>${b('view', 'list', '목록')}${b('view', 'calendar', '캘린더')}${b('view', 'timeline', '타임라인')}</div>
@@ -1362,6 +1377,20 @@ function toolbar() {
       <strong>기한 없음</strong>${b('noneTop', false, '맨 아래')}${b('noneTop', true, '맨 위')}<span class="sep"></span><strong>줄</strong>${b('density', 'normal', '보통')}${b('density', 'compact', '촘촘')}<span class="sep"></span>
       <strong>표시</strong>${b('guides', true, '정렬선')}${b('guides', false, '끔')}<span class="sep"></span>${b('mark', true, '바뀌는 부분')}${b('mark', false, '끔')}<span class="sep"></span>${b('fit', false, '실제 크기')}${b('fit', true, '맞춤(70%)')}</div>`;
 }
+// Choices shown on Shift + hover. at: where they sit; key: the state they set.
+const OPTS = [
+  { at: '.win > .top .brand', key: 'w', title: '창 크기', items: [[1920, '1920×1080'], [1440, '1440×960'], [1180, '1180×800'], [960, '960×720'], [760, '760×640']] },
+  { at: '.pane.main .head', key: 'gut', title: '본문 여백(위아래 · 좌우 같은 값)', items: [[36, '36'], [40, '40'], [44, '44']] },
+  { at: '.top .glock', key: 'lockTone', title: '풀린 잠금 색', items: [['soft', '연한 파랑'], ['fill', '파랑 채움']] },
+  { at: '.side .foot .gear', key: 'pn', title: '업데이트 내역', items: [['history', '전체 내역 열기'], ['update', '업데이트 뒤 팝업 열기'], ['', '닫기']] },
+];
+let shiftOn = false;
+function markHot() {
+  document.querySelectorAll('.win .hot').forEach(el => el.classList.remove('hot'));
+  OPTS.forEach((o, i) => document.querySelectorAll(o.at).forEach(el => { el.dataset.opts = i; }));
+  if (!shiftOn) return;
+  document.querySelectorAll('.win *').forEach(el => { if (!el.dataset.opts && getComputedStyle(el).cursor === 'pointer' && getComputedStyle(el.parentElement).cursor !== 'pointer') el.classList.add('hot'); });
+}
 function render() {
   const keep = {}, popKey = () => s.state === 'picker' ? 'dp:' + s.dpAt : s.pk ? 'pk:' + s.pk.kind + s.pk.at : '';
   const pop = document.querySelector('.dp, .pk'), popScroll = pop && popKey() === render.popKey ? pop.scrollTop : 0;
@@ -1375,7 +1404,38 @@ function render() {
   fitPopups();
   render.popKey = popKey();
   const pop2 = document.querySelector('.dp, .pk'); if (pop2 && popScroll) pop2.scrollTop = popScroll;
+  markHot();
 }
+(() => {
+  const pop = document.getElementById('optpop');
+  let at = null, timer = 0;
+  const hide = () => { pop.classList.remove('on'); at = null; };
+  const show = el => {
+    const o = OPTS[+el.dataset.opts]; at = el;
+    pop.innerHTML = '<b>' + o.title + '</b>' + o.items.map(([v, l]) => '<button class="' + (s[o.key] === v ? 'on' : '') + '" data-v="' + v + '">' + l + '</button>').join('');
+    const r = el.getBoundingClientRect(); pop.classList.add('on');
+    const w = pop.offsetWidth, h = pop.offsetHeight;
+    pop.style.left = Math.max(8, Math.min(innerWidth - w - 8, r.left)) + 'px';
+    pop.style.top = (r.bottom + h + 8 < innerHeight ? r.bottom + 4 : Math.max(8, r.top - h - 4)) + 'px';
+  };
+  const setShift = on => { if (shiftOn === on) return; shiftOn = on; document.body.classList.toggle('shift-on', on); markHot(); };
+  document.addEventListener('keydown', e => { if (e.key === 'Shift') setShift(true); });
+  document.addEventListener('keyup', e => { if (e.key === 'Shift') setShift(false); });
+  window.addEventListener('blur', () => setShift(false));
+  document.addEventListener('mousemove', e => {
+    if (pop.contains(e.target)) { clearTimeout(timer); return; }
+    const el = e.shiftKey ? e.target.closest('.win [data-opts]') : null;
+    if (el) { clearTimeout(timer); if (el !== at) show(el); return; }
+    if (at && !at.contains(e.target)) { clearTimeout(timer); timer = setTimeout(hide, 300); }
+  });
+  pop.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b || !at) return;
+    e.stopPropagation();
+    const o = OPTS[+at.dataset.opts], raw = b.dataset.v, v = typeof o.items[0][0] === 'number' ? +raw : raw;
+    s[o.key] = v; if (o.key === 'w') { s.drawer = false; s.sideOpen = false; }
+    hide(); render();
+  });
+})();
 // Keep floating menus and pickers inside the app window (8px margin): move them, and scroll inside if still too tall.
 function fitPopups() {
   const w = document.querySelector('.win'); if (!w) return;
