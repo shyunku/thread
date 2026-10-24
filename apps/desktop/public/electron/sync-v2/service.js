@@ -337,8 +337,8 @@ class SyncV2Service {
       return true;
     }
     // The plaintext v2 server rejects unknown fields; the star (#97) and the
-    // category order (sort_rank on categories, #102) are E2EE-only.
-    if (["task/updateTaskImportant", "category/updateCategoryOrder"].includes(topic)) {
+    // category order (sort_rank on categories, #102) and device names (#77) are E2EE-only.
+    if (["task/updateTaskImportant", "category/updateCategoryOrder", "device/setDeviceName", "device/setDeviceModel"].includes(topic)) {
       ipc.sender(topic, reqId, false, { syncV2Ack: true, code: "UNSUPPORTED_V2_ACTION" });
       return true;
     }

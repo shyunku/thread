@@ -120,4 +120,24 @@ function publish(service,entry,{force=false}={}){
  });
  service.group?.ipcService.sender("sync-v2/status",null,true,statusOf(entry,status));
 }
-module.exports={intercept,publish,publishStatus};
+// Device names (#77, written from 2.5.0): once per session, after a sync, a write PC adds its
+// model as its own name when the vault has none for it. Returns true when a change was queued.
+function ensureOwnName(service,entry){
+ if(entry.ownNameChecked||!require("@thread/e2ee/src/model/deviceNames").writable())return false;
+ if(service.active!==entry||!entry.applicationActive||entry.migrationActive||!entry.sync)return false;
+ entry.ownNameChecked=true;
+ const {ownNameMutation}=require("@thread/e2ee/src/model/deviceNames"),{pcModel}=require("./rotationWorkspace");
+ const engine=entry.sync.engine,deviceId=engine.deviceId,role=engine.history.current.devices.get(deviceId)?.role;
+ try{
+  const queued=entry.controller.use(store=>{
+   const {EncryptedReplica}=require("./replica"),meta=store.get("confirmed","$sync-state");
+   if(!meta)return null;
+   const adapter=new ApplicationAdapter(new EncryptedReplica(store,meta.scope,{initialize:false}));
+   const next=ownNameMutation(adapter.lists().deviceNames,{deviceId,role,model:pcModel()});
+   return next?adapter.mutate(...next):null;
+  });
+  if(queued)publish(service,entry);
+  return !!queued;
+ }catch{return false;}
+}
+module.exports={intercept,publish,publishStatus,ensureOwnName};

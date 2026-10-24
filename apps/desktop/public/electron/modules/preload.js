@@ -94,6 +94,7 @@ const REQUEST_TOPICS = Object.freeze([
   "category/getCategoryTasks",
   "category/updateCategoryColor",
   "category/updateCategoryOrder",
+  "device/setDeviceName",
   "tasks_categories/getTasksCategoriesList",
   "sync-v2/getStatus",
   "sync-v2/retry",

@@ -1,5 +1,6 @@
 const { v4: randomUUID } = require("../uuid");
 const { compareRank } = require("./optimistic");
+const deviceNames = require("./deviceNames");
 const mutationTopics = new Set([
   "task/addTask",
   "task/deleteTask",
@@ -22,6 +23,9 @@ const mutationTopics = new Set([
   "category/updateCategoryTitle",
   "category/updateCategoryColor",
   "category/updateCategoryOrder",
+  // Device names (#77); refused while deviceNames.flags.DEVICE_NAMES_WRITE is off.
+  "device/setDeviceName",
+  "device/setDeviceModel",
 ]);
 // Renderer-facing actions made of several mutation topics. They are applied together
 // (one transaction and one outbox entry on E2EE), so a sync cannot split them.
@@ -174,6 +178,28 @@ function command(topic, args, view) {
     // User-defined sidebar order (#102): fields.sort_rank, like the task move.
     case "category/updateCategoryOrder":
       return { ...make("category", a, "move"), anchorId: b, after: c };
+    // Device names (#77): one row per device id, created on the first write and patched
+    // after (never deleted, so never recreated). An empty name goes back to the model the
+    // device wrote for itself.
+    case "device/setDeviceName": {
+      deviceNames.requireWritable();
+      const id = deviceNames.requireDeviceId(a),
+        row = findRow(view, "deviceName", id);
+      const typed = typeof b === "string" ? b.trim() : b;
+      const name = deviceNames.requireName(
+        typed === "" ? deviceNames.cleanName(row?.fields.model) ?? "" : typed
+      );
+      return make("deviceName", id, row ? "patch" : "create", { name });
+    }
+    // A device's own model (its default name), written by that device once (2.5.0).
+    case "device/setDeviceModel": {
+      deviceNames.requireWritable();
+      const id = deviceNames.requireDeviceId(a),
+        row = findRow(view, "deviceName", id),
+        model = deviceNames.requireName(b);
+      if (row) return make("deviceName", id, "patch", { model });
+      return make("deviceName", id, "create", { name: model, model });
+    }
     default:
       throw Error("UNSUPPORTED_V2_ACTION");
   }
@@ -305,6 +331,8 @@ function entityLists(view) {
     relations: rows
       .filter((c) => c.entityType === "taskCategory" && c.fields.present)
       .map((c) => ({ tid: c.parentId, cid: c.entityId })),
+    // [{deviceId, name, model}] for every readable name row, members or not (#77).
+    deviceNames: deviceNames.namesFromRows(rows),
   };
 }
 module.exports = {command, expand, entityLists, mutationTopics, compositeTopics};

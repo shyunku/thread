@@ -206,6 +206,8 @@ class VaultWorkspaceService{
     keyGeneration:entry.sync.engine.history.current.keyGeneration,head:entry.sync.engine.history.current.head,cursor:status.cursor}));
    require("./reencryption").advance(entry.sync.replica);
    require("./applicationRouting").publish(this,entry);
+   // The own device name (#77) goes out with the next sync, right after this one.
+   if(require("./applicationRouting").ensureOwnName(this,entry))setTimeout(()=>void this.syncEncrypted().catch(()=>{}),0);
    return {phase:"ACTIVE",...status,...entry.sync.replica.status(),epoch:entry.sync.epoch};
   }catch(error){
    entry.connected=false;entry.syncing=false;

@@ -1450,10 +1450,11 @@ module.exports = function (s) {
   );
 
   // Encrypted-model actions (#102): the category order (sort_rank), duplicating a task
-  // and deleting a category in use or with its tasks. The E2EE routing in register() handles them
-  // first; the legacy transaction chain has no field or batch for them.
+  // and deleting a category in use or with its tasks, and device names (#77). The E2EE routing in
+  // register() handles them first; the legacy transaction chain has no field or batch for them.
   for (const topic of [
     "category/updateCategoryOrder",
+    "device/setDeviceName",
     "task/duplicateTask",
     "category/deleteCategoryInUse",
     "category/deleteCategoryWithTasks",

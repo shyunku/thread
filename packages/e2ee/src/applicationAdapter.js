@@ -4,9 +4,15 @@ const {optimistic,identity}=require("./model/optimistic");
 const {prepareSchedule,completeRecurring}=require("./recurrence");
 const {bucketRows}=require("./bucketCache");
 const clean=value=>JSON.parse(JSON.stringify(value));
-// Row types this version knows. A newer app may add others (#77: device names); those are left
-// as they are, unread and never rewritten, instead of stopping every list.
-const KNOWN_TYPES=["task","category","subtask","taskCategory"];
+// Row types this version knows. A newer app may add others; those are left as they are,
+// unread and never rewritten, instead of stopping every list.
+const KNOWN_TYPES=["task","category","subtask","taskCategory","deviceName"];
+// A device name row's id is the device id, so two devices can each create one for the same
+// device before they sync (#77). The newer write is read; the other stays, unread.
+const newerName=(a,b)=>{
+ const x=Number(a.row.fields.updated_at)||0,y=Number(b.row.fields.updated_at)||0;
+ return x!==y?x>y:a.object.objectId>b.object.objectId;
+};
 const unknownType=row=>!!row&&typeof row.entityType==="string"&&!KNOWN_TYPES.includes(row.entityType)&&typeof row.entityId==="string"&&!!row.fields;
 class ApplicationAdapter{
  constructor(replica,{now=()=>Date.now()}={}){this.replica=replica;this.now=now;}
@@ -23,8 +29,12 @@ class ApplicationAdapter{
    const row=value.fields[0].value;
    if(unknownType(row))continue;
    if(!row||!KNOWN_TYPES.includes(row.entityType)||typeof row.entityId!=="string"||!row.fields)throw Error("INVALID_APPLICATION_OBJECT");
-   const key=identity(row);if(objects.has(key))throw Error("CANONICAL_ID_COLLISION");
-   objects.set(key,{object:value,row:{...row,version:value.version}});
+   const key=identity(row),item={object:value,row:{...row,version:value.version}};
+   if(objects.has(key)){
+    if(row.entityType!=="deviceName")throw Error("CANONICAL_ID_COLLISION");
+    if(!newerName(item,objects.get(key)))continue;
+   }
+   objects.set(key,item);
   }
   return objects;
  }
