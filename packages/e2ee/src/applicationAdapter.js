@@ -4,6 +4,10 @@ const {optimistic,identity}=require("./model/optimistic");
 const {prepareSchedule,completeRecurring}=require("./recurrence");
 const {bucketRows}=require("./bucketCache");
 const clean=value=>JSON.parse(JSON.stringify(value));
+// Row types this version knows. A newer app may add others (#77: device names); those are left
+// as they are, unread and never rewritten, instead of stopping every list.
+const KNOWN_TYPES=["task","category","subtask","taskCategory"];
+const unknownType=row=>!!row&&typeof row.entityType==="string"&&!KNOWN_TYPES.includes(row.entityType)&&typeof row.entityId==="string"&&!!row.fields;
 class ApplicationAdapter{
  constructor(replica,{now=()=>Date.now()}={}){this.replica=replica;this.now=now;}
  // Visible objects come from the store's decoded-bucket cache: after the first read only
@@ -17,7 +21,8 @@ class ApplicationAdapter{
    if(value.deleted)continue;
    if(value.fields?.length!==1||value.fields[0].slot!==0)throw Error("UNSUPPORTED_APPLICATION_OBJECT");
    const row=value.fields[0].value;
-   if(!row||!["task","category","subtask","taskCategory"].includes(row.entityType)||typeof row.entityId!=="string"||!row.fields)throw Error("INVALID_APPLICATION_OBJECT");
+   if(unknownType(row))continue;
+   if(!row||!KNOWN_TYPES.includes(row.entityType)||typeof row.entityId!=="string"||!row.fields)throw Error("INVALID_APPLICATION_OBJECT");
    const key=identity(row);if(objects.has(key))throw Error("CANONICAL_ID_COLLISION");
    objects.set(key,{object:value,row:{...row,version:value.version}});
   }

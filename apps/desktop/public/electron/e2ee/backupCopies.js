@@ -21,6 +21,8 @@ function restoreCopies(replica,source,backupId){
   for(const {value} of objects.values()){
    if(value.deleted)continue;
    const row=value.fields?.length===1&&value.fields[0].slot===0?value.fields[0].value:null;
+   // Rows of a type this version does not know (a newer app's, #77) are not copied.
+   if(row&&typeof row.entityType==="string"&&!["task","category","subtask","taskCategory"].includes(row.entityType)&&typeof row.entityId==="string"&&row.fields)continue;
    if(!row||!["task","category","subtask","taskCategory"].includes(row.entityType)||!row.fields||typeof row.entityId!=="string")throw Error("UNSUPPORTED_BACKUP_OBJECT");
    const key=identity(row);if(seen.has(key))throw Error("BACKUP_ENTITY_COLLISION");seen.add(key);rows.push(row);
   }
