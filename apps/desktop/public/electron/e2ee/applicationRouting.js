@@ -110,6 +110,8 @@ function publish(service,entry,{force=false}={}){
  });
  if(next){
   service.group?.ipcService.sender("sync-v2/state",null,true,{uid:entry.uid,...next.lists});
+  // Due reminders (#91) follow the lists while the vault is open.
+  service.group?.remindersService?.update(next.lists);
   entry.published={store:next.store,revision:next.revision};
  }
  const status=entry.controller.use(store=>{

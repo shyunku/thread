@@ -13,7 +13,7 @@ class VaultWorkspaceService{
    notify:data=>{const w=this.group.windowService.mainWindow;if(w&&!w.isDestroyed())w.webContents.send("vault/status",null,{success:true,data});}};
  }
  reset(){
-  this.generation++;const old=this.active;this.active=null;
+  this.generation++;this.group?.remindersService?.lock();const old=this.active;this.active=null;
   try{old?.unwatch?.();}finally{old?.controller.dispose();}
  }
  context(){
@@ -25,7 +25,7 @@ class VaultWorkspaceService{
    const vault=new LocalVault({baseDirectory:d.baseDirectory,scope,protector:d.protector});
    const entry={uid,vault,unlocked:false,abort:new AbortController()};
    entry.controller=createVaultController({vault,osAuth:d.osAuth,getWindow:d.getWindow,powerMonitor:d.powerMonitor,
-    clearRenderer:()=>{entry.unlocked=false;entry.abort.abort();entry.sync?.close();entry.sync=null;entry.connected=false;clearInterval(entry.poller);entry.poller=null;entry.events=null;entry.published=null;
+    clearRenderer:()=>{entry.unlocked=false;this.group?.remindersService?.lock();entry.abort.abort();entry.sync?.close();entry.sync=null;entry.connected=false;clearInterval(entry.poller);entry.poller=null;entry.events=null;entry.published=null;
      if(entry.applicationActive&&d.getAccount()===uid){
       this.group?.ipcService.sender("sync-v2/state",null,true,{uid,tasks:[],categories:[],subtasks:[],relations:[]});
       this.group?.ipcService.sender("sync-v2/status",null,true,{uid,ready:false,connected:false,error:"VAULT_LOCKED",pending:null});

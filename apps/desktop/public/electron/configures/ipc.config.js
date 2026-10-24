@@ -155,10 +155,18 @@ module.exports = function (s) {
       if ("autoStart" in patch && process.env.NODE_ENV === "production")
         app.setLoginItemSettings({ openAtLogin: next.autoStart });
       if ("betaUpdates" in patch) void s.releaseAlertService.check();
+      if ("reminders" in patch) s.remindersService?.settingsChanged();
       s.sender("settings/set", reqId, true, settingsView());
     } catch {
       s.sender("settings/set", reqId, false, null);
     }
+  });
+
+  // Due reminders (#91): the renderer's clock format for the notification text.
+  s.register("reminder/time-format", (event, reqId, value) => {
+    if (event.sender !== s.windowService.mainWindow?.webContents) return s.sender("reminder/time-format", reqId, false, null);
+    s.remindersService?.setTimeFormat(value);
+    s.sender("reminder/time-format", reqId, true, null);
   });
 
   // Patch notes shown after an update (#99): the last shown version. Main window only.
