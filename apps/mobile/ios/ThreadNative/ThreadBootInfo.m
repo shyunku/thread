@@ -1,4 +1,5 @@
 #import <React/RCTBridgeModule.h>
+#import <UIKit/UIKit.h>
 #include <sys/sysctl.h>
 
 // Identifies the current device boot so the vault asks for authentication again
@@ -26,6 +27,12 @@ RCT_EXPORT_BLOCKING_SYNCHRONOUS_METHOD(getBootId)
   }
   // Rounded to a minute like the Android fallback.
   return [NSString stringWithFormat:@"time:%ld", (long)(boottime.tv_sec / 60)];
+}
+
+// The default device name (#77): the model ("iPhone"), never the user-set device name.
+RCT_EXPORT_BLOCKING_SYNCHRONOUS_METHOD(getModel)
+{
+  return [[UIDevice currentDevice] model];
 }
 
 @end

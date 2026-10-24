@@ -9,23 +9,27 @@ import {
 } from 'lucide-react-native';
 import { useApp } from '@/app/AppContext';
 import { copySecret, saveRecoveryFile } from '@/core/files';
-import { Body, Button, IconButton, Sheet } from '@/ui/kit';
+import { Body, Button, Field, IconButton, Sheet } from '@/ui/kit';
 import { messageFor } from '@/ui/messages';
 import { useTheme } from '@/ui/theme';
+import type { Device } from '@/core/sync/syncService';
 import { Group, Item } from './SettingsScreen';
 import { useNow } from './parts';
 
-type Device = ReturnType<AccountDevices>[number];
-type AccountDevices = () => {
-  id: string;
-  role: string;
-  canAuthorizeDevices: boolean;
-  self: boolean;
-  addedAt: number | null;
-}[];
+const { shortDeviceId, MAX_LENGTH } = require('@thread/e2ee/src/model/deviceNames');
 
-export const deviceLabel = (id: string) =>
-  `다른 기기 · ${id.slice(0, 4)}…${id.slice(-4)}`;
+// "회사 노트북", "Galaxy S24 · C90D" when two names are the same, "다른 기기 · 7BE0" when
+// the device has no name yet (#77).
+export const deviceLabel = (device: {
+  id: string;
+  name?: string | null;
+  shortId?: string;
+  showId?: boolean;
+}) => {
+  const short = device.shortId ?? shortDeviceId(device.id);
+  if (!device.name) return `다른 기기 · ${short}`;
+  return device.showId ? `${device.name} · ${short}` : device.name;
+};
 const roleLabel = (device: Device) =>
   device.canAuthorizeDevices
     ? '보기·편집 · 기기 승인'
@@ -38,13 +42,31 @@ const addedLabel = (time: number | null) =>
     : `${new Date(time).getMonth() + 1}월 ${new Date(time).getDate()}일 연결`;
 
 export default function DataSettingsScreen() {
-  const { account, sync } = useApp();
+  const { account, sync, model, mutate } = useApp();
   const navigation = useNavigation<any>();
   const theme = useTheme();
   const now = useNow();
   const [note, setNote] = useState('');
   const [syncing, setSyncing] = useState(false);
   const [selected, setSelected] = useState<Device | null>(null);
+  const [draft, setDraft] = useState('');
+  const [renameError, setRenameError] = useState('');
+  const select = (device: Device | null) => {
+    setSelected(device);
+    setDraft(device?.name ?? '');
+    setRenameError('');
+  };
+  const saveName = () => {
+    if (!selected) return;
+    // Unchanged: nothing to write.
+    if ((draft.trim() || selected.model) === selected.name) return select(null);
+    try {
+      mutate('device/setDeviceName', [selected.id, draft]);
+      select(null);
+    } catch (error) {
+      setRenameError(messageFor(error));
+    }
+  };
   const [pendingChange, setPendingChange] = useState<string | null>(null);
   useFocusEffect(
     useCallback(() => {
@@ -72,7 +94,7 @@ export default function DataSettingsScreen() {
   );
   // Removing devices and replacing the recovery key need the vault's owner keys.
   const canChangeKeys = owner?.phase === 'RECOVERY_CONFIRMED';
-  const devices = account.sync.devices();
+  const devices = account.sync.devices(model?.deviceNames);
   const inspection = account.vault.inspect();
   const pending = sync?.pending ?? 0;
   const synced =
@@ -221,8 +243,9 @@ export default function DataSettingsScreen() {
           {devices.map((device, index) => (
             <Pressable
               key={device.id}
-              disabled={device.self}
-              onPress={() => setSelected(device)}
+              accessibilityRole="button"
+              disabled={device.self && !device.canRename}
+              onPress={() => select(device)}
               style={({ pressed }) => ({
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -241,17 +264,29 @@ export default function DataSettingsScreen() {
               )}
               <View style={{ flex: 1 }}>
                 <Text style={{ color: theme.text, fontSize: 15 }}>
-                  {device.self ? '이 휴대폰' : deviceLabel(device.id)}
+                  {device.name ?? '다른 기기'}
+                  {device.showId && (
+                    <Text style={{ color: theme.muted, fontSize: 11.5 }}>
+                      {'  '}
+                      {device.shortId}
+                    </Text>
+                  )}
                 </Text>
                 <Text style={{ color: theme.muted, fontSize: 12 }}>
                   {device.self
-                    ? canChangeKeys
-                      ? '처음 만든 기기'
-                      : '연결된 기기'
-                    : addedLabel(device.addedAt) ?? roleLabel(device)}
+                    ? `이 휴대폰 · ${
+                        canChangeKeys ? '처음 만든 기기' : '연결된 기기'
+                      }`
+                    : addedLabel(device.addedAt)
+                    ? `${addedLabel(device.addedAt)}${
+                        device.role === 'read' ? ' · 보기만' : ''
+                      }`
+                    : roleLabel(device)}
                 </Text>
               </View>
-              {!device.self && <ChevronRight color={theme.muted} size={16} />}
+              {(!device.self || device.canRename) && (
+                <ChevronRight color={theme.muted} size={16} />
+              )}
             </Pressable>
           ))}
         </Group>
@@ -323,40 +358,105 @@ export default function DataSettingsScreen() {
       {selected && (
         <Sheet
           visible
-          onClose={() => setSelected(null)}
-          title={deviceLabel(selected.id)}
+          onClose={() => select(null)}
+          title={deviceLabel(selected)}
         >
+          {selected.canRename && (
+            <>
+              <Text
+                style={{
+                  color: theme.secondary,
+                  fontSize: 12.5,
+                  fontWeight: '600',
+                  marginHorizontal: 20,
+                  marginBottom: 6,
+                }}
+              >
+                이름
+              </Text>
+              <Field
+                accessibilityLabel="기기 이름"
+                value={draft}
+                onChangeText={setDraft}
+                placeholder={selected.model ?? undefined}
+                maxLength={MAX_LENGTH}
+                autoCorrect={false}
+                returnKeyType="done"
+                onSubmitEditing={saveName}
+                style={{ marginBottom: 6 }}
+              />
+              <Body
+                muted
+                small
+                style={{ marginHorizontal: 20, marginBottom: 10 }}
+              >
+                {selected.model
+                  ? `비워 두면 모델 이름(${selected.model})으로 보여요. `
+                  : ''}
+                연결된 모든 기기에서 같은 이름으로 보여요.
+              </Body>
+              {!!renameError && (
+                <Text
+                  style={{
+                    color: theme.danger,
+                    fontSize: 12,
+                    marginHorizontal: 20,
+                    marginBottom: 8,
+                  }}
+                >
+                  {renameError}
+                </Text>
+              )}
+              <Button
+                kind="primary"
+                label="이름 저장"
+                disabled={!draft.trim() && !selected.model}
+                onPress={saveName}
+              />
+            </>
+          )}
           <Item
             title="연결"
             value={
-              addedLabel(selected.addedAt)?.replace(' 연결', '') ?? '알 수 없음'
+              selected.self
+                ? '이 휴대폰'
+                : addedLabel(selected.addedAt)?.replace(' 연결', '') ??
+                  '알 수 없음'
             }
           />
           <Item title="권한" value={roleLabel(selected)} last />
-          <Body
-            muted
-            small
-            style={{ marginHorizontal: 20, marginTop: 10, marginBottom: 12 }}
-          >
-            {canChangeKeys
-              ? '잃어버렸거나 더 안 쓰는 기기면 해제하세요. 해제하면 새 복구 키를 만들고 데이터를 새 키로 다시 잠가요.'
-              : '기기 해제와 복구 키 변경은 처음 만든 기기에서만 할 수 있어요.'}
-          </Body>
-          {canChangeKeys && (
+          {!selected.self && (
+            <Body
+              muted
+              small
+              style={{ marginHorizontal: 20, marginTop: 10, marginBottom: 12 }}
+            >
+              {canChangeKeys
+                ? '잃어버렸거나 더 안 쓰는 기기면 해제하세요. 해제하면 새 복구 키를 만들고 데이터를 새 키로 다시 잠가요.'
+                : '기기 해제와 복구 키 변경은 처음 만든 기기에서만 할 수 있어요.'}
+            </Body>
+          )}
+          {!selected.self && canChangeKeys && (
             <Button
               kind="danger"
               label={pendingChange ? '진행 중인 키 변경이 있어요' : '기기 해제'}
               disabled={!!pendingChange}
               onPress={() => {
                 const device = selected;
-                setSelected(null);
+                select(null);
                 navigation.navigate('KeyChange', {
-                  device: { id: device.id, addedAt: device.addedAt },
+                  device: {
+                    id: device.id,
+                    addedAt: device.addedAt,
+                    name: device.name,
+                    shortId: device.shortId,
+                    showId: device.showId,
+                  },
                 });
               }}
             />
           )}
-          <Button kind="ghost" label="닫기" onPress={() => setSelected(null)} />
+          <Button kind="ghost" label="닫기" onPress={() => select(null)} />
         </Sheet>
       )}
     </View>

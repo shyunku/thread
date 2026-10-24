@@ -1,5 +1,6 @@
 package kr.threadapp.mobile
 
+import android.os.Build
 import android.os.SystemClock
 import android.provider.Settings
 import com.facebook.react.bridge.ReactApplicationContext
@@ -19,4 +20,8 @@ class BootInfoModule(context: ReactApplicationContext) : ReactContextBaseJavaMod
     val bootMinute = (System.currentTimeMillis() - SystemClock.elapsedRealtime()) / 60000
     return "time:$bootMinute"
   }
+
+  // The default device name (#77): the model, never the user-set device name.
+  @ReactMethod(isBlockingSynchronousMethod = true)
+  fun getModel(): String = Build.MODEL ?: ""
 }

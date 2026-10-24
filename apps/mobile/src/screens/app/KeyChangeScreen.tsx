@@ -34,8 +34,13 @@ export default function KeyChangeScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const theme = useTheme();
-  const removing: { id: string; addedAt: number | null } | null =
-    route.params?.device ?? null;
+  const removing: {
+    id: string;
+    addedAt: number | null;
+    name?: string | null;
+    shortId?: string;
+    showId?: boolean;
+  } | null = route.params?.device ?? null;
   const [step, setStep] = useState(1);
   const [consent, setConsent] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -193,7 +198,7 @@ export default function KeyChangeScreen() {
         {removing && (
           <Card>
             <Text style={{ color: theme.text, fontWeight: '600' }}>
-              {deviceLabel(removing.id)}
+              {deviceLabel(removing)}
             </Text>
             {removing.addedAt != null && (
               <Body muted small>

@@ -20,6 +20,8 @@ const MESSAGES: Record<string, string> = {
   INVALID_VAULT_PASSWORD: '비밀번호는 12자 이상이어야 해요.',
   INVALID_PASSWORD_OR_DAMAGED_KEY: '비밀번호가 맞지 않아요.',
   PASSWORD_NOT_SET: '비밀번호를 설정하지 않았어요.',
+  DEVICE_NAME_INVALID: '이름은 1~40자로 정해주세요(줄바꿈 등 특수 문자 제외).',
+  DEVICE_NAMES_DISABLED: '기기 이름은 아직 바꿀 수 없어요.',
   RECOVERY_CODE_CHECKSUM: '복구 코드를 다시 확인해주세요.',
   RECOVERY_CONTENT_MISMATCH: '이 복구 파일은 지금 계정의 것이 아니에요.',
   INVALID_RECOVERY_FILE: '복구 파일(.trec)을 열 수 없어요.',

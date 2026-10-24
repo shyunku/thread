@@ -38,6 +38,13 @@ export type Lists = {
   subtasks: any[];
   categories: any[];
   relations: { tid: string; cid: string }[];
+  // Device names (#77), every readable name row; the device list keeps current members.
+  deviceNames?: DeviceName[];
+};
+export type DeviceName = {
+  deviceId: string;
+  name: string;
+  model: string | null;
 };
 
 export type Scope =
@@ -117,6 +124,7 @@ export function buildModel(lists: Lists) {
     tasks,
     categories,
     categoryMap: new Map(categories.map(c => [c.cid, c])),
+    deviceNames: lists.deviceNames ?? [],
   };
 }
 export type Model = ReturnType<typeof buildModel>;

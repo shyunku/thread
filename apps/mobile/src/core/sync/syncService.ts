@@ -1,5 +1,10 @@
 import type { VaultSession } from '@/core/vault/session';
 import { VaultActivity, type Transport } from '@/core/workspace/workspace';
+import { deviceModel as nativeModel } from '@/core/device';
+import type { DeviceName } from '@/core/model/view';
+
+const { ApplicationAdapter } = require('@thread/e2ee/src/applicationAdapter');
+const names = require('@thread/e2ee/src/model/deviceNames');
 
 const { openSyncSession } = require('@thread/e2ee/src/syncSession');
 const reencryption = require('@thread/e2ee/src/reencryption');
@@ -7,6 +12,20 @@ const {
   startSyncEvents,
   syncScheduler,
 } = require('@thread/e2ee/src/syncEvents');
+
+// A membership device as the data screen shows it (#77: name, short id, renaming).
+export type Device = {
+  id: string;
+  role: string;
+  canAuthorizeDevices: boolean;
+  self: boolean;
+  addedAt: number | null;
+  name: string | null;
+  model: string | null;
+  shortId: string;
+  showId: boolean;
+  canRename: boolean;
+};
 
 export type SyncStatus = {
   phase:
@@ -54,20 +73,25 @@ export class SyncService {
   #poller: ReturnType<typeof setInterval> | null = null;
   #events: { done: Promise<void> } | null = null;
   #eventsAbort: AbortController | null = null;
+  #deviceModel: () => string;
+  #ownNameChecked = false;
   readonly requestSync: () => void;
 
   constructor({
     session,
     transport,
     activity = new VaultActivity(),
+    deviceModel = nativeModel,
   }: {
     session: VaultSession;
     transport: () => Transport;
     activity?: VaultActivity;
+    deviceModel?: () => string;
   }) {
     this.#session = session;
     this.#transport = transport;
     this.#activity = activity;
+    this.#deviceModel = deviceModel;
     // Coalesces bursts of triggers into one run; retries while another vault action runs.
     this.requestSync = syncScheduler(() => this.syncNow());
   }
@@ -173,6 +197,8 @@ export class SyncService {
         lastSyncedAt: Date.now(),
         error: null,
       });
+      // The own device name (#77) goes out with another sync right after this one.
+      if (this.#ensureOwnName()) setTimeout(() => this.requestSync(), 0);
       return this.#status;
     } catch (error: any) {
       const message = error?.message ?? 'SYNC_UNAVAILABLE';
@@ -241,7 +267,31 @@ export class SyncService {
     this.#abort = new AbortController();
     this.#sync?.close();
     this.#sync = null;
+    this.#ownNameChecked = false;
     this.#set({ phase: 'LOCKED', connected: false, syncing: false });
+  }
+
+  // Device names (#77, written from 2.5.0): once per session, after a sync, a write phone
+  // adds its model as its own name when the vault has none for it. True when queued.
+  #ensureOwnName(): boolean {
+    if (this.#ownNameChecked || !names.writable() || !this.#sync) return false;
+    this.#ownNameChecked = true;
+    try {
+      const sync = this.#sync;
+      const deviceId = sync.engine.deviceId;
+      const role = sync.engine.history.current.devices.get(deviceId)?.role;
+      return this.#session.use(() => {
+        const adapter = new ApplicationAdapter(sync.replica);
+        const next = names.ownNameMutation(adapter.lists().deviceNames, {
+          deviceId,
+          role,
+          model: this.#deviceModel(),
+        });
+        return next ? !!adapter.mutate(...next) : false;
+      });
+    } catch {
+      return false;
+    }
   }
 
   // After a key change (device removal, new recovery key, lost-device recovery):
@@ -254,16 +304,24 @@ export class SyncService {
   // Devices in the verified membership (after the first sync of this session).
   // addedAt is approximate like the desktop list: a signed add record carries the
   // pairing request's expiry (request time + 10 minutes); other devices have none.
-  devices(): {
-    id: string;
-    role: string;
-    canAuthorizeDevices: boolean;
-    self: boolean;
-    addedAt: number | null;
-  }[] {
+  // Names (#77) are joined for current members only: `deviceNames` from the model when
+  // the caller has it, else read here (display only, a failed read means no names).
+  devices(deviceNames?: DeviceName[]): Device[] {
     const history = this.#sync?.engine.history;
     if (!history) return [];
     const self = this.#sync.engine.deviceId;
+    let known = deviceNames;
+    if (!known) {
+      try {
+        known = this.#session.use(
+          () => new ApplicationAdapter(this.#sync.replica).lists().deviceNames,
+        );
+      } catch {
+        known = [];
+      }
+    }
+    const canRename =
+      names.writable() && history.current.devices.get(self)?.role === 'write';
     const added = new Map<string, number>();
     for (const record of history.records.values()) {
       const body = record?.body;
@@ -274,13 +332,20 @@ export class SyncService {
       )
         added.set(body.device.id, body.expiresAt - 600000);
     }
-    return [...history.current.devices.values()].map((device: any) => ({
+    const list = [...history.current.devices.values()].map((device: any) => ({
       id: device.id,
       role: device.role,
       canAuthorizeDevices: !!device.canAuthorizeDevices,
       self: device.id === self,
       addedAt: added.get(device.id) ?? null,
     }));
+    let ownModel: string | null = null;
+    try {
+      ownModel = this.#deviceModel();
+    } catch {}
+    return names
+      .withNames(list, known, { ownId: self, ownModel })
+      .map((device: any) => ({ ...device, canRename }));
   }
 
   // For the application layer (#88): the shared replica of the open vault.
