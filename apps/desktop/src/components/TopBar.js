@@ -8,6 +8,7 @@ import {
 } from "react-icons/vsc";
 import IpcSender from "utils/IpcSender";
 import PackageJson from "../../package.json";
+import { TOP_BAR_SLOT_ID } from "./SecretLock";
 import UpdateButton, { useReleaseAlert } from "./UpdateButton";
 import "./TopBar.scss";
 
@@ -75,6 +76,8 @@ const TopBar = ({ searchQuery = "", setSearchQuery }) => {
           <kbd>Ctrl K</kbd>
         )}
       </div>
+      {/* The main screen puts its secret lock here (SecretLock). */}
+      <div id={TOP_BAR_SLOT_ID} className="top-bar-slot" />
       <UpdateButton update={update} />
       <div className="menu-section">
         <button

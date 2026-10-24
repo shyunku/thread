@@ -118,6 +118,11 @@ const LeftSidebar = ({ setSelectedTodoMenuType, selectedTodoMenuType, mode = "fu
     const kept = pending.ids.map((id) => byId[id]).filter(Boolean);
     return [...kept, ...syncedOrder.filter((c) => !pending.ids.includes(c.id))];
   }, [pending, syncedOrder]);
+  // While locked the secret categories are not listed at all (#104).
+  const shownCategories = useMemo(
+    () => sortedCategories.filter((c) => !c.secret || secret.unlocked),
+    [sortedCategories, secret.unlocked]
+  );
   const syncedIds = useMemo(() => syncedOrder.map((c) => c.id), [syncedOrder]);
   const lastSynced = useRef(syncedIds);
   useEffect(() => {
@@ -199,11 +204,12 @@ const LeftSidebar = ({ setSelectedTodoMenuType, selectedTodoMenuType, mode = "fu
       closeAllPopups();
     },
     onDrop: (id, from, to) => {
-      const ids = sortedCategories.map((c) => c.id);
-      const move = categoryMoveAnchor(ids, id, to);
+      // The drop index counts the listed rows; the move is anchored to a listed neighbour, and the
+      // full order (hidden secret categories too) moves the row next to that neighbour.
+      const move = categoryMoveAnchor(shownCategories.map((c) => c.id), id, to);
       if (!move) return;
-      const next = ids.filter((x) => x !== id);
-      next.splice(to, 0, id);
+      const next = sortedCategories.map((c) => c.id).filter((x) => x !== id);
+      next.splice(next.indexOf(move.anchorId) + (move.after ? 1 : 0), 0, id);
       const seq = ++dropSeq.current;
       setPending({ seq, ids: next, move: { id, ...move }, acked: false });
       IpcSender.req.category.updateCategoryOrder(id, move.anchorId, move.after, ({ success, data } = {}) => {
@@ -227,7 +233,9 @@ const LeftSidebar = ({ setSelectedTodoMenuType, selectedTodoMenuType, mode = "fu
     setSelectedTodoMenuType(category.id);
   };
 
-  const createCategory = ({ title, color, secret: isSecret }) => {
+  const createCategory = async ({ title, color, secret: isSecret }) => {
+    // A new secret category would be hidden at once while locked: it asks for the unlock first.
+    if (isSecret && !secret.unlocked && !(await secret.unlock({ color }))) return;
     const category = new Category(title, isSecret);
     category.color = color;
     IpcSender.req.category.createCategory(category.toEntity(), ({ success } = {}) => {
@@ -340,7 +348,7 @@ const LeftSidebar = ({ setSelectedTodoMenuType, selectedTodoMenuType, mode = "fu
             <PlusIcon size={14} />
           </span>
         </div>
-        {sortedCategories.map((category) => {
+        {shownCategories.map((category) => {
           const color = colorOf(category);
           const selected = !searching && selectedTodoMenuType === category.id;
           return (

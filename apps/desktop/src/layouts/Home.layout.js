@@ -6,6 +6,7 @@ import { Outlet, useOutletContext } from "react-router-dom";
 import "./Home.layout.scss";
 import Category from "../objects/Category";
 import { SecretSessionProvider } from "../hooks/useSecretSession";
+import SecretLock from "../components/SecretLock";
 import { applyCreateCategory, applyDeleteCategory } from "../hooks/UseTransaction";
 import { trapTab } from "../molecules/pickers/Popover";
 import { accountInfoSlice } from "../store/accountSlice";
@@ -109,6 +110,9 @@ const HomeLayout = () => {
     [facts, sideOpen, panelOpen, setPanelWidth, overlayEl]
   );
 
+  const hasSecret = useMemo(() => Object.values(categories ?? {}).some((c) => c?.secret), [categories]);
+  const showAll = useCallback(() => setSelectedTodoMenuType(TODO_MENU_TYPE.ALL), []);
+
   const sidebarProps = {
     setSelectedTodoMenuType: selectMenu,
     selectedTodoMenuType,
@@ -118,6 +122,7 @@ const HomeLayout = () => {
   return (
     <HomeLayoutContext.Provider value={layout}>
       <SecretSessionProvider uid={uid}>
+        <SecretLock hasSecret={hasSecret} onSecretScreen={!!selectedCategory?.secret} onHide={showAll} />
         <div className={`home-layout ${facts.mode}`}>
           {!facts.hideSide && <LeftSidebar {...sidebarProps} mode={facts.rail ? "rail" : "full"} />}
           <div className="home-layout__main">

@@ -120,7 +120,7 @@ export function JumpTitle({ title, tip, renderPopup }) {
 }
 
 // The shared header (components/list/ListHeader) with the view's title, summary and ‹ 오늘 ›.
-// `header` carries what TodoContent gives the list's header (view, onView, prefs, onPref, eye,
+// `header` carries what TodoContent gives the list's header (view, onView, prefs, onPref,
 // extra); without it only the title row and the summary are drawn. `heading` replaces the
 // plain title (JumpTitle).
 export function ViewHeader({ header, title, summary, nav, heading }) {

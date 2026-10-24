@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { SideMenuButton } from "layouts/homeLayoutContext";
 import { moveFocus } from "molecules/pickers/focusNav";
 import {
-  CalendarViewIcon, EyeIcon, EyeOffIcon, ListViewIcon, SlidersIcon, TickIcon, TimelineViewIcon,
+  CalendarViewIcon, ListViewIcon, SlidersIcon, TickIcon, TimelineViewIcon,
 } from "molecules/pickers/icons";
 import Popover from "molecules/pickers/Popover";
 
@@ -64,10 +64,10 @@ export function ViewMenu({ anchor, ignore, prefs, onPref, onClose }) {
 }
 
 // The list pane's header (#102 mock listPane head): ☰ (drawer layout), title, view switch, view
-// options, the eye (secret categories; not on category screens or in search) and the summary.
+// options and the summary (the secret lock is in the top bar, SecretLock).
 // `nav` sits right after the title (the calendar's and timeline's ‹ 오늘 ›); `heading` replaces
 // the plain title (their title buttons that open the jump popup).
-export default function ListHeader({ title, summary, view, onView, prefs, onPref, eye, extra, nav, heading }) {
+export default function ListHeader({ title, summary, view, onView, prefs, onPref, extra, nav, heading }) {
   const [menu, setMenu] = useState(false);
   const optionsRef = useRef(null);
   const rowRef = useRef(null);
@@ -105,18 +105,6 @@ export default function ListHeader({ title, summary, view, onView, prefs, onPref
         >
           <SlidersIcon />
         </button>
-        {eye && (
-          <button
-            type="button"
-            className={"tc-ghost tc-sq tc-eye" + (eye.on ? " on" : "")}
-            aria-label={eye.on ? "비밀 카테고리 숨기기" : "비밀 카테고리 보기"}
-            aria-pressed={eye.on}
-            data-tip={eye.on ? "비밀 카테고리 숨기기" : "비밀 카테고리 보기"}
-            onClick={eye.onToggle}
-          >
-            {eye.on ? <EyeIcon /> : <EyeOffIcon />}
-          </button>
-        )}
         {extra}
       </div>
       <p className="tc-finding">{summary}</p>

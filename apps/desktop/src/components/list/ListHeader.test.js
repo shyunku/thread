@@ -4,11 +4,11 @@ import ListHeader from "./ListHeader";
 const prefs = { group: "date", noneTop: false, sort: "due", density: "normal", showRemain: true, hideDone: false };
 
 function setup(extra = {}) {
-  const onPref = jest.fn(), onView = jest.fn(), onToggle = jest.fn();
+  const onPref = jest.fn(), onView = jest.fn();
   const view = render(
-    <ListHeader title="모든 할 일" summary="남은 할 일 3개" view="list" onView={onView} prefs={prefs} onPref={onPref} eye={{ on: false, onToggle }} {...extra} />
+    <ListHeader title="모든 할 일" summary="남은 할 일 3개" view="list" onView={onView} prefs={prefs} onPref={onPref} {...extra} />
   );
-  return { onPref, onView, onToggle, ...view };
+  return { onPref, onView, ...view };
 }
 
 test("title, summary and the view switch (목록 / 캘린더 / 타임라인)", () => {
@@ -44,18 +44,6 @@ test("the view menu sets every option through prefs and stays open", () => {
   fireEvent.mouseDown(screen.getByRole("button", { name: "보기 옵션" }));
   fireEvent.click(screen.getByRole("button", { name: "보기 옵션" }));
   expect(screen.queryByRole("menu", { name: "보기 옵션" })).toBeNull();
-});
-
-test("the eye toggles the secret categories and is left out when not given", () => {
-  const { onToggle, rerender } = setup();
-  const eye = screen.getByRole("button", { name: "비밀 카테고리 보기" });
-  expect(eye).toHaveAttribute("data-tip", "비밀 카테고리 보기");
-  fireEvent.click(eye);
-  expect(onToggle).toHaveBeenCalled();
-  rerender(<ListHeader title="t" summary="" view="list" onView={() => {}} prefs={prefs} onPref={() => {}} eye={{ on: true, onToggle }} />);
-  expect(screen.getByRole("button", { name: "비밀 카테고리 숨기기" })).toHaveAttribute("aria-pressed", "true");
-  rerender(<ListHeader title="t" summary="" view="list" onView={() => {}} prefs={prefs} onPref={() => {}} eye={null} />);
-  expect(screen.queryByRole("button", { name: /비밀 카테고리/ })).toBeNull();
 });
 
 test("heading replaces the plain title (the calendar's and timeline's title button)", () => {

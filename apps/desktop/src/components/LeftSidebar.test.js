@@ -134,16 +134,31 @@ test("nav order, labels and undone counts follow the #102 rules", () => {
   // 다음 7일 = within 7 days, overdue included.
   expect(count(navRow(container, TODO_MENU_TYPE.NEXT_7_DAYS))).toBe("3");
   expect(count(navRow(container, TODO_MENU_TYPE.IMPORTANT))).toBe("1");
-  const [work, study, exam, diary] = catRows(container);
+  // Locked (#104): the secret 일기 is not listed at all.
+  expect(catRows(container).map((r) => r.dataset.catrow)).toEqual(["work", "study", "exam"]);
+  const [work, study, exam] = catRows(container);
   expect(count(work)).toBe("2");
   expect(count(study)).toBe("1");
-  // Zero is blank; secret categories show no count.
+  // Zero is blank.
   expect(count(exam)).toBe("");
-  expect(count(diary)).toBe("");
-  // Long names keep their tooltip; secret rows have the shield in the category colour.
+  // Long names keep their tooltip.
   expect(exam.getAttribute("data-tip")).toBe("자격증 및 어학 시험 준비 (2026 하반기)");
+});
+
+test("secret categories are listed only while unlocked, with the shield and no count; locking hides them again", async () => {
+  const { container } = setup();
+  expect(container.querySelector('[data-catrow="diary"]')).toBeNull();
+  await unlockSecrets();
+  const diary = container.querySelector('[data-catrow="diary"]');
+  expect(catRows(container).map((r) => r.dataset.catrow)).toEqual(["work", "study", "exam", "diary"]);
+  expect(count(diary)).toBe("");
   expect(diary.querySelector(".ic").style.color).toBe("rgb(229, 122, 214)");
   expect(diary.querySelector("svg")).not.toBeNull();
+  // Unlocked, the secret tasks count in the menus too (secret, mixed).
+  expect(count(navRow(container, TODO_MENU_TYPE.ALL))).toBe("7");
+  act(() => session.lock());
+  expect(container.querySelector('[data-catrow="diary"]')).toBeNull();
+  expect(count(navRow(container, TODO_MENU_TYPE.ALL))).toBe("5");
 });
 
 test("no overdue task means no red 오늘, and a blank zero", () => {
@@ -198,7 +213,6 @@ test("dragging a category lifts after 4px, slides rows, settles and calls update
   // Rows 1 and 2 slide up into the slot.
   expect(catRows(container)[1].style.transform).toBe("translateY(-34px)");
   expect(catRows(container)[2].style.transform).toBe("translateY(-34px)");
-  expect(catRows(container)[3].style.transform).toBe("");
   // No context menu while lifted.
   const menuEvent = fireEvent.contextMenu(work);
   expect(menuEvent).toBe(false);
@@ -208,16 +222,27 @@ test("dragging a category lifts after 4px, slides rows, settles and calls update
   expect(setSelected).not.toHaveBeenCalled();
   expect(IpcSender.req.category.updateCategoryOrder).not.toHaveBeenCalled();
   act(() => jest.advanceTimersByTime(200));
-  expect(IpcSender.req.category.updateCategoryOrder).toHaveBeenCalledWith("work", "diary", false, expect.any(Function));
+  expect(IpcSender.req.category.updateCategoryOrder).toHaveBeenCalledWith("work", "exam", true, expect.any(Function));
   expect(document.querySelector(".cat-ghost")).toBeNull();
   expect(container.querySelector(".left-sidebar").classList.contains("sorting")).toBe(false);
-  // Optimistic order until the synced one arrives.
-  expect(catRows(container).map((r) => r.dataset.catrow)).toEqual(["study", "exam", "work", "diary"]);
+  // Optimistic order until the synced one arrives (the hidden 일기 stays after it).
+  expect(catRows(container).map((r) => r.dataset.catrow)).toEqual(["study", "exam", "work"]);
   expect(catRows(container).every((r) => r.style.transform === "")).toBe(true);
 });
 
-test("dragging to the end anchors after the last row", () => {
+test("dragging to the end anchors after the last listed row", () => {
   const { container } = setup();
+  placeRows(container);
+  fireEvent.mouseDown(catRows(container)[0], { button: 0, clientX: 20, clientY: 110 });
+  fireEvent.mouseMove(document, { clientX: 20, clientY: 300 });
+  fireEvent.mouseUp(document, { button: 0 });
+  act(() => jest.advanceTimersByTime(200));
+  expect(IpcSender.req.category.updateCategoryOrder).toHaveBeenCalledWith("work", "exam", true, expect.any(Function));
+});
+
+test("while unlocked a drop anchors to the secret rows too", async () => {
+  const { container } = setup();
+  await unlockSecrets();
   placeRows(container);
   fireEvent.mouseDown(catRows(container)[0], { button: 0, clientX: 20, clientY: 110 });
   fireEvent.mouseMove(document, { clientX: 20, clientY: 300 });
@@ -256,7 +281,7 @@ test("a failed order reply restores the synced order", () => {
   fireEvent.mouseMove(document, { clientX: 20, clientY: 180 });
   fireEvent.mouseUp(document, { button: 0 });
   act(() => jest.advanceTimersByTime(200));
-  expect(catRows(container).map((r) => r.dataset.catrow)).toEqual(["work", "study", "exam", "diary"]);
+  expect(catRows(container).map((r) => r.dataset.catrow)).toEqual(["work", "study", "exam"]);
   IpcSender.req.category.updateCategoryOrder.mockReset();
 });
 
@@ -369,15 +394,20 @@ const osVault = () =>
         : { success: true, data: { verified: false, method: "password", code: "PASSWORD_REJECTED", osAvailable: true, passwordAvailable: true } }
     )
   );
-
-test("deleting a secret category unlocks first and offers the two choices", async () => {
+// Opens the secret lock the way the top-bar lock does (Hello, then 확인).
+async function unlockSecrets() {
   osVault();
+  act(() => {
+    session.unlock();
+  });
+  await act(async () => fireEvent.click(within(await screen.findByRole("alertdialog")).getByText("확인")));
+}
+
+test("deleting a secret category (listed once unlocked) offers the two choices", async () => {
   const { container } = setup();
+  await unlockSecrets();
   fireEvent.contextMenu(catRows(container)[3]);
   fireEvent.click(screen.getByText("카테고리 삭제"));
-  const hello = await screen.findByRole("alertdialog", { name: "비밀 카테고리를 볼까요?" });
-  expect(within(hello).getByText(/Windows Hello로 본인 확인을 해요/)).toBeTruthy();
-  await act(async () => fireEvent.click(within(hello).getByText("확인")));
   const dialog = await screen.findByRole("alertdialog", { name: "'일기' 카테고리를 지울까요?" });
   // Unlocked: both of its tasks count (secret, mixed).
   expect(within(dialog).getByText("할 일 2개에 쓰이고 있어요.")).toBeTruthy();
@@ -398,25 +428,16 @@ test("deleting a secret category unlocks first and offers the two choices", asyn
   expect(IpcSender.vault.verifyUser).toHaveBeenCalledTimes(2);
 });
 
-test("clicking a locked secret category unlocks first; cancel keeps the current menu", async () => {
-  osVault();
-  const { container } = setup();
-  const diary = catRows(container)[3];
-  fireEvent.click(diary);
-  const hello = await screen.findByRole("alertdialog", { name: "비밀 카테고리를 볼까요?" });
-  await act(async () => fireEvent.click(within(hello).getByText("취소")));
-  expect(setSelected).not.toHaveBeenCalled();
-  fireEvent.click(diary);
-  await act(async () => fireEvent.click(within(await screen.findByRole("alertdialog")).getByText("확인")));
-  expect(setSelected).toHaveBeenCalledWith("diary");
-  // Once per run.
-  fireEvent.click(diary);
-  await act(async () => {});
-  expect(setSelected).toHaveBeenCalledTimes(2);
-  expect(screen.queryByRole("alertdialog")).toBeNull();
+test("locking while a secret category is open leaves nothing secret listed", async () => {
+  const { container } = setup({ selected: "diary" });
+  await unlockSecrets();
+  expect(container.querySelector('[data-catrow="diary"]')).not.toBeNull();
+  act(() => session.lock());
+  expect(container.querySelector('[data-catrow="diary"]')).toBeNull();
 });
 
-test("the ＋ popup creates a category with the next unused colour and the secret flag", () => {
+test("the ＋ popup creates a category with the next unused colour and the secret flag", async () => {
+  osVault();
   const { container } = setup();
   fireEvent.click(screen.getByRole("button", { name: "카테고리 추가" }));
   const pop = screen.getByRole("dialog", { name: "새 카테고리" });
@@ -427,6 +448,9 @@ test("the ＋ popup creates a category with the next unused colour and the secre
   fireEvent.change(within(pop).getByLabelText("새 카테고리 이름"), { target: { value: "비밀 일" } });
   fireEvent.click(within(pop).getByRole("checkbox"));
   fireEvent.click(create);
+  // Locked: a new secret category asks for the unlock first (it would be hidden at once).
+  expect(IpcSender.req.category.createCategory).not.toHaveBeenCalled();
+  await act(async () => fireEvent.click(within(await screen.findByRole("alertdialog")).getByText("확인")));
   expect(IpcSender.req.category.createCategory).toHaveBeenCalledWith(
     expect.objectContaining({ title: "비밀 일", color: "#4fc3d9", secret: true }),
     expect.any(Function)
@@ -476,7 +500,7 @@ const lift = (container, row = catRows(container)[0]) => {
   fireEvent.mouseMove(document, { clientX: 20, clientY: 180 });
 };
 
-test("the delete count follows the eye: hidden secret tasks are counted once shown", async () => {
+test("the delete count follows the lock: hidden secret tasks are counted once unlocked", async () => {
   osVault();
   const { container } = setup();
   act(() => {
@@ -544,7 +568,7 @@ test("an UNSUPPORTED order reply stops the drag for the run, with one toast", ()
   expect(Toast.warn).toHaveBeenCalledTimes(1);
   expect(Toast.warn).toHaveBeenCalledWith("이 계정에서는 카테고리 순서를 바꿀 수 없어요.");
   // The order is back and no row lifts any more.
-  expect(catRows(container).map((r) => r.dataset.catrow)).toEqual(["work", "study", "exam", "diary"]);
+  expect(catRows(container).map((r) => r.dataset.catrow)).toEqual(["work", "study", "exam"]);
   lift(container);
   expect(document.querySelector(".cat-ghost")).toBeNull();
   fireEvent.mouseUp(document, { button: 0 });
@@ -554,10 +578,12 @@ test("an UNSUPPORTED order reply stops the drag for the run, with one toast", ()
   IpcSender.req.category.updateCategoryOrder.mockReset();
 });
 
-test("two quick drops: the older reply does not end the newer order; the synced move does", () => {
+test("two quick drops: the older reply does not end the newer order; the synced move does", async () => {
   const replies = [];
   IpcSender.req.category.updateCategoryOrder.mockImplementation((...args) => replies.push(args[3]));
   const { container, rerender } = setup();
+  // Unlocked: all four rows are listed.
+  await unlockSecrets();
   const ids = () => catRows(container).map((r) => r.dataset.catrow);
   const drop = () => {
     lift(container);

@@ -7,7 +7,7 @@ import Category from "../objects/Category";
 import IpcSender from "../utils/IpcSender";
 import { fromSyncV2View } from "../utils/syncV2View";
 import prefsReducer, { setPrefs } from "../store/prefsSlice";
-import { SecretSessionProvider } from "../hooks/useSecretSession";
+import { SecretSessionProvider, useSecretSession } from "../hooks/useSecretSession";
 import { useTaskSelection } from "./list/taskSelection";
 import Toast from "../molecules/Toast";
 import { HomeLayoutContext, layoutForWidth } from "../layouts/homeLayoutContext";
@@ -96,9 +96,17 @@ afterEach(() => {
 });
 
 let selectionProbe;
+let secretProbe;
 function Probe() {
   selectionProbe = useTaskSelection();
+  secretProbe = useSecretSession();
   return null;
+}
+// The top-bar lock (SecretLock) opens: Hello, then 확인.
+async function unlockSecrets() {
+  await act(async () => { secretProbe.unlock(); });
+  fireEvent.click(screen.getByRole("button", { name: "확인" }));
+  await act(async () => {});
 }
 const ui = () => (
   <Provider store={store}>
@@ -131,15 +139,16 @@ test("header: title, summary with the overdue count, and the view switch in ever
   expect(container.querySelector(".task-view.list")).not.toBeNull();
 });
 
-test("secret tasks: hidden by default, shown everywhere with the eye (after the unlock), with the shield", async () => {
+test("secret tasks: hidden while locked, shown everywhere once the lock opens, with the shield", async () => {
   const { container } = view();
   expect(row(container, "secret-task")).toBeNull();
-  await act(async () => { fireEvent.click(screen.getByRole("button", { name: "비밀 카테고리 보기" })); });
-  fireEvent.click(screen.getByRole("button", { name: "확인" }));
-  await act(async () => {});
+  // The lock is in the top bar now, not in the header.
+  expect(screen.queryByRole("button", { name: /비밀 카테고리/ })).toBeNull();
+  await unlockSecrets();
   expect(row(container, "secret-task")).not.toBeNull();
   expect(row(container, "secret-task").querySelector(".meta .shield")).not.toBeNull();
-  expect(screen.getByRole("button", { name: "비밀 카테고리 숨기기" })).toBeInTheDocument();
+  act(() => secretProbe.lock());
+  expect(row(container, "secret-task")).toBeNull();
 });
 
 test("a locked secret category shows the locked state, which unlocks", async () => {
@@ -176,37 +185,17 @@ test("search covers every task whatever the menu and groups the results", () => 
   expect(rowIds(container)).toEqual(["first"]);
 });
 
-test("search lists hidden secret tasks marked; acting on one unlocks first", async () => {
+test("search while locked leaves secret tasks and secret category names out; unlocked they are plain results", async () => {
   const { container, rerender } = view();
   mockContext = { ...mockContext, searchQuery: "비공개" };
   rerender(ui());
-  const hit = row(container, "secret-task");
-  expect(hit).toHaveClass("hidden-hit");
-  expect(hit.querySelector(".hid-tag")).toHaveTextContent("숨김");
-  expect(hit.querySelector(".meta .cat b")).toHaveTextContent("비공개");
-  expect(screen.getByText("제목 1개 · 메모 0개 · 카테고리 0개 · 숨김 1개 포함")).toBeInTheDocument();
-  // Nothing before the unlock: no selection, no menu, no completion, no Del question.
-  await act(async () => { fireEvent.click(hit); });
-  expect(screen.getByRole("alertdialog", { name: "비밀 카테고리를 볼까요?" })).toBeInTheDocument();
-  expect(selectionProbe.selectedTaskId).toBe(null);
-  await act(async () => { fireEvent.click(screen.getByRole("button", { name: "취소" })); });
-  expect(selectionProbe.selectedTaskId).toBe(null);
-  await act(async () => { fireEvent.contextMenu(hit, { clientX: 300, clientY: 200 }); });
-  expect(screen.queryByRole("menu", { name: "할 일 메뉴" })).toBeNull();
-  await act(async () => { fireEvent.click(screen.getByRole("button", { name: "취소" })); });
-  await act(async () => { fireEvent.keyDown(hit, { key: "Delete" }); });
-  await act(async () => { fireEvent.click(screen.getByRole("button", { name: "취소" })); });
-  expect(screen.queryByRole("alertdialog", { name: "할 일을 삭제할까요?" })).toBeNull();
-  await act(async () => { fireEvent.click(within(hit).getByRole("checkbox", { name: "할 일 완료" })); });
-  await act(async () => { fireEvent.click(screen.getByRole("button", { name: "취소" })); });
-  act(() => { jest.advanceTimersByTime(1000); });
-  expect(IpcSender.req.task.updateTaskDone).not.toHaveBeenCalled();
-  // After the unlock it opens; the mark stays (the eye is still off).
-  await act(async () => { fireEvent.click(hit); });
-  fireEvent.click(screen.getByRole("button", { name: "확인" }));
-  await act(async () => {});
+  expect(rowIds(container)).toEqual([]);
+  expect(screen.getByText("제목 0개 · 메모 0개 · 카테고리 0개")).toBeInTheDocument();
+  await unlockSecrets();
+  expect(rowIds(container)).toEqual(["secret-task"]);
+  expect(row(container, "secret-task")).not.toHaveClass("hidden-hit");
+  fireEvent.click(row(container, "secret-task"));
   expect(selectionProbe.selectedTaskId).toBe("secret-task");
-  expect(row(container, "secret-task")).toHaveClass("hidden-hit", "sel");
 });
 
 test("a locked secret category shows the locked state in the calendar and timeline too", async () => {
@@ -230,7 +219,8 @@ test("search: no hidden hits in the calendar; a locked category screen shows the
   mockContext = { ...mockContext, selectedTodoMenuType: "secret", category: secretCategory, searchQuery: "작업" };
   const { container, rerender } = view();
   expect(screen.queryByText("이 카테고리는 잠겨 있어요")).toBeNull();
-  expect(rowIds(container)).toEqual(["secret-task"]);
+  // Locked: the secret task is not among the results either.
+  expect(rowIds(container)).toEqual([]);
   fireEvent.click(screen.getByRole("button", { name: "캘린더" }));
   expect(container.querySelector(".task-view.calendar")).not.toBeNull();
   expect(screen.queryByText("비공개 작업")).toBeNull();
@@ -244,12 +234,10 @@ test("search: no hidden hits in the calendar; a locked category screen shows the
 
 test("the selection leaves a task that gets hidden; Del then asks nothing", async () => {
   const { container } = view();
-  await act(async () => { fireEvent.click(screen.getByRole("button", { name: "비밀 카테고리 보기" })); });
-  fireEvent.click(screen.getByRole("button", { name: "확인" }));
-  await act(async () => {});
+  await unlockSecrets();
   fireEvent.click(row(container, "secret-task"));
   expect(selectionProbe.selectedTask.title).toBe("비공개 작업");
-  fireEvent.click(screen.getByRole("button", { name: "비밀 카테고리 숨기기" }));
+  act(() => secretProbe.lock());
   expect(row(container, "secret-task")).toBeNull();
   expect(selectionProbe.selectedTaskId).toBe(null);
   expect(selectionProbe.selectedTask).toBe(null);
@@ -495,22 +483,20 @@ test("the menu's new category is ticked only once it is stored", async () => {
   errors.mockRestore();
 });
 
-test("a new task that the screen hides (secret category, eye off) says where it went", async () => {
+test("a new task that the screen hides (secret category, locked) says where it went", async () => {
   const info = jest.spyOn(Toast, "info").mockImplementation(() => {});
   view();
   const secretTask = () => { const t = makeTask("new-secret", "숨은 일", null); t.addCategory(secretCategory); return t; };
   act(() => selectionProbe.actions.addTask(secretTask()));
-  expect(info).toHaveBeenCalledWith("비밀 카테고리 할 일은 눈을 켜면 보여요.");
+  expect(info).toHaveBeenCalledWith("비밀 카테고리 할 일은 잠금을 풀면 보여요.");
   // A plain task, or a refused add, gives no such line.
   info.mockClear();
   act(() => selectionProbe.actions.addTask(makeTask("plain", "보이는 일", null)));
   IpcSender.req.task.addTask.mockImplementationOnce((entity, cb) => cb({ success: false }));
   act(() => selectionProbe.actions.addTask(secretTask()));
   expect(info).not.toHaveBeenCalled();
-  // With the eye on it shows, so nothing to say.
-  await act(async () => { fireEvent.click(screen.getByRole("button", { name: "비밀 카테고리 보기" })); });
-  fireEvent.click(screen.getByRole("button", { name: "확인" }));
-  await act(async () => {});
+  // Unlocked it shows, so nothing to say.
+  await unlockSecrets();
   act(() => selectionProbe.actions.addTask(secretTask()));
   expect(info).not.toHaveBeenCalled();
   info.mockRestore();

@@ -3,8 +3,9 @@ import ConfirmDialog from "../molecules/pickers/ConfirmDialog";
 import Toast from "../molecules/Toast";
 import IpcSender from "../utils/IpcSender";
 
-// Secret categories for this app run (#102). Never persisted: the unlock lasts until the
-// app closes or the vault locks, and the eye toggle (showSecret) starts off every run.
+// Secret categories for this app run (#102, #104). Never persisted: the unlock lasts until it is
+// locked again (the top-bar lock, SecretLock), the app closes or the vault locks. One state: while
+// unlocked the secret categories and their tasks show everywhere (showSecret is the same flag).
 // The user is confirmed the way the vault opens: OS auth (Windows Hello / Touch ID) when
 // the vault uses it, otherwise the vault password. Both ask in the main-screen dialog
 // (ConfirmDialog, mock .hello).
@@ -29,9 +30,9 @@ export function secretMethodLine(method) {
   return "열 때 본인 확인을 해요";
 }
 
-const DIALOG_TITLE = "비밀 카테고리를 볼까요?";
+const DIALOG_TITLE = "비밀 카테고리 잠금을 풀까요?";
 const dialogText = (method) =>
-  `${method === "os" ? osAuthName() : "보관함 비밀번호"}로 본인 확인을 해요. 앱을 닫거나 잠글 때까지 다시 묻지 않아요.`;
+  `${method === "os" ? osAuthName() : "보관함 비밀번호"}로 본인 확인을 해요. 다시 잠그거나 앱을 닫을 때까지 비밀 카테고리와 그 할 일이 보여요.`;
 const WAIT_TEXT = "본인 확인을 준비하고 있어요. 잠시만 기다려 주세요.";
 // The vault answers a check only after a running vault action (a sync) ends, up to about 10s.
 // An answer slower than this opens the dialog in its waiting state instead of showing nothing.
@@ -47,7 +48,6 @@ const methodOf = (data) => (data?.osAvailable ? "os" : data?.passwordAvailable ?
 
 export function SecretSessionProvider({ uid, children }) {
   const [unlocked, setUnlocked] = useState(false);
-  const [showSecret, setShowSecretState] = useState(false);
   const [method, setMethod] = useState(null);
   const [dialog, setDialog] = useState(null);
   const unlockedRef = useRef(false);
@@ -63,7 +63,6 @@ export function SecretSessionProvider({ uid, children }) {
     finishRef.current?.(false);
     pendingRef.current = null;
     setUnlocked(false);
-    setShowSecretState(false);
     setDialog(null);
   }, []);
 
@@ -177,20 +176,19 @@ export function SecretSessionProvider({ uid, children }) {
     });
   }, [method]);
 
-  // Turning the eye on asks for the unlock once.
+  // Showing the secrets is the unlock; hiding them locks again.
+  const showSecret = unlocked;
   const setShowSecret = useCallback(
     async (next) => {
       if (!next) {
-        setShowSecretState(false);
+        lock();
         return false;
       }
-      const ok = await unlock({});
-      if (ok) setShowSecretState(true);
-      return ok;
+      return unlock({});
     },
-    [unlock]
+    [unlock, lock]
   );
-  const toggleShowSecret = useCallback(() => setShowSecret(!showSecret), [setShowSecret, showSecret]);
+  const toggleShowSecret = useCallback(() => setShowSecret(!unlockedRef.current), [setShowSecret]);
 
   const value = useMemo(
     () => ({ unlocked, showSecret, method, unlock, probeMethod, setShowSecret, toggleShowSecret, lock }),

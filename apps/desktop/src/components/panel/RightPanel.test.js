@@ -9,7 +9,7 @@ import Category from "../../objects/Category";
 import IpcSender from "../../utils/IpcSender";
 import Toast from "../../molecules/Toast";
 import prefsReducer from "../../store/prefsSlice";
-import { SecretSessionProvider } from "../../hooks/useSecretSession";
+import { SecretSessionProvider, useSecretSession } from "../../hooks/useSecretSession";
 import { useTaskSelection } from "../list/taskSelection";
 import { HomeLayoutContext, layoutForWidth } from "../../layouts/homeLayoutContext";
 import { usePickedDay } from "./pickedDay";
@@ -100,10 +100,11 @@ afterEach(() => {
   jest.useRealTimers();
 });
 
-let probe, dayProbe;
+let probe, dayProbe, secretProbe;
 function Probe() {
   probe = useTaskSelection();
   dayProbe = usePickedDay();
+  secretProbe = useSecretSession();
   return null;
 }
 
@@ -308,8 +309,8 @@ test("카테고리 row → picker: toggles, secret ones only while unlocked", as
   fireEvent.click(within(picker).getByRole("checkbox", { name: /개발/ }));
   expect(IpcSender.req.task.deleteTaskCategory).toHaveBeenCalledWith("first", "public", expect.any(Function));
   fireEvent.keyDown(picker, { key: "Escape" });
-  // After the unlock (eye on) the secret one can be picked.
-  await act(async () => { fireEvent.click(screen.getByRole("button", { name: "비밀 카테고리 보기" })); });
+  // After the unlock (the top-bar lock) the secret one can be picked.
+  await act(async () => { secretProbe.unlock(); });
   fireEvent.click(screen.getByRole("button", { name: "확인" }));
   await act(async () => {});
   fireEvent.click(inPanel().getByRole("button", { name: /^카테고리:/ }));
@@ -510,13 +511,13 @@ test("secret visibility: a hidden secret task is never in the panel", async () =
   expect(probe.selectedTask).toBeNull();
   expect(tab("캘린더")).toHaveAttribute("aria-selected", "true");
   expect(panel()).not.toHaveTextContent("비공개 작업");
-  await act(async () => { fireEvent.click(screen.getByRole("button", { name: "비밀 카테고리 보기" })); });
+  await act(async () => { secretProbe.unlock(); });
   fireEvent.click(screen.getByRole("button", { name: "확인" }));
   await act(async () => {});
   expect(panel()).toHaveTextContent("비공개 작업");
   select("secret-task");
   expect(inPanel().getByRole("button", { name: "카테고리: 비공개" })).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "비밀 카테고리 숨기기" }));
+  act(() => secretProbe.lock());
   expect(probe.selectedTaskId).toBeNull();
   expect(panel()).not.toHaveTextContent("비공개 작업");
 });
@@ -671,7 +672,7 @@ test("no chosen time (23:59): the detail reads 하루 끝, the day list too; a s
   tasks.done.next = eod;
   mockContext = { ...mockContext, states: { ...mockContext.states, taskMap: { ...tasks, eod } } };
   view();
-  await act(async () => { fireEvent.click(screen.getByRole("button", { name: "비밀 카테고리 보기" })); });
+  await act(async () => { secretProbe.unlock(); });
   fireEvent.click(screen.getByRole("button", { name: "확인" }));
   await act(async () => {});
   const item = panel().querySelector('.rp-ai[data-task-id="eod"]');

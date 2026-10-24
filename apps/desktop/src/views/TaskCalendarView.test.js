@@ -154,12 +154,12 @@ test("without the optional props the view still draws (no quick add, no menu)", 
   expect(screen.queryByRole("button", { name: "캘린더" })).toBeNull();
 });
 
-test("with the shared header: view switch, view options and the eye", () => {
+test("with the shared header: view switch and view options (no eye: the lock is in the top bar)", () => {
   const onView = jest.fn();
-  const header = { view: "calendar", onView, prefs: {}, onPref: jest.fn(), eye: { on: false, onToggle: jest.fn() } };
+  const header = { view: "calendar", onView, prefs: {}, onPref: jest.fn() };
   setup({ header });
   expect(screen.getByRole("button", { name: "캘린더" })).toHaveAttribute("aria-pressed", "true");
-  expect(screen.getByRole("button", { name: "비밀 카테고리 보기" })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /비밀 카테고리/ })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "타임라인" }));
   expect(onView).toHaveBeenCalledWith("timeline");
   // ‹ 오늘 › sit right after the title.

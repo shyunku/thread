@@ -34,7 +34,7 @@ function vault({ osAvailable = true, passwordAvailable = true, os = { verified: 
     cb({ success: true, data: input.password === password ? { verified: true, method: "password" } : { verified: false, code: "PASSWORD_REJECTED" } });
   });
 }
-const dialog = () => screen.getByRole("alertdialog", { name: "비밀 카테고리를 볼까요?" });
+const dialog = () => screen.getByRole("alertdialog", { name: "비밀 카테고리 잠금을 풀까요?" });
 
 beforeEach(() => jest.clearAllMocks());
 
@@ -46,13 +46,13 @@ test("an OS-auth vault shows the Hello dialog, then unlocks once for the run", a
   act(() => {
     result = session.unlock({ color: "#e57ad6" });
   });
-  expect(within(dialog()).getByText("Windows Hello로 본인 확인을 해요. 앱을 닫거나 잠글 때까지 다시 묻지 않아요.")).toBeTruthy();
+  expect(within(dialog()).getByText("Windows Hello로 본인 확인을 해요. 다시 잠그거나 앱을 닫을 때까지 비밀 카테고리와 그 할 일이 보여요.")).toBeTruthy();
   // The shield in the category colour; no field.
   expect(dialog().querySelector(".tp-dialog-i").style.color).toBe("rgb(229, 122, 214)");
   expect(within(dialog()).queryByRole("textbox")).toBeNull();
   await act(async () => fireEvent.click(within(dialog()).getByText("확인")));
   await expect(result).resolves.toBe(true);
-  expect(state()).toBe("true/false");
+  expect(state()).toBe("true/true");
   expect(IpcSender.vault.verifyUser).toHaveBeenLastCalledWith({ method: "os" }, expect.any(Function));
   expect(session.method).toBe("os");
   // No second ask.
@@ -100,7 +100,7 @@ test("a password vault asks in the dialog's own field; a wrong password keeps it
   expect(IpcSender.vault.verifyUser).toHaveBeenLastCalledWith({ method: "password", password: "pw" }, expect.any(Function));
   expect(screen.queryByRole("alertdialog")).toBeNull();
   expect(field.value).toBe("");
-  expect(state()).toBe("true/false");
+  expect(state()).toBe("true/true");
   expect(secretMethodLine(session.method)).toBe("열 때 보관함 비밀번호로 확인해요");
 });
 
@@ -150,7 +150,7 @@ test("a BUSY probe says to try again later; a 'verified' probe is not trusted", 
   expect(state()).toBe("false/false");
 });
 
-test("the eye asks for the unlock once, and a vault lock clears everything", async () => {
+test("one lock (#104): showing is the unlock, hiding locks again and the next show asks again; a vault lock clears it", async () => {
   vault();
   setup();
   act(() => {
@@ -159,10 +159,13 @@ test("the eye asks for the unlock once, and a vault lock clears everything", asy
   await act(async () => fireEvent.click(screen.getByText("확인")));
   expect(state()).toBe("true/true");
   await act(async () => session.toggleShowSecret());
-  expect(state()).toBe("true/false");
-  await act(async () => session.toggleShowSecret());
+  expect(state()).toBe("false/false");
+  act(() => {
+    session.toggleShowSecret();
+  });
+  await act(async () => fireEvent.click(screen.getByText("확인")));
   expect(state()).toBe("true/true");
-  expect(IpcSender.vault.verifyUser).toHaveBeenCalledTimes(2);
+  expect(IpcSender.vault.verifyUser).toHaveBeenCalledTimes(4);
   act(() => locked({ phase: "LOCKED", uid: "me" }));
   expect(state()).toBe("false/false");
 });

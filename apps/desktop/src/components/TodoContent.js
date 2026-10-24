@@ -108,8 +108,8 @@ const TodoContent = ({ children }) => {
     return (task) => !(customCategory && task.categories[customCategory.id] == null);
   }, [customCategory, selectedTodoMenuType]);
 
-  // A task is secret when any of its categories is secret. Secret tasks show inside their
-  // unlocked category, and everywhere while the eye toggle is on (#102).
+  // A task is secret when any of its categories is secret. Secret tasks show everywhere while the
+  // top-bar lock is open (#104; showSecret and unlocked are the same flag), nowhere while locked.
   const { showSecret, unlocked: secretUnlocked } = secretSession;
   const locked = !!customCategory?.secret && !secretUnlocked;
   const secretFilterRef = useRef(null);
@@ -129,8 +129,7 @@ const TodoContent = ({ children }) => {
   const query = searchQuery.trim();
   const searching = query.length > 0;
 
-  // Categories in sidebar order. Secret ones are named only where their tasks show: with the eye
-  // on, or on that (unlocked) category's screen.
+  // Categories in sidebar order. Secret ones are named only while the lock is open.
   const categoryList = useMemo(() => sortCategories(Object.values(categories ?? {})), [categories]);
   const secretNamed = useCallback(
     (c) => !c.secret || showSecret || c.id === customCategory?.id,
@@ -147,16 +146,19 @@ const TodoContent = ({ children }) => {
   // What the pickers offer: secret categories only while unlocked.
   const pickable = useMemo(() => categoryList.filter((c) => !c.secret || secretUnlocked), [categoryList, secretUnlocked]);
 
-  // Search looks through every task, whatever the menu (#102). Tasks of hidden secret categories
-  // (eye off) are listed too, marked, with their category names; acting on one asks for the
-  // unlock first. Calendar and timeline show the same results without the hidden ones.
+  // Search looks through every task, whatever the menu (#102). While locked, secret tasks and the
+  // names of secret categories stay out of the results too (#104), so nothing gives them away.
   const allCatsOf = useCallback((task) => categoryList.filter((c) => task.categories?.[c.id]), [categoryList]);
-  const anyName = useCallback((cid) => categories?.[cid]?.title ?? null, [categories]);
+  const anyName = useCallback((cid) => {
+    const c = categories?.[cid];
+    return c && (!c.secret || showSecret) ? c.title : null;
+  }, [categories, showSecret]);
   const isHiddenHit = useCallback((task) => !showSecret && isSecretTask(task, categories), [showSecret, categories]);
-  const found = useMemo(
-    () => (searching ? searchSections(ordered, query, anyName, { hideDone: prefs.hideDone }) : null),
-    [searching, ordered, query, anyName, prefs.hideDone]
-  );
+  const found = useMemo(() => {
+    if (!searching) return null;
+    const searchable = showSecret ? ordered : ordered.filter((task) => !isSecretTask(task, categories));
+    return searchSections(searchable, query, anyName, { hideDone: prefs.hideDone });
+  }, [searching, showSecret, ordered, categories, query, anyName, prefs.hideDone]);
   const foundTasks = useMemo(() => (found ? [...found.title, ...found.memo, ...found.category] : []), [found]);
   const shownTaskMap = useMemo(() => {
     const map = {};
@@ -308,14 +310,14 @@ const TodoContent = ({ children }) => {
   }, [fetchAll]);
 
   /* ------------------------------ Handlers ------------------------------ */
-  // A task added with a secret category on a screen that hides secret tasks (eye off) would
+  // A task added with a secret category on a screen that hides secret tasks (locked) would
   // vanish without a word; it says where it went (secretFilterRef: the screen's filter).
   const onTaskAdd = useCallback((task) => {
     if (!(task instanceof Task)) return;
     const hidden = secretFilterRef.current ? !secretFilterRef.current(task) : false;
     IpcSender.req.task.addTask(task.toEntity(), (reply = {}) => {
       if (reply.success === false) failed("할 일을 추가하지 못했어요.")(reply);
-      else if (hidden) Toast.info("비밀 카테고리 할 일은 눈을 켜면 보여요.");
+      else if (hidden) Toast.info("비밀 카테고리 할 일은 잠금을 풀면 보여요.");
     });
   }, []);
 
@@ -485,7 +487,7 @@ const TodoContent = ({ children }) => {
   }, [revealDetail]);
   const selectedVisible = !!selectedTaskId && visibleIds.has(selectedTaskId);
   const selectedTask = selectedVisible ? taskMap[selectedTaskId] ?? null : null;
-  // A task that leaves the screen (deleted, another menu, hidden by the eye or the vault lock, not
+  // A task that leaves the screen (deleted, another menu, hidden by the lock, not
   // in the results) leaves the selection, so nothing shows or acts on it.
   useEffect(() => {
     if (selectedTaskId && !selectedVisible) setSelectedTaskId(null);
@@ -521,7 +523,7 @@ const TodoContent = ({ children }) => {
       const el = event.target instanceof Element ? event.target : null;
       if (event.button !== 0 || dismissing || !el?.isConnected || !el.closest(".home-layout")) return;
       if (el.closest("[data-task-id], .rp, .tc-quick, .tp-pop, .tp-dialog-wrap, .home-splitter, .home-scrim")) return;
-      // In the main area its controls (view switch, view options, eye, month arrows…) keep it too.
+      // In the main area its controls (view switch, view options, month arrows…) keep it too.
       if (el.closest(".todo-content") && el.closest("button, input, textarea, select, a, [role=button], [role=tab], [role=gridcell]")) return;
       setSelectedTaskId(null);
     };
@@ -625,7 +627,6 @@ const TodoContent = ({ children }) => {
     : openCount === 0 ? "남은 할 일이 없어요"
     : overCount > 0 ? <>남은 할 일 {openCount}개 · <b>기한 지남 {overCount}개</b></>
     : `남은 할 일 ${openCount}개`;
-  const eye = !customCategory && !searching ? { on: showSecret, onToggle: () => secretSession.toggleShowSecret() } : null;
   const onPref = useCallback((patch) => dispatch(setPrefs(patch)), [dispatch]);
   const onFold = useCallback((id, closed) => dispatch(setPrefs({ groupClosed: { [id]: closed } })), [dispatch]);
 
@@ -667,7 +668,7 @@ const TodoContent = ({ children }) => {
   // Below 1000px the panel is a drawer; this header button opens it.
   const headerExtra = layout.overlayPanel ? <PanelOpenButton onOpen={() => layout.setPanelOpen(true)} /> : null;
   // The calendar and timeline draw their own header (title, month nav) with these.
-  const header = { view, onView: setView, prefs, onPref, eye, extra: headerExtra };
+  const header = { view, onView: setView, prefs, onPref, extra: headerExtra };
   // In search they show the results, and their summary says so.
   const searchNote = searching ? `검색 결과 ${Object.keys(shownTaskMap).length}개` : null;
   const otherViewProps = { header, catsOf: rowHandlers.catsOf, renderQuickAdd, onTaskContextMenu, onOpenTask, onToggleDone: complete, searchNote };
@@ -696,7 +697,6 @@ const TodoContent = ({ children }) => {
               onView={setView}
               prefs={prefs}
               onPref={onPref}
-              eye={eye}
               extra={headerExtra}
             />
             <div className="tc-gap" />
