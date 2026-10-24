@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Status bar icon for due reminders (#91): the Thread "T", white on transparent. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+  <path
+      android:fillColor="#FFFFFFFF"
+      android:pathData="M4,4.5C4,3.67 4.67,3 5.5,3h13C19.33,3 20,3.67 20,4.5S19.33,6 18.5,6H13.5V19.5C13.5,20.33 12.83,21 12,21S10.5,20.33 10.5,19.5V6H5.5C4.67,6 4,5.33 4,4.5Z" />
+</vector>
