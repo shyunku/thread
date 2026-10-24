@@ -65,10 +65,17 @@ $picked: #3d6fe6;
     flex: 1;
     min-height: 0;
     overflow-y: auto;
+    // The detail slides in from the right (#104) without a sideways scrollbar.
+    overflow-x: hidden;
     scrollbar-width: thin;
     scrollbar-color: #2b303b transparent;
     padding: 4px var(--panel-x) 20px;
   }
+
+  // A task's detail comes in from the right each time another one opens (#104 mock .enter-s50):
+  // DetailPanel is keyed by the task, so the animation plays once per task.
+  .rp-detail { animation: rp-detail-in .5s cubic-bezier(.2, .8, .2, 1); }
+  @media (prefers-reduced-motion: reduce) { .rp-detail { animation: none; } }
 
   .rp-box { border-radius: 10px; background: var(--surface); }
   .rp-block-h {
@@ -319,4 +326,8 @@ $picked: #3d6fe6;
   @media (prefers-reduced-motion: reduce) {
     .ck:active, .st:active, .rp-x:active, .rp-ghost:active { transform: none; }
   }
+}
+
+@keyframes rp-detail-in {
+  from { opacity: 0; transform: translateX(14px); }
 }

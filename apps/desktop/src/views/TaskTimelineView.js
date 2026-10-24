@@ -5,6 +5,7 @@ import { useSelector } from "react-redux";
 import { usePickedDay } from "components/panel/pickedDay";
 import { useTaskSelection } from "components/list/taskSelection";
 import useTaskCompletion, { restoreRow } from "components/list/useTaskCompletion";
+import ScrollFade from "components/ScrollFade";
 import useClock from "hooks/UseClock";
 import { moveFocus } from "molecules/pickers/focusNav";
 import { CheckIcon, StarIcon } from "molecules/pickers/icons";
@@ -317,6 +318,7 @@ const TaskTimelineView = ({ filteredTaskMap, categories, catsOf, header, renderQ
                 <span className="cnt" aria-label={`남은 할 일 ${tasks.filter((t) => !t.done).length}개`}>{tasks.filter((t) => !t.done).length}</span>
               </div>
               <div className="tv-body">{body}</div>
+              <ScrollFade />
             </section>
           );
         })}

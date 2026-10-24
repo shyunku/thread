@@ -1,5 +1,6 @@
 import "./TaskListView.scss";
 import { useMemo, useState } from "react";
+import ScrollFade from "components/ScrollFade";
 import TaskRow from "components/list/TaskRow";
 import { listSections, memoSnippet, searchSections } from "components/list/listModel";
 import useClock from "hooks/UseClock";
@@ -153,5 +154,10 @@ export default function TaskListView({
     );
   }
 
-  return <div className="task-view list tc-scroll">{body}</div>;
+  return (
+    <>
+      <div className="task-view list tc-scroll">{body}</div>
+      <ScrollFade />
+    </>
+  );
 }

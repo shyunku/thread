@@ -1,0 +1,21 @@
+// A zero-height strip after a scrolling element; its band covers that element's bottom 56px.
+.scroll-fade {
+  position: relative;
+  flex: none;
+  height: 0;
+  z-index: 1;
+  pointer-events: none;
+  &::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    // The thin scrollbar stays clear of the band.
+    right: 10px;
+    bottom: 0;
+    height: 56px;
+    background: linear-gradient(to bottom, transparent, var(--canvas));
+    opacity: 0;
+    transition: opacity .15s;
+  }
+  &.on::before { opacity: 1; }
+}
