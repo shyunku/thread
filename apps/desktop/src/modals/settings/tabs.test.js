@@ -131,3 +131,19 @@ test("about tab checks for updates, toggles beta and opens allowed links", async
   fireEvent.click(screen.getByRole("button", { name: "메일 보내기" }));
   expect(IpcSender.openExternal).toHaveBeenCalledWith("mailto:shyunku.support@gmail.com", expect.any(Function));
 });
+
+test("알림 (#91): before and at the due time, saved as one reminders value in the app settings", () => {
+  const REM = { enabled: true, before: true, minutes: 10, due: false };
+  IpcSender.appSettings.get.mockImplementation((cb) => cb({ success: true, data: { ...SETTINGS, reminders: REM } }));
+  wrap(<SettingCommon />);
+  const minutes = screen.getByRole("radiogroup", { name: "기한 전에 알림 시간" });
+  expect(within(minutes).getAllByRole("radio").map((r) => r.textContent)).toEqual(["5분", "10분", "15분", "30분", "1시간"]);
+  expect(within(minutes).getByRole("radio", { name: "10분" })).toHaveAttribute("aria-checked", "true");
+  fireEvent.click(within(minutes).getByRole("radio", { name: "30분" }));
+  expect(IpcSender.appSettings.set).toHaveBeenLastCalledWith({ reminders: { ...REM, minutes: 30 } }, expect.any(Function));
+  fireEvent.click(screen.getByRole("switch", { name: "기한 시각에 알림" }));
+  expect(IpcSender.appSettings.set).toHaveBeenLastCalledWith({ reminders: { ...REM, minutes: 30, due: true } }, expect.any(Function));
+  fireEvent.click(screen.getByRole("switch", { name: "기한 전에 알림" }));
+  expect(within(minutes).getByRole("radio", { name: "5분" })).toBeDisabled();
+  expect(screen.getByText(/비밀 카테고리의 할 일과 앱이 잠겨 있을 때는/)).toBeInTheDocument();
+});

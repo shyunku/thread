@@ -31,11 +31,11 @@ test("shows each reminder at its time; secret ones without content; a click open
  mock.timers.tick(at(14,50)-NOW-1);
  assert.equal(shown.length,0);
  mock.timers.tick(1);
- assert.deepEqual(shown.map(n=>[n.o.title,n.o.body]),[["회의","10분 뒤 기한 · 오후 3:00"]]);
+ assert.deepEqual(shown.map(n=>[n.o.title,n.o.body]),[["회의","오후 3:00까지 · 10분 남음"]]);
  shown[0].h.click();
  assert.deepEqual(sent[0],["reminder/open",null,{success:true,data:{tid:"meet"}}]);
  mock.timers.tick(at(15,50)-at(14,50));
- assert.deepEqual([shown[1].o.title,shown[1].o.body],["Thread","할 일 1개의 기한이 10분 남았어요"]);
+ assert.deepEqual([shown[1].o.title,shown[1].o.body],["할 일 1개의 기한이 10분 남았어요",""]);
 });
 
 test("locked: the titles go, reminders come without content and a click does not open a task",t=>{
@@ -44,7 +44,7 @@ test("locked: the titles go, reminders come without content and a click does not
  svc.lock();
  assert.ok(svc.plan.every(p=>p.title===null));
  mock.timers.tick(at(14,50)-NOW);
- assert.deepEqual([shown[0].o.title,shown[0].o.body],["Thread","할 일 1개의 기한이 10분 남았어요"]);
+ assert.deepEqual([shown[0].o.title,shown[0].o.body],["할 일 1개의 기한이 10분 남았어요","앱 잠금을 풀면 볼 수 있어요"]);
  shown[0].h.click();
  assert.equal(sent.length,0);
 });

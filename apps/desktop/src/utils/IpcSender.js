@@ -132,6 +132,10 @@ const IpcSender = {
     get: (callback) => sender("settings/get", callback),
     set: (patch, callback) => sender("settings/set", callback, patch),
   },
+  // Due reminders (#91): main writes the notification text in the user's clock format.
+  reminders: {
+    setTimeFormat: (value) => sender("reminder/time-format", () => {}, value),
+  },
   patchNotes: {
     state: (callback) => sender("patch-notes/state", callback),
     seen: (callback) => sender("patch-notes/seen", callback),

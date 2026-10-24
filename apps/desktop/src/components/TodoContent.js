@@ -485,6 +485,29 @@ const TodoContent = ({ children }) => {
     setDetailRequest((n) => n + 1);
     revealDetail();
   }, [revealDetail]);
+  // A due reminder click (#91, main "reminder/open") opens its task; a task the current menu
+  // does not show is looked up under 모든 할 일.
+  const [reminderTask, setReminderTask] = useState(null);
+  useEffect(() => {
+    if (!IpcSender.onAll) return undefined;
+    const listener = IpcSender.onAll("reminder/open", ({ success, data } = {}) => {
+      if (success && typeof data?.tid === "string") setReminderTask(data.tid);
+    });
+    return () => IpcSender.off("reminder/open", listener);
+  }, []);
+  useEffect(() => {
+    if (!reminderTask) return;
+    if (visibleIds.has(reminderTask)) {
+      setReminderTask(null);
+      openTask(reminderTask);
+    } else if (!taskMap[reminderTask]) setReminderTask(null);
+    else if (selectedTodoMenuType !== TODO_MENU_TYPE.ALL) props.setSelectedTodoMenuType?.(TODO_MENU_TYPE.ALL);
+    else setReminderTask(null);
+  }, [reminderTask, visibleIds, taskMap, selectedTodoMenuType, openTask, props]);
+  // The clock format for the notification text.
+  useEffect(() => {
+    try { IpcSender.reminders?.setTimeFormat(prefs.timeFormat); } catch {}
+  }, [prefs.timeFormat]);
   const selectedVisible = !!selectedTaskId && visibleIds.has(selectedTaskId);
   const selectedTask = selectedVisible ? taskMap[selectedTaskId] ?? null : null;
   // A task that leaves the screen (deleted, another menu, hidden by the lock, not

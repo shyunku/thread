@@ -50,11 +50,17 @@ function clock(ms, timeFormat) {
   if (timeFormat === "24") return `${String(h).padStart(2, "0")}:${m}`;
   return `${h < 12 ? "오전" : "오후"} ${h % 12 || 12}:${m}`;
 }
+const span = (minutes) => (minutes === 60 ? "1시간" : `${minutes}분`);
+// The mock's wording (#91): "오후 3:00까지 · 10분 남음" before, "지금 기한이에요 · 오후 3:00" at the
+// time. Without content the title says it all; a locked PC adds how to see it.
 function reminderText(item, { timeFormat = "12", hidden = false } = {}) {
-  const time = clock(item.due, timeFormat);
+  const time = clock(item.due, timeFormat), before = item.kind === "before";
   if (hidden || item.title == null)
-    return { title: "Thread", body: item.kind === "before" ? `할 일 1개의 기한이 ${item.minutes}분 남았어요` : "할 일 1개의 기한이에요" };
-  return { title: item.title || "제목 없는 할 일", body: item.kind === "before" ? `${item.minutes}분 뒤 기한 · ${time}` : `지금 기한이에요 · ${time}` };
+    return {
+      title: before ? `할 일 1개의 기한이 ${span(item.minutes)} 남았어요` : "할 일 1개의 기한이에요",
+      body: hidden ? "앱 잠금을 풀면 볼 수 있어요" : "",
+    };
+  return { title: item.title || "제목 없는 할 일", body: before ? `${time}까지 · ${span(item.minutes)} 남음` : `지금 기한이에요 · ${time}` };
 }
 
 module.exports = { DEFAULT_REMINDERS, MINUTE_CHOICES, normalReminders, planReminders, hasChosenTime, reminderText };

@@ -272,3 +272,11 @@
     font-weight: 700;
   }
 }
+
+// A short line under a card (#91 알림).
+.settings-note {
+  margin: 8px 2px 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
