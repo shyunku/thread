@@ -19,6 +19,7 @@ import { messageFor } from '@/ui/messages';
 import { useTheme } from '@/ui/theme';
 import { Logo } from '@/screens/auth/LoginScreen';
 import { SyncLine, TaskCard, useListNow } from './parts';
+import { ReminderGroup } from './ReminderSettings';
 
 const VERSION = require('../../../package.json').version as string;
 export const PRIVACY_URL = 'https://site.threadapp.kr/privacy';
@@ -172,6 +173,8 @@ export default function SettingsScreen() {
             last
           />
         </Group>
+
+        <ReminderGroup />
 
         <Group title="데이터">
           <Pressable
@@ -594,7 +597,7 @@ export function Group({
   );
 }
 
-function SwitchItem({
+export function SwitchItem({
   title,
   detail,
   value,

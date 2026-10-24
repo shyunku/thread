@@ -10,6 +10,10 @@ import { googleIdToken } from '@/core/auth/google';
 import { LocalVault } from '@/core/vault/localVault';
 import { deviceVaultDeps, openDatabase } from '@/core/vault/native';
 import { createPrefsStore } from '@/core/prefs';
+import {
+  askReminderPermission,
+  scheduleReminders,
+} from '@/core/reminders';
 import { VaultSession } from '@/core/vault/session';
 import {
   MobileWorkspace,
@@ -121,6 +125,8 @@ export function createRuntime() {
     account,
     forAccount,
     prefs: createPrefsStore(openDatabase),
+    // Due reminders (#91) on this phone.
+    reminders: { schedule: scheduleReminders, askPermission: askReminderPermission },
     // Returns the user, or { linkToken, idToken } for the link/sign-up step.
     async signInWithGoogle() {
       const idToken = await googleIdToken();

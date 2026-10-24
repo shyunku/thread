@@ -1,8 +1,11 @@
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, StatusBar, Text, View } from 'react-native';
+import { onReminderOpen } from '@/core/reminders';
 import {
   DarkTheme,
   DefaultTheme,
   NavigationContainer,
+  createNavigationContainerRef,
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -241,8 +244,24 @@ function Root() {
   );
 }
 
+const navigationRef = createNavigationContainerRef<any>();
+
+// A due reminder tap (#91) opens its task, once the main screens are there (after the unlock).
+function useReminderOpen() {
+  const { phase, setup } = useApp();
+  const [pending, setPending] = useState<string | null>(null);
+  useEffect(() => onReminderOpen(setPending), []);
+  const main = phase === 'UNLOCKED' && setup === 'READY';
+  useEffect(() => {
+    if (!pending || !main || !navigationRef.isReady()) return;
+    navigationRef.navigate('TaskDetail', { tid: pending });
+    setPending(null);
+  }, [pending, main]);
+}
+
 export default function Navigation() {
   const theme = useTheme();
+  useReminderOpen();
   const base = theme.scheme === 'light' ? DefaultTheme : DarkTheme;
   const navTheme = {
     ...base,
@@ -256,7 +275,7 @@ export default function Navigation() {
     },
   };
   return (
-    <NavigationContainer theme={navTheme}>
+    <NavigationContainer ref={navigationRef} theme={navTheme}>
       <StatusBar
         barStyle={theme.scheme === 'light' ? 'dark-content' : 'light-content'}
       />

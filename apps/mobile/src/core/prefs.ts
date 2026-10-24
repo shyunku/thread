@@ -1,6 +1,11 @@
 import type { OpenDatabase } from '@/core/vault/sqlite';
 import type { ThemeMode } from '@/ui/theme';
 
+const {
+  DEFAULT_REMINDERS,
+  normalReminders,
+} = require('@thread/e2ee/src/model/reminders');
+
 // Device display preferences (same meaning as the desktop prefs slice). Not secret.
 export type Prefs = {
   theme: ThemeMode;
@@ -21,6 +26,9 @@ export type Prefs = {
   // ('' = not recorded yet).
   showPatchNotes: boolean;
   patchNotesSeen: string;
+  // Due reminders (#91), this phone's choice; and whether the OS permission was asked yet.
+  reminders: { enabled: boolean; before: boolean; minutes: number; due: boolean };
+  notifyAsked: boolean;
 };
 
 export const defaultPrefs: Prefs = Object.freeze({
@@ -37,6 +45,8 @@ export const defaultPrefs: Prefs = Object.freeze({
   secretRelock: 'session',
   showPatchNotes: true,
   patchNotesSeen: '',
+  reminders: { ...DEFAULT_REMINDERS },
+  notifyAsked: false,
 });
 
 const valid: { [K in keyof Prefs]: (value: unknown) => boolean } = {
@@ -57,6 +67,12 @@ const valid: { [K in keyof Prefs]: (value: unknown) => boolean } = {
   patchNotesSeen: v =>
     typeof v === 'string' &&
     (v === '' || /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(v)),
+  reminders: v => {
+    if (!v || typeof v !== 'object') return false;
+    const n = normalReminders(v);
+    return Object.keys(n).every(k => n[k] === (v as any)[k]);
+  },
+  notifyAsked: v => typeof v === 'boolean',
 };
 
 export function sanitize(raw: unknown): Prefs {

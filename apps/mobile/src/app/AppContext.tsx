@@ -50,6 +50,11 @@ export type AppRuntime = {
   >;
   signOut(): Promise<void>;
   prefs: { load(): Prefs; save(prefs: Prefs): void };
+  // Due reminders (#91); absent in tests that do not need them.
+  reminders?: {
+    schedule(lists: Lists | null, settings: Prefs['reminders'], timeFormat: Prefs['timeFormat']): void;
+    askPermission(): Promise<boolean>;
+  };
 };
 
 type AppValue = {
@@ -189,17 +194,28 @@ export function AppProvider({
       );
     } catch {}
   }
-  const model = useMemo(() => {
+  const lists = useMemo(() => {
     if (!account || phase !== 'UNLOCKED' || modelKey === 'none') return null;
     try {
       return account.session.use(store => {
         const adapter = adapterFor(store);
-        return adapter ? buildModel(adapter.lists() as Lists) : null;
+        return adapter ? (adapter.lists() as Lists) : null;
       });
     } catch {
       return null;
     }
   }, [account, phase, modelKey]);
+  const model = useMemo(() => (lists ? buildModel(lists) : null), [lists]);
+
+  // Due reminders (#91) follow the lists and the settings. A locked vault keeps the ones already
+  // set (the phone shows them on its own); signing out clears them.
+  useEffect(() => {
+    if (lists) runtime.reminders?.schedule(lists, prefs.reminders, prefs.timeFormat);
+  }, [runtime, lists, prefs.reminders, prefs.timeFormat]);
+  useEffect(() => {
+    if (ready && !user) runtime.reminders?.schedule(null, prefs.reminders, prefs.timeFormat);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runtime, ready, user]);
 
   // Secret categories lock again when the app leaves the foreground or the vault locks;
   // a secret view that is no longer open falls back to all tasks.
@@ -291,6 +307,23 @@ export function AppProvider({
     // Local edits go to the encrypted outbox right away and sync in the background.
     mutate(topic, args) {
       if (!account) throw Error('AUTH_REQUIRED');
+      // The first task with a due time asks for the notification permission (#91), once.
+      const due =
+        topic === 'task/addTask'
+          ? Number((args as any)?.[0]?.due_date) || 0
+          : topic === 'task/updateTaskDueDate'
+          ? Number((args as any)?.[1]) || 0
+          : 0;
+      if (due > 0 && prefs.reminders.enabled && !prefs.notifyAsked && runtime.reminders) {
+        setPrefsState(current => {
+          const next = { ...current, notifyAsked: true };
+          try {
+            runtime.prefs.save(next);
+          } catch {}
+          return next;
+        });
+        runtime.reminders.askPermission().catch(() => false);
+      }
       const id = account.session.use(store => {
         const adapter = adapterFor(store);
         if (!adapter) throw Error('SYNC_REQUIRED');
