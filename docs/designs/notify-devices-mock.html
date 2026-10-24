@@ -1,0 +1,651 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thread 기한 알림 · 기기 이름 시안 (#91 · #77)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  /* Oxanium with the vertical metrics the app uses (fonts.scss), so Korean from Noto Sans KR sits centred. */
+  @font-face { font-family: 'Oxanium'; font-style: normal; font-weight: 300 700; font-display: swap;
+    ascent-override: 95%; descent-override: 5%; line-gap-override: 0%;
+    src: url(https://fonts.gstatic.com/s/oxanium/v21/RrQQboN_4yJ0JmiMe2zE0YBB.woff2) format('woff2');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+  @font-face { font-family: 'Oxanium'; font-style: normal; font-weight: 300 700; font-display: swap;
+    ascent-override: 95%; descent-override: 5%; line-gap-override: 0%;
+    src: url(https://fonts.gstatic.com/s/oxanium/v21/RrQQboN_4yJ0JmiMe2LE0Q.woff2) format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+
+  :root {
+    --page: #0b0d10;
+    /* Desktop tokens (apps/desktop/src/styles/index.scss, settings scope) = mobile dark theme (ui/theme.tsx). */
+    --canvas: #101216; --panel: #15181e; --surface: #1c2028; --hover: #252b36; --border: #2b303b;
+    --text: #edf1f7; --secondary: #a0aaba; --muted: #8792a4; --accent: #6294ff; --selected: #253858;
+    --success: #70d5a0; --success-soft: #1d3a2b; --warning: #edbc72; --danger: #f0838b; --radius: 10px; --pending: #f0a65e;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--text); font: 14px/1.5 Pretendard, "Malgun Gothic", "Segoe UI", sans-serif; word-break: keep-all; overflow-wrap: break-word; }
+  button, input { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  svg { display: block; flex: none; }
+
+  .stage { display: flex; flex-wrap: wrap; gap: 44px 36px; align-items: flex-start; padding: 32px 28px 72px; }
+  .brk { flex-basis: 100%; height: 0; }
+  .fr { display: flex; flex-direction: column; gap: 10px; flex: none; }
+  .cap { color: #a0aaba; font-size: 13px; max-width: 100%; }
+  .cap b { color: #edf1f7; margin-right: 6px; font-weight: 600; }
+  .pair { display: flex; gap: 24px; }
+
+  .notes { width: 400px; padding: 16px 18px; border: 1px dashed #3a4252; border-radius: 12px; color: #a0aaba; font-size: 13px; }
+  .notes h3 { margin: 0 0 8px; font-size: 13px; color: #edf1f7; }
+  .notes ul { margin: 0; padding-left: 18px; } .notes li { margin: 5px 0; }
+  .notes .hint { margin: 0 0 10px; color: #8b95a7; font-size: 12.5px; }
+  .notes .hint kbd, .notes kbd { padding: 1px 5px; border: 1px solid #3a4252; border-radius: 4px; font: inherit; font-size: 11.5px; color: #cfd6e2; }
+
+  /* Shift + hover pickers (same as pc-main-redesign-mock.html). */
+  body.shift-on .win .hot { outline: 1px dashed #9aa4b699; outline-offset: -1px; }
+  body.shift-on .win [data-opts] { outline: 2px dashed #6fa0ff; outline-offset: -2px; }
+  .opt-pop { position: fixed; z-index: 500; display: none; min-width: 180px; padding: 8px; border: 1px solid #3a5486; border-radius: 10px; background: #161b24f5; box-shadow: 0 12px 32px #000b; font-size: 12.5px; color: #cfd6e2; }
+  .opt-pop.on { display: block; }
+  .opt-pop b { display: block; margin: 0 4px 6px; font-size: 11.5px; color: #8b95a7; font-weight: 600; }
+  .opt-pop button { display: block; width: 100%; margin: 2px 0; padding: 6px 10px; border: 0; border-radius: 7px; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+  .opt-pop button:hover { background: #232a37; }
+  .opt-pop button.on { background: #253858; color: #fff; }
+
+  .win { position: relative; flex: none; }
+  .gone { display: grid; place-items: center; min-height: 64px; padding: 14px; border: 1px dashed #3a4252; border-radius: 10px; color: #8792a4; font-size: 12.5px; text-align: center; }
+
+  /* ---------- PC settings modal (Settings.modal.scss, SettingsUI.scss) ---------- */
+  .set { width: 1080px; height: 800px; display: flex; overflow: hidden; border: 1px solid #354051; border-radius: 14px; background: #151a23; box-shadow: 0 20px 60px #0008; }
+  .set, .set button, .set input { font-family: "Oxanium", "Noto Sans KR", "Pretendard", sans-serif; }
+  .set .close { position: absolute; top: 14px; right: 14px; z-index: 2; width: 30px; height: 30px; display: grid; place-items: center; border: 0; border-radius: 7px; background: none; color: var(--secondary); }
+  .set .close:hover { background: var(--hover); color: var(--text); }
+  .set .side { width: 196px; flex: 0 0 196px; display: flex; flex-direction: column; padding: 18px 10px; border-right: 1px solid #262d39; background: #12161d; }
+  .set .side .st { padding: 2px 10px 14px; font-size: 15px; font-weight: 700; }
+  .set .menu { display: flex; flex-direction: column; gap: 2px; }
+  .set .mi { display: flex; align-items: center; gap: 10px; width: 100%; height: 34px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; color: var(--secondary); font-size: 14px; text-align: left; }
+  .set .mi:hover { background: var(--hover); color: var(--text); }
+  .set .mi.on { background: var(--selected); color: var(--text); font-weight: 600; }
+  .set .mi svg { width: 16px; height: 16px; }
+  .set .mc { position: relative; flex: 1; min-width: 0; padding: 22px 28px 32px; overflow-x: hidden; overflow-y: auto; scrollbar-gutter: stable; }
+  .set .mc::-webkit-scrollbar { width: 10px; } .set .mc::-webkit-scrollbar-thumb { background: #2b3240; border-radius: 5px; border: 2px solid #151a23; }
+  .sp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin: 0 44px 18px 0; }
+  .sp-head h2 { margin: 0; font-size: 19px; font-weight: 700; line-height: 1.35; }
+  .sp-head p { margin: 2px 0 0; color: var(--secondary); font-size: 13px; line-height: 1.5; }
+  .sec { margin-top: 20px; }
+  .sec-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 24px; margin-bottom: 8px; }
+  .sec-head h3 { margin: 0; color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: .02em; }
+  .card { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+  .srow { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 10px 14px; }
+  .srow + .srow, .tdisp + .srow { border-top: 1px solid var(--border); }
+  .srow .ic { display: grid; place-items: center; width: 30px; height: 30px; flex: 0 0 30px; border-radius: 8px; background: var(--hover); color: var(--secondary); }
+  .srow .ic svg { width: 16px; height: 16px; }
+  .srow .tx { flex: 1; min-width: 0; }
+  .srow .lb { color: var(--text); font-size: 14px; font-weight: 600; line-height: 1.4; }
+  .srow .ds { color: var(--secondary); font-size: 12.5px; line-height: 1.5; }
+  .srow .ctl { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+  .sfoot { margin: 8px 2px 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+  .btn { height: 32px; padding: 0 12px; border: 1px solid #39414f; border-radius: 8px; background: #232a35; color: var(--text); font-size: 13px; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
+  .btn:hover { background: #2b3441; }
+  .btn.primary { border-color: var(--accent); background: var(--accent); color: #0b1222; font-weight: 600; }
+  .btn.primary:hover { background: #79a5ff; }
+  .btn.danger { border-color: #5a3238; background: none; color: var(--danger); }
+  .btn.danger:hover { background: #2a1c20; }
+  .btn.ghost { border-color: transparent; background: none; color: var(--secondary); }
+  .btn.ghost:hover { background: var(--hover); color: var(--text); }
+  .btn svg { width: 14px; height: 14px; }
+  .tog { position: relative; width: 38px; height: 22px; flex: 0 0 38px; padding: 0; border: 0; border-radius: 11px; background: #39414f; }
+  .tog::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #c9d1dd; transition: left .15s ease; }
+  .tog.on { background: var(--accent); } .tog.on::after { left: 19px; background: #fff; }
+  .seg { display: inline-flex; padding: 2px; border: 1px solid var(--border); border-radius: 8px; background: #161a21; }
+  .seg button { height: 28px; padding: 0 12px; border: 0; border-radius: 6px; background: none; color: var(--secondary); font-size: 12.5px; }
+  .seg button.on { background: var(--selected); color: var(--text); font-weight: 600; }
+  .seg.off { opacity: .45; } .seg.off button { cursor: default; }
+  .badge { display: inline-block; padding: 4px 10px; border-radius: 99px; font-size: 11.5px; line-height: 16px; font-weight: 600; white-space: nowrap; background: #2a303b; color: var(--secondary); }
+  .badge.ok { background: #1f3a2d; color: var(--success); }
+  .soon { margin-left: 6px; padding: 1px 6px; border-radius: 5px; background: #2a303b; color: var(--muted); font-size: 11px; font-weight: 500; }
+  /* 시간 표시 block (TimeDisplaySection.scss), shortened. */
+  .tdisp { padding: 14px 14px 16px; border-top: 1px solid var(--border); }
+  .tdisp .lbl { display: flex; align-items: center; margin: 14px 0 6px; color: var(--muted); font-size: 12px; font-weight: 600; }
+  .tdisp .lbl .sw { display: flex; align-items: center; gap: 8px; margin-left: auto; color: var(--secondary); font-weight: 400; }
+  .tprev { border: 1px solid var(--border); border-radius: var(--radius); background: var(--canvas); }
+  .tprev .r { position: relative; display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 12px 14px; }
+  .tprev .r + .r::before { content: ""; position: absolute; top: 0; right: 14px; left: 46px; height: 1px; background: var(--border); }
+  .tprev .ck { width: 20px; height: 20px; border: 1.5px solid #4a5466; border-radius: 50%; flex: none; }
+  .tprev .t { flex: 1; min-width: 0; } .tprev .tt { font-size: 14px; font-weight: 500; } .tprev .mt { color: var(--muted); font-size: 12px; display: flex; align-items: center; gap: 6px; }
+  .tprev .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+  .tprev .tm { text-align: right; font-size: 12.5px; } .tprev .tm .rm { display: block; color: var(--muted); font-size: 12px; }
+  .tprev .star { color: #4a5466; font-size: 14px; width: 16px; text-align: center; } .tprev .star.on { color: #f2c14e; }
+  .chs { display: flex; flex-direction: column; }
+  .ch { display: grid; grid-template-columns: 16px 128px minmax(0, 1fr); align-items: center; gap: 10px; width: 100%; min-height: 36px; padding: 4px 10px; border: 0; border-radius: 8px; background: none; text-align: left; }
+  .ch:hover { background: var(--hover); }
+  .ch .rd { width: 16px; height: 16px; border: 2px solid var(--muted); border-radius: 50%; }
+  .ch.on .rd { border-color: var(--accent); background: var(--accent); box-shadow: inset 0 0 0 3px var(--surface); }
+  .ch .nm { color: var(--text); font-size: 13.5px; font-weight: 500; white-space: nowrap; } .ch .nm em { margin-left: 4px; color: var(--accent); font-size: 11px; font-style: normal; }
+  .ch .ex { min-width: 0; overflow: hidden; color: var(--secondary); font-size: 12.5px; white-space: nowrap; text-overflow: ellipsis; }
+  /* Data tab (Data.settings.scss). */
+  .sum { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .sum > div { min-width: 0; padding: 14px 18px 18px; } .sum > div + div { border-left: 1px solid var(--border); }
+  .sum .k { display: flex; align-items: center; gap: 6px; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #262c37; color: var(--muted); font-size: 12px; font-weight: 600; }
+  .sum .k svg { width: 14px; height: 14px; }
+  .sum .v { font-size: 18px; font-weight: 700; line-height: 1.3; } .sum .v.ok { color: var(--success); }
+  .sum .s { margin-top: 4px; color: var(--secondary); font-size: 12px; }
+  .sync { display: flex; align-items: center; gap: 12px; padding: 12px 14px; }
+  .sync .badge { min-width: 72px; text-align: center; }
+  .sync .bar { flex: 1; height: 8px; border-radius: 4px; background: #3a4250; }
+  .sync .meta { min-width: 168px; color: var(--secondary); font-size: 12.5px; text-align: right; white-space: nowrap; opacity: .5; }
+  .sync .rf { width: 34px; height: 34px; display: grid; place-items: center; border: 0; border-radius: 8px; background: none; color: var(--secondary); }
+  .sync .rf:hover { background: var(--hover); }
+  /* Device names (new). */
+  .dname { display: inline-flex; align-items: baseline; gap: 8px; max-width: 100%; min-width: 0; }
+  .did { color: var(--muted); font-size: 11.5px; font-weight: 500; letter-spacing: .04em; }
+  .nmb { display: inline-flex; align-items: baseline; gap: 8px; padding: 0 4px; margin: 0 -4px; border: 0; border-radius: 5px; background: none; color: var(--text); font-size: 14px; font-weight: 600; line-height: 1.4; cursor: text; }
+  .nmb:hover { background: var(--hover); }
+  .nmb .pen { align-self: center; width: 13px; height: 13px; color: var(--muted); opacity: 0; transition: opacity .12s; }
+  .dev:hover .nmb .pen { opacity: 1; }
+  .nmin { width: 240px; height: 28px; margin: -2px 0 -2px -8px; padding: 0 8px; border: 1px solid var(--accent); border-radius: 7px; background: #10141a; color: var(--text); font-size: 14px; font-weight: 600; outline: none; box-shadow: 0 0 0 3px #6294ff2e; }
+  .kbh { color: var(--muted); font-size: 11.5px; font-weight: 400; white-space: nowrap; }
+  .kbh kbd { padding: 0 5px; border: 1px solid #39414f; border-radius: 4px; font: inherit; font-size: 11px; color: var(--secondary); }
+  .more { width: 32px; height: 32px; display: grid; place-items: center; padding: 0; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--secondary); }
+  .more:hover, .more.on { background: var(--hover); color: var(--text); }
+  .more svg { width: 18px; height: 18px; }
+  .ctx { position: absolute; z-index: 5; min-width: 168px; padding: 5px; border: 1px solid #323a48; border-radius: 10px; background: #1b2029; box-shadow: 0 12px 32px #0009; }
+  .ctx button { display: flex; align-items: center; gap: 10px; width: 100%; height: 32px; padding: 0 10px; border: 0; border-radius: 7px; background: none; color: var(--text); font-size: 13px; text-align: left; }
+  .ctx button:hover { background: var(--hover); }
+  .ctx button.dg { color: var(--danger); }
+  .ctx svg { width: 15px; height: 15px; color: var(--secondary); } .ctx .dg svg { color: var(--danger); }
+  .scrim { position: absolute; inset: 0; z-index: 10; display: grid; place-items: center; background: #05070acc; }
+  .dlg { width: 440px; border: 1px solid #3a4456; border-radius: 14px; background: #181d26; box-shadow: 0 24px 70px #000a; }
+  .dlg header { padding: 18px 22px 0; } .dlg h4 { margin: 0; font-size: 17px; }
+  .dlg .bd { padding: 14px 22px 18px; } .dlg .bd p { margin: 8px 0 0; color: var(--muted); font-size: 12.5px; }
+  .dlg .in { width: 100%; height: 38px; padding: 0 12px; border: 1px solid var(--accent); border-radius: 9px; background: #10141a; color: var(--text); font-size: 14px; outline: none; box-shadow: 0 0 0 3px #6294ff2e; }
+  .dlg footer { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 22px; border-top: 1px solid var(--border); }
+
+  /* ---------- Windows 11 desktop + toasts ---------- */
+  .desk { width: 400px; height: 400px; overflow: hidden; border: 1px solid #2b303b; border-radius: 10px;
+    background: radial-gradient(120% 90% at 80% 10%, #1d3b70 0%, #142446 38%, #0c1426 70%, #090d18 100%); font-family: "Segoe UI Variable Text", "Segoe UI", "Malgun Gothic", sans-serif; }
+  .desk .stack { position: absolute; right: 12px; bottom: 60px; display: flex; flex-direction: column; gap: 12px; width: 364px; }
+  .toast { width: 364px; border: 1px solid #ffffff14; border-radius: 8px; background: #2c2c2cf5; box-shadow: 0 8px 28px #0009; color: #fff; cursor: pointer; }
+  .toast .th { display: flex; align-items: center; gap: 8px; padding: 10px 10px 0 16px; height: 34px; font-size: 12px; color: #ffffffc4; }
+  .toast .th img { width: 16px; height: 16px; } .toast .th .sp { flex: 1; }
+  .toast .th .tb { width: 28px; height: 24px; display: grid; place-items: center; border-radius: 4px; color: #ffffffb0; font-size: 12px; }
+  .toast .th .tb:hover { background: #ffffff14; }
+  .toast .tbd { padding: 8px 16px 16px; }
+  .toast .tt { font-size: 14px; font-weight: 600; line-height: 20px; }
+  .toast .tx { font-size: 14px; line-height: 20px; color: #ffffffc8; }
+  .desk .gone { position: absolute; right: 12px; bottom: 60px; width: 364px; background: #0b0d10aa; }
+  .taskbar { position: absolute; left: 0; right: 0; bottom: 0; height: 48px; display: flex; align-items: center; gap: 6px; padding: 0 8px 0 14px; background: #1c1c1ce6; border-top: 1px solid #ffffff12; color: #fff; font-size: 12px; }
+  .taskbar .tbi { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 5px; }
+  .taskbar .tbi i { display: block; width: 20px; height: 20px; border-radius: 4px; background: #ffffff2a; }
+  .taskbar .sp { flex: 1; }
+  .taskbar .tray { display: flex; align-items: center; gap: 10px; padding: 0 6px; color: #ffffffd0; }
+  .taskbar .tray img { width: 16px; height: 16px; }
+  .taskbar .clk { text-align: right; line-height: 16px; font-size: 12px; }
+
+  /* ---------- Phones (390x844 screen, Android) ---------- */
+  .phone { position: relative; width: 390px; height: 844px; box-sizing: content-box; border: 10px solid #222730; border-radius: 44px; background: var(--canvas); color: var(--text); overflow: hidden; display: flex; flex-direction: column; font-family: Roboto, "Noto Sans KR", sans-serif; }
+  .phone button, .phone input { font-family: inherit; }
+  .stbar { height: 36px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 22px; font-size: 13px; color: var(--secondary); position: relative; z-index: 45; }
+  .stbar .icons { display: flex; gap: 6px; align-items: center; }
+  .stbar svg { width: 14px; height: 14px; }
+  .gesture { position: absolute; bottom: 8px; left: 50%; width: 108px; height: 4px; margin-left: -54px; border-radius: 4px; background: var(--muted); opacity: .6; z-index: 60; }
+  .pc-scroll { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; position: relative; padding-bottom: 40px; }
+  .pc-scroll::-webkit-scrollbar { display: none; }
+  .m-title { padding: 16px 18px 12px; font-size: 22px; font-weight: 700; flex: none; }
+  .m-bar { display: flex; align-items: center; padding: 8px 8px 0; flex: none; }
+  .m-bar .ib { width: 44px; height: 44px; display: grid; place-items: center; border: 0; background: none; color: var(--secondary); border-radius: 12px; }
+  .m-bar h1 { margin: 0; font-size: 19px; font-weight: 700; }
+  .m-acc { display: flex; align-items: center; gap: 12px; margin: 0 12px; padding: 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
+  .m-logo { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; background: #1a1f2a; }
+  .m-logo img { width: 32px; height: 32px; }
+  .m-gt { padding: 18px 18px 6px; color: var(--muted); font-size: 12px; font-weight: 600; }
+  .m-grp { margin: 0 12px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); overflow: hidden; }
+  .m-it { display: flex; align-items: center; gap: 8px; padding: 13px 14px; border-bottom: 1px solid var(--border); cursor: pointer; }
+  .m-it:last-child { border-bottom: 0; }
+  .m-it:active { background: var(--hover); }
+  .m-it .g { flex: 1; min-width: 0; }
+  .m-it .t { font-size: 15px; line-height: 20px; } .m-it .d { color: var(--muted); font-size: 12px; margin-top: 2px; line-height: 16px; }
+  .m-it .v { color: var(--muted); font-size: 13px; }
+  .m-it .chev { width: 16px; height: 16px; color: var(--muted); }
+  .m-it.sw { gap: 12px; padding: 12px 14px; }
+  .m-it.dim .t, .m-it.dim .v { opacity: .45; }
+  .aswitch { position: relative; width: 36px; height: 20px; flex: none; }
+  .aswitch::before { content: ""; position: absolute; left: 2px; right: 2px; top: 3px; height: 14px; border-radius: 7px; background: var(--border); }
+  .aswitch::after { content: ""; position: absolute; top: 0; left: 0; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px #0008; transition: left .15s; }
+  .aswitch.on::before { background: #6294ff99; } .aswitch.on::after { left: 16px; background: #fff; }
+  .m-perm { display: flex; align-items: center; gap: 12px; padding: 13px 14px; border-bottom: 1px solid var(--border); background: #2a2418; }
+  .m-perm .g { flex: 1; min-width: 0; }
+  .m-perm .t { color: var(--warning); font-size: 15px; font-weight: 600; line-height: 20px; }
+  .m-perm .d { color: #d9c49d; font-size: 12px; margin-top: 2px; line-height: 16px; }
+  .m-perm button { height: 34px; padding: 0 12px; border: 1px solid #4a3c22; border-radius: 10px; background: #33291a; color: var(--warning); font-size: 13px; font-weight: 600; white-space: nowrap; }
+  .m-note { margin: 8px 20px 0; color: var(--muted); font-size: 12px; line-height: 17px; }
+  .m-syncline { display: flex; align-items: center; gap: 6px; padding: 6px 14px 10px; color: var(--muted); font-size: 12px; }
+  .m-syncline i { width: 6px; height: 6px; border-radius: 3px; background: var(--success); }
+  .m-tab { flex: none; display: flex; height: 78px; padding: 6px 0 16px; background: var(--panel); border-top: 1px solid var(--border); }
+  .m-tab button { position: relative; flex: 1; border: 0; background: none; display: flex; flex-direction: column; align-items: center; gap: 3px; padding-top: 4px; color: var(--muted); font-size: 11px; font-weight: 500; }
+  .m-tab button svg { width: 20px; height: 20px; }
+  .m-tab button.on { color: var(--accent); font-weight: 700; }
+  .m-tab button.on::before { content: ""; position: absolute; top: -6px; width: 28px; height: 3px; border-radius: 0 0 3px 3px; background: var(--accent); }
+  .m-card { margin: 0 12px; padding: 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
+  .m-pill { padding: 3px 10px; border-radius: 999px; background: var(--success-soft); color: var(--success); font-size: 12px; font-weight: 600; }
+  .m-btn { display: flex; align-items: center; justify-content: center; width: calc(100% - 36px); min-height: 50px; margin: 0 18px 10px; padding: 0 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); color: var(--text); font-size: 15px; font-weight: 600; }
+  .m-btn.primary { border-color: var(--accent); background: var(--accent); color: #fff; }
+  .m-btn.ghost { border-color: transparent; background: none; color: var(--secondary); font-weight: 500; }
+  .m-btn.danger { color: var(--danger); }
+  .m-dev { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--border); cursor: pointer; }
+  .m-dev:last-child { border-bottom: 0; }
+  .m-dev.pressed { background: var(--hover); }
+  .m-dev > svg { width: 20px; height: 20px; color: var(--secondary); }
+  .m-dev .g { flex: 1; min-width: 0; }
+  .m-dev .t { font-size: 15px; line-height: 20px; } .m-dev .d { color: var(--muted); font-size: 12px; line-height: 16px; }
+  .m-dev .did, .m-sheet h2 .did { font-size: 12px; font-weight: 400; }
+  .m-dev .chev { width: 16px; height: 16px; color: var(--muted); }
+  .m-scrim { position: absolute; inset: 0; z-index: 40; background: rgba(0,0,0,.62); }
+  .m-sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 41; padding: 8px 0 24px; border-radius: 22px 22px 0 0; background: var(--panel); max-height: 88%; overflow-y: auto; scrollbar-width: none; }
+  .m-sheet .grab { width: 36px; height: 4px; margin: 0 auto 12px; border-radius: 4px; background: var(--border); }
+  .m-sheet h2 { margin: 0 20px 10px; font-size: 17px; font-weight: 700; display: flex; align-items: baseline; gap: 8px; }
+  .m-sheet .sr { display: flex; align-items: center; gap: 12px; padding: 12px 20px; font-size: 15px; cursor: pointer; }
+  .m-sheet .sr.on { background: var(--selected); }
+  .m-sheet .rdo { width: 18px; height: 18px; border-radius: 9px; border: 2px solid var(--muted); display: grid; place-items: center; }
+  .m-sheet .sr.on .rdo { border-color: var(--accent); } .m-sheet .sr.on .rdo::after { content: ""; width: 8px; height: 8px; border-radius: 4px; background: var(--accent); }
+  .m-sheet .desc { margin: 0 20px 12px; color: var(--secondary); font-size: 12.5px; line-height: 19px; }
+  .m-flabel { margin: 0 20px 6px; color: var(--muted); font-size: 12px; font-weight: 600; }
+  .m-field { display: block; width: calc(100% - 36px); margin: 0 18px 6px; padding: 13px 14px; border: 1px solid var(--accent); border-radius: 12px; background: var(--surface); color: var(--text); font-size: 15px; outline: none; }
+  .m-field::placeholder { color: var(--muted); }
+  .m-fhelp { margin: 0 20px 14px; color: var(--muted); font-size: 12px; line-height: 17px; }
+  .m-sheet .m-it { padding: 13px 14px; }
+  .m-body { margin: 10px 20px 12px; color: var(--muted); font-size: 12.5px; line-height: 18px; }
+  .m-pop { position: absolute; z-index: 42; right: 24px; width: 210px; padding: 6px 0; border-radius: 14px; background: #20252f; box-shadow: 0 10px 30px #000a; }
+  .m-pop button { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 18px; border: 0; background: none; color: var(--text); font-size: 15px; text-align: left; }
+  .m-pop button.dg { color: var(--danger); }
+  .m-pop svg { width: 18px; height: 18px; color: var(--secondary); } .m-pop .dg svg { color: var(--danger); }
+
+  /* Android notification shade (Material 3 dark). */
+  .shade { background: linear-gradient(160deg, #2a3550, #151b2a 60%, #0d111a); }
+  .shade .veil { position: absolute; inset: 0; background: #0d0e12ee; }
+  .shade .stbar { color: #e3e3e6; }
+  .sh-top { position: relative; padding: 4px 20px 0; color: #e3e3e6; flex: none; }
+  .sh-top .date { font-size: 13px; color: #c4c7cf; margin-bottom: 12px; }
+  .qs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .qs div { display: flex; align-items: center; gap: 10px; height: 60px; padding: 0 16px; border-radius: 30px; background: #2b2e36; color: #e3e3e6; font-size: 13px; font-family: Roboto, "Noto Sans KR", sans-serif; }
+  .qs div.on { background: #a8c7fa; color: #062e6f; }
+  .qs svg { width: 20px; height: 20px; }
+  .qs small { display: block; font-size: 11.5px; opacity: .75; }
+  .bright { height: 40px; margin: 12px 0 4px; border-radius: 20px; background: #2b2e36; position: relative; overflow: hidden; }
+  .bright i { position: absolute; left: 0; top: 0; bottom: 0; width: 58%; border-radius: 20px; background: #a8c7fa; }
+  .nlist { position: relative; display: flex; flex-direction: column; gap: 2px; margin: 14px 12px 0; }
+  .ncard { padding: 14px 16px 16px; background: #1f2127; border-radius: 6px; cursor: pointer; }
+  .ncard:first-child { border-top-left-radius: 24px; border-top-right-radius: 24px; }
+  .ncard:last-child { border-bottom-left-radius: 24px; border-bottom-right-radius: 24px; }
+  .ncard .nh { display: flex; align-items: center; gap: 8px; color: #c4c7cf; font-size: 12.5px; }
+  .ncard .nh .ai { width: 22px; height: 22px; border-radius: 11px; display: grid; place-items: center; background: #6294ff; color: #fff; font: 700 12px/1 Roboto, sans-serif; }
+  .ncard .nh .sp { flex: 1; }
+  .ncard .nh .ex { width: 26px; height: 26px; border-radius: 13px; display: grid; place-items: center; background: #2e3139; }
+  .ncard .nh .ex svg { width: 14px; height: 14px; }
+  .ncard .nt { margin: 8px 0 0 30px; color: #e3e3e6; font-size: 15px; font-weight: 500; line-height: 20px; }
+  .ncard .nx { margin: 2px 0 0 30px; color: #c4c7cf; font-size: 14px; line-height: 20px; }
+  .nfoot { position: relative; display: flex; justify-content: space-between; align-items: center; margin: 12px 16px 0; }
+  .nfoot button { height: 36px; padding: 0 16px; border: 0; border-radius: 18px; background: #2b2e36; color: #e3e3e6; font-size: 13.5px; font-weight: 500; }
+  .shade .gone { margin: 14px 12px 0; position: relative; background: #0b0d10aa; }
+</style>
+</head>
+<body>
+<div class="stage" id="stage"></div>
+<div class="opt-pop" id="optpop"></div>
+<script>
+const ICON = 'data:image/png;base64,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';
+const sv = (d, w = 2) => `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+const I = {
+  general: sv('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>', 1.6),
+  bell: sv('<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>', 1.6),
+  data: sv('<path d="M12 3 5 6v5.5c0 4.3 3 8 7 9.5 4-1.5 7-5.2 7-9.5V6z"/>', 1.6),
+  system: sv('<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>', 1.6),
+  account: sv('<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>', 1.6),
+  about: sv('<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/>', 1.6),
+  pc: sv('<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>', 1.6),
+  phone: sv('<rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M11 18h2"/>', 1.6),
+  key: sv('<circle cx="7.5" cy="15.5" r="4.5"/><path d="m10.7 12.3 9.3-9.3M16 7l3 3M14 9l2 2"/>', 1.6),
+  box: sv('<path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>', 1.6),
+  lock: sv('<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>', 1.8),
+  refresh: sv('<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 5v6h-6"/>', 1.8),
+  pen: sv('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>', 1.8),
+  dots: sv('<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>', 2),
+  unlink: sv('<path d="M9 17H7A5 5 0 0 1 7 7h2M15 7h2a5 5 0 0 1 4 8M8 12h4M3 3l18 18"/>', 1.8),
+  info: sv('<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/>', 1.8),
+  // lucide (mobile)
+  chev: sv('<path d="m9 18 6-6-6-6"/>'),
+  back: sv('<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>'),
+  mphone: sv('<rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/>'),
+  mmon: sv('<rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8M12 17v4"/>'),
+  tasks: sv('<path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8M13 12h8M13 18h8"/>'),
+  cal: sv('<rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"/>'),
+  clock: sv('<circle cx="12" cy="12" r="10"/><path d="M12 6v6h4"/>'),
+  gear: sv('<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>'),
+  wifi: sv('<path d="M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M12 19.5h.01M1.5 9a15 15 0 0 1 21 0"/>'),
+  bt: sv('<path d="m7 7 10 10-5 5V2l5 5L7 17"/>'),
+  moon: sv('<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/>'),
+  torch: sv('<path d="M18 6c0 2-2 2-2 4v10a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2V10c0-2-2-2-2-4V2h12z"/><path d="M6 6h12M12 12v1"/>'),
+  down: sv('<path d="m6 9 6 6 6-6"/>'),
+  sig: '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M2 22h20V2z"/></svg>',
+  bat: '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><rect x="7" y="3" width="10" height="19" rx="2"/><rect x="10" y="1" width="4" height="3" rx="1"/></svg>',
+};
+
+// ---------- State ----------
+const s = {
+  pcPlace: 'general', toast: 'a', pcRename: 'inline', mRename: 'sheet', idShow: 'dup',
+  before: true, at: false, min: 10, mPerm: false,
+  pcEdit: '7BE0', pcMenu: '7BE0', pcDialog: null, mSel: '7BE0',
+  names: { '7BE0': '회사 노트북' },
+};
+const MINS = [5, 10, 15, 30, 60];
+const minText = m => m === 60 ? '1시간' : m + '분';
+// Devices: ids are the 4-character short id the app already shows (shortDeviceId).
+const DEV = [
+  { id: '4D6B', raw: '4d6b…e81f', kind: 'pc', model: 'Windows PC', role: 'write', added: '9월 22일' },
+  { id: '7BE0', raw: '7be0…a1c2', kind: 'pc', model: 'Windows PC', role: 'write', added: '9월 24일' },
+  { id: 'C90D', raw: 'c90d…5b37', kind: 'phone', model: 'Galaxy S24', role: 'write', added: '9월 27일' },
+  { id: '2A91', raw: '2a91…0dd4', kind: 'phone', model: 'Galaxy S24', role: 'read', added: '10월 2일' },
+];
+const nameOf = d => s.names[d.id] || d.model;
+const showId = d => s.idShow === 'always' || DEV.filter(x => nameOf(x) === nameOf(d)).length > 1;
+const idTag = d => showId(d) ? `<span class="did">${d.id}</span>` : '';
+const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// ---------- PC settings ----------
+function pcShell(active, content, extra = '') {
+  const tabs = [['general', '일반'], ...(s.pcPlace === 'tab' ? [['bell', '알림']] : []), ['data', '데이터'], ['system', '시스템'], ['account', '계정'], ['about', '정보']];
+  return `<div class="win set">
+    <button class="close" aria-label="닫기">${sv('<path d="M6 6l12 12M18 6 6 18"/>', 1.8)}</button>
+    <aside class="side"><div class="st">설정</div><nav class="menu">${tabs.map(([k, l]) => `<button class="mi ${k === active ? 'on' : ''}" data-act="tab" data-k="${k}">${I[k]}<span>${l}</span></button>`).join('')}</nav></aside>
+    <main class="mc" data-sc="${active}">${content}</main>${extra}</div>`;
+}
+const head = (t, d, a = '') => `<header class="sp-head"><div><h2>${t}</h2><p>${d}</p></div>${a}</header>`;
+const srow = (lb, ds, ctl = '', ic = '', cls = '') => `<div class="srow ${cls}">${ic ? `<div class="ic">${ic}</div>` : ''}<div class="tx"><div class="lb">${lb}</div>${ds ? `<div class="ds">${ds}</div>` : ''}</div>${ctl ? `<div class="ctl">${ctl}</div>` : ''}</div>`;
+const seg = (opts, on, extra = '') => `<div class="seg ${extra}">${opts.map(([v, l]) => `<button class="${v === on ? 'on' : ''}" ${extra.includes('min') ? `data-act="min" data-v="${v}"` : ''}>${l}</button>`).join('')}</div>`;
+const tog = (on, k) => `<button class="tog ${on ? 'on' : ''}" ${k ? `data-act="tog" data-k="${k}"` : ''}></button>`;
+
+function timeDisplay() {
+  const due = [['묶음 맞춤', '오후 3:00 · 내일 오후 5:30 · 10월 26일', true], ['간단히', '오늘 · 내일 · 10월 26일'], ['자동', '오후 3:00 · 내일 오후 5:30 · 토 오후 3:00'], ['정확히', '10월 26일 오후 2:45'], ['자세히', '2026년 10월 26일 (일) 오후 2:45']];
+  const rem = [['간단히', '1일 · 34일 · 1시간'], ['보통', '1일 4시간 · 34일 23시간 · 1시간'], ['자세히', '1일 4시간 12분 · 34일 23시간 2분'], ['모두', '1일 4시간 12분 8초']];
+  const ch = (list, on) => `<div class="chs">${list.map(([n, ex, tag], i) => `<button class="ch ${i === on ? 'on' : ''}"><span class="rd"></span><span class="nm">${n}${tag ? '<em>새 기본값</em>' : ''}</span><span class="ex">${ex}</span></button>`).join('')}</div>`;
+  const pr = (t, c, col, d, r, star) => `<div class="r"><span class="ck"></span><div class="t"><div class="tt">${t}</div><div class="mt"><i class="dot" style="background:${col}"></i>${c}</div></div><div class="tm">${d}<span class="rm">${r}</span></div><span class="star ${star ? 'on' : ''}">${star ? '★' : '☆'}</span></div>`;
+  return `<div class="tdisp"><div class="tx"><div class="lb" style="font-size:14px;font-weight:600">시간 표시</div><div class="ds" style="color:var(--secondary);font-size:12.5px">할 일 목록 오른쪽 칸 위에는 기한, 아래에는 남은 시간을 연하게 보여 줘요.</div></div>
+    <div class="lbl">미리 보기</div><div class="tprev">${pr('주간 보고서 제출', '업무', '#6294ff', '오전 11:10', '3시간 40분 지남', false)}${pr('분기 회고 자료 정리', '업무', '#6294ff', '오후 5:50', '2시간 59분', true)}${pr('운동 30분', '생활', '#44c98b', '내일 오후 7:02', '1일 4시간', false)}</div>
+    <div class="lbl">기한</div>${ch(due, 0)}
+    <div class="lbl">남은 시간<span class="sw">${tog(true)}<span>보이기</span></span></div>${ch(rem, 1)}</div>`;
+}
+function notifCard() {
+  return `<div class="card">
+    ${srow('기한 전에 알림', '기한이 다가오면 미리 Windows 알림으로 알려 줘요.', seg(MINS.map(m => [m, minText(m)]), s.min, 'min' + (s.before ? '' : ' off')) + tog(s.before, 'before'))}
+    ${srow('기한 시각에 알림', '기한이 된 순간에 알려 줘요.', tog(s.at, 'at'))}
+  </div>
+  <p class="sfoot">비밀 카테고리의 할 일과 앱이 잠겨 있을 때는 제목 없이 "할 일 1개의 기한이 10분 남았어요"처럼 알려요. 창을 닫아도 트레이에서 알려 줘요.</p>`;
+}
+function frame1() {
+  if (s.pcPlace === 'tab') return pcShell('bell', head('알림', '기한이 다가오면 Windows 알림으로 알려 줘요.') + `<div class="notif-sec">${notifCard()}</div>`);
+  const general = `<div class="card">
+      ${srow('시작할 때 보기', '앱을 열면 처음 보여 줄 화면', seg([['list', '목록'], ['cal', '캘린더'], ['tl', '타임라인']], 'list'))}
+      ${srow('주 시작 요일', '캘린더의 첫 번째 열', seg([[0, '일요일'], [1, '월요일']], 0))}
+      ${srow('시각 형식', '오후 3시 / 15시', seg([['12', '12시간'], ['24', '24시간']], '12'))}
+      ${timeDisplay()}
+      ${srow('테마<span class="soon">준비 중</span>', '다크, 라이트, 시스템 설정 따르기', seg([['d', '다크'], ['l', '라이트'], ['s', '시스템']], 'd', 'off'))}
+      ${srow('업데이트 후 변경 내용 보기', '새 버전으로 바뀐 뒤 처음 열 때 바뀐 점을 창으로 보여 줘요.', tog(true))}
+    </div>`;
+  const sec = s.pcPlace === 'general' ? `<section class="sec notif-sec" id="notif-sec"><div class="sec-head"><h3>알림</h3></div>${notifCard()}</section>` : '';
+  return pcShell('general', head('일반', '앱의 기본 동작을 정합니다.') + general + sec);
+}
+
+function devName(d) {
+  const n = esc(nameOf(d));
+  if (s.pcRename === 'inline') {
+    if (s.pcEdit === d.id) return `<input class="nmin" data-id="${d.id}" value="${n}" placeholder="${d.model}" spellcheck="false"><span class="kbh"><kbd>Enter</kbd> 저장 · <kbd>Esc</kbd> 취소</span>`;
+    return `<span class="dname"><button class="nmb" data-act="pcEdit" data-id="${d.id}" title="눌러서 이름 바꾸기">${n}${idTag(d)}${I.pen.replace('<svg', '<svg class="pen"')}</button></span>`;
+  }
+  return `<span class="dname"><span>${n}</span>${idTag(d)}</span>`;
+}
+function devRows() {
+  const old = s.pcRename === 'none' || s.idShow === 'none';
+  return DEV.map(d => {
+    const own = d.id === '4D6B';
+    const ds = [d.role === 'read' ? '보기만 가능' : '편집 가능', own ? '현재 사용 중' : `${d.added} 연결`].join(' · ');
+    if (old) return srow(own ? '이 PC' : `다른 기기 · ${d.id}`, ds, own ? '<span class="badge">이 기기</span>' : '<button class="btn danger">해제</button>', I.pc);
+    let ctl = own ? '<span class="badge">이 기기</span>' : '<button class="btn danger">해제</button>';
+    if (s.pcRename === 'menu') {
+      ctl = (own ? '<span class="badge">이 기기</span>' : '') + `<button class="more ${s.pcMenu === d.id ? 'on' : ''}" data-act="pcMenu" data-id="${d.id}" title="더 보기">${I.dots}</button>`;
+      if (s.pcMenu === d.id) ctl += `<div class="ctx" style="right:14px;top:46px"><button data-act="pcRen" data-id="${d.id}">${I.pen}이름 바꾸기</button>${own ? '' : `<button class="dg">${I.unlink}기기 해제</button>`}</div>`;
+    }
+    return `<div class="srow dev" style="position:relative" data-id="${d.id}"><div class="ic">${d.kind === 'pc' ? I.pc : I.phone}</div><div class="tx"><div class="lb">${devName(d)}</div><div class="ds">${ds}</div></div><div class="ctl">${ctl}</div></div>`;
+  }).join('');
+}
+function frame3() {
+  const lock = `<button class="btn">${I.lock}앱 잠금</button>`;
+  const content = head('데이터', '내 데이터는 기기에서 암호화되어 저장·동기화됩니다.', lock) + `
+    <div class="card sum">
+      <div><div class="k">${I.key}복구 키</div><div class="v ok">✓ 보관됨</div><div class="s">확인 완료</div></div>
+      <div><div class="k">${I.pc}연결된 기기</div><div class="v">4대</div><div class="s">이 PC 포함</div></div>
+      <div><div class="k">${I.box}마지막 백업</div><div class="v">10월 21일</div><div class="s">128개 항목</div></div>
+    </div>
+    <section class="sec"><div class="sec-head"><h3>동기화</h3></div><div class="card sync"><span class="badge ok">온라인</span><div class="bar"></div><span class="meta">보낼 변경 0개 · 방금 동기화</span><button class="rf" title="지금 동기화">${I.refresh}</button></div></section>
+    <section class="sec"><div class="sec-head"><h3>연결된 기기</h3><button class="btn">+ 새 기기 추가</button></div><div class="card dev-card">${devRows()}</div></section>
+    <section class="sec"><div class="sec-head"><h3>백업과 복구</h3></div><div class="card">
+      ${srow('데이터 백업', '할 일 전체를 암호화된 파일로 내보내거나 불러옵니다.', '<button class="btn">백업 관리</button>', I.box)}
+      ${srow('복구 키', '모든 기기를 잃었을 때 데이터를 되찾는 파일과 코드입니다.', '<button class="btn">새로 만들기</button>', I.key)}
+    </div></section>`;
+  let extra = '';
+  const dd = s.pcRename === 'menu' && s.pcDialog && DEV.find(d => d.id === s.pcDialog);
+  if (dd) extra = `<div class="scrim"><div class="dlg"><header><h4>기기 이름 바꾸기</h4></header><div class="bd"><input class="in" data-id="${dd.id}" value="${esc(nameOf(dd))}" placeholder="${dd.model}" spellcheck="false"><p>비워 두면 모델 이름(${dd.model})으로 보여요. 연결된 모든 기기에서 같은 이름으로 보여요.</p></div><footer><button class="btn" data-act="dlgX">취소</button><button class="btn primary" data-act="dlgOk">저장</button></footer></div></div>`;
+  return pcShell('data', content, extra);
+}
+
+// ---------- Windows toasts ----------
+const NOW = '오후 2:50';
+function beforeBody(time) { return s.toast === 'b' ? `${time}까지 · ${minText(s.min)} 남음` : `${minText(s.min)} 뒤 기한 · ${time}`; }
+const toast = (t, x) => `<div class="toast"><div class="th"><img src="${ICON}" alt=""><span>Thread</span><span class="sp"></span><span class="tb">···</span><span class="tb">✕</span></div><div class="tbd"><div class="tt">${t}</div>${x ? `<div class="tx">${x}</div>` : ''}</div></div>`;
+const taskbar = () => `<div class="taskbar"><span class="tbi"><i style="background:#4cc2ff;border-radius:3px"></i></span><span class="tbi"><i></i></span><span class="tbi"><i></i></span><span class="tbi"><i></i></span><span class="sp"></span><span class="tray">⌃<img src="${ICON}" alt=""><span>📶</span></span><span class="clk">${NOW}<br>2026-10-24</span></div>`;
+function frame2(kind) {
+  let inner;
+  if (s.toast === 'none') inner = `<div class="gone toast-slot">알림 없음 (지금 앱에는 기한 알림이 없어요)</div>`;
+  else if (kind === 'plain') inner = `<div class="stack toast-slot">${toast('분기 회고 자료 정리', beforeBody('오후 3:00'))}${toast('주간 보고서 제출', `지금 기한이에요 · ${NOW}`)}</div>`;
+  else inner = `<div class="stack toast-slot">${toast(`할 일 1개의 기한이 ${minText(s.min)} 남았어요`, '')}${toast(`할 일 1개의 기한이 ${minText(s.min)} 남았어요`, '앱 잠금을 풀면 볼 수 있어요')}</div>`;
+  return `<div class="win desk">${inner}${taskbar()}</div>`;
+}
+
+// ---------- Phones ----------
+const stbar = (dark) => `<div class="stbar"><span>2:50</span><span class="icons">${I.sig}${I.bat}</span></div>`;
+const mTab = on => `<div class="m-tab">${[['tasks', '할 일'], ['cal', '캘린더'], ['clock', '일정'], ['gear', '설정']].map(([k, l]) => `<button class="${k === on ? 'on' : ''}">${I[k]}<span>${l}</span></button>`).join('')}</div>`;
+const mItem = (t, v, d, cls = '') => `<div class="m-it ${cls}"><div class="g"><div class="t">${t}</div>${d ? `<div class="d">${d}</div>` : ''}</div>${v ? `<span class="v">${v}</span>` : ''}${I.chev.replace('<svg', '<svg class="chev"')}</div>`;
+const mSwitch = (t, d, on, k) => `<div class="m-it sw" data-act="tog" data-k="${k}"><div class="g"><div class="t">${t}</div><div class="d">${d}</div></div><span class="aswitch ${on ? 'on' : ''}"></span></div>`;
+function mSettings(sheet) {
+  const perm = s.mPerm ? '' : `<div class="m-perm"><div class="g"><div class="t">알림 권한이 꺼져 있어요</div><div class="d">휴대폰 설정에서 Thread 알림을 허용해야 기한을 알려 드려요.</div></div><button data-act="mPerm">설정 열기</button></div>`;
+  const body = `<div class="m-title">설정</div><div class="pc-scroll" data-sc="m4${sheet ? 'b' : 'a'}">
+    <div class="m-acc"><div class="m-logo"><img src="${ICON}" alt=""></div><div><div style="font-weight:700;font-size:15px">thread_user</div><div style="color:var(--muted);font-size:12px">Google 연결됨 · user@example.com</div></div></div>
+    <div class="m-gt">일반</div><div class="m-grp">
+      ${mItem('시작 화면', '할 일')}${mItem('주 시작 요일', '일요일')}${mItem('시각 형식', '12시간 (오후 3:00)')}${mItem('시간 표시', '남은 시간 · 보통')}${mItem('테마', '시스템 기본값')}${mItem('비밀 카테고리 잠금', '앱을 닫거나 잠글 때')}
+      <div class="m-it sw"><div class="g"><div class="t">업데이트 후 변경 내용 보기</div><div class="d">새 버전으로 바뀐 뒤 처음 열 때 바뀐 점을 보여 줘요.</div></div><span class="aswitch on"></span></div>
+    </div>
+    <div class="m-gt" id="m-notif">알림</div><div class="m-grp">
+      ${perm}
+      ${mSwitch('기한 전에 알림', `기한 ${minText(s.min)} 전에 알려 줘요.`, s.before, 'before')}
+      <div data-act="mMinOpen">${mItem('얼마나 전에', `${minText(s.min)} 전`, '', s.before ? '' : 'dim')}</div>
+      ${mSwitch('기한 시각에 알림', '기한이 된 순간에 알려 줘요.', s.at, 'at')}
+    </div>
+    <p class="m-note">비밀 카테고리의 할 일은 제목 없이 "할 일 1개의 기한이 10분 남았어요"처럼 알려요.</p>
+    <div class="m-gt">데이터</div><div class="m-grp"><div style="padding-top:12px"><div style="display:flex;align-items:center;padding:0 14px"><span style="flex:1;font-size:15px">동기화 · 기기 · 복구</span>${I.chev.replace('<svg', '<svg style="width:18px;height:18px;color:var(--muted)"')}</div><div class="m-syncline"><i></i>모두 동기화됨 · 방금</div></div></div>
+  </div>`;
+  const sh = sheet ? `<div class="m-scrim"></div><div class="m-sheet"><div class="grab"></div><h2>얼마나 전에</h2>${MINS.map(m => `<div class="sr ${m === s.min ? 'on' : ''}" data-act="min" data-v="${m}"><span class="rdo"></span>${minText(m)} 전</div>`).join('')}</div>` : '';
+  return `<div class="win phone">${stbar()}${body}${mTab('gear')}${sh}<div class="gesture"></div></div>`;
+}
+
+function mDevRow(d, ownId, old, ui) {
+  const own = d.id === ownId;
+  if (old) {
+    return `<div class="m-dev">${own ? I.mphone : I.mmon}<div class="g"><div class="t">${own ? '이 휴대폰' : `다른 기기 · ${d.raw}`}</div><div class="d">${own ? '처음 만든 기기' : `${d.added} 연결`}</div></div>${own ? '' : I.chev.replace('<svg', '<svg class="chev"')}</div>`;
+  }
+  const pressed = ui && s.mRename === 'long' && s.mSel === d.id;
+  return `<div class="m-dev ${pressed ? 'pressed' : ''}" data-act="mTap" data-id="${d.id}">${d.kind === 'pc' ? I.mmon : I.mphone}<div class="g"><div class="t"><span class="dname">${esc(nameOf(d))}${idTag(d)}</span></div><div class="d">${own ? '이 휴대폰 · 처음 만든 기기' : `${d.added} 연결${d.role === 'read' ? ' · 보기만' : ''}`}</div></div>${I.chev.replace('<svg', '<svg class="chev"')}</div>`;
+}
+function mData(withUi) {
+  const ownId = 'C90D', old = s.mRename === 'none' || s.idShow === 'none';
+  const list = [DEV[2], DEV[0], DEV[1], DEV[3]];
+  const body = `<div class="m-bar"><button class="ib">${I.back.replace('width="16" height="16"', 'width="22" height="22"')}</button><h1>데이터</h1></div>
+  <div class="pc-scroll" style="padding-top:8px">
+    <div class="m-card"><div style="display:flex;align-items:center;gap:10px"><span class="m-pill">온라인</span><div style="flex:1;height:8px;border-radius:4px;background:var(--success)"></div><span style="color:var(--success);font-size:12px;font-weight:600">모두 동기화됨</span></div>
+      <div style="color:var(--muted);font-size:12px;margin-top:8px">마지막 동기화 방금 · 서버는 암호화된 내용만 봅니다</div>
+      <button class="m-btn" style="width:100%;margin:12px 0 0">지금 동기화</button></div>
+    <div class="m-gt">연결된 기기</div><div class="m-grp m-devs">${list.map(d => mDevRow(d, ownId, old, withUi)).join('')}</div>
+    <div style="height:12px"></div><button class="m-btn primary">새 기기 추가</button>
+    <div class="m-gt">보호</div><div class="m-grp">${'<div class="m-it"><div class="g"><div class="t">잠금 해제 방식</div></div><span class="v">생체·PIN</span></div>'}${mItem('복구 코드 복사', '', '30초 뒤 클립보드에서 지워져요')}${mItem('복구 파일 다시 저장')}</div>
+  </div>`;
+  let ui = '';
+  if (withUi) {
+    const d = DEV.find(x => x.id === s.mSel) || DEV[1];
+    const info = `<div class="m-it"><div class="g"><div class="t">연결</div></div><span class="v">${d.added || '—'}</span></div><div class="m-it" style="border-bottom:0"><div class="g"><div class="t">권한</div></div><span class="v">${d.role === 'read' ? '보기만' : '보기·편집'}</span></div>
+      <p class="m-body">잃어버렸거나 더 안 쓰는 기기면 해제하세요. 해제하면 새 복구 키를 만들고 데이터를 새 키로 다시 잠가요.</p>
+      <button class="m-btn danger">기기 해제</button><button class="m-btn ghost">닫기</button>`;
+    if (old) ui = `<div class="m-scrim"></div><div class="m-sheet m-ui"><div class="grab"></div><h2>다른 기기 · ${d.raw}</h2>${info}</div>`;
+    else if (s.mRename === 'sheet') ui = `<div class="m-scrim"></div><div class="m-sheet m-ui"><div class="grab"></div><h2>${esc(nameOf(d))}${idTag(d)}</h2>
+      <div class="m-flabel">이름</div><input class="m-field" data-id="${d.id}" value="${esc(nameOf(d))}" placeholder="${d.model}" spellcheck="false">
+      <p class="m-fhelp">비워 두면 모델 이름(${d.model})으로 보여요. 연결된 모든 기기에서 같은 이름으로 보여요.</p>
+      <button class="m-btn primary" data-act="mSave">이름 저장</button>${info}</div>`;
+    else ui = `<div class="m-pop m-ui" data-for="${d.id}"><button data-act="mRen">${I.pen}이름 바꾸기</button><button>${I.info}자세히 보기</button><button class="dg">${I.unlink}기기 해제</button></div>`;
+  }
+  return `<div class="win phone">${stbar()}${body}${ui}<div class="gesture"></div></div>`;
+}
+
+function frame5() {
+  let list;
+  if (s.toast === 'none') list = `<div class="gone toast-slot">알림 없음 (지금 앱에는 기한 알림이 없어요)</div>`;
+  else {
+    const card = (t, x, w = '지금') => `<div class="ncard"><div class="nh"><span class="ai">T</span><span>Thread</span><span>·</span><span>${w}</span><span class="sp"></span><span class="ex">${I.down}</span></div><div class="nt">${t}</div>${x ? `<div class="nx">${x}</div>` : ''}</div>`;
+    list = `<div class="nlist toast-slot">${card('분기 회고 자료 정리', beforeBody('오후 3:00'))}${card('주간 보고서 제출', `지금 기한이에요 · ${NOW}`)}${card(`할 일 1개의 기한이 ${minText(s.min)} 남았어요`, '', '3분 전')}</div>`;
+  }
+  return `<div class="win phone shade"><div class="veil"></div>${stbar()}
+    <div class="sh-top"><div class="date">10월 24일 토요일</div>
+      <div class="qs"><div class="on">${I.wifi}<span>인터넷<small>Home-5G</small></span></div><div class="on">${I.bt}<span>블루투스<small>켜짐</small></span></div><div>${I.moon}<span>방해 금지<small>꺼짐</small></span></div><div>${I.torch}<span>손전등<small>꺼짐</small></span></div></div>
+      <div class="bright"><i></i></div></div>
+    ${list}
+    ${s.toast === 'none' ? '' : '<div class="nfoot"><button>관리</button><button>모두 지우기</button></div>'}
+    <div class="gesture"></div></div>`;
+}
+
+// ---------- Layout ----------
+const fr = (cap, html, cls = '') => `<div class="fr ${cls}"><div class="cap">${cap}</div>${html}</div>`;
+function notes() {
+  return `<aside class="notes"><p class="hint"><kbd>Shift</kbd>를 누른 채 파란 점선에 마우스를 올리면 후보가 나와요. 열 때 보이는 것이 추천안이에요.</p>
+    <h3>정할 것</h3><ul>
+      <li>PC 알림 설정 위치: 일반 안 "알림" 묶음 / 따로 "알림" 탭 — ① 왼쪽 메뉴나 알림 묶음</li>
+      <li>"N분 전" 알림 문구 — ② 토스트, ⑤ 안드로이드 알림</li>
+      <li>PC 기기 이름 바꾸기: 이름 눌러 바로 고치기 / ⋯ 메뉴 → 창 — ③ 연결된 기기 목록</li>
+      <li>모바일 기기 이름 바꾸기: 눌러서 시트 / 길게 눌러 메뉴 — ⑥ 기기 목록, 시트</li>
+      <li>짧은 기기 id를 이름 옆에 언제 보일지(겹칠 때만 / 늘) — ③⑥ 기기 이름</li>
+    </ul></aside>`;
+}
+function render() {
+  const keep = {};
+  document.querySelectorAll('[data-sc]').forEach(el => { keep[el.dataset.sc] = el.scrollTop; });
+  document.getElementById('stage').innerHTML = [
+    fr('<b>① PC 설정 · 알림</b>설정 창 실제 크기(1440×960 창 기준 1080×800)', frame1(), 'f1'),
+    notes(),
+    '<div class="brk"></div>',
+    `<div class="fr f2"><div class="cap"><b>② Windows 알림</b>왼쪽: 일반 할 일(10분 전 · 기한 시각) / 오른쪽: 위 비밀 카테고리, 아래 앱이 잠겨 있을 때. 누르면 앱이 열리고 그 할 일을 골라요.</div><div class="pair">${frame2('plain')}${frame2('hidden')}</div></div>`,
+    fr('<b>③ PC 설정 · 데이터 → 연결된 기기</b>모든 PC에서 보여요. 이름을 고치는 중(회사 노트북)', frame3(), 'f3'),
+    '<div class="brk"></div>',
+    `<div class="fr f4"><div class="cap"><b>④ 모바일 설정 · 알림</b>왼쪽: 알림 권한이 꺼진 상태 / 오른쪽: "얼마나 전에" 고르기</div><div class="pair">${mSettings(false)}${mSettings(true)}</div></div>`,
+    fr('<b>⑤ 안드로이드 알림</b>N분 전 · 기한 시각 · 비밀 카테고리', frame5(), 'f5'),
+    `<div class="fr f6"><div class="cap"><b>⑥ 모바일 데이터 → 연결된 기기</b>왼쪽: 목록 / 오른쪽: 이름 바꾸기(회사 노트북)</div><div class="pair">${mData(false)}${mData(true)}</div></div>`,
+  ].join('');
+  document.querySelectorAll('[data-sc]').forEach(el => {
+    if (keep[el.dataset.sc] != null) el.scrollTop = keep[el.dataset.sc];
+    else if (el.dataset.sc === 'general') { const sec = el.querySelector('#notif-sec'); el.scrollTop = sec ? sec.offsetTop - 260 : el.scrollHeight; }
+    else if (el.dataset.sc.startsWith('m4')) { const g = el.querySelector('#m-notif'); el.scrollTop = g.offsetTop - 150; }
+  });
+  // Long-press menu sits just under the pressed row.
+  document.querySelectorAll('.m-pop[data-for]').forEach(p => {
+    const ph = p.closest('.phone'), row = ph.querySelector('.m-dev[data-id="' + p.dataset.for + '"]');
+    if (row) p.style.top = Math.round(row.getBoundingClientRect().bottom - ph.getBoundingClientRect().top - 10 + 4) + 'px';
+  });
+  markHot();
+  const inp = document.querySelector('.nmin, .dlg .in');
+  if (inp && render.focus) { inp.focus(); inp.select(); render.focus = false; }
+}
+function saveName(id, v) { v = v.trim(); const d = DEV.find(x => x.id === id); if (!v || v === d.model) delete s.names[id]; else s.names[id] = v.slice(0, 40); }
+document.addEventListener('click', e => {
+  const a = e.target.closest('[data-act]'); if (!a || e.target.closest('.opt-pop')) return;
+  const { act, k, v, id } = a.dataset;
+  if (act === 'tog') s[k] = !s[k];
+  else if (act === 'min') { if (!s.before) return; s.min = +v; }
+  else if (act === 'mMinOpen') { if (!s.before) return; }
+  else if (act === 'tab') return;
+  else if (act === 'pcEdit') { s.pcEdit = id; render.focus = true; }
+  else if (act === 'pcMenu') s.pcMenu = s.pcMenu === id ? null : id;
+  else if (act === 'pcRen') { s.pcMenu = null; s.pcDialog = id; render.focus = true; }
+  else if (act === 'dlgX') s.pcDialog = null;
+  else if (act === 'dlgOk') { saveName(s.pcDialog, document.querySelector('.dlg .in').value); s.pcDialog = null; }
+  else if (act === 'mTap') s.mSel = id;
+  else if (act === 'mSave') saveName(s.mSel, document.querySelector('.m-field').value);
+  else if (act === 'mRen') return;
+  else if (act === 'mPerm') s.mPerm = true;
+  render();
+});
+document.addEventListener('keydown', e => {
+  const t = e.target;
+  if (t.matches?.('.nmin')) {
+    if (e.key === 'Enter') { saveName(t.dataset.id, t.value); s.pcEdit = null; render(); }
+    else if (e.key === 'Escape') { s.pcEdit = null; render(); }
+  } else if (t.matches?.('.dlg .in')) {
+    if (e.key === 'Enter') { saveName(s.pcDialog, t.value); s.pcDialog = null; render(); }
+    else if (e.key === 'Escape') { s.pcDialog = null; render(); }
+  } else if (t.matches?.('.m-field') && e.key === 'Enter') { saveName(s.mSel, t.value); render(); }
+});
+
+// Choices shown on Shift + hover. at: where they sit; key: the state they set.
+const OPTS = [
+  { at: '.f1 .menu, .f1 .notif-sec', key: 'pcPlace', title: 'PC 알림 설정 위치', items: [['general', '설정 > 일반 안 "알림" 묶음 (추천)'], ['tab', '따로 "알림" 탭'], ['none', '기존(없음)']] },
+  { at: '.toast-slot', key: 'toast', title: '"N분 전" 알림 문구', items: [['a', '"10분 뒤 기한 · 오후 3:00" (추천)'], ['b', '"오후 3:00까지 · 10분 남음"'], ['none', '기존(알림 없음)']] },
+  { at: '.f3 .dev-card', key: 'pcRename', title: 'PC 기기 이름 바꾸기', items: [['inline', '이름 눌러 바로 고치기 · Enter 저장, Esc 취소 (추천)'], ['menu', '⋯ 메뉴 → "이름 바꾸기" 창'], ['none', '기존("다른 기기 · 4D6B", 못 바꿈)']] },
+  { at: '.f6 .m-devs, .f6 .m-ui', key: 'mRename', title: '모바일 기기 이름 바꾸기', items: [['sheet', '눌러서 아래 시트에서 고치기 (추천)'], ['long', '길게 눌러 메뉴 → 이름 바꾸기'], ['none', '기존("다른 기기 · 7be0…a1c2", 못 바꿈)']] },
+  { at: '.dname', key: 'idShow', title: '짧은 기기 id', items: [['dup', '이름이 겹칠 때만 (기록된 결정)'], ['always', '늘 작게'], ['none', '기존(이름 없이 id만)']] },
+];
+let shiftOn = false;
+function markHot() {
+  document.querySelectorAll('.win .hot').forEach(el => el.classList.remove('hot'));
+  OPTS.forEach((o, i) => document.querySelectorAll(o.at).forEach(el => { el.dataset.opts = i; }));
+  if (!shiftOn) return;
+  document.querySelectorAll('.win *').forEach(el => { if (!el.dataset.opts && getComputedStyle(el).cursor === 'pointer' && getComputedStyle(el.parentElement).cursor !== 'pointer') el.classList.add('hot'); });
+}
+(() => {
+  const pop = document.getElementById('optpop');
+  let at = null, timer = 0;
+  const hide = () => { pop.classList.remove('on'); at = null; };
+  const show = el => {
+    const o = OPTS[+el.dataset.opts]; at = el;
+    pop.innerHTML = '<b>' + o.title + '</b>' + o.items.map(([v, l]) => '<button class="' + (s[o.key] === v ? 'on' : '') + '" data-v="' + v + '">' + l + '</button>').join('');
+    const r = el.getBoundingClientRect(); pop.classList.add('on');
+    const w = pop.offsetWidth, h = pop.offsetHeight;
+    pop.style.left = Math.max(8, Math.min(innerWidth - w - 8, r.left)) + 'px';
+    pop.style.top = (r.bottom + h + 8 < innerHeight ? r.bottom + 4 : Math.max(8, r.top - h - 4)) + 'px';
+  };
+  const setShift = on => { if (shiftOn === on) return; shiftOn = on; document.body.classList.toggle('shift-on', on); markHot(); };
+  document.addEventListener('keydown', e => { if (e.key === 'Shift') setShift(true); });
+  document.addEventListener('keyup', e => { if (e.key === 'Shift') setShift(false); });
+  window.addEventListener('blur', () => setShift(false));
+  document.addEventListener('mousemove', e => {
+    if (pop.contains(e.target)) { clearTimeout(timer); return; }
+    const el = e.shiftKey ? e.target.closest('.win [data-opts]') : null;
+    if (el) { clearTimeout(timer); if (el !== at) show(el); return; }
+    if (at && !at.contains(e.target)) { clearTimeout(timer); timer = setTimeout(hide, 300); }
+  });
+  pop.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b || !at) return;
+    e.stopPropagation();
+    const o = OPTS[+at.dataset.opts], raw = b.dataset.v, v = typeof o.items[0][0] === 'number' ? +raw : raw;
+    s[o.key] = v;
+    hide(); render();
+  });
+})();
+render();
+</script>
+</body>
+</html>
