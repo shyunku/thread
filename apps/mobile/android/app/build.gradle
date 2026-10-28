@@ -92,15 +92,26 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        // Play upload key (#92), kept outside the repo. THREAD_UPLOAD_KEYSTORE points at the
+        // .jks and THREAD_UPLOAD_PASS_FILE at a file holding its password.
+        if (System.getenv("THREAD_UPLOAD_KEYSTORE")) {
+            upload {
+                def pass = new File(System.getenv("THREAD_UPLOAD_PASS_FILE")).text.trim()
+                storeFile file(System.getenv("THREAD_UPLOAD_KEYSTORE"))
+                storePassword pass
+                keyAlias System.getenv("THREAD_UPLOAD_ALIAS") ?: 'thread-upload'
+                keyPassword pass
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            // Store builds are signed with the upload key; without it (local test APKs) the
+            // debug key, which Google Play does not accept.
+            signingConfig System.getenv("THREAD_UPLOAD_KEYSTORE") ? signingConfigs.upload : signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }
