@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Image, Text, View } from 'react-native';
+import { Image, Pressable, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { CircleCheck, X } from 'lucide-react-native';
 import { useApp } from '@/app/AppContext';
 import { Body, Button, ErrorText, Field, Screen } from '@/ui/kit';
 import { messageFor } from '@/ui/messages';
@@ -17,8 +18,69 @@ export function Logo({ size = 72 }: { size?: number }) {
   );
 }
 
+const NOTICES = {
+  deleted: {
+    title: '계정을 삭제했어요',
+    text: '계정과 모든 기기의 데이터를 지웠어요. 그동안 Thread를 써 주셔서 고마워요.',
+  },
+  deletedElsewhere: {
+    title: '계정이 삭제됐어요',
+    text: '다른 기기에서 계정을 삭제해서 이 휴대폰의 데이터도 지웠어요.',
+  },
+};
+
+// One line after the account went away (#92); closable, gone after the next sign-in.
+function SignedOutNotice() {
+  const { notice, clearNotice } = useApp();
+  const theme = useTheme();
+  if (!notice) return null;
+  const { title, text } = NOTICES[notice];
+  return (
+    <View
+      accessibilityRole="alert"
+      style={{
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 12,
+        marginHorizontal: 18,
+        marginTop: 16,
+        padding: 14,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: theme.scheme === 'light' ? '#c9d8f7' : '#2b3d5d',
+        backgroundColor: theme.scheme === 'light' ? '#eef3fd' : '#182234',
+      }}
+    >
+      <CircleCheck color={theme.success} size={20} style={{ marginTop: 1 }} />
+      <View style={{ flex: 1 }}>
+        <Text style={{ color: theme.text, fontSize: 15, fontWeight: '700' }}>
+          {title}
+        </Text>
+        <Text
+          style={{
+            color: theme.scheme === 'light' ? theme.secondary : '#c7d7f5',
+            fontSize: 13,
+            lineHeight: 19,
+            marginTop: 2,
+          }}
+        >
+          {text}
+        </Text>
+      </View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="닫기"
+        hitSlop={10}
+        onPress={clearNotice}
+      >
+        <X color={theme.muted} size={18} />
+      </Pressable>
+    </View>
+  );
+}
+
 export default function LoginScreen() {
-  const { runtime } = useApp();
+  const { runtime, notice } = useApp();
   const navigation = useNavigation<any>();
   const theme = useTheme();
   const [authId, setAuthId] = useState('');
@@ -55,10 +117,11 @@ export default function LoginScreen() {
 
   return (
     <Screen>
+      <SignedOutNotice />
       <View
         style={{
           alignItems: 'center',
-          paddingTop: 70,
+          paddingTop: notice ? 28 : 70,
           paddingHorizontal: 24,
           paddingBottom: 26,
         }}

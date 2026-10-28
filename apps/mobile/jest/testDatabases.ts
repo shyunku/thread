@@ -34,8 +34,17 @@ export function createTestDatabases() {
       close: () => db.close(),
     };
   };
+  // Like op-sqlite's delete(): the file goes; a later open starts empty.
+  const removeDatabase = (name: string) => {
+    keys.delete(name);
+    for (const suffix of ['', '-wal', '-shm'])
+      fs.rmSync(path.join(dir, name + suffix), { force: true });
+  };
+  const exists = (name: string) => fs.existsSync(path.join(dir, name));
   return {
     openDatabase,
+    removeDatabase,
+    exists,
     opened,
     cleanup: () => {
       // Close anything a test left open so Windows lets the folder go.

@@ -76,4 +76,14 @@ export function bootId(): string {
   return String(module.getBootId());
 }
 
-export const deviceVaultDeps: VaultDeps = { openDatabase, keychain, bootId };
+// op-sqlite deletes a database through an open handle; no key is needed to remove the file.
+export function removeDatabase(name: string) {
+  open({ name }).delete();
+}
+
+export const deviceVaultDeps: VaultDeps = {
+  openDatabase,
+  keychain,
+  bootId,
+  removeDatabase,
+};

@@ -198,6 +198,8 @@ export function StorePreviewProvider({ children }: { children: ReactNode }) {
       return true;
     },
     isSecretOpen: () => true,
+    notice: null,
+    clearNotice: noop,
   } as AppValue;
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

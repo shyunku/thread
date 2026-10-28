@@ -24,9 +24,23 @@ export function createFakeRuntime({
   const dbs = createTestDatabases();
   const keys = fakeKeychain();
   let user: any = null;
-  let listener: ((value: any) => void) | null = null;
+  let listener: ((value: any, reason?: any) => void) | null = null;
   let prefs: Prefs = { ...defaultPrefs, theme: 'dark' };
   const accounts = new Map<string, any>();
+  let deleteResult = 'ok';
+  let deleteCalls = 0;
+  // The account is gone (#92): close and destroy its vault, then report the sign-out.
+  const gone = async (reason: 'deleted' | 'deletedElsewhere') => {
+    const value = accounts.get(uid);
+    if (value) {
+      value.sync.close();
+      await value.session.lock();
+      await value.vault.destroy();
+      accounts.delete(uid);
+    }
+    user = null;
+    listener?.(null, reason);
+  };
   const runtime: AppRuntime = {
     account: {
       restore: async () => user,
@@ -66,6 +80,7 @@ export function createFakeRuntime({
           openDatabase: dbs.openDatabase,
           keychain: keys.keychain,
           bootId: () => 'count:1',
+          removeDatabase: dbs.removeDatabase,
         },
       );
       const session = new VaultSession(vault);
@@ -100,13 +115,25 @@ export function createFakeRuntime({
       user = null;
       listener?.(null);
     },
+    // Like createRuntime: the server answers (deleteResult), then this account's vault goes.
+    async deleteAccount() {
+      deleteCalls++;
+      if (deleteResult !== 'ok')
+        throw Object.assign(Error(deleteResult), { code: deleteResult });
+      await gone('deleted');
+    },
     prefs: { load: () => prefs, save: next => (prefs = next) },
   };
   return {
     runtime,
     server,
     keys,
+    dbs,
     account: () => accounts.get(uid),
+    setDeleteResult: (value: string) => (deleteResult = value),
+    deleteCalls: () => deleteCalls,
+    // A refresh answered ACCOUNT_DELETED (deleted on another device).
+    deletedElsewhere: () => gone('deletedElsewhere'),
     cleanup() {
       for (const value of accounts.values()) {
         value.sync.close();

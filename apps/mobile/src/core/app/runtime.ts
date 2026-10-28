@@ -50,13 +50,26 @@ export function createRuntime() {
   const endpoint = config.serverEndpoint;
   const fetch = createFetch();
   const streamFetch = createStreamFetch();
+  let current: AccountRuntime | null = null;
+  // A deleted account (#92, here or on another device): close it and remove its vault.
+  // Other accounts' vaults on this phone stay.
+  const forget = async (uid: string) => {
+    if (current?.uid === uid) {
+      current.dispose();
+      current = null;
+    }
+    await new LocalVault(
+      { environment, accountId: uid, vaultId: vaultIdFor(environment, uid) },
+      deviceVaultDeps,
+    ).destroy();
+  };
   const account = new AccountSession({
     api: createAuthApi({ endpoint, fetch }),
     storage: accountStorage,
     endpoint,
     fetch,
+    forget,
   });
-  let current: AccountRuntime | null = null;
 
   const transport = () =>
     createTransport({
@@ -137,6 +150,11 @@ export function createRuntime() {
       current?.dispose();
       current = null;
       await account.signOut();
+    },
+    // Deletes the account (#92) after the screen confirmed the user; the account
+    // listener then reports the sign-out with the reason "deleted".
+    deleteAccount() {
+      return account.deleteAccount();
     },
   };
 }

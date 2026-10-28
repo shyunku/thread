@@ -35,6 +35,13 @@ const MESSAGES: Record<string, string> = {
     '동기화 준비를 너무 자주 시도했어요. 잠시 뒤 자동으로 다시 시도해요.',
   UPDATE_REQUIRED: '앱을 최신 버전으로 업데이트해주세요.',
   DEVICE_FORBIDDEN: '이 기기는 더 이상 연결돼 있지 않아요.',
+  // 계정 삭제 (#92)
+  UNAUTHORIZED: '로그인이 만료됐어요. 다시 로그인한 뒤 해 주세요.',
+  ACCOUNT_DELETE_FORBIDDEN:
+    '이 계정은 앱에서 삭제할 수 없어요. 문의 메일로 요청해 주세요.',
+  ACCOUNT_DELETE_UNAVAILABLE:
+    '계정을 삭제하지 못했어요. 잠시 뒤 다시 시도해 주세요.',
+  ACCOUNT_DELETED: '계정이 삭제됐어요.',
 };
 
 // Each error shown to the user is also logged once (diagnostic test builds only;

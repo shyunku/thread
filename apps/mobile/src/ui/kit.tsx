@@ -124,14 +124,22 @@ export function Button({
 }: {
   label: string;
   onPress?: () => void;
-  kind?: 'default' | 'primary' | 'ghost' | 'danger';
+  // kill: the final destructive step, red fill (계정 삭제, #92).
+  kind?: 'default' | 'primary' | 'ghost' | 'danger' | 'kill';
   busy?: boolean;
   disabled?: boolean;
   icon?: ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
   const theme = useTheme();
-  const primary = kind === 'primary';
+  const kill = kind === 'kill';
+  const primary = kind === 'primary' || kill;
+  const fill = kill ? theme.danger : theme.accent;
+  const fillText = kill
+    ? theme.scheme === 'light'
+      ? '#ffffff'
+      : '#2a0b0f'
+    : theme.accentText;
   const off = disabled || busy;
   return (
     <Pressable
@@ -148,12 +156,12 @@ export function Button({
           borderRadius: 14,
           borderWidth: 1,
           borderColor: primary
-            ? theme.accent
+            ? fill
             : kind === 'ghost'
             ? 'transparent'
             : theme.border,
           backgroundColor: primary
-            ? theme.accent
+            ? fill
             : kind === 'ghost'
             ? 'transparent'
             : theme.surface,
@@ -167,23 +175,21 @@ export function Button({
       ]}
     >
       {busy ? (
-        <ActivityIndicator
-          color={primary ? theme.accentText : theme.secondary}
-        />
+        <ActivityIndicator color={primary ? fillText : theme.secondary} />
       ) : (
         icon
       )}
       <Text
         style={{
           color: primary
-            ? theme.accentText
+            ? fillText
             : kind === 'danger'
             ? theme.danger
             : kind === 'ghost'
             ? theme.secondary
             : theme.text,
           fontSize: 15,
-          fontWeight: kind === 'ghost' ? '500' : '600',
+          fontWeight: kill ? '700' : kind === 'ghost' ? '500' : '600',
         }}
       >
         {label}

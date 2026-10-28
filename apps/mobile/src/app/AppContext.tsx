@@ -10,6 +10,7 @@ import {
 } from 'react';
 import { AppState } from 'react-native';
 import type { AccountUser } from '@/core/auth/api';
+import type { AccountListener, SignedOutReason } from '@/core/auth/account';
 import type { AccountRuntime } from '@/core/app/runtime';
 import {
   adapterFor,
@@ -32,7 +33,7 @@ import type { VaultPhase } from '@/core/vault/session';
 export type AppRuntime = {
   account: {
     restore(): Promise<AccountUser | null>;
-    onChange(listener: ((user: AccountUser | null) => void) | null): void;
+    onChange(listener: AccountListener | null): void;
     signIn(authId: string, password: string): Promise<AccountUser>;
     signUp(username: string, authId: string, password: string): Promise<void>;
     linkGoogle(input: {
@@ -49,6 +50,8 @@ export type AppRuntime = {
     AccountUser | { linkToken: string; idToken: string }
   >;
   signOut(): Promise<void>;
+  // Deletes the account on the server and this phone's copy (#92); the caller confirms first.
+  deleteAccount(): Promise<void>;
   prefs: { load(): Prefs; save(prefs: Prefs): void };
   // Due reminders (#91); absent in tests that do not need them.
   reminders?: {
@@ -77,6 +80,9 @@ export type AppValue = {
   scope: Scope;
   setScope(scope: Scope): Promise<boolean>;
   isSecretOpen(cid: string): boolean;
+  // Why the last account left (#92), for one line on the login screen.
+  notice: SignedOutReason | null;
+  clearNotice(): void;
 };
 
 // Exported for the dev-only store preview (src/preview/storePreview.tsx).
@@ -107,8 +113,14 @@ export function AppProvider({
   // Secret categories opened with biometrics/PIN in this app session (#88).
   const [openSecrets, setOpenSecrets] = useState<string[]>([]);
 
+  const [notice, setNotice] = useState<SignedOutReason | null>(null);
+
   useEffect(() => {
-    runtime.account.onChange(setUser);
+    runtime.account.onChange((next, reason) => {
+      setUser(next);
+      if (reason) setNotice(reason);
+      else if (next) setNotice(null);
+    });
     runtime.account
       .restore()
       .catch(() => null)
@@ -305,6 +317,8 @@ export function AppProvider({
       return true;
     },
     isSecretOpen: cid => openSecrets.includes(cid),
+    notice,
+    clearNotice: () => setNotice(null),
     // Local edits go to the encrypted outbox right away and sync in the background.
     mutate(topic, args) {
       if (!account) throw Error('AUTH_REQUIRED');

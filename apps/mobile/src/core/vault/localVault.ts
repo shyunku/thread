@@ -25,6 +25,8 @@ export type VaultDeps = {
   openDatabase: OpenDatabase;
   keychain: VaultKeychain;
   bootId: () => string;
+  // Deletes a database file by name (account deletion, #92).
+  removeDatabase?: (name: string) => void;
 };
 
 export type VaultInspection = {
@@ -206,5 +208,19 @@ export class LocalVault {
   // Manual lock: the next open needs biometrics, the device PIN or the password.
   async forgetSession() {
     await this.#deps.keychain.remove(this.#sessionService);
+  }
+
+  // Removes this vault from the phone: both keys, the encrypted database and its
+  // index row. Only for an account the server has deleted (#92); close the store first.
+  // Without the keys the data cannot be opened even if a file could not be removed.
+  async destroy() {
+    await this.#deps.keychain.remove(this.#authService).catch(() => {});
+    await this.#deps.keychain.remove(this.#sessionService).catch(() => {});
+    try {
+      this.#deps.removeDatabase?.(this.#dbName);
+    } catch {}
+    this.#index(db =>
+      db.executeSync('DELETE FROM vaults WHERE id=?', [this.id]),
+    );
   }
 }

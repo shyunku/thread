@@ -233,7 +233,6 @@ export default function SettingsScreen() {
           <Item
             title="로그아웃"
             danger
-            last
             onPress={() =>
               Alert.alert(
                 '로그아웃',
@@ -248,6 +247,13 @@ export default function SettingsScreen() {
                 ],
               )
             }
+          />
+          <Item
+            title="계정 삭제"
+            detail="계정과 모든 기기의 할 일을 지워요"
+            danger
+            last
+            onPress={() => navigation.navigate('DeleteAccount')}
           />
         </Group>
 

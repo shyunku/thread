@@ -212,11 +212,18 @@ export function createAuthApi({
       }
     },
     async refresh(tokens: AuthTokens): Promise<AuthTokens> {
-      const { ok, json } = await post('/v1/auth/refreshToken', null, {
+      const { status, ok, json } = await post('/v1/auth/refreshToken', null, {
         Authorization: 'Bearer ' + tokens.accessToken,
         'X-Refresh-Token': tokens.refreshToken,
       });
-      if (!ok) throw new AuthError('UNAUTHORIZED');
+      // A deleted account (#92) answers 401 with the code ACCOUNT_DELETED.
+      if (!ok)
+        throw new AuthError(
+          status === 401 && json?.code === 'ACCOUNT_DELETED'
+            ? 'ACCOUNT_DELETED'
+            : 'UNAUTHORIZED',
+          status,
+        );
       return {
         accessToken: token(json?.access_token),
         refreshToken: token(json?.refresh_token),

@@ -38,6 +38,7 @@ import PatchNotesScreen, {
 } from '@/screens/app/PatchNotesScreen';
 import ApproveDeviceScreen from '@/screens/app/ApproveDeviceScreen';
 import KeyChangeScreen from '@/screens/app/KeyChangeScreen';
+import DeleteAccountScreen from '@/screens/app/DeleteAccountScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -236,6 +237,11 @@ function Root() {
           <Stack.Screen
             name="KeyChange"
             component={KeyChangeScreen}
+            options={{ animation: 'slide_from_bottom', gestureEnabled: false }}
+          />
+          <Stack.Screen
+            name="DeleteAccount"
+            component={DeleteAccountScreen}
             options={{ animation: 'slide_from_bottom', gestureEnabled: false }}
           />
         </>
