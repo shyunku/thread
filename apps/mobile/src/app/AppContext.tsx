@@ -57,7 +57,7 @@ export type AppRuntime = {
   };
 };
 
-type AppValue = {
+export type AppValue = {
   runtime: AppRuntime;
   ready: boolean;
   user: AccountUser | null;
@@ -79,7 +79,8 @@ type AppValue = {
   isSecretOpen(cid: string): boolean;
 };
 
-const AppContext = createContext<AppValue | null>(null);
+// Exported for the dev-only store preview (src/preview/storePreview.tsx).
+export const AppContext = createContext<AppValue | null>(null);
 
 export function AppProvider({
   runtime,

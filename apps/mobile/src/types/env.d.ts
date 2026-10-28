@@ -3,4 +3,6 @@ declare module '@env' {
   export const GOOGLE_OAUTH_WEB_CLIENT_ID: string | undefined;
   export const SECURE_LOGS: string | undefined;
   export const DIAGNOSTIC_LOGS: string | undefined;
+  // Debug builds only: synthetic screens for store screenshots (#92).
+  export const STORE_PREVIEW: string | undefined;
 }
