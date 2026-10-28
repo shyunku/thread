@@ -43,7 +43,7 @@ function useVaultStatus(uid) {
   return vault;
 }
 
-const SettingData = ({ modalRef, preview = false, previewPanel = null }) => {
+const SettingData = ({ modalRef, preview = false, previewPanel = null, panel = null }) => {
   const { uid: accountUid } = useSelector(accountInfoSlice);
   const uid = preview ? "settings-preview" : accountUid;
   const vault = useVaultStatus(uid);
@@ -69,7 +69,7 @@ const SettingData = ({ modalRef, preview = false, previewPanel = null }) => {
       )}>
       <div className="settings data-settings">
         {unlocked || loading ? (
-          <DataOverview uid={uid} vault={vault} ready={unlocked} sync={sync} initialDialog={preview ? previewPanel : null} />
+          <DataOverview uid={uid} vault={vault} ready={unlocked} sync={sync} initialDialog={preview ? previewPanel : panel} />
         ) : (
           <>
             <SettingsSection title="동기화">{sync}</SettingsSection>

@@ -16,13 +16,17 @@ class VaultWorkspaceService{
   this.generation++;this.group?.remindersService?.lock();const old=this.active;this.active=null;
   try{old?.unwatch?.();}finally{old?.controller.dispose();}
  }
+ vaultFor(uid){
+  const d=this.runtime();
+  const scope={environment:d.environment,accountId:uid,vaultId:createHash("sha256").update(JSON.stringify([d.environment,uid,"vault-v1"])).digest("hex")};
+  return new LocalVault({baseDirectory:d.baseDirectory,scope,protector:d.protector});
+ }
  context(){
   const d=this.runtime();if(!d.enabled)throw Error("VAULT_NOT_ENABLED");
   const uid=d.getAccount();if(typeof uid!=="string"||!uid)throw Error("AUTH_REQUIRED");
   if(this.active?.uid!==uid)this.reset();
   if(!this.active){
-   const scope={environment:d.environment,accountId:uid,vaultId:createHash("sha256").update(JSON.stringify([d.environment,uid,"vault-v1"])).digest("hex")};
-   const vault=new LocalVault({baseDirectory:d.baseDirectory,scope,protector:d.protector});
+   const vault=this.vaultFor(uid);
    const entry={uid,vault,unlocked:false,abort:new AbortController()};
    entry.controller=createVaultController({vault,osAuth:d.osAuth,getWindow:d.getWindow,powerMonitor:d.powerMonitor,
     clearRenderer:()=>{entry.unlocked=false;this.group?.remindersService?.lock();entry.abort.abort();entry.sync?.close();entry.sync=null;entry.connected=false;clearInterval(entry.poller);entry.poller=null;entry.events=null;entry.published=null;
@@ -252,6 +256,56 @@ class VaultWorkspaceService{
   return require("./accountSessions").revokeOtherSessions({endpoint:this.registrationEndpoint(),tokens:entry.tokenSession,
    fetch:this.runtime().fetch||globalThis.fetch,signal:entry.abort.signal});
  }
+ // Deletes the account (#92). The user is confirmed first, the way verifyUser does it
+ // (input: {method:"os"} or {method:"password",password}); then the server deletes the
+ // account and every device's data, and this device forgets the account: its vault, its
+ // local account row and tokens, and its old local database. A refusal or a server error
+ // is an answer ({deleted:false,code}); 503 is retried once (the server call is idempotent).
+ async deleteAccount(input={}){
+  const entry=this.context(),uid=entry.uid;
+  if(this.deleting){if(input)input.password=undefined;return {deleted:false,code:"BUSY"};}
+  const check=await this.verifyUser(input);
+  if(!check.verified)return {deleted:false,code:check.code,method:check.method,osAvailable:check.osAvailable,passwordAvailable:check.passwordAvailable};
+  if(this.active!==entry||entry.uid!==this.runtime().getAccount())throw Error("VAULT_SESSION_CHANGED");
+  this.transportFor(entry);
+  if(!entry.tokenSession)throw Error("AUTH_REQUIRED");
+  this.deleting=uid;
+  try{
+   for(let attempt=0;;attempt++){
+    try{
+     await require("./accountSessions").deleteAccount({endpoint:this.registrationEndpoint(),tokens:entry.tokenSession,
+      fetch:this.runtime().fetch||globalThis.fetch});
+     break;
+    }catch(error){
+     const code=["UNAUTHORIZED","AUTH_REQUIRED","ACCOUNT_DELETE_FORBIDDEN"].includes(error?.message)?error.message:"ACCOUNT_DELETE_UNAVAILABLE";
+     if(code==="ACCOUNT_DELETE_UNAVAILABLE"&&attempt<1){await new Promise(resolve=>setTimeout(resolve,this.runtime().retryDelay??1500));continue;}
+     return {deleted:false,code};
+    }
+   }
+   this.deletedAccount=uid;
+   await this.forgetAccount(uid);
+   return {deleted:true};
+  }finally{this.deleting=null;}
+ }
+ // Another device deleted the account (#92): a token renewal answered ACCOUNT_DELETED.
+ // This device forgets the account and tells the window, which goes to the login screen.
+ async accountDeletedElsewhere(uid){
+  // Once per account: several requests can see the same answer.
+  if(this.deleting===uid||this.deletedAccount===uid)return;
+  this.deletedAccount=uid;
+  await this.forgetAccount(uid);
+  this.group?.ipcService?.sender("auth/accountDeleted",null,true,{uid});
+ }
+ // Removes what this device keeps for a deleted account; other accounts stay untouched.
+ // Each step is best effort: the account is already gone on the server.
+ async forgetAccount(uid){
+  if(typeof uid!=="string"||!uid)return;
+  if(this.active?.uid===uid)this.reset();
+  try{this.vaultFor(uid).destroy();}catch{}
+  const databases=this.group?.databaseService;
+  try{const root=await databases.getRootDatabaseContext();await root.run("DELETE FROM users WHERE uid = ?;",[uid]);}catch{}
+  try{await databases.removeUserDatabases(uid);}catch{}
+ }
  async activateEmpty(){
   if(this.busy)throw Error("VAULT_BUSY");
   const entry=this.context();entry.controller.use(()=>{});this.busy=true;
@@ -270,7 +324,8 @@ class VaultWorkspaceService{
     entry.tokenSession=require("./tokenSession").createTokenSession({
      database:()=>this.group.databaseService.getRootDatabaseContext(),uid:entry.uid,endpoint,
      send:this.runtime().fetch||globalThis.fetch,signal,active,
-     notify:tokens=>this.group.ipcService.sender("auth/tokenUpdated",null,true,tokens)
+     notify:tokens=>this.group.ipcService.sender("auth/tokenUpdated",null,true,tokens),
+     deleted:()=>{const uid=entry.uid;setTimeout(()=>void this.accountDeletedElsewhere(uid).catch(()=>{}),0);}
     });
    }
    return require("./transport").createTransport({endpoint,token:entry.tokenSession.current,

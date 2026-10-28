@@ -7,9 +7,13 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 import {
   accountAuthSlice,
   accountInfoSlice,
+  removeAccount,
+  removeAuth,
   setAuth,
 } from "store/accountSlice";
 import IpcSender from "utils/IpcSender";
+import { setLoginNotice } from "utils/loginNotice";
+import { closeAllModals } from "molecules/Modal";
 
 const AuthRouter = () => {
   // const location = useLocation();
@@ -51,6 +55,19 @@ const AuthRouter = () => {
       IpcSender.off("auth/tokenUpdated", onTokenUpdated);
     };
   }, []);
+
+  // Another device deleted the account (#92): main already removed this PC's vault and
+  // account; close what is open and go to the login screen, which says so.
+  useEffect(() => {
+    const listener = IpcSender.onAll("auth/accountDeleted", ({ success, data } = {}) => {
+      if (!success || (userId != null && data?.uid !== userId)) return;
+      setLoginNotice("deletedElsewhere");
+      closeAllModals();
+      dispatch(removeAuth());
+      dispatch(removeAccount());
+    });
+    return () => IpcSender.off("auth/accountDeleted", listener);
+  }, [dispatch, userId]);
 
   if (isAuthorized || offlineMode) {
     return <Outlet context={{ isAuthorized }} />;

@@ -172,4 +172,11 @@ export const openModal = (modalId, closeHandler = null) => {
   document.addEventListener(modalCloseTopic, onModalClose);
 };
 
+// Closes every open modal, e.g. when the account went away under them (#92).
+export const closeAllModals = () => {
+  document.querySelectorAll(".modal.active[data-uuid]").forEach((element) => {
+    sendEvent(`modal_close_signal_${element.getAttribute("data-uuid")}`, null);
+  });
+};
+
 export default Modal;

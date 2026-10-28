@@ -159,6 +159,9 @@ const RootLayout = ({ applicationMode }) => {
           Toast.warn("인증 정보가 만료되었습니다. 다시 로그인해주세요.");
           goBackToLoginPage();
           break;
+        // Deleted on another device (#92): AuthRouter handles "auth/accountDeleted".
+        case "ACCOUNT_DELETED":
+          break;
         default:
           console.log(err);
           Toast.warn(applicationMode === "E2EE"

@@ -17,6 +17,8 @@ import sha256 from "sha256";
 import PackageJson from "../../package.json";
 import { getAppServerEndpoint } from "../thunks/ThunkUtil";
 import { getGoogleSignupUser, persistLoginSession } from "../utils/loginSession";
+import { clearLoginNotice, LOGIN_NOTICES, peekLoginNotice } from "../utils/loginNotice";
+import { IoCheckmarkCircleOutline, IoClose } from "react-icons/io5";
 
 const Login = () => {
   const dispatch = useDispatch();
@@ -41,6 +43,10 @@ const Login = () => {
 
   const [googleBindingCancelHover, setGoogleBindingCancelHover] =
     useState(false);
+
+  // "계정을 삭제했어요" / "계정이 삭제됐어요" after the account went away (#92), shown once.
+  const [notice, setNotice] = useState(() => LOGIN_NOTICES[peekLoginNotice()] ?? null);
+  useEffect(() => clearLoginNotice(), []);
 
   const goToHome = async (_user, _auth, withOffline = false) => {
     if (withOffline) {
@@ -511,6 +517,15 @@ const Login = () => {
         <div
           className={"form" + JsxUtil.classByCondition(signupMode, "hidden")}
         >
+          {notice && (
+            <div className="login-notice" role="status">
+              <IoCheckmarkCircleOutline className="login-notice__icon" aria-hidden="true" />
+              <div className="login-notice__text"><b>{notice.title}</b>{notice.text}</div>
+              <button type="button" className="login-notice__close" aria-label="닫기" onClick={() => setNotice(null)}>
+                <IoClose aria-hidden="true" />
+              </button>
+            </div>
+          )}
           <div className="addition">언제 어디서나, 쉽고 편하게.</div>
           <div className="title">Thread 로그인</div>
           <div className="input-wrapper">

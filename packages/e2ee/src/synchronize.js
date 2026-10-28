@@ -87,7 +87,7 @@ class EncryptedSynchronizer {
   try{digest=await this.read("digest",{});}
   catch(error){
    this.ready();
-   if(["DEVICE_FORBIDDEN","UNAUTHORIZED","AUTH_REQUIRED","UPDATE_REQUIRED","E2EE_NOT_ACTIVE"].includes(error.message))throw error;
+   if(["DEVICE_FORBIDDEN","UNAUTHORIZED","AUTH_REQUIRED","ACCOUNT_DELETED","UPDATE_REQUIRED","E2EE_NOT_ACTIVE"].includes(error.message))throw error;
    return null;
   }
   this.ready();

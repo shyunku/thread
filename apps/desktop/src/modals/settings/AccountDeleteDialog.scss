@@ -1,0 +1,41 @@
+// 계정 삭제 (#92, docs/designs/account-delete-mock.html)
+
+// The final destructive button: red fill (mock .btn.kill).
+.settings-button--kill {
+  border-color: var(--danger);
+  background: var(--danger);
+  color: #2a0b0f;
+  font-weight: 700;
+
+  &:hover:not(:disabled) { background: #f59aa1; }
+}
+
+// The 계정 삭제 row sits in a card with a reddish border (mock .card.dz).
+.settings-card.settings-card--danger { border-color: #4a2d33; }
+
+.account-delete {
+  &__lose {
+    margin: 0 0 4px;
+    padding: 0;
+    list-style: none;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+
+    li { display: flex; align-items: flex-start; gap: 10px; padding: 9px 12px; }
+    li + li { border-top: 1px solid var(--border); }
+    svg { flex: none; width: 16px; height: 16px; margin-top: 3px; color: var(--danger); }
+    b { display: block; font-size: 13.5px; font-weight: 600; line-height: 1.5; }
+    span { display: block; color: var(--secondary); font-size: 12.5px; line-height: 1.5; }
+  }
+
+  .step-dialog__callout { display: flex; align-items: center; gap: 10px; }
+  &__grow { flex: 1; }
+  .step-dialog__callout .settings-button svg { margin-right: 6px; }
+
+  // The "이해했어요" check turns red: it agrees to deleting, not to a normal choice.
+  .settings-check--on { border-color: #6b3a41; background: #2a1c20; }
+  .settings-check--on .settings-check__box { border-color: var(--danger); background: var(--danger); color: #2a0b0f; }
+
+  .auth-action__password { width: 140px; }
+}

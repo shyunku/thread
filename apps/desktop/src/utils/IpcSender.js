@@ -120,6 +120,9 @@ const IpcSender = {
     intakes:callback=>sender("vault/intakes",callback),
     reviews:(request,callback)=>sender("vault/reviews",callback,request),
     revokeOtherSessions:callback=>sender("vault/revokeOtherSessions",callback),
+    // Deletes the account after confirming the user (input like verifyUser). The reply data is
+    // {deleted:true} or {deleted:false,code,...} (see VaultWorkspaceService.deleteAccount).
+    deleteAccount:(input,callback)=>sender("vault/deleteAccount",callback,input||{}),
   },
   releaseAlerts: {
     get: callback => sender("release-alert/get", callback),

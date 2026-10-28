@@ -26,6 +26,9 @@ const PREVIEW_MENU = { general: "GENERAL", data: "DATA", account: "ACCOUNT", sys
 
 const SettingsModal = ({ preview = false, previewTab, previewPanel, ...props }) => {
   const [activeMenu, setActiveMenu] = useState(preview ? PREVIEW_MENU[previewTab] || "GENERAL" : "GENERAL");
+  // A page can open another page with a dialog on it (계정 삭제 -> 데이터 백업, #92).
+  const [panel, setPanel] = useState(null);
+  const openPage = (menuKey, nextPanel = null) => { setPanel(nextPanel); setActiveMenu(menuKey); };
   const modalRef = useRef(null);
 
   const onClose = () => {
@@ -52,7 +55,7 @@ const SettingsModal = ({ preview = false, previewTab, previewPanel, ...props }) 
                   className={"menu-item" + (activeMenu === menuKey ? " selected" : "")}
                   aria-current={activeMenu === menuKey ? "page" : undefined}
                   title={menu.label}
-                  onClick={() => setActiveMenu(menuKey)}
+                  onClick={() => openPage(menuKey)}
                 >
                   <span className={"icon"} aria-hidden="true">{menu.icon}</span>
                   <span className={"label"}>{menu.label}</span>
@@ -62,7 +65,7 @@ const SettingsModal = ({ preview = false, previewTab, previewPanel, ...props }) 
           </nav>
         </aside>
         <main className={"menu-content"}>
-          {SETTING_MENU[activeMenu]?.page?.({ modalRef, preview, previewPanel })}
+          {SETTING_MENU[activeMenu]?.page?.({ modalRef, preview, previewPanel, panel, openPage })}
         </main>
       </div>
     </Modal>

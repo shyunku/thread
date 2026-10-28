@@ -1,5 +1,6 @@
 // Main-process only. Never pass tokens through the legacy SQL/HTTP loggers.
-function createTokenSession({database,uid,endpoint,send=globalThis.fetch,signal,active,notify}){
+// `deleted` runs when the server says the account is gone (#92: deleted on another device).
+function createTokenSession({database,uid,endpoint,send=globalThis.fetch,signal,active,notify,deleted}){
  let pending=null;
  const read=async()=>{
   active();
@@ -25,7 +26,14 @@ function createTokenSession({database,uid,endpoint,send=globalThis.fetch,signal,
      method:"POST",headers:{Authorization:"Bearer "+stale,"X-Refresh-Token":row.refresh_token},
      signal:controller.signal,redirect:"error"
     });
-    if(!response.ok)throw Error("UNAUTHORIZED");
+    if(!response.ok){
+     // A deleted account answers 401 with the code ACCOUNT_DELETED in the usual error body.
+     let code=null;
+     if(response.status===401){const text=await response.text().catch(()=>"");if(text.length<=1024)try{code=JSON.parse(text)?.code??null;}catch{}}
+     else await response.body?.cancel?.();
+     if(code==="ACCOUNT_DELETED"){deleted?.();throw Error("ACCOUNT_DELETED");}
+     throw Error("UNAUTHORIZED");
+    }
     const reader=response.body?.getReader();
     if(!reader)throw Error("UNAUTHORIZED");
     const chunks=[];let size=0;
@@ -45,7 +53,7 @@ function createTokenSession({database,uid,endpoint,send=globalThis.fetch,signal,
     notify?.({accessToken:access,refreshToken:refresh});
     return access;
    }catch(error){
-    throw Error(controller.signal.aborted?"SYNC_CANCELLED":error?.message==="AUTH_REQUIRED"?"AUTH_REQUIRED":"UNAUTHORIZED");
+    throw Error(controller.signal.aborted?"SYNC_CANCELLED":["AUTH_REQUIRED","ACCOUNT_DELETED"].includes(error?.message)?error.message:"UNAUTHORIZED");
    }finally{clearTimeout(timer);signal.removeEventListener("abort",abort);}
   })();
   pending=running;

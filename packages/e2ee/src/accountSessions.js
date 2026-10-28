@@ -43,4 +43,20 @@ async function revokeOtherSessions({endpoint,tokens,fetch:send=globalThis.fetch,
   access=await tokens.renew(access);
  }
 }
-module.exports={logout,revokeOtherSessions};
+// Deletes the account on the server (#92): every device's data and sessions, and the
+// account itself. The server answers 204; a retry after a lost answer is safe (idempotent),
+// and a renewal that reports ACCOUNT_DELETED means an earlier attempt already went through.
+async function deleteAccount({endpoint,tokens,fetch:send=globalThis.fetch,signal,timeout=20000}){
+ const url=sessionURL(endpoint,"/v1/auth/account/delete");
+ let access=await tokens.current();
+ if(typeof access!=="string"||!access)throw Error("AUTH_REQUIRED");
+ for(let attempt=0;attempt<2;attempt++){
+  const {status,code}=await post({url,headers:{Authorization:"Bearer "+access},body:{},send,signal,timeout});
+  if(status===204)return true;
+  if(attempt||!(status===401||(status===409&&code==="SESSION_REFRESH_REQUIRED")))
+   throw Error(status===401?"UNAUTHORIZED":status===403?"ACCOUNT_DELETE_FORBIDDEN":"ACCOUNT_DELETE_UNAVAILABLE");
+  try{access=await tokens.renew(access);}
+  catch(error){if(error?.message==="ACCOUNT_DELETED"||error?.code==="ACCOUNT_DELETED")return true;throw error;}
+ }
+}
+module.exports={logout,revokeOtherSessions,deleteAccount};

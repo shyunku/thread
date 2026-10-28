@@ -1,6 +1,7 @@
 // Main-process only. VaultSession must authenticate before opening user data.
 // isPreparationOnly is a closed, read-only routing probe: no session or data escapes.
-// Never migrate, regenerate a missing key, reset, or delete an existing vault.
+// Never migrate, regenerate a missing key, reset, or delete an existing vault. The one
+// exception is destroy(), only after the server has deleted the account (#92).
 const fs = require("node:fs");
 const path = require("node:path");
 const { createHash, randomBytes } = require("node:crypto");
@@ -123,6 +124,15 @@ class LocalVault {
       if (error.code === "ENOENT") throw Error("VAULT_RECOVERY_REQUIRED");
       throw error;
     } finally { key?.fill(0); }
+  }
+  // Removes this vault's folder (protected key, password envelope, data). Only for an
+  // account the server has deleted (#92); the caller closes any open store first.
+  destroy() {
+    if (!fs.existsSync(this.#directory)) return false;
+    const directory = fs.lstatSync(this.#directory);
+    if (directory.isSymbolicLink()) fs.unlinkSync(this.#directory);
+    else fs.rmSync(this.#directory, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    return true;
   }
 }
 module.exports = { LocalVault };

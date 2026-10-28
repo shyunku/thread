@@ -6,6 +6,8 @@ import { accountInfoSlice, removeAccount, removeAuth } from "../../store/account
 import { useDispatch, useSelector } from "react-redux";
 import { useState } from "react";
 import { vaultCall } from "./data/vaultIpc";
+import { setLoginNotice } from "../../utils/loginNotice";
+import AccountDeleteDialog from "./AccountDeleteDialog";
 import { Badge, SettingsButton, SettingsCard, SettingsPage, SettingsRow, SettingsSection } from "./SettingsUI";
 
 const maskEmail = (email) => {
@@ -15,11 +17,22 @@ const maskEmail = (email) => {
 };
 const platformLabel = () => (/Mac/i.test(navigator.platform) ? "macOS" : "Windows");
 
-const SettingAccount = ({ modalRef, preview = false }) => {
+const SettingAccount = ({ modalRef, preview = false, previewPanel = null, openPage }) => {
   const stored = useSelector(accountInfoSlice);
   const account = preview ? { username: "Jo", authId: "shyunku", googleEmail: null } : stored;
   const dispatch = useDispatch();
   const [revoking, setRevoking] = useState(false);
+  const [deleting, setDeleting] = useState(preview && previewPanel === "delete");
+
+  // Deleted (#92): main already removed this PC's vault and account; the login screen says so.
+  const deleted = () => {
+    setDeleting(false);
+    if (preview) return;
+    setLoginNotice("deleted");
+    dispatch(removeAuth());
+    dispatch(removeAccount());
+    modalRef?.current?.close();
+  };
   const name = account?.username || account?.googleEmail || "사용자";
   const email = account?.googleEmail;
   // authId: string = password login, null = none, undefined = saved before this was recorded.
@@ -101,6 +114,19 @@ const SettingAccount = ({ modalRef, preview = false }) => {
           </SettingsRow>
         </SettingsCard>
       </SettingsSection>
+
+      <SettingsSection>
+        <SettingsCard className="settings-card--danger">
+          <SettingsRow label="계정 삭제" description="계정과 모든 기기의 할 일을 지워요. 되돌릴 수 없어요.">
+            <SettingsButton variant="danger" onClick={() => setDeleting(true)}>계정 삭제…</SettingsButton>
+          </SettingsRow>
+        </SettingsCard>
+      </SettingsSection>
+
+      {deleting && (
+        <AccountDeleteDialog account={account} onClose={() => setDeleting(false)} onDeleted={deleted}
+          onBackup={() => { setDeleting(false); openPage?.("DATA", "backup"); }} />
+      )}
     </SettingsPage>
   );
 };

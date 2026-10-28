@@ -94,6 +94,27 @@ class DatabaseService {
     }
   }
 
+  // Account deletion (#92): closes this account's local database and removes it with the
+  // copies older schemes left (datafiles/v1..vN). Other accounts' files stay.
+  async removeUserDatabases(userId) {
+    if (typeof userId !== "string" || !userId || userId.length > 256 || /[\\/:\0]/.test(userId) || userId.includes(".."))
+      throw new Error("User ID is not valid.");
+    const context = this.userDatabaseContexts.get(userId);
+    this.userDatabaseContexts.delete(userId);
+    if (context?.db) {
+      const db = context.db;
+      context.db = null;
+      await new Promise((resolve) => db.close(() => resolve()));
+    }
+    const datafileDirPath = path.join(FileSystem.getUserDataPath(), "datafiles");
+    for (let version = 1; version <= Number(packageJson.config["scheme_version"]); version++) {
+      const base = path.join(datafileDirPath, "v" + version, `user-${userId}.sqlite3`);
+      for (const file of [base, base + "-wal", base + "-shm", base + "-journal"]) {
+        try { fs.rmSync(file, { force: true, maxRetries: 5, retryDelay: 100 }); } catch {}
+      }
+    }
+  }
+
   /**
    * @param userId {string}
    * @returns {Number}

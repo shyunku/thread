@@ -102,6 +102,7 @@ module.exports = function (s) {
     "vault/intakes":()=>s.vaultWorkspaceService.intakes(),
     "vault/reviews":request=>s.vaultWorkspaceService.reviews(request),
     "vault/revokeOtherSessions":()=>s.vaultWorkspaceService.revokeOtherSessions(),
+    "vault/deleteAccount":input=>s.vaultWorkspaceService.deleteAccount(input),
   };
   for(const [topic,action] of Object.entries(vaultActions))s.register(topic,async(event,reqId,...args)=>{
     const reply=await require("../e2ee/vaultIpcReply").vaultIpcReply(s,topic,action,args);

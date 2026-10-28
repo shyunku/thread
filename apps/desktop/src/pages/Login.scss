@@ -1,5 +1,40 @@
 @import "styles/constants.scss";
 
+// After the account was deleted (#92, docs/designs/account-delete-mock.html frame ③):
+// a short closable line above the form.
+.page.login .form .login-notice {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 8px);
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid #2b3d5d;
+  border-radius: 10px;
+  background: #182234e6;
+  color: #c7d7f5;
+  font-size: 13px;
+  line-height: 1.55;
+
+  &__icon { flex: none; width: 18px; height: 18px; margin-top: 1px; color: var(--success, #70d5a0); }
+  &__text { flex: 1; min-width: 0; }
+  &__text b { display: block; color: var(--text, #edf1f7); font-size: 14px; }
+  &__close {
+    flex: none;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--muted, #8792a4);
+    font-size: 16px;
+    cursor: pointer;
+    &:hover { color: var(--text, #edf1f7); }
+  }
+}
+
 .page.login {
   display: flex;
   flex-direction: column;

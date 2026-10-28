@@ -129,6 +129,8 @@ export function installSettingsPreviewIpc(IpcSender, { recovery = "confirmed", l
     confirmRecovery: (_code, cb) => { identity = { ...identity, phase: "RECOVERY_CONFIRMED" }; reply(cb, identity); },
     registrationEndpoint: (cb) => reply(cb, "https://api.threadapp.kr"),
     registerIdentity: (cb) => reply(cb, { phase: "REGISTERED" }),
+    // 계정 삭제 (#92): nothing is deleted in the preview; the dialog just closes.
+    deleteAccount: (_input, cb) => reply(cb, { deleted: true }),
     rotation: phaseFlow(),
     lostRecovery: phaseFlow(),
     backup: backupFlow(),
