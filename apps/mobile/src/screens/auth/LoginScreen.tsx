@@ -5,6 +5,7 @@ import { useApp } from '@/app/AppContext';
 import { Body, Button, ErrorText, Field, Screen } from '@/ui/kit';
 import { messageFor } from '@/ui/messages';
 import { useTheme } from '@/ui/theme';
+import { GoogleMark } from '@/ui/GoogleMark';
 
 export function Logo({ size = 72 }: { size?: number }) {
   return (
@@ -104,16 +105,7 @@ export default function LoginScreen() {
         busy={busy === 'google'}
         disabled={!!busy}
         onPress={google}
-        icon={
-          <View
-            style={{
-              width: 18,
-              height: 18,
-              borderRadius: 9,
-              backgroundColor: '#4285f4',
-            }}
-          />
-        }
+        icon={<GoogleMark size={18} />}
       />
       <Button
         kind="ghost"
