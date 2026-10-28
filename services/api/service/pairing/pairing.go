@@ -60,6 +60,8 @@ type Store interface {
 	SubmitTransfer(ctx context.Context, uid, sessionID string, transfer []byte) error
 	// Cancel deletes the session if it is still the given one.
 	Cancel(ctx context.Context, uid, sessionID string) error
+	// DeleteAccount removes the account's session, whichever it is (account deleted).
+	DeleteAccount(ctx context.Context, uid string) error
 }
 
 func ValidSessionID(id string) bool { return sessionIDPattern.MatchString(id) }

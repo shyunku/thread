@@ -114,6 +114,18 @@ func testStore(t *testing.T, store Store) {
 	if _, err := store.Get(ctx, uid+"-other"); !errors.Is(err, ErrNotFound) {
 		t.Fatal("session visible to another account")
 	}
+
+	// Deleting the account removes its session only; repeating it is harmless.
+	must(store.Create(ctx, uid+"-other", s))
+	must(store.DeleteAccount(ctx, uid))
+	must(store.DeleteAccount(ctx, uid))
+	if _, err := store.Get(ctx, uid); !errors.Is(err, ErrNotFound) {
+		t.Fatal("deleted account kept its session")
+	}
+	if _, err := store.Get(ctx, uid+"-other"); err != nil {
+		t.Fatal("another account's session removed")
+	}
+	must(store.DeleteAccount(ctx, uid+"-other"))
 }
 
 func TestMemoryExpiry(t *testing.T) {

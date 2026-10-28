@@ -44,7 +44,10 @@ func RegisterSyncEvents(r *gin.Engine, broker *syncevents.Broker, secret []byte)
 				if _, err := w.WriteString(": ping\n\n"); err != nil {
 					return
 				}
-			case <-signals:
+			case _, open := <-signals:
+				if !open {
+					return
+				}
 				if _, err := w.WriteString("event: changed\ndata: {}\n\n"); err != nil {
 					return
 				}

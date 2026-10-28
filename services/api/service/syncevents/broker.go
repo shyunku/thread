@@ -14,7 +14,8 @@ type Broker struct {
 func NewBroker() *Broker { return &Broker{subs: map[string]map[int]chan struct{}{}} }
 
 // Subscribe returns a channel that receives a signal after each change for uid.
-// Signals coalesce: a slow reader sees at most one pending signal.
+// Signals coalesce: a slow reader sees at most one pending signal. The channel is
+// closed when the account's streams are ended with Close.
 func (b *Broker) Subscribe(uid string) (<-chan struct{}, func()) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -44,6 +45,18 @@ func (b *Broker) Notify(uid string) {
 		default:
 		}
 	}
+}
+
+// Close ends every open stream of uid (the account was deleted). Their channels
+// are closed and removed, so later Notify calls do not reach them.
+func (b *Broker) Close(uid string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	for id, ch := range b.subs[uid] {
+		close(ch)
+		delete(b.subs[uid], id)
+	}
+	delete(b.subs, uid)
 }
 
 // Subscribers is the number of open streams for uid (tests, diagnostics).

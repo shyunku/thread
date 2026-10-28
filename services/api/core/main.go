@@ -110,6 +110,7 @@ func main() {
 	database.InMemoryDB = redisDB
 	controllers.UseSessions(session.NewRedis(redisDB.Client()))
 	controllers.UsePairing(pairing.NewRedis(redisDB.Client()))
+	controllers.UseAccountDeletion(database.DB.DB)
 
 	// TODO :: check redis connection
 

@@ -69,6 +69,9 @@ func refreshTokenSubject(raw string) (string, bool) {
 	return uid, ok && uid != ""
 }
 
+// lookupAccount is replaced in tests that run without a database.
+var lookupAccount = accountExists
+
 // accountExists rejects refreshes for deleted accounts.
 func accountExists(uid string) (bool, error) {
 	if uid == adminTokenSubject {
@@ -107,12 +110,13 @@ func RefreshToken(c *gin.Context) {
 		unauthorized(c, "INVALID_REFRESH_TOKEN")
 		return
 	}
-	if exists, err := accountExists(uid); err != nil {
+	if exists, err := lookupAccount(uid); err != nil {
 		log.Error(err)
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	} else if !exists {
-		unauthorized(c, "INVALID_REFRESH_TOKEN")
+		// The token is ours but its account was deleted: devices wipe their vault.
+		unauthorized(c, "ACCOUNT_DELETED")
 		return
 	}
 

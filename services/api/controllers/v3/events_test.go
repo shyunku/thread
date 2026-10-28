@@ -91,3 +91,46 @@ func TestBrokerCoalescesSignals(t *testing.T) {
 		t.Fatal("cancel did not unsubscribe")
 	}
 }
+
+// Deleting an account ends its open streams; other accounts keep theirs.
+func TestCloseAccountStreamsEndsTheStream(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	secret := []byte(strings.Repeat("s", 32))
+	broker := syncevents.NewBroker()
+	previous := syncBroker
+	syncBroker = broker
+	t.Cleanup(func() { syncBroker = previous })
+	r := gin.New()
+	RegisterSyncEvents(r, broker, secret)
+	server := httptest.NewServer(r)
+	defer server.Close()
+	token, _ := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"uid": "user-1", "admin": false, "authorized": true, "exp": time.Now().Unix() + 60,
+	}).SignedString(secret)
+	_, keep := broker.Subscribe("user-2")
+	defer keep()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	req, _ := http.NewRequestWithContext(ctx, "GET", server.URL+"/v3/sync/events", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	for i := 0; i < 50 && broker.Subscribers("user-1") == 0; i++ {
+		time.Sleep(10 * time.Millisecond)
+	}
+	CloseAccountStreams("user-1")
+	lines := bufio.NewScanner(resp.Body)
+	for lines.Scan() {
+	}
+	if ctx.Err() != nil {
+		t.Fatal("stream did not end")
+	}
+	if broker.Subscribers("user-1") != 0 || broker.Subscribers("user-2") != 1 {
+		t.Fatal("wrong streams closed")
+	}
+	broker.Notify("user-1") // nothing left to signal; must not panic
+}

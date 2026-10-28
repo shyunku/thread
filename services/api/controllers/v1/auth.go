@@ -209,4 +209,5 @@ func UseAuthRouter(g *gin.RouterGroup) {
 	sg.POST("refreshToken", RefreshToken)
 	sg.POST("logout", Logout)
 	sg.POST("sessions/revoke", AuthMiddleware, RevokeSessions)
+	sg.POST("account/delete", AuthMiddleware, DeleteAccount)
 }

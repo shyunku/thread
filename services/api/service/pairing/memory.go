@@ -109,3 +109,10 @@ func (m *Memory) Cancel(_ context.Context, uid, sessionID string) error {
 	}
 	return nil
 }
+
+func (m *Memory) DeleteAccount(_ context.Context, uid string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.sessions, uid)
+	return nil
+}

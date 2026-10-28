@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"database/sql"
 	"fmt"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -9,6 +10,7 @@ import (
 	"thread_api/controllers/v1"
 	"thread_api/controllers/v3"
 	"thread_api/log"
+	"thread_api/service/accountdelete"
 	"thread_api/service/pairing"
 	"thread_api/service/session"
 )
@@ -26,6 +28,14 @@ func UseSessions(store session.Store) {
 // UsePairing connects the device-connection relay store.
 func UsePairing(store pairing.Store) {
 	v3.SetPairingStore(store)
+}
+
+// UseAccountDeletion enables POST /v1/auth/account/delete. After the database
+// delete it clears the account's pairing session and ends its event streams.
+func UseAccountDeletion(db *sql.DB) {
+	v1.Accounts = accountdelete.Deleter{DB: db}
+	v1.DeleteAccountPairing = v3.DeleteAccountPairing
+	v1.CloseAccountStreams = v3.CloseAccountStreams
 }
 
 func SetupRouter() *gin.Engine {

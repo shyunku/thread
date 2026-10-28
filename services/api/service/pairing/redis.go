@@ -116,3 +116,7 @@ func (r *Redis) Cancel(ctx context.Context, uid, sessionID string) error {
 	}
 	return cancelScript.Run(ctx, r.client, []string{key(uid)}, sessionID).Err()
 }
+
+func (r *Redis) DeleteAccount(ctx context.Context, uid string) error {
+	return r.client.Del(ctx, key(uid)).Err()
+}
