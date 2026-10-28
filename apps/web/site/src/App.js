@@ -1,11 +1,13 @@
 import { useEffect } from "react";
 import logo from "./assets/logo.png";
+import DeleteAccount from "./pages/DeleteAccount";
 import Landing from "./pages/Landing";
 import Privacy, { CONTACT } from "./pages/Privacy";
 
 const PAGES = {
   "/": { title: "Thread — 나만 볼 수 있는 할 일·일정 관리", Page: Landing },
   "/privacy": { title: "개인정보처리방침 — Thread", Page: Privacy },
+  "/delete-account": { title: "계정 삭제 — Thread", Page: DeleteAccount },
 };
 
 function NotFound() {
@@ -44,7 +46,8 @@ export default function App({ path = window.location.pathname }) {
       <footer className="footer">
         <div className="container footer__inner">
           <span>© Thread</span>
-          <a href="/privacy">개인정보처리방침</a>
+          <a href="/privacy" aria-current={normalized === "/privacy" ? "page" : undefined}>개인정보처리방침</a>
+          <a href="/delete-account" aria-current={normalized === "/delete-account" ? "page" : undefined}>계정 삭제</a>
           <a href={`mailto:${CONTACT}`}>{CONTACT}</a>
         </div>
       </footer>

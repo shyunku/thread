@@ -55,3 +55,23 @@ test("privacy policy and unknown pages render", () => {
   render(<App path="/nope" />);
   expect(screen.getByRole("heading", { name: "페이지를 찾을 수 없어요" })).toBeInTheDocument();
 });
+
+test("account deletion page explains the app steps, the email request and timing", () => {
+  global.fetch = jest.fn(() => new Promise(() => {}));
+  const { unmount } = render(<App path="/delete-account" />);
+  expect(screen.getByRole("heading", { level: 1, name: "계정 삭제" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: /PC 앱/ })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: /휴대폰 앱/ })).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "메일 쓰기" }).getAttribute("href"))
+    .toBe("mailto:shyunku.support@gmail.com?subject=" + encodeURIComponent("Thread 계정 삭제 요청"));
+  expect(screen.getAllByText("삭제하는 즉시")).toHaveLength(3);
+  expect(screen.getByText("30일 안에 사라져요")).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "계정 삭제" })).toHaveAttribute("aria-current", "page");
+  expect(document.title).toBe("계정 삭제 — Thread");
+  unmount();
+  // The privacy policy no longer says deletion is impossible in the app and links the page.
+  render(<App path="/privacy" />);
+  expect(screen.queryByText(/앱 안에서 할 수 없으며/)).toBeNull();
+  expect(screen.getByRole("link", { name: "계정 삭제 안내" })).toHaveAttribute("href", "/delete-account");
+  expect(screen.getByRole("link", { name: "계정 삭제" })).toHaveAttribute("href", "/delete-account");
+});

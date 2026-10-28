@@ -341,6 +341,45 @@ code {
   th { background: var(--surface); font-weight: 600; }
   td:first-child { width: 30%; color: var(--text); font-weight: 500; }
   td { color: var(--secondary); }
+
+  .lead { font-size: 17px; }
+  .lead b, li b { color: var(--text); font-weight: 600; }
+  .when td:first-child { width: 58%; }
+  .when td.now { color: var(--text); }
+}
+
+// Account deletion page: steps per app and the email request
+.steps {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-top: 16px;
+
+  &__card {
+    padding: 24px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--card);
+
+    h3 { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; font-size: 17px; font-weight: 700; }
+    h3 svg { flex: none; color: var(--accent); }
+    ol { margin: 0; padding-left: 22px; }
+    li { font-size: 15px; }
+  }
+}
+
+.mail {
+  margin-top: 16px;
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--card);
+
+  dl { display: grid; grid-template-columns: 96px 1fr; gap: 8px 16px; margin: 0 0 20px; font-size: 15px; }
+  dt { color: var(--muted); }
+  dd { margin: 0; color: var(--text); }
+  &__actions { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; }
+  &__actions span { color: var(--muted); font-size: 14px; }
 }
 
 // Footer
@@ -357,7 +396,7 @@ code {
     font-size: 14px;
 
     a { color: var(--secondary); text-decoration: none; }
-    a:hover { color: var(--text); }
+    a:hover, a[aria-current="page"] { color: var(--text); }
   }
 }
 
@@ -375,6 +414,9 @@ code {
   .download__facts { grid-template-columns: repeat(2, auto); }
   .soon { flex-direction: column; }
   .policy td:first-child { width: 36%; }
+  .steps { grid-template-columns: 1fr; }
+  .mail dl { grid-template-columns: 1fr; gap: 2px; }
+  .mail dd + dt { margin-top: 10px; }
   .hero__actions .button { width: 100%; }
 }
 
