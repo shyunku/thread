@@ -37,5 +37,5 @@
   .settings-check--on { border-color: #6b3a41; background: #2a1c20; }
   .settings-check--on .settings-check__box { border-color: var(--danger); background: var(--danger); color: #2a0b0f; }
 
-  .auth-action__password { width: 140px; }
+  .auth-action__password { width: 140px; height: 32px; font-size: 13px; }
 }
