@@ -18,10 +18,14 @@ const mutationTopics = new Set([
   "task/updateSubtaskTitle",
   "task/updateSubtaskDueDate",
   "task/updateSubtaskDone",
+  // User-defined subtask order (#106): fields.sort_rank among the task's subtasks.
+  "task/updateSubtaskOrder",
   "category/createCategory",
   "category/deleteCategory",
   "category/updateCategoryTitle",
   "category/updateCategoryColor",
+  // Normal <-> secret category (#106): fields.secret (and locked, as a create writes it).
+  "category/updateCategorySecret",
   "category/updateCategoryOrder",
   // Device names (#77); refused while deviceNames.flags.DEVICE_NAMES_WRITE is off.
   "device/setDeviceName",
@@ -162,6 +166,9 @@ function command(topic, args, view) {
         { done: c, done_at: c ? d || Date.now() : 0 },
         a
       );
+    // (task id, subtask id, anchor subtask id, after the anchor), like the category move.
+    case "task/updateSubtaskOrder":
+      return { ...make("subtask", b, "move", undefined, a), anchorId: c, after: d };
     case "category/createCategory":
       return make(
         "category",
@@ -175,6 +182,9 @@ function command(topic, args, view) {
       return make("category", a, "patch", { title: b ?? "" });
     case "category/updateCategoryColor":
       return make("category", a, "patch", { color: b ?? "" });
+    // Only a real true makes it secret; a new secret category starts locked, so both flip.
+    case "category/updateCategorySecret":
+      return make("category", a, "patch", { secret: b === true, locked: b === true });
     // User-defined sidebar order (#102): fields.sort_rank, like the task move.
     case "category/updateCategoryOrder":
       return { ...make("category", a, "move"), anchorId: b, after: c };
@@ -236,15 +246,12 @@ function expand(topic, args, view, now = Date.now()) {
         task.repeat_start_at = f.repeat_start_at || f.due_date;
       }
       if (f.important === true) task.important = true;
+      // The copies get no rank: increasing created_at keeps the shown order (#106).
       const subtasks = rows
         .filter(
           (r) => r.entityType === "subtask" && r.parentId === a && liveRow(r)
         )
-        .sort(
-          (x, y) =>
-            (x.fields.created_at || 0) - (y.fields.created_at || 0) ||
-            (x.entityId < y.entityId ? -1 : 1)
-        );
+        .sort(compareRank);
       return [
         ["task/addTask", [task]],
         ...subtasks.map((r, i) => {
@@ -325,8 +332,10 @@ function entityLists(view) {
       .filter((c) => c.entityType === "category")
       .sort(compareRank)
       .map((c) => ({ ...c.fields, cid: c.entityId })),
+    // Subtask order (#106), the same on every app: sort_rank, then created_at, then id.
     subtasks: rows
       .filter((c) => c.entityType === "subtask")
+      .sort(compareRank)
       .map((c) => ({ ...c.fields, sid: c.entityId, tid: c.parentId })),
     relations: rows
       .filter((c) => c.entityType === "taskCategory" && c.fields.present)

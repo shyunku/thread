@@ -256,7 +256,8 @@ export default function DetailPanel({ task, catsOf, prefs, canStar = true }) {
         </div>
       </div>
 
-      <SubtaskList task={task} timeFormat={tf} now={now} />
+      {/* The subtask order syncs only on the E2EE path, like the star. */}
+      <SubtaskList task={task} timeFormat={tf} now={now} canSort={canStar} />
 
       <div className="rp-block-h">메모</div>
       <MemoField task={task} />

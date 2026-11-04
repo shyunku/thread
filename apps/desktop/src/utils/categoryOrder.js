@@ -23,6 +23,10 @@ export function sortCategories(categories) {
   return [...categories].sort(compareCategories);
 }
 
+// A task's subtasks (#106) follow the same rule (the shared model's compareSubtasks), so every
+// device shows them alike; subtasks from before #106 have no rank and keep created_at order.
+export const sortSubtasks = sortCategories;
+
 // Arguments for category/updateCategoryOrder that put `id` at `toIndex` of the final
 // list. Returns null when nothing moves.
 export function categoryMoveAnchor(orderedIds, id, toIndex) {

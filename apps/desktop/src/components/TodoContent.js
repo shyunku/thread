@@ -361,6 +361,9 @@ const TodoContent = ({ children }) => {
     setSubtaskTitle: (tid, sid, title) => IpcSender.req.task.updateSubtaskTitle(tid, sid, title, failed("하위 할 일 이름을 바꾸지 못했어요.")),
     setSubtaskDue: (tid, sid, dueDate) => IpcSender.req.task.updateSubtaskDueDate(tid, sid, dueDate == null ? null : moment(dueDate).valueOf(), failed("하위 할 일 기한을 바꾸지 못했어요.")),
     setSubtaskDone: (tid, sid, done) => IpcSender.req.task.updateSubtaskDone(tid, sid, done, Date.now(), failed(done ? "하위 할 일을 완료하지 못했어요." : "하위 할 일 완료를 취소하지 못했어요.")),
+    // Puts the subtask next to anchorId (after it when `after`); callback({ success, data })
+    // answers it (the panel shows the dropped order until the synced one has it). E2EE only.
+    moveSubtask: (tid, sid, anchorId, after, callback) => IpcSender.req.task.updateSubtaskOrder(tid, sid, anchorId, after, callback),
   }), [onTaskAdd, onCreateCategory]);
 
   const toggleCategory = (task, cid) => {

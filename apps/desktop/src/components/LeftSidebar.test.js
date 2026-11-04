@@ -29,6 +29,7 @@ jest.mock("../utils/IpcSender", () => {
         updateCategoryOrder: jest.fn(),
         updateCategoryTitle: fn(),
         updateCategoryColor: fn(),
+        updateCategorySecret: fn(),
       },
     },
     vault: { verifyUser: jest.fn(), onLocked: jest.fn(() => () => {}) },
@@ -676,4 +677,140 @@ test("while searching no menu row is the current one", () => {
   expect(container.querySelector("[aria-current]")).toBeNull();
   const work = setup({ selected: "work", searchQuery: " 업무 " }).container;
   expect(work.querySelector(".cat-row.on")).toBeNull();
+});
+
+/* ------------------------- Secret <-> normal (#106) ------------------------- */
+// Draws the sidebar again with the categories the sync sent after a switch.
+function resync(rerender, categories) {
+  mockContext = { ...mockContext, states: { ...mockContext.states, categories } };
+  rerender(
+    <SecretSessionProvider uid="fixture">
+      <Grab />
+      <LeftSidebar selectedTodoMenuType={TODO_MENU_TYPE.ALL} setSelectedTodoMenuType={setSelected} mode="full" />
+    </SecretSessionProvider>
+  );
+}
+const menuItems = (menu) => [...menu.querySelectorAll(".mi")].map((b) => b.textContent);
+
+test("unlocked: 비밀 카테고리로 바꾸기 sits under 이름 바꾸기 and asks before making it secret", async () => {
+  const { container } = setup();
+  await unlockSecrets();
+  fireEvent.contextMenu(catRows(container)[0]);
+  const menu = screen.getByRole("dialog", { name: "업무 카테고리 메뉴" });
+  expect(menuItems(menu)).toEqual(["이름 바꾸기", "비밀 카테고리로 바꾸기", "카테고리 삭제"]);
+  fireEvent.click(within(menu).getByText("비밀 카테고리로 바꾸기"));
+  expect(screen.queryByRole("dialog", { name: "업무 카테고리 메뉴" })).toBeNull();
+  const dialog = await screen.findByRole("alertdialog", { name: "업무를 비밀 카테고리로 바꿀까요?" });
+  // Unlocked: every task of 업무 counts (over, five, doneToday and mixed, also in 일기).
+  expect(
+    within(dialog).getByText(
+      "잠금이 닫혀 있을 때는 이 카테고리와 그 할 일 4개가 숨겨져요. 잠금을 풀 때 Windows Hello로 확인해요. 모든 기기에 같이 적용돼요."
+    )
+  ).toBeTruthy();
+  // The shield tile in the category colour, 취소 / 비밀로 바꾸기.
+  expect(dialog.querySelector(".tp-dialog-i").style.color).toBe("rgb(98, 148, 255)");
+  expect(dialog.querySelector(".tp-dialog-i svg")).toHaveAttribute("width", "28");
+  fireEvent.click(within(dialog).getByText("취소"));
+  expect(IpcSender.req.category.updateCategorySecret).not.toHaveBeenCalled();
+  fireEvent.contextMenu(catRows(container)[0]);
+  fireEvent.click(screen.getByText("비밀 카테고리로 바꾸기"));
+  const again = await screen.findByRole("alertdialog");
+  expect(within(again).getByRole("button", { name: "비밀로 바꾸기" })).toHaveClass("dp-btn", "pri");
+  await act(async () => fireEvent.click(within(again).getByText("비밀로 바꾸기")));
+  expect(IpcSender.req.category.updateCategorySecret).toHaveBeenCalledWith("work", true, expect.any(Function));
+  expect(screen.queryByRole("alertdialog")).toBeNull();
+  // No second check: the unlock above was the only one.
+  expect(IpcSender.vault.verifyUser).toHaveBeenCalledTimes(2);
+});
+
+test("locked: a category turned secret asks with the hide text, needs no unlock and is gone once synced", async () => {
+  osVault();
+  const { container, rerender } = setup();
+  fireEvent.contextMenu(catRows(container)[1]);
+  fireEvent.click(screen.getByText("비밀 카테고리로 바꾸기"));
+  const dialog = await screen.findByRole("alertdialog", { name: "공부를 비밀 카테고리로 바꿀까요?" });
+  // The dialog waits while the vault says how the lock would open again.
+  expect(
+    await within(dialog).findByText(
+      "지금은 잠금이 닫혀 있어서 바꾸면 이 카테고리와 그 할 일 1개가 바로 숨겨져요. 잠금을 풀면(Windows Hello) 다시 보여요. 모든 기기에 같이 적용돼요."
+    )
+  ).toBeTruthy();
+  const ok = within(dialog).getByRole("button", { name: "비밀로 바꾸기" });
+  expect(ok).not.toBeDisabled();
+  await act(async () => fireEvent.click(ok));
+  expect(IpcSender.req.category.updateCategorySecret).toHaveBeenCalledWith("study", true, expect.any(Function));
+  // Only the method was asked; nothing was unlocked.
+  expect(IpcSender.vault.verifyUser).toHaveBeenCalledTimes(1);
+  expect(IpcSender.vault.verifyUser).toHaveBeenCalledWith({ method: "password" }, expect.any(Function));
+  expect(session.unlocked).toBe(false);
+  // The synced state has 공부 secret: it leaves the list, and its task leaves the counts.
+  const cats = mockContext.states.categories;
+  resync(rerender, { ...cats, study: category("study", "공부", "#b58cff", true, "20") });
+  expect(catRows(container).map((r) => r.dataset.catrow)).toEqual(["work", "exam"]);
+  expect(count(navRow(container, TODO_MENU_TYPE.ALL))).toBe("4");
+});
+
+test("locked with no way to open the lock again: nothing turns secret", async () => {
+  IpcSender.vault.verifyUser.mockImplementation((input, cb) =>
+    cb({ success: true, data: { verified: false, osAvailable: false, passwordAvailable: false } })
+  );
+  const { container } = setup();
+  fireEvent.contextMenu(catRows(container)[1]);
+  await act(async () => fireEvent.click(screen.getByText("비밀 카테고리로 바꾸기")));
+  expect(screen.queryByRole("alertdialog")).toBeNull();
+  expect(Toast.warn).toHaveBeenCalledWith("잠금을 풀 방법이 없어서 비밀 카테고리로 바꿀 수 없어요.");
+  expect(IpcSender.req.category.updateCategorySecret).not.toHaveBeenCalled();
+});
+
+test("a secret category turns normal with the question only, no second check", async () => {
+  const { container, rerender } = setup();
+  await unlockSecrets();
+  fireEvent.contextMenu(catRows(container)[3]);
+  const menu = screen.getByRole("dialog", { name: "일기 카테고리 메뉴" });
+  expect(menuItems(menu)).toEqual(["이름 바꾸기", "일반 카테고리로 바꾸기", "카테고리 삭제"]);
+  fireEvent.click(within(menu).getByText("일반 카테고리로 바꾸기"));
+  const dialog = await screen.findByRole("alertdialog", { name: "일기를 일반 카테고리로 바꿀까요?" });
+  expect(
+    within(dialog).getByText("바꾸면 잠금과 상관없이 이 카테고리와 그 할 일 2개가 늘 보여요. 모든 기기에 같이 적용돼요.")
+  ).toBeTruthy();
+  expect(dialog.querySelector(".tp-dialog-i").style.color).toBe("rgb(229, 122, 214)");
+  await act(async () => fireEvent.click(within(dialog).getByRole("button", { name: "일반으로 바꾸기" })));
+  expect(IpcSender.req.category.updateCategorySecret).toHaveBeenCalledWith("diary", false, expect.any(Function));
+  expect(IpcSender.vault.verifyUser).toHaveBeenCalledTimes(2);
+  // Synced as normal, it stays listed (with a dot and a count) after the lock closes.
+  const cats = mockContext.states.categories;
+  resync(rerender, { ...cats, diary: category("diary", "일기", "#e57ad6", false, "40") });
+  act(() => session.lock());
+  const diary = container.querySelector('[data-catrow="diary"]');
+  expect(diary.querySelector(".dot")).not.toBeNull();
+  expect(count(diary)).toBe("2");
+});
+
+test("a menu left open while the lock closed asks for the unlock before turning a secret one normal", async () => {
+  const { container } = setup();
+  await unlockSecrets();
+  fireEvent.contextMenu(catRows(container)[3]);
+  act(() => session.lock());
+  fireEvent.click(screen.getByText("일반 카테고리로 바꾸기"));
+  const ask = await screen.findByRole("alertdialog", { name: "비밀 카테고리 잠금을 풀까요?" });
+  await act(async () => fireEvent.click(within(ask).getByText("취소")));
+  expect(screen.queryByRole("alertdialog")).toBeNull();
+  expect(IpcSender.req.category.updateCategorySecret).not.toHaveBeenCalled();
+});
+
+test("a refused switch says so: UNSUPPORTED (legacy) warns, other failures show an error", async () => {
+  const { container } = setup();
+  await unlockSecrets();
+  IpcSender.req.category.updateCategorySecret.mockImplementationOnce((cid, value, cb) =>
+    cb({ success: false, data: { code: "UNSUPPORTED_LEGACY_ACTION" } })
+  );
+  fireEvent.contextMenu(catRows(container)[0]);
+  fireEvent.click(screen.getByText("비밀 카테고리로 바꾸기"));
+  await act(async () => fireEvent.click(await screen.findByRole("button", { name: "비밀로 바꾸기" })));
+  expect(Toast.warn).toHaveBeenCalledWith("이 계정에서는 비밀 카테고리를 바꿀 수 없어요.");
+  IpcSender.req.category.updateCategorySecret.mockImplementationOnce((cid, value, cb) => cb({ success: false }));
+  fireEvent.contextMenu(catRows(container)[3]);
+  fireEvent.click(screen.getByText("일반 카테고리로 바꾸기"));
+  await act(async () => fireEvent.click(await screen.findByRole("button", { name: "일반으로 바꾸기" })));
+  expect(Toast.error).toHaveBeenCalledWith("일반 카테고리로 바꾸지 못했어요.");
 });

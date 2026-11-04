@@ -33,6 +33,7 @@ import {
 } from "../molecules/pickers";
 import { MODAL_TYPES } from "../routers/ModalRouter";
 import { CategoryMenu, NewCategoryPopup } from "./sidebar/CategoryPopups";
+import { categorySecretConfirm } from "./sidebar/categorySecretConfirm";
 import useCategoryDrag from "./sidebar/useCategoryDrag";
 
 // The menu ids live in utils/menuFilters; kept here for the existing imports.
@@ -180,6 +181,12 @@ const LeftSidebar = ({ setSelectedTodoMenuType, selectedTodoMenuType, mode = "fu
   const [menu, setMenu] = useState(null); // { cid, anchor, row }
   const [creating, setCreating] = useState(null); // { anchor }
   const [confirm, setConfirm] = useState(null);
+  // The secret <-> normal question still open (its seq), for the answer that arrives later.
+  const confirmSeq = useRef(null);
+  const closeConfirm = useCallback(() => {
+    confirmSeq.current = null;
+    setConfirm(null);
+  }, []);
   const menuRef = useRef(null);
   menuRef.current = menu;
   // Closing the menu drops a colour still being previewed (a knob let go by Esc).
@@ -290,6 +297,49 @@ const LeftSidebar = ({ setSelectedTodoMenuType, selectedTodoMenuType, mode = "fu
         else IpcSender.req.category.deleteCategory(category.id, done("카테고리를 삭제"));
       },
     });
+  };
+
+  // Secret <-> normal (#106). A secret category is listed only while unlocked, so turning it
+  // normal asks only the question (the user's decision). Turning one secret while locked is
+  // allowed and hides it at once, so the vault must have a way to open the lock again: it is
+  // asked first, the dialog waiting meanwhile.
+  const secretRef = useRef(secret);
+  secretRef.current = secret;
+  const switchSeq = useRef(0);
+  const askSecret = async (category, row) => {
+    closeMenu();
+    const color = colorOf(category);
+    // A menu left open while the lock closed: the unlock first, as for the delete.
+    if (category.secret && !secret.unlocked && !(await secret.unlock({ color }))) return;
+    const locked = !category.secret && !secret.unlocked;
+    const n = categoryTaskCount(taskMap, categories, category.id, { showSecret: secret.showSecret });
+    const ask = (method) => categorySecretConfirm({ title: category.title, secret: category.secret, color }, n, { locked, method });
+    const seq = ++switchSeq.current;
+    confirmSeq.current = seq;
+    setConfirm({
+      seq,
+      category,
+      row,
+      props: locked ? { ...ask(secret.method), busy: true } : ask(secret.method),
+      run: async () => {
+        const session = secretRef.current;
+        // The lock closed while the question was open: a secret one needs the unlock again.
+        if (category.secret && !session.unlocked && !(await session.unlock({ color }))) return;
+        IpcSender.req.category.updateCategorySecret(category.id, !category.secret, ({ success, data } = {}) => {
+          if (success !== false) return;
+          if (isUnsupported(data)) Toast.warn("이 계정에서는 비밀 카테고리를 바꿀 수 없어요.");
+          else Toast.error(category.secret ? "일반 카테고리로 바꾸지 못했어요." : "비밀 카테고리로 바꾸지 못했어요.");
+        });
+      },
+    });
+    if (!locked) return;
+    const { method, busy } = await secret.findMethod();
+    // 취소 (or a newer question) ended this one: nothing more to say.
+    if (confirmSeq.current !== seq) return;
+    if (method) return setConfirm((c) => (c?.seq === seq ? { ...c, props: ask(method) } : c));
+    closeConfirm();
+    if (busy) Toast.warn("잠시 뒤에 다시 해 주세요.");
+    else Toast.warn("잠금을 풀 방법이 없어서 비밀 카테고리로 바꿀 수 없어요.");
   };
 
   /* -------------------------------- Render -------------------------------- */
@@ -411,6 +461,7 @@ const LeftSidebar = ({ setSelectedTodoMenuType, selectedTodoMenuType, mode = "fu
           returnFocus={menu.row}
           onClose={closeMenu}
           onRename={(title) => renameCategory(menuCategory.id, title)}
+          onSecret={() => askSecret(menuCategory, menu.row)}
           onColor={(color, final) => changeColor(menuCategory.id, color, final)}
           onDelete={() => askDelete(menuCategory, menu.row)}
         />
@@ -430,10 +481,10 @@ const LeftSidebar = ({ setSelectedTodoMenuType, selectedTodoMenuType, mode = "fu
           {...confirm.props}
           returnFocus={confirm.row}
           onChoose={(choice) => {
-            setConfirm(null);
+            closeConfirm();
             confirm.run(choice);
           }}
-          onCancel={() => setConfirm(null)}
+          onCancel={closeConfirm}
         />
       )}
     </aside>

@@ -409,6 +409,18 @@ const IpcSender = {
           doneAt
         );
       },
+      // Moves the subtask next to anchorId among the task's subtasks (after it when
+      // afterAnchor, else before). E2EE only, like the category order (#106).
+      updateSubtaskOrder: (taskId, subtaskId, anchorId, afterAnchor, callback) => {
+        sender(
+          "task/updateSubtaskOrder",
+          callback,
+          taskId,
+          subtaskId,
+          anchorId,
+          afterAnchor
+        );
+      },
     },
     category: {
       getCategoryList: (callback) => {
@@ -445,6 +457,11 @@ const IpcSender = {
       },
       updateCategoryColor: (categoryId, color, callback) => {
         sender("category/updateCategoryColor", callback, categoryId, color);
+      },
+      // Makes the category secret (true) or normal (false), on every device.
+      // E2EE and plaintext v2; the legacy path answers UNSUPPORTED_LEGACY_ACTION.
+      updateCategorySecret: (categoryId, secret, callback) => {
+        sender("category/updateCategorySecret", callback, categoryId, secret);
       },
     },
     tasks_categories: {

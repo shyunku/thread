@@ -1,5 +1,9 @@
 // Screen-side view of the shared application lists (packages/e2ee entityLists):
 // same filters, sort modes and wording as the desktop TodoContent.
+const {
+  compareSubtasks,
+} = require('@thread/e2ee/src/model/optimistic');
+
 export type TaskRow = {
   tid: string;
   title: string;
@@ -84,8 +88,9 @@ export function buildModel(lists: Lists) {
       sortRank: rank(c.sort_rank),
     }))
     .sort(compareCategories);
+  // The shared subtask order (#106), the same as the PC: sort_rank, then created_at, then id.
   const subtasksByTask = new Map<string, SubtaskRow[]>();
-  for (const s of lists.subtasks) {
+  for (const s of [...lists.subtasks].sort(compareSubtasks)) {
     const row = {
       sid: s.sid,
       tid: s.tid,
@@ -96,8 +101,6 @@ export function buildModel(lists: Lists) {
     };
     subtasksByTask.set(s.tid, [...(subtasksByTask.get(s.tid) ?? []), row]);
   }
-  for (const list of subtasksByTask.values())
-    list.sort((a, b) => a.createdAt - b.createdAt);
   const categoriesByTask = new Map<string, string[]>();
   for (const r of lists.relations)
     categoriesByTask.set(r.tid, [

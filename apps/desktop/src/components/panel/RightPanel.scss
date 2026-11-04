@@ -243,6 +243,47 @@ $picked: #3d6fe6;
     }
   }
   .rp-bar + .rp-subt { border-radius: 0; }
+
+  // Reorder (#106 mock .sgrip): the grip shows on hover in a 16px left gutter (4px each side
+  // of the 8px dots), always reserved so the row does not shift when it appears.
+  .rp-subs { position: relative; }
+  .rp-subs.sortable .rp-subt { position: relative; padding-left: 16px; }
+  .sgrip {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 16px;
+    display: none;
+    place-items: center;
+    color: var(--faint);
+    cursor: grab;
+    &:hover { color: var(--secondary); }
+  }
+  .rp-subt:hover .sgrip, .rp-subt.hov .sgrip, .rp-subt:focus-within .sgrip { display: grid; }
+  // While a row is lifted: the others slide to open its slot, hovers stay still.
+  .rp-subs.sorting {
+    user-select: none;
+    &, * { cursor: grabbing !important; }
+    .rp-subt[data-subtask-id] { transition: transform .16s cubic-bezier(.2, 0, 0, 1); }
+    .rp-subt[data-subtask-id]:hover { background: transparent; }
+    .rp-subt:hover .sacts, .rp-subt:hover .sgrip { display: none; }
+    .rp-subt.lifted { visibility: hidden; }
+  }
+  .rp-subt.sub-ghost {
+    position: absolute;
+    z-index: 30;
+    margin: 0;
+    pointer-events: none;
+    border-radius: 8px !important;
+    border: 0 !important;
+    background: #262c38 !important;
+    box-shadow: 0 10px 24px #000a, inset 0 0 0 1px #3a4354;
+    transform: scale(1.02);
+    transition: top .16s cubic-bezier(.2, 0, 0, 1);
+    .sacts { display: none !important; }
+    .sgrip { display: grid !important; color: var(--secondary); }
+  }
   .rp-sub-in {
     flex: 1;
     min-width: 0;

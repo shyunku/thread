@@ -2,8 +2,9 @@
 // category and task-category rows change locally (moved from the desktop sync-v2 replica).
 const identity = (c) =>
   JSON.stringify([c.entityType, c.parentId || "", c.entityId]);
-// sort_rank is a string bigint. Categories from before #102 have none: they sort after
-// ranked ones, by created_at, until the first move or create ranks them all.
+// sort_rank is a string bigint. Categories from before #102 and subtasks from before #106
+// have none: they sort after ranked ones, by created_at, until a move (or, for categories, a
+// create) ranks them all.
 const rankOf = (c) =>
   typeof c.fields.sort_rank === "string" &&
   /^(0|[1-9][0-9]*)$/.test(c.fields.sort_rank)
@@ -13,18 +14,27 @@ function compareRank(a, b) {
   const x = rankOf(a),
     y = rankOf(b);
   if (x !== y) return x === null ? 1 : y === null ? -1 : x < y ? -1 : 1;
-  if (a.entityType === "category") {
+  if (a.entityType === "category" || a.entityType === "subtask") {
     const t = (a.fields.created_at || 0) - (b.fields.created_at || 0);
     if (t) return t < 0 ? -1 : 1;
   }
   return a.entityId < b.entityId ? -1 : a.entityId === b.entityId ? 0 : 1;
 }
-// Ordered task (or category) rows, the list a move or create ranks against.
-function ordered(rows, exclude, entityType = "task") {
+// The order of listed subtasks (entityLists rows: {sid, sort_rank, created_at, ...}), the same
+// on every app (#106).
+const compareSubtasks = (a, b) =>
+  compareRank(
+    { entityType: "subtask", entityId: a.sid, fields: a },
+    { entityType: "subtask", entityId: b.sid, fields: b }
+  );
+// Ordered task (or category) rows, the list a move or create ranks against. Subtasks are
+// ranked among the subtasks of the same task (parentId).
+function ordered(rows, exclude, entityType = "task", parentId) {
   return [...rows.values()]
     .filter(
       (c) =>
         c.entityType === entityType &&
+        (entityType !== "subtask" || c.parentId === parentId) &&
         c.entityId !== exclude &&
         c.operation !== "delete" &&
         c.fields.deleted_at == null
@@ -120,12 +130,20 @@ function optimistic(rows, m) {
       }
     }
   }
-  if (
-    (m.entityType === "task" || m.entityType === "category") &&
-    (m.operation === "create" || m.operation === "move")
-  ) {
+  // Subtasks (#106) are ranked by a move. A new one is ranked only next to ranked siblings
+  // (unranked ones already end with the newest by created_at), and one created with a rank
+  // (a recurring completion's copy) keeps it.
+  const ranks =
+    m.entityType === "subtask"
+      ? m.operation === "move" ||
+        (m.operation === "create" &&
+          rankOf({ fields }) === null &&
+          ordered(rows, m.entityId, "subtask", m.parentId).some((c) => rankOf(c) !== null))
+      : (m.entityType === "task" || m.entityType === "category") &&
+        (m.operation === "create" || m.operation === "move");
+  if (ranks) {
     if (m.operation === "move" && m.anchorId === m.entityId) return;
-    let list = ordered(rows, m.entityId, m.entityType),
+    let list = ordered(rows, m.entityId, m.entityType, m.parentId),
       index = m.anchorId
         ? list.findIndex((c) => c.entityId === m.anchorId)
         : list.length;
@@ -145,11 +163,11 @@ function optimistic(rows, m) {
     };
     const rankAt = (i) => BigInt(list[i].fields.sort_rank);
     const rerank = () => list.forEach((c, i) => setRank(i, BigInt(i + 1) * gap));
-    if (m.entityType === "category") {
-      // Category ranks are encrypted objects that sync: rewriting them all on every move
-      // would let two devices' concurrent moves mix into an order neither chose. Rows
-      // without a rank (older clients) get one after the ranked rows; the rest stay, and
-      // all are re-ranked only when the neighbours leave no room.
+    if (m.entityType === "category" || m.entityType === "subtask") {
+      // Category and subtask ranks are encrypted objects that sync: rewriting them all on
+      // every move would let two devices' concurrent moves mix into an order neither chose.
+      // Rows without a rank (older clients) get one after the ranked rows; the rest stay,
+      // and all are re-ranked only when the neighbours leave no room.
       list.forEach((c, i) => {
         if (rankOf(c) === null) setRank(i, (i ? rankAt(i - 1) : 0n) + gap);
       });
@@ -179,4 +197,4 @@ function optimistic(rows, m) {
       });
   }
 }
-module.exports = { identity, ordered, compareRank, optimistic };
+module.exports = { identity, ordered, compareRank, compareSubtasks, optimistic };

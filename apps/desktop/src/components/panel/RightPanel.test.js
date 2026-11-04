@@ -16,6 +16,7 @@ import { usePickedDay } from "./pickedDay";
 import { dayTasks, sortByDue } from "./CalendarTab";
 import { panelTab } from "./RightPanel";
 import { stampText } from "./DetailPanel";
+import { resetSubtaskOrderForTests } from "./SubtaskList";
 
 let mockContext;
 jest.mock("react-router-dom", () => ({ useOutletContext: () => mockContext }));
@@ -417,6 +418,134 @@ test("subtasks: count and bar, check, rename in place, due on the right, 기한 
   fireEvent.keyDown(add, { key: "Enter" });
   expect(IpcSender.req.task.createSubtask).toHaveBeenCalledWith(expect.objectContaining({ title: "배포", due_date: null }), "first", expect.any(Function));
   expect(add).toHaveValue("");
+});
+
+// Subtask order (#106): a third subtask, ranked, so the synced order is s3 (rank), s1, s2
+// (unranked, by created_at).
+const subRows = () => [...panel().querySelectorAll(".rp-subt[data-subtask-id]")];
+const subIds = () => subRows().map((r) => r.dataset.subtaskId);
+function withThird() {
+  tasks.first.addSubtask(makeSub("s3", "배포 준비", null, { createdAt: at(-1, 9), sortRank: "4294967296" }));
+}
+function placeSubRows() {
+  panel().querySelector(".rp-subs").getBoundingClientRect = () => ({ top: 200, bottom: 311, left: 20, right: 320, width: 300, height: 111 });
+  subRows().forEach((row, i) => {
+    row.getBoundingClientRect = () => ({ top: 203 + i * 36, bottom: 239 + i * 36, left: 20, right: 320, width: 300, height: 36 });
+  });
+}
+
+test("subtask order: rank first, then created_at; Alt+↑/↓ moves the focused row and keeps the focus", () => {
+  resetSubtaskOrderForTests();
+  withThird();
+  view();
+  select("first");
+  expect(subIds()).toEqual(["s3", "s1", "s2"]);
+  const grip = subRows()[0].querySelector(".sgrip");
+  expect(grip).toHaveAttribute("data-tip", "끌어서 순서 바꾸기 · Alt+↑↓");
+  // The grip sits in the row's reserved gutter, before the check.
+  expect(grip.nextElementSibling).toHaveClass("ck");
+  const name = within(subRows()[1]).getByRole("button", { name: "초안 쓰기" });
+  name.focus();
+  fireEvent.keyDown(name, { key: "ArrowUp", altKey: true });
+  expect(IpcSender.req.task.updateSubtaskOrder).toHaveBeenCalledWith("first", "s1", "s3", false, expect.any(Function));
+  // The dropped order shows at once and the focus stays on the moved row.
+  expect(subIds()).toEqual(["s1", "s3", "s2"]);
+  expect(document.activeElement).toBe(within(subRows()[0]).getByRole("button", { name: "초안 쓰기" }));
+  // Already first: nothing to send.
+  fireEvent.keyDown(document.activeElement, { key: "ArrowUp", altKey: true });
+  expect(IpcSender.req.task.updateSubtaskOrder).toHaveBeenCalledTimes(1);
+  // From the check too (anchored before the row it lands in front of).
+  const check = within(subRows()[0]).getByRole("checkbox", { name: /초안 쓰기/ });
+  check.focus();
+  fireEvent.keyDown(check, { key: "ArrowDown", altKey: true });
+  expect(IpcSender.req.task.updateSubtaskOrder).toHaveBeenLastCalledWith("first", "s1", "s2", false, expect.any(Function));
+  expect(subIds()).toEqual(["s3", "s1", "s2"]);
+  expect(document.activeElement).toBe(within(subRows()[1]).getByRole("checkbox", { name: /초안 쓰기/ }));
+  // Plain arrows and Alt+arrows while renaming do not move it.
+  fireEvent.keyDown(document.activeElement, { key: "ArrowDown" });
+  fireEvent.click(within(subRows()[1]).getByRole("button", { name: "초안 쓰기" }));
+  fireEvent.keyDown(within(subRows()[1]).getByRole("textbox", { name: "하위 할 일 이름" }), { key: "ArrowDown", altKey: true });
+  expect(IpcSender.req.task.updateSubtaskOrder).toHaveBeenCalledTimes(2);
+});
+
+test("subtask order: dragging the grip lifts after 4px, slides rows, settles and sends the move; Esc cancels", () => {
+  resetSubtaskOrderForTests();
+  withThird();
+  view();
+  select("first");
+  placeSubRows();
+  // Pressing the row itself (not the grip) never lifts it.
+  fireEvent.mouseDown(subRows()[0].querySelector(".nm"), { button: 0, clientX: 60, clientY: 220 });
+  fireEvent.mouseMove(document, { clientX: 60, clientY: 300 });
+  expect(document.querySelector(".sub-ghost")).toBeNull();
+  fireEvent.mouseUp(document, { button: 0 });
+
+  const grip = () => subRows()[0].querySelector(".sgrip");
+  fireEvent.mouseDown(grip(), { button: 0, clientX: 28, clientY: 220 });
+  fireEvent.mouseMove(document, { clientX: 29, clientY: 222 });
+  expect(document.querySelector(".sub-ghost")).toBeNull();
+  fireEvent.mouseMove(document, { clientX: 28, clientY: 292 });
+  const ghost = document.querySelector(".sub-ghost");
+  expect(ghost).not.toBeNull();
+  // Inside the box, first, with no tooltip or row id of its own.
+  expect(ghost.parentElement).toBe(panel().querySelector(".rp-subs"));
+  expect(ghost.parentElement.firstElementChild).toBe(ghost);
+  expect(ghost.querySelector("[data-tip]")).toBeNull();
+  expect(ghost.hasAttribute("data-subtask-id")).toBe(false);
+  expect(ghost.style.top).toBe("75px");
+  expect(panel().querySelector(".rp-subs")).toHaveClass("sorting");
+  expect(subRows()[0]).toHaveClass("lifted");
+  expect(subRows()[1].style.transform).toBe("translateY(-36px)");
+  expect(subRows()[2].style.transform).toBe("translateY(-36px)");
+  fireEvent.mouseUp(document, { button: 0 });
+  expect(IpcSender.req.task.updateSubtaskOrder).not.toHaveBeenCalled();
+  act(() => { jest.advanceTimersByTime(200); });
+  expect(IpcSender.req.task.updateSubtaskOrder).toHaveBeenCalledWith("first", "s3", "s2", true, expect.any(Function));
+  expect(document.querySelector(".sub-ghost")).toBeNull();
+  expect(panel().querySelector(".rp-subs")).not.toHaveClass("sorting");
+  expect(subIds()).toEqual(["s1", "s2", "s3"]);
+  expect(subRows().every((r) => r.style.transform === "" && !r.classList.contains("lifted"))).toBe(true);
+
+  // Esc while lifted: nothing moves and the task stays selected.
+  placeSubRows();
+  fireEvent.mouseDown(subRows()[2].querySelector(".sgrip"), { button: 0, clientX: 28, clientY: 292 });
+  fireEvent.mouseMove(document, { clientX: 28, clientY: 220 });
+  expect(subRows()[0].style.transform).toBe("translateY(36px)");
+  fireEvent.keyDown(document.activeElement || document.body, { key: "Escape" });
+  expect(document.querySelector(".sub-ghost")).toBeNull();
+  expect(subRows().every((r) => r.style.transform === "")).toBe(true);
+  fireEvent.mouseUp(document, { button: 0 });
+  act(() => { jest.advanceTimersByTime(500); });
+  expect(IpcSender.req.task.updateSubtaskOrder).toHaveBeenCalledTimes(1);
+  expect(probe.selectedTaskId).toBe("first");
+});
+
+test("subtask order: no grip off E2EE; an unsupported reply restores the order and stops offering it", () => {
+  resetSubtaskOrderForTests();
+  withThird();
+  mockContext = { ...mockContext, syncStatus: { protocolVersion: 2 } };
+  const { unmount } = view();
+  select("first");
+  expect(panel().querySelector(".sgrip")).toBeNull();
+  const name = within(subRows()[1]).getByRole("button", { name: "초안 쓰기" });
+  name.focus();
+  fireEvent.keyDown(name, { key: "ArrowUp", altKey: true });
+  expect(IpcSender.req.task.updateSubtaskOrder).not.toHaveBeenCalled();
+  unmount();
+
+  mockContext = { ...mockContext, syncStatus: { protocolVersion: 3 } };
+  const warn = jest.spyOn(Toast, "warn").mockImplementation(() => {});
+  IpcSender.req.task.updateSubtaskOrder.mockImplementationOnce((...args) => args[4]({ success: false, data: { code: "UNSUPPORTED_V2_ACTION" } }));
+  view();
+  select("first");
+  const again = within(subRows()[1]).getByRole("button", { name: "초안 쓰기" });
+  again.focus();
+  fireEvent.keyDown(again, { key: "ArrowUp", altKey: true });
+  expect(subIds()).toEqual(["s3", "s1", "s2"]);
+  expect(warn).toHaveBeenCalledWith("이 계정에서는 하위 할 일 순서를 바꿀 수 없어요.");
+  expect(panel().querySelector(".sgrip")).toBeNull();
+  warn.mockRestore();
+  resetSubtaskOrderForTests();
 });
 
 test("memo: saved after a pause and on leaving, with the placeholder when empty", () => {

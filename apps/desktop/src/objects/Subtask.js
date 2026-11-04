@@ -10,11 +10,14 @@ class Subtask extends Mutatable {
       title: "title",
       done: "done",
       done_at: "doneAt",
+      // Synced order among the task's subtasks (#106), a string bigint; null before a move.
+      sort_rank: "sortRank",
     });
 
     this.id = v4();
     this.createdAt = new Date();
     this.doneAt = null;
+    this.sortRank = null;
 
     this.title = title;
     this.done = false;

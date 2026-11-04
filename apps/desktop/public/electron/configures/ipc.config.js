@@ -1455,14 +1455,18 @@ module.exports = function (s) {
   );
 
   // Encrypted-model actions (#102): the category order (sort_rank), duplicating a task
-  // and deleting a category in use or with its tasks, and device names (#77). The E2EE routing in
-  // register() handles them first; the legacy transaction chain has no field or batch for them.
+  // and deleting a category in use or with its tasks, device names (#77) and the subtask order
+  // (#106). The E2EE routing in register() handles them first; the legacy transaction chain has
+  // no field or batch for them.
   for (const topic of [
     "category/updateCategoryOrder",
+    "task/updateSubtaskOrder",
     "device/setDeviceName",
     "task/duplicateTask",
     "category/deleteCategoryInUse",
     "category/deleteCategoryWithTasks",
+    // Normal <-> secret category (#106): no legacy transaction type for it.
+    "category/updateCategorySecret",
   ]) {
     s.register(topic, async (event, reqId) => {
       s.sender(topic, reqId, false, { code: "UNSUPPORTED_LEGACY_ACTION" });

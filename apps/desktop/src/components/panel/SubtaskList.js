@@ -1,12 +1,36 @@
-import { useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Subtask from "objects/Subtask";
-import { DatePicker } from "molecules/pickers";
+import Toast from "molecules/Toast";
+import { DatePicker, closeAllPopups } from "molecules/pickers";
 import { CalendarIcon, CheckIcon, CloseIcon, PlusIcon } from "molecules/pickers/icons";
+import { categoryMoveAnchor, sortSubtasks } from "utils/categoryOrder";
 import { dueMs, formatDue } from "utils/timeDisplay";
 import { useTaskSelection } from "../list/taskSelection";
 import { composing, useInPlaceEdit } from "./inPlaceEdit";
+import useSubtaskDrag from "./useSubtaskDrag";
 
-const createdMs = (s) => dueMs(s.createdAt) ?? 0;
+// The subtask order (sort_rank, #106) is E2EE-only (canSort), and the legacy and plaintext v2
+// paths answer the move with UNSUPPORTED_*. Seen once, the panel stops offering the order for
+// the rest of the run.
+let orderRefused = false;
+export const resetSubtaskOrderForTests = () => {
+  orderRefused = false;
+};
+const isUnsupported = (data) => /^UNSUPPORTED_/.test(data?.code ?? "");
+
+// Whether the synced order has the move: the subtask right after (or before) its anchor.
+const hasMove = (ids, { id, anchorId, after }) => {
+  const i = ids.indexOf(id), j = ids.indexOf(anchorId);
+  return i >= 0 && j >= 0 && i === j + (after ? 1 : -1);
+};
+
+const GripIcon = () => (
+  <svg width="8" height="14" viewBox="0 0 8 14" fill="currentColor" aria-hidden="true" focusable="false">
+    <circle cx="2" cy="2" r="1.25" /><circle cx="6" cy="2" r="1.25" />
+    <circle cx="2" cy="7" r="1.25" /><circle cx="6" cy="7" r="1.25" />
+    <circle cx="2" cy="12" r="1.25" /><circle cx="6" cy="12" r="1.25" />
+  </svg>
+);
 
 // 기한 빼기: the calendar struck through (a second × next to 삭제 would read the same).
 const NoDueIcon = () => (
@@ -17,8 +41,9 @@ const NoDueIcon = () => (
 
 // One subtask (#102 mock .subt): check, the name (click edits it in place: Enter saves, Esc puts
 // it back), a set due small on the right (red when overdue) and, on hover, 기한 / 삭제 (plus
-// 기한 빼기 when it has one). Deleting is immediate, as before the redesign.
-function SubtaskRow({ task, subtask, timeFormat, now }) {
+// 기한 빼기 when it has one). Deleting is immediate, as before the redesign. sortable adds the
+// grip on hover at the left (drag it, or Alt+↑/↓ on the row, #106).
+function SubtaskRow({ task, subtask, timeFormat, now, sortable }) {
   const { actions } = useTaskSelection();
   const [editing, setEditing] = useState(false);
   const [picker, setPicker] = useState(null); // the 기한 button while its picker is open
@@ -30,6 +55,11 @@ function SubtaskRow({ task, subtask, timeFormat, now }) {
 
   return (
     <div ref={rowRef} className={"rp-subt" + (done ? " done" : "") + (editing ? " edit" : "") + (picker ? " hov" : "")} data-subtask-id={subtask.id}>
+      {sortable && !editing && (
+        <span className="sgrip" data-tip="끌어서 순서 바꾸기 · Alt+↑↓" aria-hidden="true">
+          <GripIcon />
+        </span>
+      )}
       <button
         type="button"
         className={"ck" + (done ? " done" : "")}
@@ -51,7 +81,13 @@ function SubtaskRow({ task, subtask, timeFormat, now }) {
           onBlur={(event) => { edit.onBlur(event); setEditing(false); }}
         />
       ) : (
-        <button type="button" className="nm" data-tip="눌러서 이름 바꾸기" onClick={() => setEditing(true)}>
+        <button
+          type="button"
+          className="nm"
+          data-tip="눌러서 이름 바꾸기"
+          aria-keyshortcuts={sortable ? "Alt+ArrowUp Alt+ArrowDown" : undefined}
+          onClick={() => setEditing(true)}
+        >
           {subtask.title}
         </button>
       )}
@@ -100,12 +136,84 @@ function SubtaskRow({ task, subtask, timeFormat, now }) {
 }
 
 // 하위 할 일 (#102 mock): the count and a progress bar, the rows, and 하위 할 일 추가 (Enter adds
-// and stays for the next one; Esc leaves).
-export default function SubtaskList({ task, timeFormat, now }) {
+// and stays for the next one; Esc leaves). Rows follow the synced order (#106: sort_rank, then
+// created_at); with canSort they can be dragged by the grip or moved with Alt+↑/↓.
+export default function SubtaskList({ task, timeFormat, now, canSort = true }) {
   const { actions } = useTaskSelection();
   const [title, setTitle] = useState("");
-  const subtasks = Object.values(task.subtasks ?? {}).sort((a, b) => createdMs(a) - createdMs(b));
+  const boxRef = useRef(null);
+  const [, setRefused] = useState(orderRefused);
+  const sortable = canSort && !orderRefused;
+  const synced = sortSubtasks(Object.values(task.subtasks ?? {}));
+  const syncedKey = synced.map((s) => s.id).join("\n");
+
+  // The dropped order, shown until the synced order has the move. Each move has a number, so
+  // the reply of an older move does not end a newer one.
+  const [pending, setPending] = useState(null); // { seq, ids, move, acked }
+  const moveSeq = useRef(0);
+  const lastKey = useRef(syncedKey);
+  useEffect(() => {
+    const changed = lastKey.current !== syncedKey;
+    lastKey.current = syncedKey;
+    // The synced order has the move, or the state after the reply came (the truth now).
+    if (pending && (hasMove(syncedKey.split("\n"), pending.move) || (changed && pending.acked))) setPending(null);
+  }, [syncedKey, pending]);
+  let subtasks = synced;
+  if (pending) {
+    const byId = Object.fromEntries(synced.map((s) => [s.id, s]));
+    subtasks = [...pending.ids.map((id) => byId[id]).filter(Boolean), ...synced.filter((s) => !pending.ids.includes(s.id))];
+  }
   const doneCount = subtasks.filter((s) => s.done).length;
+
+  // Puts `id` at index `to` of the shown order.
+  const move = (id, to) => {
+    const ids = subtasks.map((s) => s.id);
+    const anchor = categoryMoveAnchor(ids, id, to);
+    if (!anchor) return;
+    const next = ids.filter((x) => x !== id);
+    next.splice(next.indexOf(anchor.anchorId) + (anchor.after ? 1 : 0), 0, id);
+    const seq = ++moveSeq.current;
+    setPending({ seq, ids: next, move: { id, ...anchor }, acked: false });
+    actions.moveSubtask(task.id, id, anchor.anchorId, anchor.after, ({ success, data } = {}) => {
+      setPending((p) => (p?.seq !== seq ? p : success ? { ...p, acked: true } : null));
+      if (success) return;
+      if (isUnsupported(data)) {
+        orderRefused = true;
+        setRefused(true);
+        Toast.warn("이 계정에서는 하위 할 일 순서를 바꿀 수 없어요.");
+      } else Toast.warn("하위 할 일 순서를 바꾸지 못했어요.");
+    });
+  };
+
+  useSubtaskDrag(boxRef, {
+    enabled: sortable && subtasks.length > 1,
+    // A lifted row closes the open pickers (a subtask's 기한 too).
+    onLift: () => closeAllPopups(),
+    onDrop: (id, from, to) => move(id, to),
+  });
+
+  // Alt+↑/↓ on a row (its check or name) moves it one place; the focus stays on it.
+  const refocus = useRef(null); // { id, check }
+  const onKeyDown = (event) => {
+    if (!sortable || !event.altKey || (event.key !== "ArrowUp" && event.key !== "ArrowDown")) return;
+    const row = event.target.closest?.(".rp-subt[data-subtask-id]");
+    if (!row || event.target.tagName === "INPUT") return;
+    event.preventDefault();
+    const id = row.dataset.subtaskId;
+    const to = subtasks.findIndex((s) => s.id === id) + (event.key === "ArrowUp" ? -1 : 1);
+    if (to < 0 || to >= subtasks.length) return;
+    refocus.current = { id, check: event.target.classList.contains("ck") };
+    move(id, to);
+  };
+  // Reordering can move the focused row's DOM node, which drops its focus.
+  useLayoutEffect(() => {
+    const target = refocus.current;
+    if (!target) return;
+    refocus.current = null;
+    const row = [...(boxRef.current?.querySelectorAll(".rp-subt[data-subtask-id]") ?? [])].find((el) => el.dataset.subtaskId === target.id);
+    const el = row?.querySelector(target.check ? ".ck" : ".nm");
+    if (el && document.activeElement !== el) el.focus();
+  });
 
   const add = () => {
     const text = title.trim();
@@ -120,14 +228,14 @@ export default function SubtaskList({ task, timeFormat, now }) {
         하위 할 일
         {subtasks.length > 0 && <span>{doneCount}/{subtasks.length}</span>}
       </div>
-      <div className="rp-box rp-subs">
+      <div ref={boxRef} className={"rp-box rp-subs" + (sortable ? " sortable" : "")} onKeyDown={onKeyDown}>
         {subtasks.length > 0 && (
           <div className="rp-bar" role="progressbar" aria-label="하위 할 일 진행" aria-valuemin={0} aria-valuemax={subtasks.length} aria-valuenow={doneCount}>
             <i style={{ width: `${(doneCount / subtasks.length) * 100}%` }} />
           </div>
         )}
         {subtasks.map((s) => (
-          <SubtaskRow key={s.id} task={task} subtask={s} timeFormat={timeFormat} now={now} />
+          <SubtaskRow key={s.id} task={task} subtask={s} timeFormat={timeFormat} now={now} sortable={sortable} />
         ))}
         <label className="rp-subt add">
           <i><PlusIcon size={14} /></i>

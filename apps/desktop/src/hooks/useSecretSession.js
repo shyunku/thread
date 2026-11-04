@@ -15,6 +15,7 @@ const SecretSessionContext = createContext({
   method: null,
   unlock: () => Promise.resolve(false),
   probeMethod: () => {},
+  findMethod: () => Promise.resolve({ method: null }),
   setShowSecret: () => Promise.resolve(false),
   toggleShowSecret: () => Promise.resolve(false),
   lock: () => {},
@@ -176,6 +177,23 @@ export function SecretSessionProvider({ uid, children }) {
     });
   }, [method]);
 
+  // Asks the vault, without unlocking, how it would confirm the user: resolves { method } ("os",
+  // "password", or null when it has no way) or { busy: true } while another vault action runs.
+  // Used before a category turns secret while locked (#106): it must be possible to open it again.
+  const findMethod = useCallback(
+    () =>
+      new Promise((resolve) => {
+        if (!IpcSender.vault?.verifyUser) return resolve({ method: null });
+        IpcSender.vault.verifyUser({ method: "password" }, ({ success, data } = {}) => {
+          if (success && isBusy(data)) return resolve({ busy: true });
+          const next = success && data && !data.verified ? methodOf(data) : null;
+          if (next) setMethod(next);
+          resolve({ method: next });
+        });
+      }),
+    []
+  );
+
   // Showing the secrets is the unlock; hiding them locks again.
   const showSecret = unlocked;
   const setShowSecret = useCallback(
@@ -191,8 +209,8 @@ export function SecretSessionProvider({ uid, children }) {
   const toggleShowSecret = useCallback(() => setShowSecret(!unlockedRef.current), [setShowSecret]);
 
   const value = useMemo(
-    () => ({ unlocked, showSecret, method, unlock, probeMethod, setShowSecret, toggleShowSecret, lock }),
-    [unlocked, showSecret, method, unlock, probeMethod, setShowSecret, toggleShowSecret, lock]
+    () => ({ unlocked, showSecret, method, unlock, probeMethod, findMethod, setShowSecret, toggleShowSecret, lock }),
+    [unlocked, showSecret, method, unlock, probeMethod, findMethod, setShowSecret, toggleShowSecret, lock]
   );
 
   return createElement(

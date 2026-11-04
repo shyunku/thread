@@ -26,6 +26,10 @@ export const SearchIcon = (p) => <Svg size={14} {...p}><circle cx="11" cy="11" r
 export const ShieldIcon = (p) => (
   <Svg {...p}><path d="M12 3l7 3v5.5c0 4.3-3 8-7 9.5-4-1.5-7-5.2-7-9.5V6z" /><path d="M9.2 12.2l2 2 3.8-4" /></Svg>
 );
+// A secret category back to a normal one (#106 mock I.shieldOff).
+export const ShieldOffIcon = (p) => (
+  <Svg {...p}><path d="M12 3l7 3v5.5c0 1.6-.4 3.1-1.2 4.5M15.6 19.4A11 11 0 0 1 12 21c-4-1.5-7-5.2-7-9.5V6l1-.4" /><path d="M3 3l18 18" /></Svg>
+);
 export const SunIcon = (p) => (
   <Svg {...p}><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></Svg>
 );

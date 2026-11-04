@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { CheckIcon, PencilIcon, Popover, TrashIcon } from "../../molecules/pickers";
+import { CheckIcon, PencilIcon, Popover, ShieldIcon, ShieldOffIcon, TrashIcon } from "../../molecules/pickers";
 import ColorSwatches from "./ColorSwatches";
 import "./SidebarPopups.scss";
 
@@ -27,8 +27,9 @@ export function SidebarPopup({ anchor, className = "", label, onClose, ignore, r
   );
 }
 
-// Right-click menu of a category row (mock categoryMenu): rename, colour, delete.
-export function CategoryMenu({ category, color, anchor, returnFocus, onClose, onRename, onColor, onDelete }) {
+// Right-click menu of a category row (mock categoryMenu): rename, secret <-> normal (#106),
+// colour, delete.
+export function CategoryMenu({ category, color, anchor, returnFocus, onClose, onRename, onSecret, onColor, onDelete }) {
   const [renaming, setRenaming] = useState(false);
   const [title, setTitle] = useState(category.title ?? "");
   const inputRef = useRef(null);
@@ -82,6 +83,12 @@ export function CategoryMenu({ category, color, anchor, returnFocus, onClose, on
             <PencilIcon />
           </span>
           <span>이름 바꾸기</span>
+        </button>
+      )}
+      {onSecret && (
+        <button type="button" className="mi" onClick={onSecret}>
+          <span className="mic">{category.secret ? <ShieldOffIcon size={15} /> : <ShieldIcon size={15} />}</span>
+          <span>{category.secret ? "일반 카테고리로 바꾸기" : "비밀 카테고리로 바꾸기"}</span>
         </button>
       )}
       <div className="hd">색</div>

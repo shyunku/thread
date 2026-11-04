@@ -1,14 +1,16 @@
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { quickDays } from "utils/dateGroups";
 import { dueMs, formatClock, formatMinuteOfDay, hasDueTime } from "utils/timeDisplay";
 import { useTimeFormat, useWeekStart } from "utils/timeFormat";
-import { CloseIcon } from "./icons";
+import { CloseIcon, TickIcon } from "./icons";
 import MiniMonth from "./MiniMonth";
+import parseDue from "./parseDue";
 import Popover from "./Popover";
 
 const WEEKDAYS = "일월화수목금토";
 export const END_OF_DAY = 1439; // minutes; a due at 23:59 means "no time"
 const PRESETS = [540, 720, 1080, 1260];
+const BAD_DELAY = 700; // ms of no typing before "not understood" shows
 const pad = (n) => String(n).padStart(2, "0");
 const midnight = (value) => { const d = new Date(value); d.setHours(0, 0, 0, 0); return d; };
 const sameDay = (a, b) => midnight(a).getTime() === midnight(b).getTime();
@@ -84,6 +86,8 @@ function NumberField({ value, min, max, padded, label, onChange, onFilled, input
 // value: the due timestamp or null; initialDay: the day to start on when there is none (e.g. the
 // picked calendar day). timeFormat ("12" | "24") and weekStart (0 | 1) default to the prefs.
 // anchor/placement/offset/gap: see Popover.
+// The text field next to 오늘 · 내일 (#106.7) picks the day (and the time, if it has one) as it
+// is typed; see parseDue. Picking a chip or a calendar day clears it.
 export default function DatePicker({
   value = null, initialDay, now, timeFormat, weekStart, onChange, onCancel,
   anchor, placement = "bottom-start", offset, gap, returnFocus, ignoreOutside,
@@ -97,8 +101,14 @@ export default function DatePicker({
   const [on, setOn] = useState(start.on);
   const [minutes, setMinutes] = useState(start.minutes);
   const [view, setView] = useState({ year: start.day.getFullYear(), month: start.day.getMonth() });
+  const [text, setText] = useState("");
+  const [parsed, setParsed] = useState(null); // parseDue result for text
+  const [showBad, setShowBad] = useState(false);
+  const badTimer = useRef(null);
   const minuteRef = useRef(null);
   const timeLabel = useId();
+
+  useEffect(() => () => clearTimeout(badTimer.current), []);
 
   const apply = () => {
     const original = dueMs(value);
@@ -106,10 +116,48 @@ export default function DatePicker({
     onChange?.(same ? original : composeDue(day, on, minutes));
   };
 
-  const pick = (date) => {
+  const show = (date) => {
     const d = midnight(date);
     setDay(d);
     setView({ year: d.getFullYear(), month: d.getMonth() });
+  };
+  const pick = (date) => {
+    clearTimeout(badTimer.current);
+    setText("");
+    setParsed(null);
+    setShowBad(false);
+    show(date);
+  };
+
+  const onText = (event) => {
+    const next = event.target.value;
+    const r = parseDue(next, now ?? Date.now(), ws);
+    setText(next);
+    setParsed(r);
+    clearTimeout(badTimer.current);
+    if (r === null) {
+      // An empty field goes back to how the picker opened.
+      setShowBad(false);
+      show(start.day);
+      setOn(start.on);
+      setMinutes(start.minutes);
+    } else if (r === false) {
+      // The last pick stays; the hint waits for a pause so it does not flash while typing.
+      if (!showBad) badTimer.current = setTimeout(() => setShowBad(true), BAD_DELAY);
+    } else {
+      setShowBad(false);
+      show(r.day);
+      // A text without a time keeps the time setting the picker opened with.
+      setOn(r.minutes !== null ? true : start.on);
+      setMinutes(r.minutes !== null ? r.minutes : start.minutes);
+    }
+  };
+  const onTextKey = (event) => {
+    if (event.nativeEvent.isComposing || event.keyCode === 229) return;
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    if (parsed !== false) apply();
+    else { clearTimeout(badTimer.current); setShowBad(true); }
   };
   const moveMonth = (delta) => setView((v) => {
     const d = new Date(v.year, v.month + delta, 1);
@@ -128,7 +176,14 @@ export default function DatePicker({
 
   const clockOf = (mins) => formatClock(new Date(2000, 0, 1, Math.floor(mins / 60), mins % 60), tf);
   const summary = `${day.getMonth() + 1}월 ${day.getDate()}일 (${WEEKDAYS[day.getDay()]})${on ? ` ${clockOf(minutes)}` : " · 하루 끝까지"}`;
-  const quick = quickDays(today, ws);
+  // 오늘 · 내일 only: the text field takes the place of the other quick days (#106.7).
+  const quick = quickDays(today, ws).filter((q) => q.id === "today" || q.id === "tomorrow");
+  const dayText = (d, mins) => `${d.getMonth() + 1}월 ${d.getDate()}일 (${WEEKDAYS[d.getDay()]})${mins !== null ? ` ${clockOf(mins)}` : ""}`;
+  const line = parsed === false && showBad
+    ? <span>알아듣지 못했어요 · 예: 내일 3시, 11/20, 3일 뒤</span>
+    : parsed ? <><TickIcon size={12} /><span>{dayText(parsed.day, parsed.minutes)}</span></>
+      : parsed === false ? <span>{dayText(day, on ? minutes : null)}</span>
+        : <span>날짜나 시간을 적으면 바로 골라져요</span>;
   const presets = [...PRESETS.map((v) => [v, formatMinuteOfDay(v, tf)]), [END_OF_DAY, "하루 끝"]];
 
   return (
@@ -147,13 +202,26 @@ export default function DatePicker({
         <span>기한 정하기</span>
         <button type="button" className="dp-x" aria-label="닫기" data-tip="닫기" onClick={() => onCancel?.()}><CloseIcon /></button>
       </div>
-      <div className="dp-quick">
+      <div className="dp-quick days">
         {quick.map((q) => (
           <button key={q.id} type="button" className={`dp-chip${sameDay(q.date, day) ? " on" : ""}`} aria-pressed={sameDay(q.date, day)} data-tip={q.tip} onClick={() => pick(q.date)}>
             {q.label}
           </button>
         ))}
+        <label className="dp-in">
+          <input
+            type="text"
+            value={text}
+            placeholder="직접 입력 · 예: 금요일 3시"
+            spellCheck={false}
+            autoComplete="off"
+            aria-label="날짜 직접 입력"
+            onChange={onText}
+            onKeyDown={onTextKey}
+          />
+        </label>
       </div>
+      <p className={`dp-line${parsed ? " got" : ""}`} aria-live="polite">{line}</p>
       <MiniMonth
         className="dp-cal"
         minWeeks={6}

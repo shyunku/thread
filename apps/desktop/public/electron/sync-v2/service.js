@@ -336,9 +336,9 @@ class SyncV2Service {
       ipc.sender(topic, reqId, true);
       return true;
     }
-    // The plaintext v2 server rejects unknown fields; the star (#97) and the
-    // category order (sort_rank on categories, #102) and device names (#77) are E2EE-only.
-    if (["task/updateTaskImportant", "category/updateCategoryOrder", "device/setDeviceName", "device/setDeviceModel"].includes(topic)) {
+    // The plaintext v2 server rejects unknown fields; the star (#97), the category and
+    // subtask order (sort_rank, #102 / #106) and device names (#77) are E2EE-only.
+    if (["task/updateTaskImportant", "category/updateCategoryOrder", "task/updateSubtaskOrder", "device/setDeviceName", "device/setDeviceModel"].includes(topic)) {
       ipc.sender(topic, reqId, false, { syncV2Ack: true, code: "UNSUPPORTED_V2_ACTION" });
       return true;
     }
