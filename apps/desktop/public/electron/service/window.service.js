@@ -1,4 +1,4 @@
-const { BrowserWindow, screen } = require("electron");
+const { app, BrowserWindow, screen } = require("electron");
 const WindowPropertyFactory = require("../util/WindowPropertyFactory");
 const { WindowType } = require("../modules/constants");
 const {
@@ -8,6 +8,8 @@ const {
 const { getServerFinalEndpoint } = require("../modules/util");
 const AlertPopupConstants = require("../constants/AlertPopup.constants");
 const lodash = require("lodash");
+const { loadWindowState, saveWindowState, placeWindow } = require("../modules/windowState");
+const { setVaultWindow, vaultPrevious } = require("../modules/vaultWindow");
 const path = require("node:path");
 const appIcon = path.join(__dirname, "..", "..", "favicon512.ico");
 
@@ -23,6 +25,10 @@ class WindowService {
     this.mainWindow = null;
     /** @type {Tray} */
     this.tray = null;
+    // True while the main window shows the workspace; only then are its moves remembered (#106).
+    this.workspaceWindow = false;
+    // Set while the main window is hidden until the workspace has loaded (#106).
+    this.pendingReveal = null;
   }
 
   /**
@@ -140,8 +146,89 @@ class WindowService {
       .backgroundThrottling(false)
       .build();
     windowProperty = lodash.merge({}, windowProperty, overlapWindowProperty);
+    // Open where the workspace window was last time (#106).
+    const saved = loadWindowState(app);
+    if (saved) Object.assign(windowProperty, this.placeSaved(saved), { center: false });
     let mainWindow = this.invokeWindow("/", windowProperty, null, null, "main");
+    this.trackWindowState(mainWindow);
     return mainWindow;
+  }
+
+  placeSaved(state) {
+    return placeWindow(state, screen.getAllDisplays().map((d) => d.workArea), screen.getPrimaryDisplay().workArea);
+  }
+
+  // Saves the main window's place and size shortly after it moves or resizes, and when it closes.
+  trackWindowState(window) {
+    let timer = null;
+    const save = () => {
+      clearTimeout(timer);
+      timer = null;
+      if (!this.workspaceWindow || window.isDestroyed() || window.isFullScreen()) return;
+      saveWindowState(app, { ...window.getNormalBounds(), maximized: window.isMaximized() });
+    };
+    const later = () => {
+      clearTimeout(timer);
+      timer = setTimeout(save, 500);
+    };
+    for (const event of ["resize", "move", "maximize", "unmaximize"]) window.on(event, later);
+    window.on("close", save);
+    window.on("session-end", save);
+    this.flushWindowState = save;
+  }
+
+  // The login, lock and setup screens (#106): save the workspace place first, then stop
+  // remembering while they use their own sizes. A window hidden for loading shows right away.
+  leaveWorkspaceWindow() {
+    if (this.workspaceWindow) this.flushWindowState?.();
+    this.workspaceWindow = false;
+    this.revealMainWindow({ maximize: false });
+  }
+
+  // vault/windowMode: "lock" and "setup" use the small screens; "app" returns to the workspace.
+  // Coming back from another screen, the window hides, moves to its remembered place and shows
+  // again once the workspace says it has loaded (vault/windowReady), so the loading never shows.
+  setVaultMode(mode) {
+    const w = this.mainWindow;
+    if (!w || w.isDestroyed()) return false;
+    const workArea = screen.getDisplayMatching(w.getBounds()).workArea;
+    if (mode !== "app") {
+      if (!["setup", "lock"].includes(mode)) throw Error("INVALID_WINDOW_MODE");
+      this.leaveWorkspaceWindow();
+      return setVaultWindow(w, mode, workArea);
+    }
+    if (this.workspaceWindow) return setVaultWindow(w, mode, workArea);
+    const visible = w.isVisible();
+    if (visible) w.hide();
+    const old = vaultPrevious(w);
+    setVaultWindow(w, mode, workArea, { maximize: false });
+    const saved = loadWindowState(app);
+    if (saved) w.setBounds(this.placeSaved(saved));
+    this.workspaceWindow = true;
+    const maximized = saved ? saved.maximized : !!old?.maximized;
+    clearTimeout(this.pendingReveal?.timer);
+    this.pendingReveal = null;
+    if (visible) {
+      // Shown anyway after a while, e.g. when the server is slow to answer.
+      const timer = setTimeout(() => this.revealMainWindow(), 5000);
+      this.pendingReveal = { maximized, timer };
+    } else if (maximized) {
+      // Hidden in the tray: keep it hidden, maximized when it is shown.
+      w.once("show", () => { if (this.workspaceWindow && !w.isDestroyed()) w.maximize(); });
+    }
+    return true;
+  }
+
+  revealMainWindow({ maximize = true } = {}) {
+    const pending = this.pendingReveal, w = this.mainWindow;
+    if (!pending) return false;
+    clearTimeout(pending.timer);
+    this.pendingReveal = null;
+    if (!w || w.isDestroyed()) return false;
+    if (maximize && pending.maximized) w.maximize();
+    w.show();
+    w.focus();
+    return true;
   }
 
   createModalWindow(browserId, url, windowProperty, parameter) {

@@ -110,7 +110,11 @@ export default function QuickAdd({ defaults, contextKey, categories = [], onAdd,
   const toggle = (kind) => (event) => {
     const el = event.currentTarget;
     const box = el.closest(".qa-chip") ?? el;
-    setOpen((current) => (current?.kind === kind && current.el === el ? null : { kind, el, box }));
+    // Where the chip sits in the bar: choosing a category re-renders the chips and can replace
+    // this one, and a detached chip measures as 0, which threw the picker to the left edge (#106).
+    const bar = barRef.current?.getBoundingClientRect(), at = box.getBoundingClientRect();
+    const dx = bar ? at.left - bar.left : 0, width = at.width;
+    setOpen((current) => (current?.kind === kind && current.el === el ? null : { kind, el, box, dx, width }));
   };
   const close = () => setOpen(null);
   // ×: the date chip goes to no date (and no repeat, which needs one); a category chip leaves.
@@ -128,9 +132,11 @@ export default function QuickAdd({ defaults, contextKey, categories = [], onAdd,
   // repeat and category pickers at their chip.
   const anchor = open && {
     getBoundingClientRect() {
-      const chip = open.box.getBoundingClientRect(), bar = barRef.current?.getBoundingClientRect() ?? chip;
-      const left = open.kind === "date" ? bar.left : chip.left;
-      return { left, right: left + chip.width, top: bar.top, bottom: bar.top, width: chip.width, height: 0 };
+      const live = open.box.isConnected ? open.box.getBoundingClientRect() : null;
+      const bar = barRef.current?.getBoundingClientRect() ?? live;
+      const width = live?.width ?? open.width;
+      const left = open.kind === "date" ? bar.left : live ? live.left : bar.left + open.dx;
+      return { left, right: left + width, top: bar.top, bottom: bar.top, width, height: 0 };
     },
   };
   const pickerProps = open && { anchor, placement: "top-start", gap: 8, ignoreOutside: [open.box], returnFocus: open.el };

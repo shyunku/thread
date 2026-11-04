@@ -188,6 +188,8 @@ $ring: #5a6475;
 // ---------- Mini month (date picker, panel calendar tab) ----------
 .tp-mm {
   padding: 8px 8px 6px;
+  // Dragging over the month selects no text (the weekday row, the title) (#106).
+  user-select: none;
 
   .tp-mm-h { display: flex; align-items: center; height: 28px; font-size: 13px; font-weight: 600; padding: 0 4px; }
   .tp-mm-nav { margin-left: auto; display: flex; gap: 2px; color: var(--muted); font-weight: 400; }

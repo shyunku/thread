@@ -13,6 +13,7 @@ const REQUEST_TOPICS = Object.freeze([
   "vault/bootstrap",
   "vault/chooseMigration",
   "vault/windowMode",
+  "vault/windowReady",
   "vault/outboxReviews",
   "vault/outboxDetail",
   "vault/resolveConflict",

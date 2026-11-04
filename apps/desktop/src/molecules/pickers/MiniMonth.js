@@ -8,12 +8,12 @@ const sameDay = (a, b) => !!a && !!b && dayKey(new Date(a)) === dayKey(new Date(
 const addDays = (value, days) => { const d = new Date(value); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + days); return d; };
 
 // Day cells of a month grid starting on 주 시작 요일: whole weeks from the week of the 1st to
-// the week of the last day (4 to 6 rows).
-export function monthCells(year, month, weekStart = 0) {
+// the week of the last day (4 to 6 rows), or at least minWeeks rows filled with the next month.
+export function monthCells(year, month, weekStart = 0, minWeeks = 0) {
   const start = monthGridStart(year, month, weekStart);
   const last = new Date(year, month + 1, 0);
   const span = Math.round((new Date(last).setHours(0, 0, 0, 0) - start.getTime()) / 864e5) + 1;
-  const count = Math.ceil(span / 7) * 7;
+  const count = Math.max(Math.ceil(span / 7), minWeeks) * 7;
   return Array.from({ length: count }, (_, i) => addDays(start, i));
 }
 
@@ -21,10 +21,11 @@ export function monthCells(year, month, weekStart = 0) {
 // Today has the accent ring, the picked day the deep blue fill, both together a halo.
 // Arrow keys move the pick (onPick) by a day or a week, PageUp/PageDown change the month.
 // marks(date) can return "open" or "over" for the 4px dot under a day (calendar tab).
-// arrowTips gives the month arrows a tooltip (the timeline's jump popup).
-export default function MiniMonth({ year, month, picked, today = new Date(), weekStart = 0, onPick, onMonth, marks, arrowTips = false, className = "" }) {
+// arrowTips gives the month arrows a tooltip (the timeline's jump popup). minWeeks=6 keeps the
+// height the same in every month (the date picker, #106).
+export default function MiniMonth({ year, month, picked, today = new Date(), weekStart = 0, onPick, onMonth, marks, arrowTips = false, className = "", minWeeks = 0 }) {
   const gridRef = useRef(null);
-  const cells = monthCells(year, month, weekStart);
+  const cells = monthCells(year, month, weekStart, minWeeks);
   const pickedInView = picked && cells.some((d) => sameDay(d, picked) && d.getMonth() === month);
   const focusKey = pickedInView ? dayKey(new Date(picked)) : dayKey(new Date(year, month, 1));
   const keyboard = useRef(false);

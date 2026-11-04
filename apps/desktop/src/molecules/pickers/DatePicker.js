@@ -156,6 +156,7 @@ export default function DatePicker({
       </div>
       <MiniMonth
         className="dp-cal"
+        minWeeks={6}
         year={view.year}
         month={view.month}
         picked={day}

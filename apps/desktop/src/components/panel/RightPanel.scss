@@ -69,7 +69,8 @@ $picked: #3d6fe6;
     overflow-x: hidden;
     scrollbar-width: thin;
     scrollbar-color: #2b303b transparent;
-    padding: 4px var(--panel-x) 20px;
+    // 6px on top: the title's focus ring reaches 5px out and the body clips its overflow (#106).
+    padding: 6px var(--panel-x) 20px;
   }
 
   // A task's detail comes in from the right each time another one opens (#104 mock .enter-s50):

@@ -306,6 +306,8 @@ const RootLayout = ({ applicationMode }) => {
         );
         goBackToLoginPage();
       }
+      // The main window stays hidden after unlocking until this point (#106).
+      IpcSender.vault.windowReady?.(() => {});
     })();
   }, []);
 

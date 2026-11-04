@@ -65,7 +65,9 @@ const {
  */
 module.exports = function (s) {
   const vaultActions={
-    "vault/windowMode":mode=>{const w=s.windowService.mainWindow;if(!w||w.isDestroyed())return false;return require("../modules/vaultWindow").setVaultWindow(w,mode,require("electron").screen.getDisplayMatching(w.getBounds()).workArea);},
+    "vault/windowMode":mode=>s.windowService.setVaultMode(mode),
+    // The workspace has loaded: show the main window hidden by "app" mode (#106).
+    "vault/windowReady":()=>s.windowService.revealMainWindow(),
     "vault/reconcileLegacy":input=>s.vaultWorkspaceService.reconcileLegacy(input),
     "vault/groupConflict":(action,input)=>s.vaultWorkspaceService.groupConflict(action,input),
     "vault/rotation":(action,input)=>s.vaultWorkspaceService.rotation(action,input),
@@ -274,6 +276,8 @@ module.exports = function (s) {
   s.register("system/setAsLoginWindow", (event, reqId) => {
     try {
       // make login window non-resizable
+      // The login screen has its own size; stop remembering the window's place (#106).
+      s.windowService.leaveWorkspaceWindow();
       s.windowService.mainWindow.setResizable(true);
       s.windowService.mainWindow.setFullScreenable(false);
       s.windowService.mainWindow.setFullScreen(false);
