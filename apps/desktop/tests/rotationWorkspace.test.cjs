@@ -9,7 +9,9 @@ const history={current:{devices:new Map([["owner",owner],["laptop",laptop],["pho
  [2,{body:{operation:"revoke",deviceId:"old"}}],
  [3,{body:{envelopes:[]}}],
 ])};
-test("connected devices expose role, ownership and approximate signed add time only",()=>{
+test("connected devices expose role, ownership and approximate signed add time only",t=>{
+ // The rename right is checked further down with the switch on.
+ const __names=require("@thread/e2ee/src/model/deviceNames").flags;const __was=__names.DEVICE_NAMES_WRITE;__names.DEVICE_NAMES_WRITE=false;t.after(()=>{__names.DEVICE_NAMES_WRITE=__was;});
  const devices=connectedDevices(history,"owner",[],{ownModel:"Windows PC"});
  assert.deepEqual(devices,[
   {id:"owner",role:"write",own:true,addedAt:null,name:"Windows PC",model:"Windows PC",shortId:"OWNE",showId:false,canRename:false},
@@ -29,7 +31,7 @@ test("device names join current members only; the short id shows when names repe
  assert.equal(renamed[0].name,"회사 노트북");
  assert.equal(renamed[0].showId,false);
  // Renaming needs the shared switch and a write device.
- t.after(()=>{flags.DEVICE_NAMES_WRITE=false;});
+ const was=flags.DEVICE_NAMES_WRITE;t.after(()=>{flags.DEVICE_NAMES_WRITE=was;});
  flags.DEVICE_NAMES_WRITE=true;
  assert.equal(connectedDevices(history,"owner").every(d=>d.canRename),true);
  assert.equal(connectedDevices(history,"phone").some(d=>d.canRename),false);

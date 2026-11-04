@@ -2,9 +2,10 @@
 // (`entityType: "deviceName"`, `entityId`: the membership device id, `fields.name`, and
 // `fields.model` when the device wrote its own row), so the server only sees ciphertext.
 //
-// Apps released before 2.4.0 stop every list on a row type they do not know, so writing
-// stays off until all of them are updated (2.5.0). This is the one switch for both apps.
-const flags = { DEVICE_NAMES_WRITE: false };
+// Apps released before 2.4.0 (PC) and 2.0.0-beta.5 (phone) stop every list on a row type they do
+// not know. Writing is on from PC 2.4.1 (a mandatory update) and phone 2.1.0. This is the one
+// switch for both apps; tests turn it off to check the 2.4.0 behaviour.
+const flags = { DEVICE_NAMES_WRITE: true };
 const writable = () => flags.DEVICE_NAMES_WRITE === true;
 
 const MAX_LENGTH = 40;

@@ -22,8 +22,12 @@ import DataSettingsScreen from '@/screens/app/DataSettingsScreen';
 
 jest.setTimeout(30000);
 const flags = require('@thread/e2ee/src/model/deviceNames').flags;
-afterEach(() => {
+// On by default from 2.1.0; the 2.4.0-era tests below turn it off.
+beforeEach(() => {
   flags.DEVICE_NAMES_WRITE = false;
+});
+afterAll(() => {
+  flags.DEVICE_NAMES_WRITE = true;
 });
 
 beforeAll(async () => {
@@ -261,4 +265,13 @@ test('switch on: a device without a known model needs a name, errors are shown',
   await fireEvent.press(screen.getByText('이름 저장'));
   expect(await screen.findByText(/이름은 1~40자로/)).toBeTruthy();
   expect(screen.getByText('기기 해제')).toBeTruthy();
+});
+
+test('model names: Galaxy codes read as market names, other Samsung codes keep the code', () => {
+  const { modelName } = require('@/core/device');
+  expect(modelName('SM-S948N')).toBe('Galaxy S26 Ultra');
+  expect(modelName('SM_S928B')).toBe('Galaxy S24 Ultra');
+  expect(modelName('SM-F966N')).toBe('Galaxy Z Fold7');
+  expect(modelName('SM-X910N')).toBe('Samsung SM-X910N');
+  expect(modelName('Pixel 9')).toBe('Pixel 9');
 });

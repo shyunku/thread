@@ -18,6 +18,15 @@ beforeAll(async () => {
   await installE2eePlatform().sodium.ready;
 });
 
+// These tests count records as before device names (#77); deviceNames.test.tsx covers the
+// name row the phone writes after a sync.
+const nameFlags = require('@thread/e2ee/src/model/deviceNames').flags;
+beforeAll(() => {
+  nameFlags.DEVICE_NAMES_WRITE = false;
+});
+afterAll(() => {
+  nameFlags.DEVICE_NAMES_WRITE = true;
+});
 const cleanups: (() => void)[] = [];
 afterEach(() =>
   cleanups

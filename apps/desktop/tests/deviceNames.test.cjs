@@ -17,7 +17,8 @@ function adapter(t){
  return {app:new ApplicationAdapter(replica,{now:()=>now++}),replica,store};
 }
 // Turns writing on for one test (2.5.0 behaviour); 2.4.0 ships with it off.
-const writeOn=t=>{names.flags.DEVICE_NAMES_WRITE=true;t.after(()=>{names.flags.DEVICE_NAMES_WRITE=false;});};
+const writeOn=t=>{const was=names.flags.DEVICE_NAMES_WRITE;names.flags.DEVICE_NAMES_WRITE=true;t.after(()=>{names.flags.DEVICE_NAMES_WRITE=was;});};
+const writeOff=t=>{const was=names.flags.DEVICE_NAMES_WRITE;names.flags.DEVICE_NAMES_WRITE=false;t.after(()=>{names.flags.DEVICE_NAMES_WRITE=was;});};
 const nameRows=store=>{
  const rows=[];let after="";
  for(;;){
@@ -27,9 +28,13 @@ const nameRows=store=>{
  }
 };
 
-test("2.4.0: the switch is off, so no name row is written and the topics are refused",t=>{
+test("writing is on from 2.4.1",()=>{
+ assert.equal(names.flags.DEVICE_NAMES_WRITE,true);
+});
+
+test("2.4.0 (switch off): no name row is written and the topics are refused",t=>{
  const {app,store}=adapter(t);
- assert.equal(names.flags.DEVICE_NAMES_WRITE,false);
+ writeOff(t);
  app.mutate("task/addTask",[{tid:"t1",title:"할 일"}]);
  assert.throws(()=>app.mutate("device/setDeviceName",["owner","회사 노트북"]),/DEVICE_NAMES_DISABLED/);
  assert.throws(()=>app.mutate("device/setDeviceModel",["owner","Windows PC"]),/DEVICE_NAMES_DISABLED/);
@@ -179,6 +184,7 @@ async function workspace(t){
 }
 
 test("2.4.0 PC: renaming is refused, nothing is pushed, and the device list shows this PC by its model",{timeout:30000},async t=>{
+ writeOff(t);
  const w=await workspace(t),{s}=w,pushed=w.accepted.length;
  assert.equal(await s.interceptApplication("device/setDeviceName","rename",[w.ownId,"회사 노트북"]),true);
  assert.deepEqual(w.reply("rename").slice(2),[false,{syncV2Ack:true,code:"DEVICE_NAMES_DISABLED"}]);

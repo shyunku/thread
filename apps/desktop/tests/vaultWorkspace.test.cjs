@@ -214,6 +214,8 @@ test("bootstrap cannot pin a late response onto another account",async t=>{
 });
 
 test("real service bootstraps signed E2EE, handles normal CRUD, restarts offline and clears on lock",async t=>{
+ // Counts records as before device names (#77); deviceNames.test.cjs covers the name row.
+ const __names=require("@thread/e2ee/src/model/deviceNames").flags;const __was=__names.DEVICE_NAMES_WRITE;__names.DEVICE_NAMES_WRITE=false;t.after(()=>{__names.DEVICE_NAMES_WRITE=__was;});
  const f=fixture(t),s=f.service,p=require("../public/electron/e2ee/protocol"),owner=require("../public/electron/e2ee/ownerIdentity"),{createHash}=require("node:crypto"),events=[];
  await s.create("synthetic test password");await s.unlock("os");
  await s.context().controller.use(async store=>{await owner.prepareOwner(store);const kit=owner.recoveryMaterial(store);await owner.confirmOwnerRecovery(store,kit.code,kit.bytes);});
