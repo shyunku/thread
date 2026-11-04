@@ -415,7 +415,7 @@ function frame2() {
 // ---------- PC login after deleting ----------
 function frame3() {
   const note = noneKey() ? gone('기존: 앱에서 계정을 지울 수 없어서 이 안내도 없어요')
-    : `<div class="gone-note">${I.ok}<div><b>계정을 삭제했어요</b>계정과 모든 기기의 데이터를 지웠어요. 그동안 Thread를 써 주셔서 고마워요.</div><button aria-label="닫기">${I.x}</button></div>`;
+    : `<div class="gone-note">${I.ok}<div><b>계정을 삭제했어요</b>계정과 모든 기기의 데이터를 지웠어요. 그동안 Thread를 이용해 주셔서 감사합니다.</div><button aria-label="닫기">${I.x}</button></div>`;
   return `<div class="win login" style="background-image:url(${LOGIN_BG})"><div class="cover"></div>
     <div class="tb"><span>${I.minimize}</span><span>${I.x}</span></div>
     <div class="form">${note}

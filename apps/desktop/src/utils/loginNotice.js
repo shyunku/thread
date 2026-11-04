@@ -7,7 +7,7 @@ let pending = null;
 export const LOGIN_NOTICES = {
   deleted: {
     title: "계정을 삭제했어요",
-    text: "계정과 모든 기기의 데이터를 지웠어요. 그동안 Thread를 써 주셔서 고마워요.",
+    text: "계정과 모든 기기의 데이터를 지웠어요. 그동안 Thread를 이용해 주셔서 감사합니다.",
   },
   deletedElsewhere: {
     title: "계정이 삭제됐어요",
