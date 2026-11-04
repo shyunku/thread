@@ -48,12 +48,13 @@
   .notes kbd { padding: 0 4px; border: 1px solid #3a4252; border-radius: 4px; font: inherit; font-size: 11px; color: #cfd6e2; }
   .notes .n-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 6px 10px 12px; }
   .notes h4 { margin: 14px 6px 6px; font-size: 13px; color: #edf1f7; font-weight: 600; }
-  .notes .n-row { display: grid; grid-template-columns: 46px 1fr; gap: 0 6px; width: 100%; margin: 2px 0; padding: 7px 8px; border: 0; border-radius: 8px; background: transparent; color: #cfd6e2; text-align: left; font-size: 12.5px; }
+  .notes .n-row { display: grid; grid-template-columns: 1fr; gap: 2px; width: 100%; cursor: pointer; margin: 2px 0; padding: 7px 8px; border: 0; border-radius: 8px; background: transparent; color: #cfd6e2; text-align: left; font-size: 12.5px; }
   .notes .n-row:hover { background: #1c222c; }
   .notes .n-row.on { background: #22324f; color: #fff; }
-  .n-no { color: #7f8aa0; font-size: 11.5px; padding-top: 1px; }
   .notes .n-nm { font-weight: 600; }
-  .notes .n-ds { grid-column: 2; color: #8b95a7; font-size: 12px; }
+  .notes .n-ds { color: #8b95a7; font-size: 12px; }
+  .notes .n-cm { margin-top: 6px; width: 100%; padding: 6px 8px; border: 1px solid #3a4a66; border-radius: 6px; background: #151b26; color: #edf1f7; font-size: 12.5px; outline: none; cursor: text; }
+  .notes .n-cm:focus { border-color: #6fa0ff; }
   .notes .n-row.on .n-ds { color: #b9c6dc; }
   .badge { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 9px; font-size: 10.5px; font-weight: 600; line-height: 17px; vertical-align: 1px; }
   .badge.old { background: #2c323d; color: #aab4c4; }
@@ -760,7 +761,7 @@ function notes() {
   return `<aside class="notes">
     <div class="n-top"><button class="n-copy" data-ncopy>결과 복사</button><p class="hint"><kbd>Shift</kbd>+마우스로 점선 영역의 후보를 보거나, 아래 옵션을 눌러 바꿔요.</p></div>
     <div class="n-scroll">${OPTS.map((o, i) => `<h4>${i + 1}. ${o.title}</h4>${o.items.map(([v, nm, ds, tag], k) =>
-      `<button class="n-row ${curOf(o) === v ? 'on' : ''}" data-no="${i}" data-v="${v}"><span class="n-no">옵션${k}</span><span class="n-nm">${nm}${tag === 'old' ? '<span class="badge old">기존</span>' : tag === 'rec' ? '<span class="badge rec">추천</span>' : ''}</span><span class="n-ds">${ds}</span></button>`).join('')}`).join('')}</div>
+      `<div class="n-row ${curOf(o) === v ? 'on' : ''}" role="button" tabindex="0" data-no="${i}" data-v="${v}"><span class="n-nm">${nm}${tag === 'old' ? '<span class="badge old">기존</span>' : tag === 'rec' ? '<span class="badge rec">추천</span>' : ''}</span><span class="n-ds">${ds}</span>${curOf(o) === v ? `<input class="n-cm" data-cm="${i}:${v}" value="${esc(comments[i + ':' + v] || '')}" placeholder="추가 의견 (선택)" spellcheck="false" autocomplete="off">` : ''}</div>`).join('')}`).join('')}</div>
     <label class="n-new"><input type="checkbox" data-nnew ${document.body.classList.contains('show-new') ? 'checked' : ''}>새로 생기는 부분 표시</label>
   </aside>`;
 }
@@ -1009,7 +1010,7 @@ let optAt = null;
 const hideOpt = () => { optPop.classList.remove('on'); optAt = null; };
 function showOpt(el, x, y) {
   const i = +el.dataset.opts, o = OPTS[i]; optAt = el;
-  optPop.innerHTML = '<b>' + o.title + '</b>' + o.items.map(([v, nm, , tag], k) => '<button class="' + (curOf(o) === v ? 'on' : '') + '" data-v="' + v + '"><span class="n-no">옵션' + k + '</span> ' + nm + (tag === 'old' ? '<span class="badge old">기존</span>' : tag === 'rec' ? '<span class="badge rec">추천</span>' : '') + '</button>').join('');
+  optPop.innerHTML = '<b>' + o.title + '</b>' + o.items.map(([v, nm, , tag], k) => '<button class="' + (curOf(o) === v ? 'on' : '') + '" data-v="' + v + '">' + nm + (tag === 'old' ? '<span class="badge old">기존</span>' : tag === 'rec' ? '<span class="badge rec">추천</span>' : '') + '</button>').join('');
   optPop.dataset.o = i; optPop.classList.add('on');
   const w = optPop.offsetWidth, h = optPop.offsetHeight;
   optPop.style.left = Math.max(8, Math.min(innerWidth - w - 8, x - 12)) + 'px';
@@ -1036,13 +1037,22 @@ function showOpt(el, x, y) {
     if (el) showOpt(el, x, y); else hideOpt();
   });
 })();
-// Notes: options change the mock; copy gives the choices as text.
+// Notes: options change the mock; the chosen one takes an extra comment; copy gives both as text.
+const comments = {};
+document.addEventListener('input', e => { if (e.target.matches('.n-cm')) comments[e.target.dataset.cm] = e.target.value; });
 document.addEventListener('click', e => {
+  if (e.target.closest('.n-cm')) return;
   const row = e.target.closest('.n-row');
-  if (row) { choose(OPTS[+row.dataset.no], row.dataset.v); return; }
+  if (row) {
+    if (row.classList.contains('on')) { row.querySelector('.n-cm')?.focus(); return; }
+    choose(OPTS[+row.dataset.no], row.dataset.v);
+    const f = document.querySelector(`.n-cm[data-cm="${row.dataset.no}:${row.dataset.v}"]`);
+    if (f) { f.focus(); f.setSelectionRange(f.value.length, f.value.length); }
+    return;
+  }
   const copy = e.target.closest('[data-ncopy]');
   if (!copy) return;
-  const text = '#106 PC 2.5.0 시안 선택\n' + OPTS.map((o, i) => { const k = o.items.findIndex(([v]) => v === curOf(o)); return `${i + 1}. ${o.title}: 옵션${k} ${o.items[k][1]}`; }).join('\n');
+  const text = '#106 PC 2.5.0 시안 선택\n' + OPTS.map((o, i) => { const k = o.items.findIndex(([v]) => v === curOf(o)); const c = (comments[i + ':' + o.items[k][0]] || '').trim(); return `${i + 1}. ${o.title}: ${o.items[k][1]}${c ? ` (의견: ${c})` : ''}`; }).join('\n');
   const done = () => { copy.textContent = '복사됨'; copy.classList.add('done'); setTimeout(() => { copy.textContent = '결과 복사'; copy.classList.remove('done'); }, 1400); };
   const fallback = () => { const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); done(); };
   if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
