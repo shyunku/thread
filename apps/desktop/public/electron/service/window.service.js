@@ -14,6 +14,7 @@ const path = require("node:path");
 const appIcon = path.join(__dirname, "..", "..", "favicon512.ico");
 
 const urlPrefix = appEntryURL(process.env.ELECTRON_START_URL);
+const FIRST_SCREEN_WAIT = 3000;
 
 class WindowService {
   constructor(ipcService) {
@@ -29,6 +30,8 @@ class WindowService {
     this.workspaceWindow = false;
     // Set while the main window is hidden until the workspace has loaded (#106).
     this.pendingReveal = null;
+    // Set from start until the first screen is known (#107): { timer }.
+    this.firstScreen = null;
   }
 
   /**
@@ -40,10 +43,7 @@ class WindowService {
 
   initialize() {
     this.mainWindow = this.createMainWindow();
-    this.mainWindow.once("ready-to-show", () => {
-      this.mainWindow.show();
-      this.mainWindow.focus();
-    });
+    this.awaitFirstScreen(this.mainWindow);
     this.setWindowStateChangeListener(this.mainWindow);
   }
 
@@ -120,7 +120,8 @@ class WindowService {
 
     window.loadURL(refinedUrl);
     window.on("ready-to-show", () => {
-      window.show();
+      // The main window waits for its first screen (awaitFirstScreen).
+      if (role !== "main") window.show();
       if (shown) shown(window);
       // window.blur();
       // window.focus();
@@ -151,6 +152,34 @@ class WindowService {
     let mainWindow = this.invokeWindow("/", windowProperty, null, null, "main");
     this.trackWindowState(mainWindow);
     return mainWindow;
+  }
+
+  // At start the main window stays hidden until its first screen says what it is: the lock and
+  // setup screens size it first (setVaultMode), the login screen too (showFirstScreen), and the
+  // workspace shows it once loaded (revealMainWindow). Before, the big window showed for a moment
+  // and then shrank to the lock screen (#107). Shown anyway after FIRST_SCREEN_WAIT.
+  awaitFirstScreen(window) {
+    this.firstScreen = { timer: null };
+    window.once("ready-to-show", () => {
+      if (this.firstScreen) this.firstScreen.timer = setTimeout(() => this.showFirstScreen(), FIRST_SCREEN_WAIT);
+    });
+  }
+
+  // Drops the wait; true when the window was still waiting for its first screen.
+  takeFirstScreen() {
+    const first = this.firstScreen;
+    if (!first) return false;
+    clearTimeout(first.timer);
+    this.firstScreen = null;
+    return true;
+  }
+
+  showFirstScreen() {
+    const w = this.mainWindow;
+    if (!this.takeFirstScreen() || !w || w.isDestroyed()) return false;
+    w.show();
+    w.focus();
+    return true;
   }
 
   placeSaved(state) {
@@ -194,10 +223,14 @@ class WindowService {
     if (mode !== "app") {
       if (!["setup", "lock"].includes(mode)) throw Error("INVALID_WINDOW_MODE");
       this.leaveWorkspaceWindow();
-      return setVaultWindow(w, mode, workArea);
+      const done = setVaultWindow(w, mode, workArea);
+      this.showFirstScreen();
+      return done;
     }
     if (this.workspaceWindow) return setVaultWindow(w, mode, workArea);
     const visible = w.isVisible();
+    // Straight into the workspace at start: hidden until it has loaded, like coming back to it.
+    const first = this.takeFirstScreen();
     if (visible) {
       // Transparent first: a hidden window can still be drawn at its new place for a moment,
       // so the unlock window seemed to move before it went away (#107). Any later show puts
@@ -214,7 +247,7 @@ class WindowService {
     const maximized = saved ? saved.maximized : !!old?.maximized;
     clearTimeout(this.pendingReveal?.timer);
     this.pendingReveal = null;
-    if (visible) {
+    if (visible || first) {
       // Shown anyway after a while, e.g. when the server is slow to answer.
       const timer = setTimeout(() => this.revealMainWindow(), 5000);
       this.pendingReveal = { maximized, timer };

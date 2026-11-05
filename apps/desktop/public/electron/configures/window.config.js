@@ -23,10 +23,8 @@ module.exports = function (s) {
       preload: path.join(__dirname, "../", "modules", "preload.js"),
     },
   });
-  s.mainWindow.once("ready-to-show", () => {
-    s.mainWindow.show();
-    s.mainWindow.focus();
-  });
+  // Shown with its first screen, not before (#107).
+  s.awaitFirstScreen(s.mainWindow);
 
   const isDebugMode = process.env.NODE_ENV !== "production";
 

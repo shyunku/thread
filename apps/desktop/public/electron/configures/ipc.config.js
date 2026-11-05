@@ -283,6 +283,7 @@ module.exports = function (s) {
       s.windowService.mainWindow.setFullScreen(false);
       s.windowService.mainWindow.setSize(1280, 900);
       s.windowService.mainWindow.setResizable(false);
+      s.windowService.showFirstScreen();
       s.sender("system/setAsLoginWindow", reqId, true);
     } catch (err) {
       s.sender("system/setAsLoginWindow", reqId, false, err);

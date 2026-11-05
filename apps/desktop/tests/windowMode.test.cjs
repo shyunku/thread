@@ -57,3 +57,67 @@ test("the unlock window is centered on the display, not moved to the remembered 
  service.setVaultMode("lock");
  assert.deepEqual(w.getBounds(),{x:770,y:270,width:380,height:500});
 });
+
+// At start (#107): hidden until the first screen is known, so the big window never flashes
+// before the lock screen.
+function startingWindow(){
+ const w=fakeWindow(),ready=[];
+ let visible=false;
+ w.isVisible=()=>visible;
+ const show=w.show;w.show=()=>{visible=true;show();};
+ const hide=w.hide;w.hide=()=>{visible=false;hide();};
+ const once=w.once;w.once=(event,f)=>{if(event==="ready-to-show")ready.push(f);else once(event,f);};
+ w.ready=()=>ready.splice(0).forEach(f=>f());
+ return w;
+}
+
+test("at start the main window shows only once the lock screen has sized it",()=>{
+ const service=new WindowService();
+ const w=startingWindow();
+ service.mainWindow=w;
+ service.awaitFirstScreen(w);
+ w.ready();
+ assert.equal(w.isVisible(),false);
+ assert.ok(service.setVaultMode("lock"));
+ assert.equal(w.isVisible(),true);
+ assert.deepEqual(w.getBounds(),{x:770,y:270,width:380,height:500});
+ // Shown once: the size came before the show.
+ const order=w.log.map(([k])=>k).filter(k=>k==="bounds"||k==="show");
+ assert.deepEqual(order.slice(-2),["bounds","show"]);
+ assert.equal(service.firstScreen,null);
+});
+
+test("straight into the workspace at start: hidden until it has loaded",()=>{
+ saveWindowState(electron.app,{x:100,y:80,width:1300,height:850,maximized:false});
+ const service=new WindowService();
+ const w=startingWindow();
+ service.mainWindow=w;
+ service.awaitFirstScreen(w);
+ w.ready();
+ assert.ok(service.setVaultMode("app"));
+ assert.equal(w.isVisible(),false);
+ assert.deepEqual(w.getBounds(),{x:100,y:80,width:1300,height:850});
+ assert.ok(service.revealMainWindow());
+ assert.equal(w.isVisible(),true);
+});
+
+test("a first screen that never says what it is still shows after a while",(t)=>{
+ t.mock.timers.enable({apis:["setTimeout"]});
+ const service=new WindowService();
+ const w=startingWindow();
+ service.mainWindow=w;
+ service.awaitFirstScreen(w);
+ w.ready();
+ t.mock.timers.tick(2999);
+ assert.equal(w.isVisible(),false);
+ t.mock.timers.tick(1);
+ assert.equal(w.isVisible(),true);
+ // The login screen shows it at once.
+ const login=new WindowService(),lw=startingWindow();
+ login.mainWindow=lw;
+ login.awaitFirstScreen(lw);
+ lw.ready();
+ assert.ok(login.showFirstScreen());
+ assert.equal(lw.isVisible(),true);
+ assert.equal(login.showFirstScreen(),false);
+});
