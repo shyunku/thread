@@ -21,7 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme, type Theme } from './theme';
 
 // Shared building blocks for the #87 screens. Values follow the mock
-// (docs/designs/mobile-app-mock.html): 14px corner radius cards, 15px body text.
+// (docs/designs/previous/mobile-app-mock.html): 14px corner radius cards, 15px body text.
 
 export function useStyles<T>(factory: (theme: Theme) => T): T {
   const theme = useTheme();

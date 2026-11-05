@@ -380,7 +380,7 @@ export function sampleText(prefs: Prefs, format: string, now: number) {
     .join(' · ');
 }
 
-// 시간 표시 sheet (#101, docs/designs/pc-feedback-mock.html): mode switch, a live
+// 시간 표시 sheet (#101, docs/designs/previous/pc-feedback-mock.html): mode switch, a live
 // preview of two sample rows and the formats. A choice saves right away.
 export function TimeDisplaySheet({ onClose }: { onClose: () => void }) {
   const { prefs, setPrefs } = useApp();

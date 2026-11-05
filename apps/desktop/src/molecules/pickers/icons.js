@@ -1,4 +1,4 @@
-// Icons of the #102 main-screen mock (docs/designs/pc-main-redesign-mock.html, `I`), same paths.
+// Icons of the #102 main-screen mock (docs/designs/previous/pc-main-redesign-mock.html, `I`), same paths.
 // One set for the sidebar, the menus, the pickers and the dialogs. Every icon takes `size`, and
 // other props go to the <svg>.
 const line = { fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round" };

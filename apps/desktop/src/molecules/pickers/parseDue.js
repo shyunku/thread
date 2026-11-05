@@ -1,4 +1,4 @@
-// Parser for the date picker's text field (#106.7, docs/designs/pc-250-mock.html parseDue).
+// Parser for the date picker's text field (#106.7, docs/designs/previous/pc-250-mock.html parseDue).
 // parseDue(text, now, weekStart) returns
 //   null                   for an empty text,
 //   false                  when the text is not understood,
