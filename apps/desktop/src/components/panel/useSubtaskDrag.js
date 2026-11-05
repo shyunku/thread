@@ -69,13 +69,18 @@ export default function useSubtaskDrag(rootRef, { onDrop, onLift, enabled = true
         drag.rows = rows;
         drag.from = rows.indexOf(drag.row);
         drag.to = drag.from;
-        drag.h = rows.length > 1 ? rows[1].getBoundingClientRect().top - rows[0].getBoundingClientRect().top : r.height;
-        if (!(drag.h > 0)) drag.h = r.height || 36;
-        // Ghost positions are relative to the box.
+        // Ghost positions are relative to the box. Rows differ in height once names wrap (#107),
+        // so each slot is measured: the lifted row takes the space it had (h).
         drag.top0 = r.top - box.top;
+        drag.h = r.height || 36;
+        const tops = rows.map((el) => el.getBoundingClientRect().top - box.top);
+        const ends = rows.map((el, i) => tops[i] + (el.getBoundingClientRect().height || drag.h));
+        // Where the ghost settles at each index: up to its own, at that row's top; past it, with
+        // its bottom on that row's bottom.
+        drag.slots = rows.map((_, i) => (i <= drag.from ? tops[i] : ends[i] - drag.h));
         const ghost = drag.row.cloneNode(true);
         ghost.classList.add("sub-ghost");
-        ghost.classList.remove("hov", "lifted");
+        ghost.classList.remove("lifted");
         ghost.removeAttribute("data-subtask-id");
         ghost.querySelectorAll("[data-tip]").forEach((el) => el.removeAttribute("data-tip"));
         ghost.querySelectorAll("button, input").forEach((el) => el.setAttribute("tabindex", "-1"));
@@ -95,11 +100,11 @@ export default function useSubtaskDrag(rootRef, { onDrop, onLift, enabled = true
         hideTooltip();
         handlers.current.onLift?.();
       }
-      const minTop = drag.top0 - drag.from * drag.h;
-      const maxTop = minTop + (drag.rows.length - 1) * drag.h;
-      const top = Math.max(minTop - 4, Math.min(maxTop + 4, drag.top0 + e.clientY - drag.y));
+      const { slots } = drag;
+      const top = Math.max(slots[0] - 4, Math.min(slots[slots.length - 1] + 4, drag.top0 + e.clientY - drag.y));
       drag.ghost.style.top = `${top}px`;
-      drag.to = Math.max(0, Math.min(drag.rows.length - 1, Math.round((top - minTop) / drag.h)));
+      // The nearest slot.
+      drag.to = slots.reduce((best, at, i) => (Math.abs(at - top) < Math.abs(slots[best] - top) ? i : best), 0);
       const { from, to, h } = drag;
       drag.rows.forEach((el, i) => {
         if (el === drag.row) return;
@@ -130,7 +135,7 @@ export default function useSubtaskDrag(rootRef, { onDrop, onLift, enabled = true
       swallowUntil = now() + SWALLOW_MS;
       // Settle the ghost into the slot, then reorder for real.
       d.ghost.style.transition = "";
-      d.ghost.style.top = `${d.top0 + (d.to - d.from) * d.h}px`;
+      d.ghost.style.top = `${d.slots[d.to]}px`;
       settling = true;
       settled = d;
       settleTimer = setTimeout(() => {

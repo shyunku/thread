@@ -1,0 +1,83 @@
+@import "styles/constants.scss";
+// The undo notice (#107.11, mock .undo-toast with the confirmed 'slide'): 4px below the title
+// bar, centred on the window. It comes down 12px while it fades in and goes back up as it
+// fades out; with reduced motion it only fades.
+.undo-notice {
+  position: fixed;
+  z-index: 90; // over the home panels and drawers, under the title bar, modals and popups
+  top: $top-bar-height + 4px;
+  left: 50%;
+  translate: -50% 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 34px;
+  max-width: calc(100vw - 32px);
+  box-sizing: border-box;
+  padding: 0 6px 0 12px;
+  border-radius: 10px;
+  background: #1e2430;
+  box-shadow: 0 10px 28px #000a, inset 0 0 0 1px #2f3644;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: nowrap;
+  overflow: hidden;
+
+  &.in { animation: undoNoticeIn 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+  &.out { animation: undoNoticeOut 0.16s ease-in both; pointer-events: none; }
+  @media (prefers-reduced-motion: reduce) {
+    &.in { animation-name: undoNoticeFadeIn; }
+    &.out { animation-name: undoNoticeFadeOut; }
+  }
+
+  .un-i { display: grid; place-items: center; width: 16px; flex: none; color: var(--success); }
+  .un-i.add { color: var(--accent); }
+  .un-i.del { color: var(--muted); }
+  .un-msg { display: flex; min-width: 0; }
+  .un-nm { font-weight: 600; }
+  .un-btn {
+    appearance: none;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex: none;
+    height: 26px;
+    margin: 0;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: #a9c3ff;
+    font: inherit;
+    font-weight: 600;
+    &:hover { background: var(--raise); }
+    &:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+    kbd {
+      font: inherit;
+      font-size: 11px;
+      font-weight: 400;
+      line-height: 1;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 3px 5px;
+    }
+  }
+  .un-bar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    background: var(--accent);
+    transform-origin: left;
+    animation: undoNoticeDrain 5s linear both;
+  }
+}
+
+@keyframes undoNoticeIn { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: none; } }
+@keyframes undoNoticeOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(-12px); } }
+@keyframes undoNoticeFadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes undoNoticeFadeOut { from { opacity: 1; } to { opacity: 0; } }
+@keyframes undoNoticeDrain { from { transform: scaleX(1); } to { transform: scaleX(0); } }

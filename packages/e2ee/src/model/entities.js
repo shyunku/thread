@@ -1,5 +1,6 @@
 const { v4: randomUUID } = require("../uuid");
-const { compareRank } = require("./optimistic");
+const { compareRank, compareSubtasks } = require("./optimistic");
+const { occurrenceID } = require("../recurrence");
 const deviceNames = require("./deviceNames");
 const mutationTopics = new Set([
   "task/addTask",
@@ -35,6 +36,11 @@ const mutationTopics = new Set([
 // (one transaction and one outbox entry on E2EE), so a sync cannot split them.
 const compositeTopics = new Set([
   "task/duplicateTask",
+  // The undo notice (#107): a deleted task or subtask back as new rows, and a recurring
+  // completion taken back (E2EE only: it needs the account's occurrence ids).
+  "task/restoreTask",
+  "task/restoreSubtask",
+  "task/undoRecurringCompletion",
   "category/deleteCategoryInUse",
   "category/deleteCategoryWithTasks",
 ]);
@@ -121,6 +127,10 @@ function command(topic, args, view) {
     // Starred ("중요", #97). Always a boolean; a task without the key is not starred.
     case "task/updateTaskImportant":
       return make("task", a, "patch", { important: b === true });
+    // Internal step of task/undoRecurringCompletion, not a renderer topic: the due date alone,
+    // so the repeat anchor stays where it was (the completion never moved it).
+    case "task/restoreRecurringDue":
+      return make("task", a, "patch", { due_date: b });
     case "task/updateTaskDone": {
       const row = view.rows.find(
         (r) => r.entityType === "task" && r.entityId === a
@@ -217,10 +227,43 @@ function command(topic, args, view) {
 function findRow(view, type, id) {
   return view?.rows?.find((r) => r.entityType === type && r.entityId === id);
 }
+// A restore (#107) checks the snapshot the renderer kept: a missing time is 0, anything
+// else must be a time; names must be text.
+function restoreTime(value) {
+  if (value == null || value === 0) return 0;
+  if (!Number.isSafeInteger(value) || value < 0) throw Error("INVALID_RESTORE");
+  return value;
+}
+function restoreText(value) {
+  if (typeof value !== "string") throw Error("INVALID_RESTORE");
+  return value;
+}
+// A deleted subtask as a new row with a new id (a deleted id is never created again, see
+// ENTITY_EXISTS), with its name, done state and times.
+function restoredSubtask(raw) {
+  if (!raw || typeof raw !== "object") throw Error("INVALID_RESTORE");
+  const subtask = { sid: randomUUID(), title: restoreText(raw.title), done: raw.done === true };
+  const created = restoreTime(raw.created_at),
+    doneAt = restoreTime(raw.done_at),
+    due = restoreTime(raw.due_date);
+  if (created) subtask.created_at = created;
+  if (subtask.done && doneAt) subtask.done_at = doneAt;
+  if (due) subtask.due_date = due;
+  return subtask;
+}
+const ranked = (r) =>
+  typeof r.fields.sort_rank === "string" && /^(0|[1-9][0-9]*)$/.test(r.fields.sort_rank);
+// Where a restored row goes: after the neighbour it had before, else before the one after it.
+function restoreAnchor(live, near) {
+  if (live(near?.prevId)) return [near.prevId, true];
+  if (live(near?.nextId)) return [near.nextId, false];
+  return null;
+}
 // The mutation topics a composite topic stands for, in order. IDs for new rows are
-// chosen here so every step agrees on them.
-function expand(topic, args, view, now = Date.now()) {
-  const [a, b] = args;
+// chosen here so every step agrees on them. context.accountId (E2EE) names the rows a
+// recurring completion made.
+function expand(topic, args, view, now = Date.now(), context = {}) {
+  const [a, b, c] = args;
   const rows = view.rows;
   switch (topic) {
     // Copies title, memo, due, repeat, importance, categories and subtasks into a
@@ -264,6 +307,108 @@ function expand(topic, args, view, now = Date.now()) {
           return ["task/createSubtask", [subtask, tid]];
         }),
       ];
+    }
+    // A deleted task back (#107 undo), from the renderer's snapshot: title, memo, done, times,
+    // due, repeat, importance, the categories that still exist, its subtasks in their shown
+    // order with their done state, and its place next to its old neighbour (prevId / nextId).
+    // New ids: the deleted rows stay deleted.
+    case "task/restoreTask": {
+      if (!a || typeof a !== "object") throw Error("INVALID_RESTORE");
+      const cats = a.categories ?? [],
+        subs = a.subtasks ?? [];
+      if (!Array.isArray(cats) || !Array.isArray(subs)) throw Error("INVALID_RESTORE");
+      const tid = typeof a.tid === "string" && a.tid ? a.tid : randomUUID();
+      const task = {
+        tid,
+        title: restoreText(a.title),
+        memo: a.memo == null ? "" : restoreText(a.memo),
+        done: a.done === true,
+        categories: [...new Set(cats.map(restoreText))].filter((cid) =>
+          liveRow(findRow(view, "category", cid))
+        ),
+      };
+      const created = restoreTime(a.created_at),
+        doneAt = restoreTime(a.done_at),
+        due = restoreTime(a.due_date);
+      if (created) task.created_at = created;
+      if (task.done && doneAt) task.done_at = doneAt;
+      if (due) task.due_date = due;
+      if (due && a.repeat_period) {
+        task.repeat_period = restoreText(a.repeat_period);
+        task.repeat_start_at = restoreTime(a.repeat_start_at) || due;
+      }
+      if (a.important === true) task.important = true;
+      const anchor = restoreAnchor(
+        (id) => typeof id === "string" && liveRow(findRow(view, "task", id)),
+        a
+      );
+      const subtasks = subs.map(restoredSubtask);
+      // New subtasks have no rank and show by created_at; they are moved into the old order
+      // only when that order differs (it was dragged, #106).
+      const shown = subtasks.map((s) => s.sid).join(),
+        natural = [...subtasks]
+          .sort((x, y) => compareSubtasks({ created_at: now, ...x }, { created_at: now, ...y }))
+          .map((s) => s.sid)
+          .join();
+      return [
+        ["task/addTask", [task]],
+        ...(anchor ? [["task/updateTaskOrder", [tid, ...anchor]]] : []),
+        ...subtasks.map((s) => ["task/createSubtask", [s, tid]]),
+        ...(shown === natural
+          ? []
+          : subtasks
+              .slice(1)
+              .map((s, i) => ["task/updateSubtaskOrder", [tid, s.sid, subtasks[i].sid, true]])),
+      ];
+    }
+    // A deleted subtask back (#107 undo): (task id, its snapshot, { prevId, nextId }). Among
+    // unranked subtasks its old created_at puts it back in place; among ranked ones it moves
+    // next to its old neighbour.
+    case "task/restoreSubtask": {
+      if (!liveRow(findRow(view, "task", a))) throw Error("ENTITY_DELETED");
+      const subtask = restoredSubtask(b);
+      const siblings = rows.filter(
+        (r) => r.entityType === "subtask" && r.parentId === a && liveRow(r)
+      );
+      const anchor = siblings.some(ranked)
+        ? restoreAnchor((id) => siblings.some((r) => r.entityId === id), c)
+        : null;
+      return [
+        ["task/createSubtask", [subtask, a]],
+        ...(anchor ? [["task/updateSubtaskOrder", [a, subtask.sid, ...anchor]]] : []),
+      ];
+    }
+    // Takes back a recurring completion (#107 undo): deletes the done copy it made (its
+    // subtasks go with it), puts the due date back and the subtasks' done state and due dates
+    // as the copy kept them. Only the completion just made: the copy of the previous
+    // generation must be there with the due date the renderer saw (b.due_date); anything
+    // else (completed again, due changed, copy deleted) is STALE_OCCURRENCE.
+    case "task/undoRecurringCompletion": {
+      const row = findRow(view, "task", a);
+      if (!liveRow(row) || !row.fields.repeat_period) throw Error("NOT_RECURRING");
+      if (!context.accountId) throw Error("UNSUPPORTED_V2_ACTION");
+      const g = row.fields.recurrence_generation;
+      if (typeof g !== "string" || !/^[1-9][0-9]*$/.test(g)) throw Error("STALE_OCCURRENCE");
+      const generation = String(BigInt(g) - 1n),
+        occurrence = (child) => occurrenceID(context.accountId, a, generation, child);
+      const copy = findRow(view, "task", occurrence("task")),
+        due = restoreTime(b?.due_date);
+      if (!liveRow(copy) || !due || copy.fields.due_date !== due) throw Error("STALE_OCCURRENCE");
+      const steps = [
+        ["task/deleteTask", [copy.entityId]],
+        ["task/restoreRecurringDue", [a, due]],
+      ];
+      for (const r of rows) {
+        if (r.entityType !== "subtask" || r.parentId !== a || !liveRow(r)) continue;
+        const old = findRow(view, "subtask", occurrence("subtask:" + r.entityId))?.fields;
+        // A subtask added after the completion has no copy and stays as it is.
+        if (!old) continue;
+        if ((old.done === true) !== (r.fields.done === true))
+          steps.push(["task/updateSubtaskDone", [a, r.entityId, old.done === true, old.done_at]]);
+        if ((old.due_date || 0) !== (r.fields.due_date || 0))
+          steps.push(["task/updateSubtaskDueDate", [a, r.entityId, old.due_date || 0]]);
+      }
+      return steps;
     }
     // Takes the category off every task that has it, then deletes it. Tasks stay.
     case "category/deleteCategoryInUse": {

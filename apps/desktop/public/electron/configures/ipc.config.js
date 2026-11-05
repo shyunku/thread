@@ -1463,6 +1463,10 @@ module.exports = function (s) {
     "task/updateSubtaskOrder",
     "device/setDeviceName",
     "task/duplicateTask",
+    // The undo notice's restores (#107).
+    "task/restoreTask",
+    "task/restoreSubtask",
+    "task/undoRecurringCompletion",
     "category/deleteCategoryInUse",
     "category/deleteCategoryWithTasks",
     // Normal <-> secret category (#106): no legacy transaction type for it.

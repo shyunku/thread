@@ -47,7 +47,7 @@ class ApplicationAdapter{
    const objects=this.objects(),base={rows:[...objects.values()].map(item=>item.row)},now=this.now();
    // A composite (duplicate, delete a category in use) runs its steps on one row map,
    // so they are queued together as one change set.
-   const steps=composite?expand(topic,args,base,now):null,probe=composite?null:command(topic,args,base);
+   const steps=composite?expand(topic,args,base,now,{accountId:db.scope().accountId}):null,probe=composite?null:command(topic,args,base);
    // A recurring completion edits rows in place, so it works on copies and compares
    // every row. Other actions replace only the rows they change (model/optimistic),
    // so unchanged rows are skipped by identity instead of re-encoding all of them.

@@ -8,5 +8,5 @@ export { default as RepeatPicker } from "./RepeatPicker";
 export { default as CategoryPicker } from "./CategoryPicker";
 export { default as TaskContextMenu, menuDue } from "./TaskContextMenu";
 export { default as ConfirmDialog } from "./ConfirmDialog";
-export { taskDeleteConfirm, categoryDeleteConfirm, objectParticle } from "./deleteConfirm";
+export { categoryDeleteConfirm, objectParticle } from "./deleteConfirm";
 export * from "./icons";

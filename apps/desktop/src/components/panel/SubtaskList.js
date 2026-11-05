@@ -1,12 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Subtask from "objects/Subtask";
 import Toast from "molecules/Toast";
-import { DatePicker, closeAllPopups } from "molecules/pickers";
-import { CalendarIcon, CheckIcon, CloseIcon, PlusIcon } from "molecules/pickers/icons";
+import { closeAllPopups } from "molecules/pickers";
+import { CheckIcon, CloseIcon, PlusIcon } from "molecules/pickers/icons";
 import { categoryMoveAnchor, sortSubtasks } from "utils/categoryOrder";
-import { dueMs, formatDue } from "utils/timeDisplay";
 import { useTaskSelection } from "../list/taskSelection";
-import { composing, useInPlaceEdit } from "./inPlaceEdit";
+import { composing, useAutoHeight, useInPlaceEdit } from "./inPlaceEdit";
 import useSubtaskDrag from "./useSubtaskDrag";
 
 // The subtask order (sort_rank, #106) is E2EE-only (canSort), and the legacy and plaintext v2
@@ -32,30 +31,45 @@ const GripIcon = () => (
   </svg>
 );
 
-// 기한 빼기: the calendar struck through (a second × next to 삭제 would read the same).
-const NoDueIcon = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
-    <path d="M7 5H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14M21 17V7a2 2 0 0 0-2-2h-8M3 10h4M13 10h8M8 3v2M16 3v4M3 3l18 18" />
-  </svg>
-);
+// The name being renamed wraps like the name (#107 mock textarea.rp-sub-in.ml) and grows with it;
+// the caret starts at the end.
+function RenameField({ edit, onBlur }) {
+  const ref = useRef(null);
+  useAutoHeight(ref, edit.value);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    el.setSelectionRange(el.value.length, el.value.length);
+  }, []);
+  return (
+    <textarea
+      ref={ref}
+      className="rp-sub-in"
+      rows={1}
+      aria-label="하위 할 일 이름"
+      maxLength={500}
+      spellCheck={false}
+      autoFocus
+      {...edit}
+      onBlur={onBlur}
+    />
+  );
+}
 
-// One subtask (#102 mock .subt): check, the name (click edits it in place: Enter saves, Esc puts
-// it back), a set due small on the right (red when overdue) and, on hover, 기한 / 삭제 (plus
-// 기한 빼기 when it has one). Deleting is immediate, as before the redesign. sortable adds the
-// grip on hover at the left to drag it (#106; no Alt+↑/↓ since #107: the row cannot be focused
-// without starting an edit).
-function SubtaskRow({ task, subtask, timeFormat, now, sortable }) {
+// One subtask (#102 mock .subt, #107 mock .rp-subt.ml): check, the name (wraps to show all of it;
+// click edits it in place: Enter saves, Esc puts it back, line breaks become spaces) and, on
+// hover, 삭제. The × keeps its place while hidden, so the name wraps the same on hover and while
+// renaming. No due on PC since #107 (a due set on the phone stays stored). Deleting is
+// immediate, as before the redesign. sortable adds the grip on hover, outside the box on the
+// left, to drag it (#106; no Alt+↑/↓ since #107: the row cannot be focused without starting an
+// edit).
+function SubtaskRow({ task, subtask, sortable }) {
   const { actions } = useTaskSelection();
   const [editing, setEditing] = useState(false);
-  const [picker, setPicker] = useState(null); // the 기한 button while its picker is open
-  const rowRef = useRef(null);
-  const edit = useInPlaceEdit(subtask.title, (title) => actions.setSubtaskTitle(task.id, subtask.id, title));
-  const due = dueMs(subtask.dueDate);
+  const edit = useInPlaceEdit(subtask.title, (title) => actions.setSubtaskTitle(task.id, subtask.id, title), { singleLine: true });
   const done = !!subtask.done;
-  const over = !done && due !== null && due < now;
 
   return (
-    <div ref={rowRef} className={"rp-subt" + (done ? " done" : "") + (editing ? " edit" : "") + (picker ? " hov" : "")} data-subtask-id={subtask.id}>
+    <div className={"rp-subt" + (done ? " done" : "") + (editing ? " edit" : "")} data-subtask-id={subtask.id}>
       {sortable && !editing && (
         <span className="sgrip" data-tip="끌어서 순서 바꾸기" aria-hidden="true">
           <GripIcon />
@@ -72,15 +86,7 @@ function SubtaskRow({ task, subtask, timeFormat, now, sortable }) {
         <CheckIcon />
       </button>
       {editing ? (
-        <input
-          className="rp-sub-in"
-          type="text"
-          aria-label="하위 할 일 이름"
-          maxLength={500}
-          autoFocus
-          {...edit}
-          onBlur={(event) => { edit.onBlur(event); setEditing(false); }}
-        />
+        <RenameField edit={edit} onBlur={(event) => { edit.onBlur(event); setEditing(false); }} />
       ) : (
         <button
           type="button"
@@ -91,46 +97,13 @@ function SubtaskRow({ task, subtask, timeFormat, now, sortable }) {
           {subtask.title}
         </button>
       )}
-      {due !== null && !editing && (
-        <span className={"sdue" + (over ? " over" : "")}>{formatDue(due, now, "group", timeFormat)}</span>
-      )}
-      {!editing && (
-        <span className="sacts">
-          <button
-            type="button"
-            className="rp-ghost"
-            aria-label={due !== null ? "기한 바꾸기" : "기한 정하기"}
-            data-tip={due !== null ? "기한 바꾸기" : "기한 정하기"}
-            onClick={(event) => {
-              const el = event.currentTarget;
-              setPicker((current) => (current ? null : el));
-            }}
-          >
-            <CalendarIcon />
-          </button>
-          {due !== null && (
-            <button type="button" className="rp-ghost" aria-label="기한 빼기" data-tip="기한 빼기" onClick={() => actions.setSubtaskDue(task.id, subtask.id, null)}>
-              <NoDueIcon />
-            </button>
-          )}
+      <span className="sacts">
+        {!editing && (
           <button type="button" className="rp-ghost" aria-label="하위 할 일 삭제" data-tip="하위 할 일 삭제" onClick={() => actions.deleteSubtask(task.id, subtask.id)}>
             <CloseIcon />
           </button>
-        </span>
-      )}
-      {picker && (
-        <DatePicker
-          anchor={rowRef}
-          placement="bottom-start"
-          gap={4}
-          ignoreOutside={[picker]}
-          returnFocus={picker}
-          value={due}
-          timeFormat={timeFormat}
-          onChange={(ms) => { actions.setSubtaskDue(task.id, subtask.id, ms); setPicker(null); }}
-          onCancel={() => setPicker(null)}
-        />
-      )}
+        )}
+      </span>
     </div>
   );
 }
@@ -138,7 +111,7 @@ function SubtaskRow({ task, subtask, timeFormat, now, sortable }) {
 // 하위 할 일 (#102 mock): the count and a progress bar, the rows, and 하위 할 일 추가 (Enter adds
 // and stays for the next one; Esc leaves). Rows follow the synced order (#106: sort_rank, then
 // created_at); with canSort they can be dragged by the grip.
-export default function SubtaskList({ task, timeFormat, now, canSort = true }) {
+export default function SubtaskList({ task, canSort = true }) {
   const { actions } = useTaskSelection();
   const [title, setTitle] = useState("");
   const boxRef = useRef(null);
@@ -187,7 +160,7 @@ export default function SubtaskList({ task, timeFormat, now, canSort = true }) {
 
   useSubtaskDrag(boxRef, {
     enabled: sortable && subtasks.length > 1,
-    // A lifted row closes the open pickers (a subtask's 기한 too).
+    // A lifted row closes the open pickers.
     onLift: () => closeAllPopups(),
     onDrop: (id, from, to) => move(id, to),
   });
@@ -212,7 +185,7 @@ export default function SubtaskList({ task, timeFormat, now, canSort = true }) {
           </div>
         )}
         {subtasks.map((s) => (
-          <SubtaskRow key={s.id} task={task} subtask={s} timeFormat={timeFormat} now={now} sortable={sortable} />
+          <SubtaskRow key={s.id} task={task} subtask={s} sortable={sortable} />
         ))}
         <label className="rp-subt add">
           <i><PlusIcon size={14} /></i>

@@ -286,6 +286,8 @@ class SyncV2Service {
     const blocked = (await s.replica.meta("migrationBlocked")) === "true";
     return {
       uid: s.uid,
+      // The renderer tells the paths apart by this (E2EE sends 3; #107 restores need 2 or 3).
+      protocolVersion: 2,
       ready: !!view.epoch && !blocked,
       connected: s.connected,
       syncing: !!s.running,
@@ -337,8 +339,9 @@ class SyncV2Service {
       return true;
     }
     // The plaintext v2 server rejects unknown fields; the star (#97), the category and
-    // subtask order (sort_rank, #102 / #106) and device names (#77) are E2EE-only.
-    if (["task/updateTaskImportant", "category/updateCategoryOrder", "task/updateSubtaskOrder", "device/setDeviceName", "device/setDeviceModel"].includes(topic)) {
+    // subtask order (sort_rank, #102 / #106) and device names (#77) are E2EE-only, and so is
+    // taking back a recurring completion (#107: the server makes that copy here).
+    if (["task/updateTaskImportant", "category/updateCategoryOrder", "task/updateSubtaskOrder", "device/setDeviceName", "device/setDeviceModel", "task/undoRecurringCompletion"].includes(topic)) {
       ipc.sender(topic, reqId, false, { syncV2Ack: true, code: "UNSUPPORTED_V2_ACTION" });
       return true;
     }
@@ -351,10 +354,11 @@ class SyncV2Service {
           return change;
         };
         // A composite is queued as its steps in one local transaction (all or none);
-        // each step sees the view the previous one left.
+        // each step sees the view the previous one left. A restore's subtask moves are left out
+        // (no sort_rank here; the old created_at keeps the order).
         const id = compositeTopics.has(topic)
           ? await s.replica.enqueueMany(
-              expand(topic, args, await s.replica.view()).map(
+              expand(topic, args, await s.replica.view()).filter(([step]) => step !== "task/updateSubtaskOrder").map(
                 ([step, stepArgs]) => (view) => build(step, stepArgs, view)
               )
             )

@@ -211,25 +211,27 @@ $picked: #3d6fe6;
     padding: 0 var(--in);
     font-size: 13px;
     & + .rp-subt { border-top: 1px solid var(--line); }
-    &:hover:not(.add), &.hov { background: var(--raise); }
+    &:hover:not(.add) { background: var(--raise); }
     &:last-child { border-radius: 0 0 10px 10px; }
     &:first-child { border-radius: 10px 10px 0 0; }
     &:only-child { border-radius: 10px; }
+    // A long name wraps and shows whole (#107 mock .rp-subt.ml); the check and the × stay on
+    // its first line.
+    &:not(.add) { align-items: flex-start; }
+    > .ck { margin-top: 8px; }
     .nm {
       flex: 1;
       min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      padding: 8px 0;
       text-align: left;
       cursor: text;
-      line-height: 34px;
+      line-height: 20px;
+      white-space: normal;
     }
     &.done .nm { color: var(--muted); text-decoration: line-through; }
-    .sdue { flex: none; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
-    .sdue.over { color: #cf7a81; }
-    .sacts { display: none; gap: 2px; flex: none; margin-right: -6px; }
-    &:hover .sacts, &.hov .sacts, &:focus-within .sacts { display: flex; }
+    // Hidden, not gone: the name keeps its width on hover and while renaming.
+    .sacts { display: flex; gap: 2px; flex: none; min-width: 26px; margin: 5px -6px 0 0; visibility: hidden; }
+    &:hover .sacts, &:focus-within .sacts { visibility: visible; }
     .rp-ghost {
       width: 26px;
       height: 26px;
@@ -244,30 +246,32 @@ $picked: #3d6fe6;
   }
   .rp-bar + .rp-subt { border-radius: 0; }
 
-  // Reorder (#106 mock .sgrip): the grip shows on hover in a 16px left gutter (4px each side
-  // of the 8px dots), always reserved so the row does not shift when it appears.
+  // Reorder (#106, #107 mock .sgrip "out"): no gutter kept for the grip, so the checks line up
+  // with 하위 할 일 추가. On hover it shows outside the box, in the body's side padding, on the
+  // first line. It stays in place unseen, so the mouse can move left from the row onto it.
   .rp-subs { position: relative; }
-  .rp-subs.sortable .rp-subt { position: relative; padding-left: 16px; }
+  .rp-subs.sortable .rp-subt { position: relative; }
   .sgrip {
     position: absolute;
-    left: 0;
+    left: -18px;
     top: 0;
-    bottom: 0;
-    width: 16px;
-    display: none;
+    width: 18px;
+    height: 35px;
+    display: grid;
     place-items: center;
     color: var(--faint);
     cursor: grab;
+    opacity: 0;
     &:hover { color: var(--secondary); }
   }
-  .rp-subt:hover .sgrip, .rp-subt.hov .sgrip, .rp-subt:focus-within .sgrip { display: grid; }
+  .rp-subt:hover .sgrip, .rp-subt:focus-within .sgrip { opacity: 1; }
   // While a row is lifted: the others slide to open its slot, hovers stay still.
   .rp-subs.sorting {
     user-select: none;
     &, * { cursor: grabbing !important; }
     .rp-subt[data-subtask-id] { transition: transform .16s cubic-bezier(.2, 0, 0, 1); }
     .rp-subt[data-subtask-id]:hover { background: transparent; }
-    .rp-subt:hover .sacts, .rp-subt:hover .sgrip { display: none; }
+    .rp-subt:hover .sacts, .rp-subt:hover .sgrip { visibility: hidden; }
     .rp-subt.lifted { visibility: hidden; }
   }
   // Inside .rp-subs so it outranks `.rp-subs.sortable .rp-subt { position: relative }`; as a
@@ -283,21 +287,28 @@ $picked: #3d6fe6;
     box-shadow: 0 10px 24px #000a, inset 0 0 0 1px #3a4354;
     transform: scale(1.02);
     transition: top .16s cubic-bezier(.2, 0, 0, 1);
-    .sacts { display: none !important; }
-    .sgrip { display: grid !important; color: var(--secondary); }
+    .sacts { visibility: hidden !important; }
+    // Outside the ghost too, so it stays under the pointer.
+    .sgrip { visibility: visible !important; opacity: 1; color: var(--secondary); }
   }
+  // Renaming (#107 mock textarea.rp-sub-in.ml): wraps like the name, its first line on the name's.
   .rp-sub-in {
+    display: block;
     flex: 1;
     min-width: 0;
-    height: 28px;
+    min-height: 28px;
     margin: 4px 0;
-    padding: 0 8px;
+    padding: 3px 8px;
     box-sizing: border-box;
     border-radius: 7px;
     background: var(--canvas);
     border: 1px solid var(--accent);
     color: var(--text);
+    font: inherit;
     font-size: 13px;
+    line-height: 20px;
+    resize: none;
+    overflow: hidden;
     outline: none;
   }
   .rp-subt.add {
@@ -334,6 +345,20 @@ $picked: #3d6fe6;
     outline: none;
     &::placeholder { color: var(--faint); }
     &:focus { box-shadow: inset 0 0 0 1px var(--accent); color: var(--text); }
+  }
+  // The memo's count, always shown (#107 mock .memo-foot); the note of a cut paste on the left.
+  .rp-memo-foot {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-top: 6px;
+    padding: 0 var(--in);
+    font-size: 11.5px;
+    line-height: 16px;
+    color: var(--muted);
+    .note { flex: 1; min-width: 0; color: var(--warning); }
+    .n { margin-left: auto; flex: none; font-variant-numeric: tabular-nums; }
+    &.full .n { color: var(--warning); }
   }
   .rp-stamp { margin-top: 16px; padding: 0 var(--in); font-size: 11.5px; color: var(--muted); }
 

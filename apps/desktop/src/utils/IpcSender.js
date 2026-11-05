@@ -381,6 +381,19 @@ const IpcSender = {
           newTaskId ? { tid: newTaskId } : undefined
         );
       },
+      // The undo notice (#107), each queued as one change: a deleted task back from its
+      // snapshot (new ids; tid is the new task's id), a deleted subtask back next to its old
+      // neighbour ({ prevId, nextId }), and a recurring completion taken back (E2EE only;
+      // dueDate is the due it had before the completion).
+      restoreTask: (snapshot, callback) => {
+        sender("task/restoreTask", callback, snapshot);
+      },
+      restoreSubtask: (taskId, subtask, near, callback) => {
+        sender("task/restoreSubtask", callback, taskId, subtask, near);
+      },
+      undoRecurringCompletion: (taskId, dueDate, callback) => {
+        sender("task/undoRecurringCompletion", callback, taskId, { due_date: dueDate });
+      },
       createSubtask: (subtask, taskId, callback) => {
         sender("task/createSubtask", callback, subtask, taskId);
       },

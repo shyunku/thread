@@ -1,5 +1,6 @@
 // The delete questions of the main screen (#102 mock confirmDialog(), confirmed by the user),
-// as ConfirmDialog props, so every caller asks with the same words.
+// as ConfirmDialog props, so every caller asks with the same words. A task is deleted without a
+// question since #107 (the undo notice takes it back).
 const quoted = (name) => `'${name ?? ""}'`;
 
 // 을/를 after a name: by the last Hangul syllable's final consonant; both when it does not end
@@ -8,17 +9,6 @@ export function objectParticle(name) {
   const code = String(name ?? "").trim().slice(-1).charCodeAt(0);
   if (!(code >= 0xac00 && code <= 0xd7a3)) return "을(를)";
   return (code - 0xac00) % 28 ? "을" : "를";
-}
-
-// A task (menu 삭제, the Del key): trash tile, 취소 / 삭제.
-export function taskDeleteConfirm(title) {
-  return {
-    icon: "trash",
-    iconColor: "var(--danger)",
-    title: "할 일을 삭제할까요?",
-    body: `${quoted(title)}${objectParticle(title)} 지워요. 되돌릴 수 없어요.`,
-    choices: [{ id: "delete", label: "삭제", danger: true }],
-  };
 }
 
 // A category, with the number of its tasks the user can see (utils/menuFilters

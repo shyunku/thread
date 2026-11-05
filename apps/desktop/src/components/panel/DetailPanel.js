@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import useClock from "hooks/UseClock";
 import Toast from "molecules/Toast";
 import { CategoryPicker, DatePicker, RepeatPicker } from "molecules/pickers";
@@ -10,9 +10,12 @@ import { dueMs, formatClock, formatDueDetail, hasDueTime } from "utils/timeDispl
 import { useTaskSelection } from "../list/taskSelection";
 import { startOfDay } from "./pickedDay";
 import SubtaskList from "./SubtaskList";
-import { composing, useInPlaceEdit } from "./inPlaceEdit";
+import { composing, useAutoHeight, useInPlaceEdit } from "./inPlaceEdit";
 
 const MEMO_SAVE_DELAY = 800;
+// String length, as the textarea's maxLength counts it (#107).
+const MEMO_MAX = 10000;
+const num = (n) => n.toLocaleString("en-US");
 
 // "10월 14일" (another year: "2025년 10월 14일"); today and yesterday with the clock when `clock`.
 export function stampText(value, now, timeFormat = "12", clock = false) {
@@ -29,30 +32,6 @@ export function dueDetailText(due, timeFormat = "12") {
   if (hasDueTime(due)) return formatDueDetail(due, timeFormat);
   const date = new Date(due);
   return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, "0")}.${String(date.getDate()).padStart(2, "0")} · 하루 끝`;
-}
-
-const fitHeight = (el) => {
-  el.style.height = "auto";
-  if (el.scrollHeight) el.style.height = `${el.scrollHeight}px`;
-};
-
-// Grows a textarea with its text, and again when its width changes (the panel is resized).
-function useAutoHeight(ref, value) {
-  useLayoutEffect(() => {
-    if (ref.current) fitHeight(ref.current);
-  }, [ref, value]);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || typeof ResizeObserver === "undefined") return undefined;
-    let width = el.clientWidth;
-    const observer = new ResizeObserver(() => {
-      if (el.clientWidth === width) return; // its own height change
-      width = el.clientWidth;
-      fitHeight(el);
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [ref]);
 }
 
 function TitleField({ task }) {
@@ -76,11 +55,16 @@ function TitleField({ task }) {
 }
 
 // 메모: saved a moment after typing stops, when leaving the field, when the panel changes task and
-// when the window closes.
+// when the window closes. Up to MEMO_MAX (#107 mock .memo-foot): the count always shows below,
+// typing stops at the limit and a paste that goes over keeps what fits and says so until the
+// next edit. A longer memo (an older version, the phone) is never cut: it only takes deletions
+// (maxLength does that) until it is under.
 function MemoField({ task }) {
   const { actions } = useTaskSelection();
   const ref = useRef(null);
   const [draft, setDraft] = useState(task.memo ?? "");
+  const [note, setNote] = useState("");
+  const pasting = useRef(false); // the change of a cut paste keeps its note
   const saved = useRef(task.memo ?? "");
   const focused = useRef(false);
   const timer = useRef(null);
@@ -113,26 +97,45 @@ function MemoField({ task }) {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <textarea
-      ref={ref}
-      className="rp-box rp-memo"
-      aria-label="메모"
-      placeholder="메모를 적어 두세요"
-      value={draft}
-      onFocus={() => { focused.current = true; }}
-      onBlur={() => { focused.current = false; flush(); }}
-      onChange={(event) => {
-        setDraft(event.target.value);
-        clearTimeout(timer.current);
-        timer.current = setTimeout(flush, MEMO_SAVE_DELAY);
-      }}
-      onKeyDown={(event) => {
-        if (event.key === "Escape" && !composing(event)) {
-          event.preventDefault();
-          event.currentTarget.blur();
-        }
-      }}
-    />
+    <>
+      <textarea
+        ref={ref}
+        className="rp-box rp-memo"
+        aria-label="메모"
+        placeholder="메모를 적어 두세요"
+        maxLength={MEMO_MAX}
+        value={draft}
+        onFocus={() => { focused.current = true; }}
+        onBlur={() => { focused.current = false; flush(); }}
+        onPaste={(event) => {
+          // The browser inserts only what fits; the line breaks count once, as in the value.
+          const text = (event.clipboardData?.getData("text") ?? "").replace(/\r\n?/g, "\n");
+          const el = event.currentTarget;
+          const room = Math.max(0, MEMO_MAX - (el.value.length - (el.selectionEnd - el.selectionStart)));
+          const over = text.length - room;
+          // Nothing fits: no change follows, so the note stays without one.
+          pasting.current = over > 0 && room > 0;
+          if (over > 0) setNote(`넘는 ${num(over)}자는 빼고 붙였어요`);
+        }}
+        onChange={(event) => {
+          setDraft(event.target.value);
+          if (pasting.current) pasting.current = false;
+          else setNote("");
+          clearTimeout(timer.current);
+          timer.current = setTimeout(flush, MEMO_SAVE_DELAY);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Escape" && !composing(event)) {
+            event.preventDefault();
+            event.currentTarget.blur();
+          }
+        }}
+      />
+      <div className={"rp-memo-foot" + (draft.length >= MEMO_MAX ? " full" : "")}>
+        {note && <span className="note">{note}</span>}
+        <span className="n">{num(draft.length)} / {num(MEMO_MAX)}</span>
+      </div>
+    </>
   );
 }
 
@@ -257,7 +260,7 @@ export default function DetailPanel({ task, catsOf, prefs, canStar = true }) {
       </div>
 
       {/* The subtask order syncs only on the E2EE path, like the star. */}
-      <SubtaskList task={task} timeFormat={tf} now={now} canSort={canStar} />
+      <SubtaskList task={task} canSort={canStar} />
 
       <div className="rp-block-h">메모</div>
       <MemoField task={task} />

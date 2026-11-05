@@ -368,7 +368,7 @@ test("title: Enter and leaving save, Esc puts it back, Enter while composing doe
   expect(title).toHaveValue("리뷰 준비");
 });
 
-test("subtasks: count and bar, check, rename in place, due on the right, 기한 / 기한 빼기 / 삭제, add", () => {
+test("subtasks: count and bar, check, rename in place, 삭제, add; no due on PC (#107)", () => {
   view();
   select("first");
   const p = panel();
@@ -376,11 +376,13 @@ test("subtasks: count and bar, check, rename in place, due on the right, 기한 
   expect(within(p).getByRole("progressbar")).toHaveAttribute("aria-valuenow", "1");
   const rows = [...p.querySelectorAll(".rp-subt[data-subtask-id]")];
   expect(rows.map((r) => r.dataset.subtaskId)).toEqual(["s1", "s2"]);
-  // Done ones are not red; the open one past its due is.
-  expect(rows[0].querySelector(".sdue")).toHaveTextContent("어제 오전 9시");
-  expect(rows[0].querySelector(".sdue")).not.toHaveClass("over");
-  expect(rows[1].querySelector(".sdue")).toHaveTextContent("오후 12시");
-  expect(rows[1].querySelector(".sdue")).toHaveClass("over");
+  // Both have a due stored (set on the phone): the rows show none and offer none.
+  rows.forEach((r) => {
+    expect(r.querySelector(".sdue")).toBeNull();
+    expect(within(r).queryByRole("button", { name: /기한/ })).toBeNull();
+    expect(r).not.toHaveTextContent(/어제|오후 12시/);
+  });
+  expect(within(rows[0]).getAllByRole("button").map((b) => b.getAttribute("aria-label") ?? b.textContent)).toEqual(["초안 쓰기", "하위 할 일 삭제"]);
 
   fireEvent.click(within(rows[1]).getByRole("checkbox", { name: /하위 할 일 완료/ }));
   expect(IpcSender.req.task.updateSubtaskDone).toHaveBeenCalledWith("first", "s2", true, expect.any(Number), expect.any(Function));
@@ -402,12 +404,6 @@ test("subtasks: count and bar, check, rename in place, due on the right, 기한 
   fireEvent.blur(input);
   expect(IpcSender.req.task.updateSubtaskTitle).toHaveBeenCalledWith("first", "s2", "검토 끝", expect.any(Function));
 
-  fireEvent.click(within(rows[1]).getByRole("button", { name: "기한 바꾸기" }));
-  fireEvent.click(within(screen.getByRole("dialog", { name: "기한 정하기" })).getByRole("button", { name: "내일" }));
-  fireEvent.click(screen.getByRole("button", { name: "정하기" }));
-  expect(IpcSender.req.task.updateSubtaskDueDate).toHaveBeenCalledWith("first", "s2", at(1, 12).getTime(), expect.any(Function));
-  fireEvent.click(within(rows[1]).getByRole("button", { name: "기한 빼기" }));
-  expect(IpcSender.req.task.updateSubtaskDueDate).toHaveBeenLastCalledWith("first", "s2", null, expect.any(Function));
   fireEvent.click(within(rows[0]).getByRole("button", { name: "하위 할 일 삭제" }));
   expect(IpcSender.req.task.deleteSubtask).toHaveBeenCalledWith("first", "s1", expect.any(Function));
 
@@ -418,6 +414,63 @@ test("subtasks: count and bar, check, rename in place, due on the right, 기한 
   fireEvent.keyDown(add, { key: "Enter" });
   expect(IpcSender.req.task.createSubtask).toHaveBeenCalledWith(expect.objectContaining({ title: "배포", due_date: null }), "first", expect.any(Function));
   expect(add).toHaveValue("");
+  expect(IpcSender.req.task.updateSubtaskDueDate).not.toHaveBeenCalled();
+});
+
+test("subtask names wrap: the × stays in the row unhovered and its place stays while renaming (#107)", () => {
+  view();
+  select("first");
+  const sub = () => panel().querySelector('.rp-subt[data-subtask-id="s2"]');
+  // The whole name; the × is in the row without a hover (CSS only hides it).
+  const name = within(sub()).getByRole("button", { name: "검토 받기" });
+  expect(name).toHaveTextContent("검토 받기");
+  expect(within(sub()).getByRole("button", { name: "하위 할 일 삭제" })).toBeInTheDocument();
+  expect(sub().lastElementChild).toHaveClass("sacts");
+  fireEvent.click(name);
+  // Renaming: the × goes, its place stays last in the row.
+  expect(sub().lastElementChild).toHaveClass("sacts");
+  expect(within(sub()).queryByRole("button", { name: "하위 할 일 삭제" })).toBeNull();
+  const field = within(sub()).getByRole("textbox", { name: "하위 할 일 이름" });
+  expect(field.tagName).toBe("TEXTAREA");
+  expect(field).toHaveAttribute("rows", "1");
+  expect(field.selectionStart).toBe("검토 받기".length);
+});
+
+test("subtask rename: pasted line breaks become spaces, Shift+Enter saves without a break, composing Enter waits, Esc cancels (#107)", () => {
+  view();
+  select("first");
+  const sub = () => panel().querySelector('.rp-subt[data-subtask-id="s2"]');
+  const open = () => {
+    fireEvent.click(within(sub()).getByRole("button", { name: "검토 받기" }));
+    return within(sub()).getByRole("textbox", { name: "하위 할 일 이름" });
+  };
+  let field = open();
+  expect(document.activeElement).toBe(field);
+  fireEvent.change(field, { target: { value: "검토\n받고\r\n  고치기" } });
+  expect(field).toHaveValue("검토 받고 고치기");
+  // Enter while composing Korean belongs to the IME.
+  expect(fireEvent.keyDown(field, { key: "Enter", keyCode: 229 })).toBe(true);
+  expect(IpcSender.req.task.updateSubtaskTitle).not.toHaveBeenCalled();
+  expect(within(sub()).getByRole("textbox", { name: "하위 할 일 이름" })).toBe(field);
+  // Esc puts it back.
+  fireEvent.keyDown(field, { key: "Escape" });
+  expect(IpcSender.req.task.updateSubtaskTitle).not.toHaveBeenCalled();
+  expect(within(sub()).getByRole("button", { name: "검토 받기" })).toBeInTheDocument();
+
+  field = open();
+  expect(field).toHaveValue("검토 받기");
+  fireEvent.change(field, { target: { value: "검토\n받고 고치기" } });
+  // Shift+Enter does not add a line: it saves like Enter.
+  expect(fireEvent.keyDown(field, { key: "Enter", shiftKey: true })).toBe(false);
+  expect(IpcSender.req.task.updateSubtaskTitle).toHaveBeenCalledWith("first", "s2", "검토 받고 고치기", expect.any(Function));
+  expect(within(sub()).queryByRole("textbox", { name: "하위 할 일 이름" })).toBeNull();
+
+  // Leaving saves too, as before.
+  jest.clearAllMocks();
+  field = open();
+  fireEvent.change(field, { target: { value: "다시 검토" } });
+  fireEvent.blur(field);
+  expect(IpcSender.req.task.updateSubtaskTitle).toHaveBeenCalledWith("first", "s2", "다시 검토", expect.any(Function));
 });
 
 // Subtask order (#106): a third subtask, ranked, so the synced order is s3 (rank), s1, s2
@@ -442,8 +495,13 @@ test("subtask order: rank first, then created_at; the grip drags, Alt+↑/↓ do
   expect(subIds()).toEqual(["s3", "s1", "s2"]);
   const grip = subRows()[0].querySelector(".sgrip");
   expect(grip).toHaveAttribute("data-tip", "끌어서 순서 바꾸기");
-  // The grip sits in the row's reserved gutter, before the check.
+  expect(grip).toHaveAttribute("aria-hidden", "true");
+  // In every row without a hover (CSS shows it outside the box), before the check; the rows have
+  // no gutter of their own, like 하위 할 일 추가 (#107).
+  expect(subRows().every((r) => r.firstElementChild.classList.contains("sgrip"))).toBe(true);
   expect(grip.nextElementSibling).toHaveClass("ck");
+  expect(subRows().every((r) => r.getAttribute("style") === null)).toBe(true);
+  expect(panel().querySelector(".rp-subt.add").className).toBe("rp-subt add");
   const name = within(subRows()[1]).getByRole("button", { name: "초안 쓰기" });
   expect(name).not.toHaveAttribute("aria-keyshortcuts");
   name.focus();
@@ -506,6 +564,51 @@ test("subtask order: dragging the grip lifts after 4px, slides rows, settles and
   expect(probe.selectedTaskId).toBe("first");
 });
 
+test("subtask order: a wrapped (taller) row moves the others by its own height and settles in its slot (#107)", () => {
+  resetSubtaskOrderForTests();
+  withThird();
+  view();
+  select("first");
+  // s3 36px, s1 wrapped over three lines (76px), s2 36px.
+  const heights = [36, 76, 36];
+  const place = () => {
+    panel().querySelector(".rp-subs").getBoundingClientRect = () => ({ top: 200, bottom: 351, left: 20, right: 320, width: 300, height: 151 });
+    let top = 203;
+    subRows().forEach((row, i) => {
+      const at = top;
+      row.getBoundingClientRect = () => ({ top: at, bottom: at + heights[i], left: 20, right: 320, width: 300, height: heights[i] });
+      top += heights[i];
+    });
+  };
+  place();
+  // The tall one to the top: the first row slides down by 76px.
+  fireEvent.mouseDown(subRows()[1].querySelector(".sgrip"), { button: 0, clientX: 11, clientY: 256 });
+  fireEvent.mouseMove(document, { clientX: 11, clientY: 220 });
+  expect(document.querySelector(".sub-ghost").style.height).toBe("76px");
+  expect(subRows()[0].style.transform).toBe("translateY(76px)");
+  expect(subRows()[2].style.transform).toBe("");
+  fireEvent.keyDown(document.body, { key: "Escape" });
+  fireEvent.mouseUp(document, { button: 0 });
+  act(() => { jest.advanceTimersByTime(500); });
+
+  // The first one past the tall one to the end: its bottom lands on the last row's bottom.
+  place();
+  fireEvent.mouseDown(subRows()[0].querySelector(".sgrip"), { button: 0, clientX: 11, clientY: 220 });
+  fireEvent.mouseMove(document, { clientX: 11, clientY: 260 });
+  // Nearer the slot after the tall row (79) than its own (3).
+  expect(document.querySelector(".sub-ghost").style.top).toBe("43px");
+  expect(subRows()[1].style.transform).toBe("translateY(-36px)");
+  expect(subRows()[2].style.transform).toBe("");
+  fireEvent.mouseMove(document, { clientX: 11, clientY: 400 });
+  expect(document.querySelector(".sub-ghost").style.top).toBe("119px");
+  expect(subRows()[2].style.transform).toBe("translateY(-36px)");
+  fireEvent.mouseUp(document, { button: 0 });
+  expect(document.querySelector(".sub-ghost").style.top).toBe("115px");
+  act(() => { jest.advanceTimersByTime(200); });
+  expect(IpcSender.req.task.updateSubtaskOrder).toHaveBeenCalledWith("first", "s3", "s2", true, expect.any(Function));
+  expect(subIds()).toEqual(["s1", "s2", "s3"]);
+});
+
 test("subtask order: no grip off E2EE; an unsupported reply restores the order and stops offering it", () => {
   resetSubtaskOrderForTests();
   withThird();
@@ -557,6 +660,82 @@ test("memo: saved after a pause and on leaving, with the placeholder when empty"
   fireEvent.change(memo, { target: { value: "끝" } });
   select("first");
   expect(IpcSender.req.task.updateTaskMemo).toHaveBeenLastCalledWith("loose", "끝", expect.any(Function));
+});
+
+const memoFoot = () => panel().querySelector(".rp-memo-foot");
+
+test("memo: the count always shows, typing stops at 10,000 (#107)", () => {
+  view();
+  select("loose");
+  const memo = inPanel().getByRole("textbox", { name: "메모" });
+  expect(memo).toHaveAttribute("maxLength", "10000");
+  expect(memoFoot()).toHaveTextContent("0 / 10,000");
+  expect(memoFoot()).not.toHaveClass("full");
+  expect(memoFoot().querySelector(".note")).toBeNull();
+  fireEvent.focus(memo);
+  fireEvent.change(memo, { target: { value: "첫 줄\n둘째" } });
+  expect(memoFoot().querySelector(".n")).toHaveTextContent("6 / 10,000");
+  fireEvent.change(memo, { target: { value: "가".repeat(10000) } });
+  expect(memoFoot().querySelector(".n")).toHaveTextContent("10,000 / 10,000");
+  expect(memoFoot()).toHaveClass("full");
+  select("first");
+  expect(memoFoot()).toHaveTextContent("5 / 10,000");
+});
+
+test("memo: a paste that goes over keeps what fits and says how much was left out until the next edit (#107)", () => {
+  view();
+  select("loose");
+  const memo = inPanel().getByRole("textbox", { name: "메모" });
+  const paste = (text) => fireEvent.paste(memo, { clipboardData: { getData: () => text } });
+  fireEvent.focus(memo);
+  fireEvent.change(memo, { target: { value: "가".repeat(9000) } });
+  memo.setSelectionRange(9000, 9000);
+  // Fits: no note.
+  paste("나".repeat(10));
+  fireEvent.change(memo, { target: { value: "가".repeat(9000) + "나".repeat(10) } });
+  expect(memoFoot().querySelector(".note")).toBeNull();
+  // 1,999 more where 990 fit (a pasted CRLF counts once, as in the value).
+  memo.setSelectionRange(9010, 9010);
+  paste("다".repeat(1998) + "\r\n");
+  expect(memoFoot().querySelector(".note")).toHaveTextContent("넘는 1,009자는 빼고 붙였어요");
+  // The browser inserts what fits; the note stays with that change.
+  const full = "가".repeat(9000) + "나".repeat(10) + "다".repeat(990);
+  fireEvent.change(memo, { target: { value: full } });
+  expect(memoFoot().querySelector(".note")).toHaveTextContent("넘는 1,009자는 빼고 붙였어요");
+  expect(memoFoot()).toHaveClass("full");
+  // A selection makes room: this one fits.
+  memo.setSelectionRange(0, 5);
+  paste("라".repeat(5));
+  // The next edit takes the note away.
+  fireEvent.change(memo, { target: { value: full.slice(1) } });
+  expect(memoFoot().querySelector(".note")).toBeNull();
+  // Nothing fits: no change follows, the note still shows.
+  fireEvent.change(memo, { target: { value: full } });
+  memo.setSelectionRange(10000, 10000);
+  paste("마");
+  expect(memoFoot().querySelector(".note")).toHaveTextContent("넘는 1자는 빼고 붙였어요");
+  fireEvent.blur(memo);
+  expect(IpcSender.req.task.updateTaskMemo).toHaveBeenLastCalledWith("loose", full, expect.any(Function));
+});
+
+test("memo: one already over 10,000 (an older version, the phone) is never cut on load or save (#107)", () => {
+  const long = "메".repeat(10050);
+  tasks.loose.memo = long;
+  view();
+  select("loose");
+  const memo = inPanel().getByRole("textbox", { name: "메모" });
+  expect(memo).toHaveValue(long);
+  expect(memoFoot().querySelector(".n")).toHaveTextContent("10,050 / 10,000");
+  expect(memoFoot()).toHaveClass("full");
+  // Leaving untouched saves nothing; a deletion saves the rest whole.
+  fireEvent.focus(memo);
+  fireEvent.blur(memo);
+  expect(IpcSender.req.task.updateTaskMemo).not.toHaveBeenCalled();
+  fireEvent.focus(memo);
+  fireEvent.change(memo, { target: { value: long.slice(1) } });
+  act(() => { jest.advanceTimersByTime(800); });
+  expect(IpcSender.req.task.updateTaskMemo).toHaveBeenCalledWith("loose", long.slice(1), expect.any(Function));
+  expect(memoFoot().querySelector(".n")).toHaveTextContent("10,049 / 10,000");
 });
 
 test("stamp: 만든 날 · 마지막 수정, left out when unknown", () => {

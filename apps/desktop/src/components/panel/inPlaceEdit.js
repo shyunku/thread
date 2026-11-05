@@ -1,10 +1,35 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 // Korean input: Enter and Esc while composing belong to the IME.
 export const composing = (event) => event.nativeEvent?.isComposing || event.keyCode === 229;
 
 // Line breaks (pasted text) become spaces in a one-line value.
 export const oneLine = (text) => text.replace(/\s*[\r\n]+\s*/g, " ");
+
+// The border counts too (the subtask name field has one; border-box).
+const fitHeight = (el) => {
+  el.style.height = "auto";
+  if (el.scrollHeight) el.style.height = `${el.scrollHeight + el.offsetHeight - el.clientHeight}px`;
+};
+
+// Grows a textarea with its text, and again when its width changes (the panel is resized).
+export function useAutoHeight(ref, value) {
+  useLayoutEffect(() => {
+    if (ref.current) fitHeight(ref.current);
+  }, [ref, value]);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === "undefined") return undefined;
+    let width = el.clientWidth;
+    const observer = new ResizeObserver(() => {
+      if (el.clientWidth === width) return; // its own height change
+      width = el.clientWidth;
+      fitHeight(el);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [ref]);
+}
 
 // A text field that edits in place: Enter (not while composing Korean) and leaving save, Esc
 // puts the text back. Esc is taken here so it neither closes the drawer nor clears the selection.

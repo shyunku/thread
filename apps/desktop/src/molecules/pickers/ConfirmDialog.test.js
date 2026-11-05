@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import ConfirmDialog from "./ConfirmDialog";
 import Popover from "./Popover";
-import { categoryDeleteConfirm, objectParticle, taskDeleteConfirm } from "./deleteConfirm";
+import { categoryDeleteConfirm, objectParticle } from "./deleteConfirm";
 
 const del = [{ id: "delete", label: "삭제", danger: true }];
 
@@ -169,15 +169,9 @@ describe("with a password field", () => {
 });
 
 describe("delete questions (mock confirmDialog())", () => {
-  test("task: trash, the title quoted with straight quotes, 을/를 by the last syllable", () => {
-    expect(taskDeleteConfirm("주간 보고서 제출")).toMatchObject({
-      icon: "trash",
-      iconColor: "var(--danger)",
-      title: "할 일을 삭제할까요?",
-      body: "'주간 보고서 제출'을 지워요. 되돌릴 수 없어요.",
-      choices: [{ id: "delete", label: "삭제", danger: true }],
-    });
-    expect(taskDeleteConfirm("책장 정리하기").body).toBe("'책장 정리하기'를 지워요. 되돌릴 수 없어요.");
+  test("을/를 by the last syllable; both after a name that does not end in Hangul", () => {
+    expect(objectParticle("주간 보고서 제출")).toBe("을");
+    expect(objectParticle("책장 정리하기")).toBe("를");
     expect(objectParticle("Report")).toBe("을(를)");
   });
 

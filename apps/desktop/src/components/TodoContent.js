@@ -16,10 +16,11 @@ import TaskTimelineView from "views/TaskTimelineView";
 import Toast from "molecules/Toast";
 import { START_VIEWS, prefsSelector, setPrefs } from "store/prefsSlice";
 import useClock from "hooks/UseClock";
-import { CategoryPicker, ConfirmDialog, TaskContextMenu, openPopupCount, taskDeleteConfirm } from "molecules/pickers";
+import { CategoryPicker, TaskContextMenu, openPopupCount } from "molecules/pickers";
 import { moveFocus } from "molecules/pickers/focusNav";
 import { categoryColor } from "utils/categoryColors";
-import { sortCategories } from "utils/categoryOrder";
+import { sortCategories, sortSubtasks } from "utils/categoryOrder";
+import { dueMs } from "utils/timeDisplay";
 import { PanelHost, useHomeLayout } from "layouts/homeLayoutContext";
 import ListHeader from "./list/ListHeader";
 import RightPanel, { PanelOpenButton } from "./panel/RightPanel";
@@ -28,6 +29,8 @@ import QuickAdd, { quickAddDefaults } from "./list/QuickAdd";
 import { searchSections, storedOrder } from "./list/listModel";
 import { TaskSelectionContext } from "./list/taskSelection";
 import useTaskCompletion from "./list/useTaskCompletion";
+import UndoNotice from "./UndoNotice";
+import useUndoNotice from "./useUndoNotice";
 import {
   applyAddTask,
   applyAddTaskCategory,
@@ -56,6 +59,27 @@ const isEditable = (el) =>
 const failed = (message) => ({ success, data } = {}) => {
   if (success === false) Toast.error(data?.code === "VAULT_BUSY" ? `${message} 잠시 뒤에 다시 해 주세요.` : message);
 };
+// The answer of a change with an undo notice: the notice learns it (a refused change has none),
+// and a refusal says so as above.
+const settled = (settle, message) => (reply = {}) => {
+  settle(reply.success !== false);
+  failed(message)(reply);
+};
+const undoFailed = failed("되돌리지 못했어요.");
+
+// A deleted task as task/restoreTask takes it back: its fields, categories, subtasks in the shown
+// order and its neighbours in the stored order (`list`). It comes back with a new id.
+function restoreSnapshot(task, list) {
+  const i = list.indexOf(task);
+  return {
+    ...task.toEntity(),
+    tid: v4(),
+    categories: Object.keys(task.categories ?? {}),
+    subtasks: sortSubtasks(Object.values(task.subtasks ?? {})).map((s) => s.toEntity()),
+    prevId: list[i - 1]?.id ?? null,
+    nextId: list[i + 1]?.id ?? null,
+  };
+}
 
 // The selection and the picked day, for the list, the views and the right panel.
 const ScreenContexts = ({ selection, pickedDay, children }) => (
@@ -85,7 +109,6 @@ const TodoContent = ({ children }) => {
   const [selectedTaskId, setSelectedTaskId] = useState(null);
   const [menu, setMenu] = useState(null); // task menu: { taskId, point, row }
   const [newCategoryFor, setNewCategoryFor] = useState(null); // { taskId, point }
-  const [confirm, setConfirm] = useState(null); // delete question: { taskId, title, row }
   // Initial view follows 설정 > 일반 > 시작할 때 보기; every menu can switch (#102).
   const [view, setView] = useState(() => (START_VIEWS.includes(prefs.startView) ? prefs.startView : "list"));
   // The picked day of the calendar view and the panel's calendar tab (usePickedDay). It follows
@@ -309,17 +332,65 @@ const TodoContent = ({ children }) => {
     };
   }, [fetchAll]);
 
+  /* ------------------------------ Undo notice ------------------------------ */
+  // The undo notice (#107.11) for adding, deleting and completing a task or a subtask, shown once
+  // the change is sent. What an undo needs is taken from the lists as they are now (`current`).
+  const undoNotice = useUndoNotice();
+  const { show: showNotice, dismissDone, clear: clearNotice } = undoNotice;
+  const current = useRef({});
+  current.current = { taskMap, categories, ordered, selectedTaskId, protocol: syncStatus?.protocolVersion };
+  const secretOf = (task) => !!task && isSecretTask(task, current.current.categories);
+  // A secret task's name never stays on screen once the lock closes; a vault lock, another
+  // account and leaving the screen take any notice away.
+  useEffect(() => {
+    // Secret when shown, or made secret since; an undo the user already pressed still runs.
+    if (!secretUnlocked) clearNotice((entry) => entry.secret || secretOf(current.current.taskMap[entry.target.tid]), { cancel: false });
+    // secretOf reads `current`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [secretUnlocked, clearNotice]);
+  useEffect(() => IpcSender.vault?.onLocked?.(null, () => clearNotice()), [clearNotice]);
+  const accountKey = syncStatus?.uid ?? null;
+  useEffect(() => () => clearNotice(), [accountKey, clearNotice]);
+  // A deleted task that was selected is selected again once its restore shows (it has a new id),
+  // unless another task was selected meanwhile.
+  const [reselect, setReselect] = useState(null);
+  useEffect(() => {
+    if (!reselect) return;
+    if (selectedTaskId && selectedTaskId !== reselect) setReselect(null);
+    else if (visibleIds.has(reselect)) {
+      setSelectedTaskId(reselect);
+      setReselect(null);
+    }
+  }, [reselect, selectedTaskId, visibleIds]);
+  // Taking back a completion. A repeating task rolled forward: on E2EE task/
+  // undoRecurringCompletion deletes the done copy and puts the due and the subtasks back. The
+  // plaintext and legacy paths roll it on the server, so there is nothing to take back there.
+  const undoDone = (task) => {
+    if (!task.repeatPeriod) return () => IpcSender.req.task.updateTaskDone(task.id, false, Date.now(), undoFailed);
+    const due = dueMs(task.dueDate);
+    if (current.current.protocol !== 3 || due === null) return null;
+    return () => IpcSender.req.task.undoRecurringCompletion(task.id, due, undoFailed);
+  };
+  // The restores are composites of the E2EE and plaintext v2 paths; the legacy one has none.
+  const canRestore = () => current.current.protocol === 2 || current.current.protocol === 3;
+
   /* ------------------------------ Handlers ------------------------------ */
   // A task added with a secret category on a screen that hides secret tasks (locked) would
-  // vanish without a word; it says where it went (secretFilterRef: the screen's filter).
+  // vanish without a word; it says where it went (secretFilterRef: the screen's filter), with no
+  // undo notice, so its name does not show on the locked screen.
   const onTaskAdd = useCallback((task) => {
     if (!(task instanceof Task)) return;
     const hidden = secretFilterRef.current ? !secretFilterRef.current(task) : false;
+    const settle = hidden ? null : showNotice({
+      kind: "add", name: task.title, target: { tid: task.id }, secret: isSecretTask(task, current.current.categories),
+      undo: () => IpcSender.req.task.deleteTask(task.id, undoFailed),
+    });
     IpcSender.req.task.addTask(task.toEntity(), (reply = {}) => {
+      settle?.(reply.success !== false);
       if (reply.success === false) failed("할 일을 추가하지 못했어요.")(reply);
       else if (hidden) Toast.info("비밀 카테고리 할 일은 잠금을 풀면 보여요.");
     });
-  }, []);
+  }, [showNotice]);
 
   // A category made from a picker (quick add, the task menu): the next palette colour comes from
   // the picker. Resolves to its id once stored.
@@ -337,17 +408,35 @@ const TodoContent = ({ children }) => {
 
   // Every task change the list and the detail panel (phase F) send.
   // Every change says so when it is refused (failed); setDue / setDone / setRepeat take an own
-  // callback({ success }) instead when the caller needs the answer.
+  // callback({ success }) instead when the caller needs the answer. Adding, deleting and
+  // completing (a task or a subtask) show the undo notice; unchecking lets a notice about that
+  // completion go.
   const actions = useMemo(() => ({
     addTask: onTaskAdd,
-    deleteTask: (tid) => IpcSender.req.task.deleteTask(tid, failed("할 일을 삭제하지 못했어요.")),
+    deleteTask: (tid) => {
+      const { taskMap: map, ordered: list, selectedTaskId: selected } = current.current;
+      const task = map[tid];
+      if (!task) return IpcSender.req.task.deleteTask(tid, failed("할 일을 삭제하지 못했어요."));
+      const snapshot = restoreSnapshot(task, list);
+      const settle = showNotice({
+        kind: "del", name: task.title, target: { tid }, secret: secretOf(task),
+        undo: canRestore() ? () => IpcSender.req.task.restoreTask(snapshot, (reply = {}) => {
+          if (reply.success === false) undoFailed(reply);
+          else if (selected === tid) setReselect(snapshot.tid);
+        }) : null,
+      });
+      IpcSender.req.task.deleteTask(tid, settled(settle, "할 일을 삭제하지 못했어요."));
+    },
     setTitle: (tid, title) => IpcSender.req.task.updateTaskTitle(tid, title, failed("제목을 바꾸지 못했어요.")),
     // null clears the due; on a repeating task the model clears the repeat with it.
     // callback({ success }) answers it (the panel sends a repeat only after the due it needs).
     setDue: (tid, dueDate, callback) => IpcSender.req.task.updateTaskDueDate(tid, dueDate == null ? null : moment(dueDate).valueOf(), callback ?? failed("기한을 바꾸지 못했어요.")),
     setMemo: (tid, memo) => IpcSender.req.task.updateTaskMemo(tid, memo, failed("메모를 저장하지 못했어요.")),
     // callback({ success }) answers the change (the list restores a refused completion).
-    setDone: (tid, done, callback) => IpcSender.req.task.updateTaskDone(tid, done, Date.now(), callback ?? failed(done ? "완료하지 못했어요." : "완료를 취소하지 못했어요.")),
+    setDone: (tid, done, callback) => {
+      if (!done) dismissDone(tid);
+      IpcSender.req.task.updateTaskDone(tid, done, Date.now(), callback ?? failed(done ? "완료하지 못했어요." : "완료를 취소하지 못했어요."));
+    },
     addCategory: (tid, cid) => IpcSender.req.task.addTaskCategory(tid, cid, failed("카테고리를 넣지 못했어요.")),
     removeCategory: (tid, cid) => IpcSender.req.task.deleteTaskCategory(tid, cid, failed("카테고리를 빼지 못했어요.")),
     setRepeat: (tid, repeat, callback) => IpcSender.req.task.updateTaskRepeatPeriod(tid, repeat, callback ?? failed("반복을 정하지 못했어요.")),
@@ -355,16 +444,45 @@ const TodoContent = ({ children }) => {
     duplicate: (tid) => IpcSender.req.task.duplicateTask(tid, null, failed("복제하지 못했어요.")),
     createCategory: onCreateCategory,
     addSubtask: (tid, subtask) => {
-      if (subtask instanceof Subtask) IpcSender.req.task.createSubtask(subtask.toEntity(), tid, failed("하위 할 일을 추가하지 못했어요."));
+      if (!(subtask instanceof Subtask)) return;
+      const settle = showNotice({
+        kind: "add", name: subtask.title, target: { tid, sid: subtask.id }, secret: secretOf(current.current.taskMap[tid]),
+        undo: () => IpcSender.req.task.deleteSubtask(tid, subtask.id, undoFailed),
+      });
+      IpcSender.req.task.createSubtask(subtask.toEntity(), tid, settled(settle, "하위 할 일을 추가하지 못했어요."));
     },
-    deleteSubtask: (tid, sid) => IpcSender.req.task.deleteSubtask(tid, sid, failed("하위 할 일을 삭제하지 못했어요.")),
+    deleteSubtask: (tid, sid) => {
+      const task = current.current.taskMap[tid], subtask = task?.subtasks?.[sid];
+      if (!subtask) return IpcSender.req.task.deleteSubtask(tid, sid, failed("하위 할 일을 삭제하지 못했어요."));
+      // Back next to the subtask it followed (or before the one after it) in the shown order.
+      const shown = sortSubtasks(Object.values(task.subtasks)), i = shown.indexOf(subtask);
+      const near = { prevId: shown[i - 1]?.id ?? null, nextId: shown[i + 1]?.id ?? null };
+      const entity = subtask.toEntity();
+      const settle = showNotice({
+        kind: "del", name: subtask.title, target: { tid, sid }, secret: secretOf(task),
+        undo: canRestore() ? () => IpcSender.req.task.restoreSubtask(tid, entity, near, undoFailed) : null,
+      });
+      IpcSender.req.task.deleteSubtask(tid, sid, settled(settle, "하위 할 일을 삭제하지 못했어요."));
+    },
     setSubtaskTitle: (tid, sid, title) => IpcSender.req.task.updateSubtaskTitle(tid, sid, title, failed("하위 할 일 이름을 바꾸지 못했어요.")),
     setSubtaskDue: (tid, sid, dueDate) => IpcSender.req.task.updateSubtaskDueDate(tid, sid, dueDate == null ? null : moment(dueDate).valueOf(), failed("하위 할 일 기한을 바꾸지 못했어요.")),
-    setSubtaskDone: (tid, sid, done) => IpcSender.req.task.updateSubtaskDone(tid, sid, done, Date.now(), failed(done ? "하위 할 일을 완료하지 못했어요." : "하위 할 일 완료를 취소하지 못했어요.")),
+    setSubtaskDone: (tid, sid, done) => {
+      const message = done ? "하위 할 일을 완료하지 못했어요." : "하위 할 일 완료를 취소하지 못했어요.";
+      const task = current.current.taskMap[tid], subtask = task?.subtasks?.[sid];
+      if (!done) dismissDone(tid, sid);
+      if (!done || !subtask) return IpcSender.req.task.updateSubtaskDone(tid, sid, done, Date.now(), failed(message));
+      const settle = showNotice({
+        kind: "done", name: subtask.title, target: { tid, sid }, secret: secretOf(task),
+        undo: () => IpcSender.req.task.updateSubtaskDone(tid, sid, false, Date.now(), undoFailed),
+      });
+      IpcSender.req.task.updateSubtaskDone(tid, sid, true, Date.now(), settled(settle, message));
+    },
     // Puts the subtask next to anchorId (after it when `after`); callback({ success, data })
     // answers it (the panel shows the dropped order until the synced one has it). E2EE only.
     moveSubtask: (tid, sid, anchorId, after, callback) => IpcSender.req.task.updateSubtaskOrder(tid, sid, anchorId, after, callback),
-  }), [onTaskAdd, onCreateCategory]);
+    // secretOf and canRestore read `current`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [onTaskAdd, onCreateCategory, showNotice, dismissDone]);
 
   const toggleCategory = (task, cid) => {
     if (task.categories?.[cid]) actions.removeCategory(task.id, cid);
@@ -518,14 +636,28 @@ const TodoContent = ({ children }) => {
   useEffect(() => {
     if (selectedTaskId && !selectedVisible) setSelectedTaskId(null);
   }, [selectedTaskId, selectedVisible]);
-  // The task menu, its 새 카테고리 picker and the delete question close the same way.
+  // The task menu and its 새 카테고리 picker close the same way.
   useEffect(() => {
     if (menu && !visibleIds.has(menu.taskId)) setMenu(null);
     if (newCategoryFor && !visibleIds.has(newCategoryFor.taskId)) setNewCategoryFor(null);
-    if (confirm && !visibleIds.has(confirm.taskId)) setConfirm(null);
-  }, [menu, newCategoryFor, confirm, visibleIds]);
+  }, [menu, newCategoryFor, visibleIds]);
 
-  const askDelete = useCallback((task, row) => setConfirm({ taskId: task.id, title: task.title, row }), []);
+  // Deleting asks nothing since #107 (the undo notice takes it back). From a list row, focus goes
+  // to the next row (else the one before), after the menu has given it back to the row.
+  const [focusAfter, setFocusAfter] = useState(null);
+  useEffect(() => {
+    if (!focusAfter) return;
+    if (focusAfter.isConnected) focusAfter.focus();
+    setFocusAfter(null);
+  }, [focusAfter]);
+  const deleteNow = useCallback((task, row) => {
+    const rows = row?.matches?.(".task-row") ? [...(row.closest(".tc-scroll")?.querySelectorAll(".task-row") ?? [])] : [];
+    const i = rows.indexOf(row);
+    const next = i < 0 ? null : rows[i + 1] ?? rows[i - 1] ?? null;
+    actions.deleteTask(task.id);
+    setSelectedTaskId((id) => (id === task.id ? null : id));
+    if (next) setFocusAfter(next);
+  }, [actions]);
 
   // The latest screen state for the handlers below, which stay the same so rows can skip renders.
   const live = useRef({});
@@ -559,8 +691,8 @@ const TodoContent = ({ children }) => {
   }, [selectedTaskId, setSelectedTaskId]);
 
   // Esc clears the selection unless something above handled it (popups preventDefault their
-  // Esc, a drawer closes first); Del asks to delete the selected (or focused) task when it is on
-  // screen (a hidden search hit after the unlock).
+  // Esc, a drawer closes first); Del deletes the selected (or focused) task when it is on screen
+  // (a hidden search hit after the unlock).
   useEffect(() => {
     const onKey = (event) => {
       if (event.defaultPrevented || openPopupCount() > 0 || isEditable(event.target)) return;
@@ -568,6 +700,9 @@ const TodoContent = ({ children }) => {
         if (!selectedTaskId || (layout.hideSide && layout.sideOpen) || (layout.overlayPanel && layout.panelOpen)) return;
         setSelectedTaskId(null);
       } else if (event.key === "Delete") {
+        // Held down it would delete row after row (focus moves to the next one) with only the
+        // last one to undo.
+        if (event.repeat) return;
         const active = document.activeElement;
         const inList = !active || active === document.body || !!active.closest?.(".todo-content");
         const rowEl = event.target instanceof Element ? event.target.closest(".todo-content [data-task-id]") : null;
@@ -576,26 +711,37 @@ const TodoContent = ({ children }) => {
         const rowOf = () => rowEl || document.querySelector(`.todo-content [data-task-id="${task.id}"]`);
         if (searching && isHiddenHit(task) && !secretSession.unlocked && rowEl) {
           event.preventDefault();
-          unlockFor(task).then((ok) => ok && askDelete(task, rowOf()));
+          unlockFor(task).then((ok) => ok && deleteNow(task, rowOf()));
           return;
         }
         if (!visibleIds.has(task.id)) return;
         event.preventDefault();
-        askDelete(task, rowOf());
+        deleteNow(task, rowOf());
       }
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [selectedTaskId, taskMap, layout.hideSide, layout.sideOpen, layout.overlayPanel, layout.panelOpen, askDelete,
+  }, [selectedTaskId, taskMap, layout.hideSide, layout.sideOpen, layout.overlayPanel, layout.panelOpen, deleteNow,
     searching, isHiddenHit, secretSession.unlocked, visibleIds, unlockFor]);
 
-  // A refused change shows the row again and says so; success is silent.
-  const complete = useTaskCompletion((task, done, onFailed) =>
+  // A refused change shows the row again and says so; a completion that went through has the
+  // undo notice (list, calendar, timeline and the panel all complete through here).
+  const complete = useTaskCompletion((task, done, onFailed) => {
+    // An undo also shows the row the fall hid, in case the list has not dropped it yet.
+    const takeBack = done ? undoDone(task) : null;
+    const settle = done
+      ? showNotice({
+        kind: "done", name: task.title, target: { tid: task.id }, secret: secretOf(task),
+        undo: takeBack && (() => { onFailed?.(); takeBack(); }),
+      })
+      : null;
     actions.setDone(task.id, done, ({ success } = {}) => {
+      settle?.(success !== false);
       if (success !== false) return;
       Toast.error(done ? "완료하지 못했어요." : "완료를 취소하지 못했어요.");
       onFailed?.();
-    }));
+    });
+  });
 
   // Completion from elsewhere (the panel) animates the task's list row when it is on screen.
   const completeTask = useCallback((task, done = true) => {
@@ -611,7 +757,7 @@ const TodoContent = ({ children }) => {
   }, []);
   // For items outside the list (calendar, timeline, the panel's day list): the same task menu at
   // the pointer, and 열기. Only tasks on the screen. returnEl: where focus goes back after the
-  // delete question (the calendar's day cell; its items cannot take focus), else the item.
+  // menu (the calendar's day cell; its items cannot take focus), else the item.
   const onTaskContextMenu = useCallback((event, taskId, returnEl) => {
     event?.preventDefault?.();
     if (!live.current.visibleIds.has(taskId)) return;
@@ -709,7 +855,6 @@ const TodoContent = ({ children }) => {
   const onScreen = (id) => (visibleIds.has(id) ? taskMap[id] : null);
   const menuTask = menu ? onScreen(menu.taskId) : null;
   const newCategoryTask = newCategoryFor ? onScreen(newCategoryFor.taskId) : null;
-  const confirmTask = confirm ? onScreen(confirm.taskId) : null;
 
   return (
     <ScreenContexts selection={selection} pickedDay={pickedDayValue}>
@@ -787,7 +932,7 @@ const TodoContent = ({ children }) => {
           onToggleCategory={(cid) => toggleCategory(menuTask, cid)}
           onNewCategory={() => setNewCategoryFor({ taskId: menuTask.id, point: menu.point })}
           onDuplicate={() => actions.duplicate(menuTask.id)}
-          onDelete={() => askDelete(menuTask, menu.row)}
+          onDelete={() => deleteNow(menuTask, menu.row)}
           onClose={() => setMenu(null)}
         />
       )}
@@ -803,18 +948,7 @@ const TodoContent = ({ children }) => {
           onClose={() => setNewCategoryFor(null)}
         />
       )}
-      {confirmTask && (
-        <ConfirmDialog
-          {...taskDeleteConfirm(confirm.title)}
-          returnFocus={confirm.row}
-          onChoose={() => {
-            actions.deleteTask(confirmTask.id);
-            if (selectedTaskId === confirmTask.id) setSelectedTaskId(null);
-            setConfirm(null);
-          }}
-          onCancel={() => setConfirm(null)}
-        />
-      )}
+      <UndoNotice notice={undoNotice.notice} onUndo={undoNotice.undo} />
     </ScreenContexts>
   );
 };

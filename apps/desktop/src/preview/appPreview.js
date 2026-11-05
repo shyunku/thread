@@ -9,7 +9,7 @@ import Home from "../pages/Home";
 import { fromSyncV2View } from "../utils/syncV2View";
 import Prompt from "../molecules/Prompt";
 import Toast from "../molecules/Toast";
-import { ConfirmDialog, taskDeleteConfirm } from "../molecules/pickers";
+import UndoNotice from "../components/UndoNotice";
 
 const DAY = 86400000;
 
@@ -124,20 +124,20 @@ export function previewSyncStatus(state) {
   return base;
 }
 
-// confirm=task shows the task delete question (#102; the list asks it from the task menu and Del).
-// q=<text> starts with that search.
+// undo=<done|add|del> shows the undo notice (#107) for the first task, as after that change (a
+// change made in the preview shows its own). q=<text> starts with that search.
 function PreviewRoot() {
-  const [states, syncStatus, confirmTask, initialQuery] = useMemo(() => {
+  const [states, syncStatus, undoKind, initialQuery] = useMemo(() => {
     const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
     return [
       fromSyncV2View(previewView(params.get("long") === "1", Number(params.get("count")) || 0, params.get("empty") === "1", params.get("notime") === "1")),
       previewSyncStatus(params.get("sync")),
-      params.get("confirm") === "task",
+      ["done", "add", "del"].includes(params.get("undo")) ? params.get("undo") : null,
       params.get("q") || "",
     ];
   }, []);
   const [searchQuery, setSearchQuery] = useState(initialQuery);
-  const [asking, setAsking] = useState(confirmTask);
+  const [notice, setNotice] = useState(() => (undoKind ? { seq: 0, kind: undoKind, name: "분기 회고 자료 정리", canUndo: true, leaving: false } : null));
   return (
     <div className="root-layout">
       <TopBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
@@ -147,7 +147,7 @@ function PreviewRoot() {
       <div className="root-layout__content">
         <Outlet context={{ localNonce: 0, remoteNonce: 0, addPromise: () => {}, states, searchQuery, syncStatus }} />
       </div>
-      {asking && <ConfirmDialog {...taskDeleteConfirm("분기 회고 자료 정리")} onChoose={() => setAsking(false)} onCancel={() => setAsking(false)} />}
+      <UndoNotice notice={notice} onUndo={() => setNotice(null)} />
     </div>
   );
 }
