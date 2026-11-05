@@ -188,7 +188,14 @@
   .rcol .roll > span { display: block; animation: rollIn .26s cubic-bezier(.2, .8, .2, 1); }
   @keyframes rollIn { from { transform: translateY(100%); opacity: 0; } to { transform: none; opacity: 1; } }
   .task-row.rep-flash { animation: repFlash .7s ease-out; }
-  .task-row.rep-back-flash { animation: repBack .24s ease-out, repFlash .8s ease-out .12s; }
+  /* The flash: the tint on the row, its line on a layer above the row's divider; rounded like the
+     box at its first and last row, so nothing cuts it. */
+  .task-row.rep-back-flash { animation: repBack .24s ease-out, repFlashBg 1.6s ease-out .12s both; }
+  .task-row.rep-back-flash::after { content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none; box-shadow: inset 0 0 0 1px #3d6fe0; opacity: 0; animation: repFlashLine 1.6s ease-out .12s both; }
+  .task-row.rep-back-flash:first-child::after { border-top-left-radius: 10px; border-top-right-radius: 10px; }
+  .task-row.rep-back-flash:last-child::after { border-bottom-left-radius: 10px; border-bottom-right-radius: 10px; }
+  @keyframes repFlashBg { 0% { background: var(--accent-soft); } 100% { background: transparent; } }
+  @keyframes repFlashLine { 0% { opacity: 1; } 100% { opacity: 0; } }
   @keyframes repFlash { 0% { background: var(--accent-soft); box-shadow: inset 0 0 0 1px #3d6fe0; } 100% { background: transparent; box-shadow: inset 0 0 0 1px transparent; } }
   .rep-rise { position: absolute; z-index: 50; pointer-events: none; display: flex; align-items: flex-start; gap: var(--ck-gap); box-sizing: border-box; border-radius: 10px; background: var(--raise); animation: repRise .408s cubic-bezier(.4, 0, 1, 1) forwards; }
   @keyframes repRise { to { transform: translateY(-80px); opacity: 0; } }
@@ -448,7 +455,7 @@ function repeatDone(t) {
   repTimers.forEach(clearTimeout); repTimers = [];
   const row = () => document.querySelector('.task-row[data-tid="' + t.id + '"]');
   const later = (ms, fn) => repTimers.push(setTimeout(fn, ms));
-  const roll = () => { Object.assign(t, NEXT, { g: 'tomorrow' }); s.tasks = s.tasks.filter(x => x !== t).concat(t); t.rolled = s.repeatAnim; act(t.t, '완료했어요', 'done', () => {}, t.id); later(400, () => { t.rolled = null; }); };
+  const roll = () => { Object.assign(t, NEXT, { g: 'tomorrow' }); s.tasks = s.tasks.filter(x => x !== t).concat(t); t.rolled = s.repeatAnim; act(t.t, '완료했어요', 'done', () => {}, t.id); later(1800, () => { t.rolled = null; }); };
   const r = row(); if (!r) return;
   const ck = r.querySelector('.ck');
   ck.classList.add('done', 'pop');
@@ -520,7 +527,7 @@ function taskRow(t) {
     t.sel ? `<span>${I.sub}<i>${subDone}/${s.subs.length}</i></span>` : '',
     t.memo ? `<span>${I.memo}</span>` : '',
   ].join('');
-  const back = t.rolled === 'fallflash' ? 'rep-back-flash' : t.rolled === 'fall' || t.backAnim === 'rise' ? 'rep-back' : t.backAnim === 'fade' ? 'rep-fade-in' : '';
+  const back = t.rolled === 'fallflash' ? 'rep-back-flash' : '';
   const roll = (text) => t.rolled === 'roll' ? `<span class="roll"><span>${text}</span></span>` : text;
   return `<div class="task-row ${t.sel ? 'sel' : ''} ${t.done ? 'done' : ''} ${back}" data-tid="${t.id}"><button class="ck ${t.done ? 'done' : ''}" data-act="tck" data-tid="${t.id}">${I.check}</button><div class="tx"><div class="t">${esc(t.t)}</div><div class="meta">${meta}</div></div>
     <div class="rcol"><span class="when ${t.over ? 'over' : ''}">${roll(t.when)}</span><span class="left ${t.over ? 'over' : ''}">${roll(t.left)}</span></div><button class="st ${t.imp ? 'on' : ''}">${I.star(t.imp, 16)}</button></div>`;
@@ -766,12 +773,10 @@ const replayUndone = () => { s.dlg = null; s.toast = null; Object.assign(task('t
 const OPTS = [
   { at: '.task-row[data-tid="t4"]', key: 'repeatAnim', title: '목록에서 반복 할 일 완료할 때', show: () => { s.scrollTo = 'top'; repTimers.forEach(clearTimeout); repTimers = []; setTimeout(replay, 0); },
     items: [['pop', '체크만 톡', '지금 모습. 체크가 튀고 줄이 내일 묶음으로 바로 옮겨짐', 'old'],
-      ['fall', '내려갔다 다시 나타남', '일반 할 일처럼 떨어지고, 다음 회차가 내일 묶음에 스르륵'],
-      ['fallflash', '내려갔다 나타나며 빛남', '위와 같고, 나타난 줄이 파랗게 한 번 빛나 어디로 갔는지 보임', 'rec']] },
+      ['fallflash', '내려갔다 나타나며 빛남', '떨어진 뒤 다음 회차 줄이 1.6초 동안 파랗게 빛남', 'rec']] },
   { at: '.task-row[data-tid="t6"]', key: 'uncheckAnim', title: '완료한 할 일 체크 해제할 때', show: () => { s.scrollTo = 'top'; repTimers.forEach(clearTimeout); repTimers = []; setTimeout(replayUndone, 0); },
     items: [['none', '바로 옮겨짐', '지금 모습. 완료 묶음에서 원래 묶음으로 바로', 'old'],
-      ['rise', '올라갔다 다시 나타남', '완료할 때의 반대. 위로 떠오르며 사라지고 원래 묶음에 스르륵', 'rec'],
-      ['fade', '흐려졌다 나타남', '제자리에서 흐려지고 원래 묶음에 흐릿하게 나타남']] },
+      ['rise', '올라가며 사라짐', '완료할 때의 반대. 원래 묶음에는 바로 보임', 'rec']] },
 ];
 const curOf = o => o.cur ? o.cur() : s[o.key];
 const choose = (o, v) => { if (o.set) o.set(v); else s[o.key] = v; o.show(); render(); };
