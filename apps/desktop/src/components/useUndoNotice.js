@@ -15,7 +15,7 @@ const isUndoKey = (event) =>
   (event.code === "KeyZ" || event.key?.toLowerCase() === "z");
 
 // Returns { notice, show, undo, dismissDone, clear }.
-// - show({ kind: "done" | "add" | "del", name, target: { tid, sid }, secret, undo }) shows it for
+// - show({ kind: "done" | "del", name, target: { tid, sid }, secret, undo }) shows it for
 //   a change just sent and returns settle(ok) for that change's answer: a refused change takes
 //   the notice away, and an undo pressed before the answer waits for it (it runs only once the
 //   change went through). Without `undo` the notice has no 되돌리기.

@@ -376,21 +376,15 @@ const TodoContent = ({ children }) => {
 
   /* ------------------------------ Handlers ------------------------------ */
   // A task added with a secret category on a screen that hides secret tasks (locked) would
-  // vanish without a word; it says where it went (secretFilterRef: the screen's filter), with no
-  // undo notice, so its name does not show on the locked screen.
+  // vanish without a word; it says where it went (secretFilterRef: the screen's filter).
   const onTaskAdd = useCallback((task) => {
     if (!(task instanceof Task)) return;
     const hidden = secretFilterRef.current ? !secretFilterRef.current(task) : false;
-    const settle = hidden ? null : showNotice({
-      kind: "add", name: task.title, target: { tid: task.id }, secret: isSecretTask(task, current.current.categories),
-      undo: () => IpcSender.req.task.deleteTask(task.id, undoFailed),
-    });
     IpcSender.req.task.addTask(task.toEntity(), (reply = {}) => {
-      settle?.(reply.success !== false);
       if (reply.success === false) failed("할 일을 추가하지 못했어요.")(reply);
       else if (hidden) Toast.info("비밀 카테고리 할 일은 잠금을 풀면 보여요.");
     });
-  }, [showNotice]);
+  }, []);
 
   // A category made from a picker (quick add, the task menu): the next palette colour comes from
   // the picker. Resolves to its id once stored.
@@ -408,9 +402,9 @@ const TodoContent = ({ children }) => {
 
   // Every task change the list and the detail panel (phase F) send.
   // Every change says so when it is refused (failed); setDue / setDone / setRepeat take an own
-  // callback({ success }) instead when the caller needs the answer. Adding, deleting and
-  // completing (a task or a subtask) show the undo notice; unchecking lets a notice about that
-  // completion go.
+  // callback({ success }) instead when the caller needs the answer. Deleting and completing (a
+  // task or a subtask) show the undo notice, adding does not (the user's call); unchecking lets a
+  // notice about that completion go.
   const actions = useMemo(() => ({
     addTask: onTaskAdd,
     deleteTask: (tid) => {
@@ -444,12 +438,7 @@ const TodoContent = ({ children }) => {
     duplicate: (tid) => IpcSender.req.task.duplicateTask(tid, null, failed("복제하지 못했어요.")),
     createCategory: onCreateCategory,
     addSubtask: (tid, subtask) => {
-      if (!(subtask instanceof Subtask)) return;
-      const settle = showNotice({
-        kind: "add", name: subtask.title, target: { tid, sid: subtask.id }, secret: secretOf(current.current.taskMap[tid]),
-        undo: () => IpcSender.req.task.deleteSubtask(tid, subtask.id, undoFailed),
-      });
-      IpcSender.req.task.createSubtask(subtask.toEntity(), tid, settled(settle, "하위 할 일을 추가하지 못했어요."));
+      if (subtask instanceof Subtask) IpcSender.req.task.createSubtask(subtask.toEntity(), tid, failed("하위 할 일을 추가하지 못했어요."));
     },
     deleteSubtask: (tid, sid) => {
       const task = current.current.taskMap[tid], subtask = task?.subtasks?.[sid];

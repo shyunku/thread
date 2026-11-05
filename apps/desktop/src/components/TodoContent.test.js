@@ -589,27 +589,35 @@ test("undoing a delete restores the whole task in one change and selects it agai
   expect(selectionProbe.selectedTaskId).toBe(snapshot.tid);
 });
 
-test("adding a task or a subtask shows the notice; undo deletes what was added", () => {
-  const { container } = view();
+// One more task in the lists, by id and title.
+const withTask = (id, title) => {
+  const task = makeTask(id, title, null);
+  mockContext = { ...mockContext, states: { ...mockContext.states, taskMap: { ...mockContext.states.taskMap, [id]: task } } };
+  return task;
+};
+
+test("adding a task or a subtask shows no notice", () => {
+  view();
   const input = screen.getByRole("textbox", { name: "새 할 일" });
   fireEvent.change(input, { target: { value: "새 작업" } });
   fireEvent.keyDown(input, { key: "Enter" });
-  const added = IpcSender.req.task.addTask.mock.calls.at(-1)[0];
-  expect(notice()).toHaveTextContent("'새 작업'을 추가했어요");
-  expect(notice().querySelector(".un-i.add")).not.toBeNull();
-  // Ctrl+Z in the quick add is the field's own undo.
-  ctrlZ(input);
-  expect(IpcSender.req.task.deleteTask).not.toHaveBeenCalled();
-  row(container, "first").focus();
-  ctrlZ(row(container, "first"));
-  expect(IpcSender.req.task.deleteTask).toHaveBeenCalledWith(added.tid, expect.any(Function));
-
+  expect(IpcSender.req.task.addTask).toHaveBeenCalledTimes(1);
+  expect(notice()).toBeNull();
   const subtask = new Subtask("메모 정리", null);
   act(() => selectionProbe.actions.addSubtask("first", subtask));
   expect(IpcSender.req.task.createSubtask).toHaveBeenCalledWith(expect.objectContaining({ sid: subtask.id, title: "메모 정리" }), "first", expect.any(Function));
-  expect(notice()).toHaveTextContent("'메모 정리'를 추가했어요");
-  fireEvent.click(undoButton());
-  expect(IpcSender.req.task.deleteSubtask).toHaveBeenCalledWith("first", subtask.id, expect.any(Function));
+  expect(notice()).toBeNull();
+});
+
+test("Ctrl+Z in a text field is the field's own undo; elsewhere it takes the change back", () => {
+  const { container } = view();
+  act(() => selectionProbe.actions.deleteTask("repeat"));
+  expect(notice()).toHaveTextContent("'운동'을 지웠어요");
+  ctrlZ(screen.getByRole("textbox", { name: "새 할 일" }));
+  expect(IpcSender.req.task.restoreTask).not.toHaveBeenCalled();
+  row(container, "first").focus();
+  ctrlZ(row(container, "first"));
+  expect(IpcSender.req.task.restoreTask).toHaveBeenCalledTimes(1);
 });
 
 test("deleting and completing a subtask show the notice; undo restores it in place or unchecks it", () => {
@@ -671,22 +679,22 @@ test("completing a task shows the notice; Ctrl+Z unchecks it, a manual uncheck l
   // One at a time: the next action replaces it, and only the latest is undone.
   act(() => selectionProbe.complete(mockContext.states.taskMap.second, true));
   act(() => { jest.advanceTimersByTime(136 + 425); });
-  act(() => selectionProbe.actions.addSubtask("first", new Subtask("새 하위", null)));
+  act(() => selectionProbe.actions.deleteTask("repeat"));
   expect(document.querySelectorAll(".undo-notice")).toHaveLength(1);
-  expect(notice()).toHaveTextContent("'새 하위'를 추가했어요");
+  expect(notice()).toHaveTextContent("'운동'을 지웠어요");
   const calls = IpcSender.req.task.updateTaskDone.mock.calls.length;
   ctrlZ();
-  expect(IpcSender.req.task.deleteSubtask).toHaveBeenCalledTimes(1);
+  expect(IpcSender.req.task.restoreTask).toHaveBeenCalledTimes(1);
   expect(IpcSender.req.task.updateTaskDone).toHaveBeenCalledTimes(calls);
 });
 
 test("the notice leaves after 5 s and then cannot be undone; long names are cut", () => {
+  withTask("long", "다음 주 월요일 회의 전까지 분기별 마케팅 성과 보고서 초안 작성하기");
   view();
-  const long = makeTask("long", "다음 주 월요일 회의 전까지 분기별 마케팅 성과 보고서 초안 작성하기", null);
-  act(() => selectionProbe.actions.addTask(long));
+  act(() => selectionProbe.actions.deleteTask("long"));
   expect(notice().querySelector(".un-nm")).toHaveTextContent(/^다음 주 월요일 회의 전까지 분기별 마…$/);
   expect(notice().querySelector(".un-nm").textContent).toHaveLength(22);
-  expect(notice()).toHaveTextContent("…'를 추가했어요");
+  expect(notice()).toHaveTextContent("…'를 지웠어요");
   act(() => { jest.advanceTimersByTime(4999); });
   expect(notice()).not.toHaveClass("out");
   act(() => { jest.advanceTimersByTime(1); });
@@ -694,35 +702,34 @@ test("the notice leaves after 5 s and then cannot be undone; long names are cut"
   act(() => { jest.advanceTimersByTime(160); });
   expect(notice()).toBeNull();
   ctrlZ();
-  expect(IpcSender.req.task.deleteTask).not.toHaveBeenCalled();
+  expect(IpcSender.req.task.restoreTask).not.toHaveBeenCalled();
 });
 
 test("a refused change shows no notice and keeps its toast; an undo before the answer waits for it", () => {
   const errors = jest.spyOn(Toast, "error").mockImplementation(() => {});
+  withSubtasks();
   view();
-  IpcSender.req.task.addTask.mockImplementationOnce((entity, cb) => cb({ success: false }));
-  act(() => selectionProbe.actions.addTask(makeTask("x", "실패", null)));
+  IpcSender.req.task.deleteTask.mockImplementationOnce((tid, cb) => cb({ success: false }));
+  act(() => selectionProbe.actions.deleteTask("first"));
   expect(notice()).toBeNull();
-  expect(errors).toHaveBeenCalledWith("할 일을 추가하지 못했어요.");
+  expect(errors).toHaveBeenCalledWith("할 일을 삭제하지 못했어요.");
   // An undo pressed before the answer of the change it undoes runs once that change is through.
-  let created;
-  IpcSender.req.task.createSubtask.mockImplementation((entity, tid, cb) => { created = cb; });
-  const later = new Subtask("답 기다림", null);
-  act(() => selectionProbe.actions.addSubtask("first", later));
+  let answer;
+  IpcSender.req.task.deleteSubtask.mockImplementation((tid, sid, cb) => { answer = cb; });
+  act(() => selectionProbe.actions.deleteSubtask("first", "sa"));
   ctrlZ();
-  expect(IpcSender.req.task.deleteSubtask).not.toHaveBeenCalledWith("first", later.id, expect.any(Function));
-  act(() => created({ success: true }));
-  expect(IpcSender.req.task.deleteSubtask).toHaveBeenCalledWith("first", later.id, expect.any(Function));
+  expect(IpcSender.req.task.restoreSubtask).not.toHaveBeenCalled();
+  act(() => answer({ success: true }));
+  expect(IpcSender.req.task.restoreSubtask).toHaveBeenCalledTimes(1);
   // Refused after it was shown: the notice goes at once, and an undo waiting for it never runs.
   act(() => { jest.advanceTimersByTime(160); });
-  const refused = new Subtask("거절", null);
-  act(() => selectionProbe.actions.addSubtask("first", refused));
-  expect(notice()).toHaveTextContent("'거절'을 추가했어요");
+  act(() => selectionProbe.actions.deleteSubtask("first", "sb"));
+  expect(notice()).toHaveTextContent("'초안 쓰기'를 지웠어요");
   ctrlZ();
-  act(() => created({ success: false }));
+  act(() => answer({ success: false }));
   expect(notice()).toBeNull();
-  expect(IpcSender.req.task.deleteSubtask).not.toHaveBeenCalledWith("first", refused.id, expect.any(Function));
-  expect(errors).toHaveBeenLastCalledWith("하위 할 일을 추가하지 못했어요.");
+  expect(IpcSender.req.task.restoreSubtask).toHaveBeenCalledTimes(1);
+  expect(errors).toHaveBeenLastCalledWith("하위 할 일을 삭제하지 못했어요.");
   errors.mockRestore();
 });
 
@@ -757,14 +764,14 @@ test("closing the secret lock takes away a notice about a secret task, at once",
   expect(document.body).not.toHaveTextContent("비공개 작업");
   // A plain task's notice stays; leaving the screen takes it away.
   await unlockSecrets();
-  act(() => selectionProbe.actions.addTask(makeTask("plain", "보이는 일", null)));
+  act(() => selectionProbe.actions.deleteTask("first"));
   act(() => secretProbe.lock());
-  expect(notice()).toHaveTextContent("'보이는 일'을 추가했어요");
+  expect(notice()).toHaveTextContent("'리뷰 준비'를 지웠어요");
 });
 
 test("the notice goes when the screen unmounts", () => {
   const { unmount } = view();
-  act(() => selectionProbe.actions.addTask(makeTask("plain", "보이는 일", null)));
+  act(() => selectionProbe.actions.deleteTask("first"));
   expect(notice()).not.toBeNull();
   unmount();
   expect(notice()).toBeNull();
@@ -790,10 +797,12 @@ test("Del held down deletes one task, not row after row", () => {
 });
 
 test("a task made secret while its notice is up loses the notice when the lock closes", async () => {
+  withTask("plain", "곧 비밀");
   view();
   await unlockSecrets();
-  act(() => selectionProbe.actions.addTask(makeTask("plain", "곧 비밀", null)));
-  expect(notice()).toHaveTextContent("'곧 비밀'을 추가했어요");
+  act(() => selectionProbe.complete(mockContext.states.taskMap.plain, true));
+  act(() => { jest.advanceTimersByTime(136 + 425); });
+  expect(notice()).toHaveTextContent("'곧 비밀'을 완료했어요");
   const now = makeTask("plain", "곧 비밀", null);
   now.addCategory(secretCategory);
   mockContext = { ...mockContext, states: { ...mockContext.states, taskMap: { ...mockContext.states.taskMap, plain: now } } };
@@ -802,8 +811,9 @@ test("a task made secret while its notice is up loses the notice when the lock c
 });
 
 test("the notice's name is cut by characters, never inside an emoji", () => {
+  withTask("emoji", "가나다라마바사아자차카타파하가나다라마바😀😀😀");
   view();
-  act(() => selectionProbe.actions.addTask(makeTask("emoji", "가나다라마바사아자차카타파하가나다라마바😀😀😀", null)));
+  act(() => selectionProbe.actions.deleteTask("emoji"));
   expect(notice().querySelector(".un-nm").textContent).toBe("가나다라마바사아자차카타파하가나다라마바😀…");
 });
 

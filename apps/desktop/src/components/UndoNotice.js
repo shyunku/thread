@@ -1,12 +1,11 @@
 import "./UndoNotice.scss";
 import { createPortal } from "react-dom";
 import { objectParticle } from "molecules/pickers";
-import { PlusIcon, TickIcon, TrashIcon } from "molecules/pickers/icons";
+import { TickIcon, TrashIcon } from "molecules/pickers/icons";
 
-const VERB = { done: "완료했어요", add: "추가했어요", del: "지웠어요" };
+const VERB = { done: "완료했어요", del: "지웠어요" };
 const ICON = {
   done: <TickIcon size={14} strokeWidth={2.4} />,
-  add: <PlusIcon size={14} />,
   del: <TrashIcon size={15} />,
 };
 // Names past 22 characters end in … (the particle still follows the whole name).

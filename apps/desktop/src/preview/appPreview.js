@@ -124,7 +124,7 @@ export function previewSyncStatus(state) {
   return base;
 }
 
-// undo=<done|add|del> shows the undo notice (#107) for the first task, as after that change (a
+// undo=<done|del> shows the undo notice (#107) for the first task, as after that change (a
 // change made in the preview shows its own). q=<text> starts with that search.
 function PreviewRoot() {
   const [states, syncStatus, undoKind, initialQuery] = useMemo(() => {
@@ -132,7 +132,7 @@ function PreviewRoot() {
     return [
       fromSyncV2View(previewView(params.get("long") === "1", Number(params.get("count")) || 0, params.get("empty") === "1", params.get("notime") === "1")),
       previewSyncStatus(params.get("sync")),
-      ["done", "add", "del"].includes(params.get("undo")) ? params.get("undo") : null,
+      ["done", "del"].includes(params.get("undo")) ? params.get("undo") : null,
       params.get("q") || "",
     ];
   }, []);
