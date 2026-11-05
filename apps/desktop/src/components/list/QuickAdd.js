@@ -134,9 +134,14 @@ export default function QuickAdd({ defaults, contextKey, categories = [], onAdd,
   };
   // Above the bar (mock: bottom = the bar's top + 8): the date picker at the bar's left edge, the
   // repeat and category pickers at their chip.
+  // The chip is measured like in toggle (centre and layout width), so the picker sits in the same
+  // place while the chip is still easing back from its press and after a pick replaces it (#107:
+  // it moved 2px left on the first pick or unpick).
   const anchor = open && {
     getBoundingClientRect() {
-      const live = open.box.isConnected ? open.box.getBoundingClientRect() : null;
+      const rect = open.box.isConnected ? open.box.getBoundingClientRect() : null;
+      const liveWidth = rect && (open.box.offsetWidth || rect.width);
+      const live = rect && { left: (rect.left + rect.right) / 2 - liveWidth / 2, width: liveWidth, top: rect.top };
       const bar = barRef.current?.getBoundingClientRect() ?? live;
       const width = live?.width ?? open.width;
       const left = open.kind === "date" ? bar.left : live ? live.left : bar.left + open.dx;
