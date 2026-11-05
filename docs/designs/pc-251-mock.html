@@ -231,11 +231,10 @@
   .rp-subt:last-child { border-radius: 0 0 10px 10px; }
   .rp-subt .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: text; line-height: 34px; }
   .rp-subt.done .nm { color: var(--muted); text-decoration: line-through; }
-  .rp-subt .sacts-w { display: none; gap: 2px; flex: none; margin-right: -6px; }
-  .rp-subt:hover .sacts-w, .rp-subt.hov .sacts-w, .rp-subt.cut .sacts-w:has(> .sexp), .rp-subt.open .sacts-w { display: flex; }
-  .rp-subt .sacts { display: none; gap: 2px; }
-  .rp-subt:hover .sacts, .rp-subt.hov .sacts { display: flex; }
-  .rp-subt .sacts-w:empty { display: none; }
+  /* The delete × keeps its place while hidden, so hovering (or renaming) never re-wraps the name. */
+  .rp-subt .sacts-w { display: flex; gap: 2px; flex: none; min-width: 26px; margin-right: -6px; }
+  .rp-subt .sacts { display: flex; gap: 2px; visibility: hidden; }
+  .rp-subt:hover .sacts, .rp-subt.hov .sacts { visibility: visible; }
   .rp-ghost { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 7px; color: var(--secondary); cursor: pointer; }
   .rp-ghost:hover { background: #2a303c; color: var(--text); }
   .sgrip { position: absolute; left: 0; top: 0; bottom: 0; width: var(--gw); display: none; place-items: center; color: var(--faint); cursor: grab; }
@@ -405,11 +404,11 @@ const restore = j => { const o = JSON.parse(j); s.tasks = o.tasks; s.subs = o.su
 // a new action replaces the notice (the one before can no longer be undone).
 // The notice names the task: '<name>'를 <verb>. It goes after 5 s (or right after an undo).
 let toastTimer = 0;
-function act(name, verb, kind, fn) {
+function act(name, verb, kind, fn, id = null) {
   const before = snap();
   fn();
   clearTimeout(toastTimer);
-  s.toast = { name, verb, kind, before, t0: Date.now(), entered: false };
+  s.toast = { name, verb, kind, id, before, t0: Date.now(), entered: false };
   toastTimer = setTimeout(leaveToast, 5000);
   render();
 }
@@ -420,6 +419,8 @@ function leaveToast() {
   s.toast.leaving = true; render();
   toastTimer = setTimeout(() => { s.toast = null; render(); }, 220);
 }
+// Unchecking the task the notice is about, by hand, is an undo too: the notice goes.
+function uncheck(x) { x.done = false; render(); if (s.toast && s.toast.kind === 'done' && s.toast.id === x.id) leaveToast(); }
 function undo() { if (!s.toast || s.toast.leaving) return; restore(s.toast.before); render(); leaveToast(); }
 const task = id => s.tasks.find(x => x.id === id);
 function askDelete(id) {
@@ -599,9 +600,9 @@ document.addEventListener('click', e => {
   const a = e.target.closest('.win [data-act]');
   if (!a) return;
   const { act: k, sid, tid } = a.dataset, x = sid && s.subs.find(y => y.id === sid);
-  if (k === 'sck') { if (x.done) { x.done = false; render(); } else act(x.t, '완료했어요', 'done', () => { x.done = true; }); }
+  if (k === 'sck') { if (x.done) uncheck(x); else act(x.t, '완료했어요', 'done', () => { x.done = true; }, x.id); }
   else if (k === 'sdel') act(x.t, '지웠어요', 'del', () => { s.subs = s.subs.filter(y => y !== x); });
-  else if (k === 'tck') { const t = task(tid); if (t.done) { t.done = false; render(); } else act(t.t, '완료했어요', 'done', () => { t.done = true; }); }
+  else if (k === 'tck') { const t = task(tid); if (t.done) uncheck(t); else act(t.t, '완료했어요', 'done', () => { t.done = true; }, t.id); }
   else if (k === 'undo') undo();
   else if (k === 'dlgX') { s.dlg = null; render(); }
   else if (k === 'dlgOk') doDelete(s.dlg.id);
@@ -700,7 +701,7 @@ const OPTS = [
       ['out', '올릴 때만 · 박스 바깥', '평소 여백 없음. 올리면 박스 왼쪽 바깥에', 'rec'],
       ['in', '올릴 때만 · 박스 안', '평소 여백 없음. 올리면 체크 원 옆 12px 안에']] },
   { at: '.undo-toast, .undo-slot', key: 'anim', title: '되돌리기 알림 나타나고 사라지는 모습',
-    show: () => { resetDemo(); act(task('t3').t, '완료했어요', 'done', () => { task('t3').done = true; }); },
+    show: () => { resetDemo(); act(task('t3').t, '완료했어요', 'done', () => { task('t3').done = true; }, 't3'); },
     items: [['none', '애니메이션 없음', '바로 나타나고 5초 뒤 바로 사라짐', 'old'],
       ['slide', '위에서 내려옴', '살짝 내려오며 나타나고 올라가며 사라짐', 'rec'],
       ['fade', '제자리에서 또렷해짐', '살짝 커지며 나타나고 작아지며 흐려짐']] },
