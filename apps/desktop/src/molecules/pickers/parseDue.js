@@ -89,6 +89,11 @@ function parseDay(text, today, weekStart) {
     if (d && !m[1] && d < today) d = validDate(y + 1, +m[2] - 1, +m[3]);
     return d;
   }
+  // 261130 (YYMMDD) and 20261130 (YYYYMMDD), #107.
+  if ((m = z.match(/^(\d{2}|\d{4})(\d{2})(\d{2})$/))) {
+    const y = m[1].length === 2 ? 2000 + +m[1] : +m[1];
+    return validDate(y, +m[2] - 1, +m[3]);
+  }
   // "25일": this month's, or next month's when already past (or missing this month).
   if ((m = z.match(/^(\d{1,2})일$/))) {
     let d = validDate(today.getFullYear(), today.getMonth(), +m[1]);

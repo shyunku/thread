@@ -146,9 +146,8 @@ class WindowService {
       .backgroundThrottling(false)
       .build();
     windowProperty = lodash.merge({}, windowProperty, overlapWindowProperty);
-    // Open where the workspace window was last time (#106).
-    const saved = loadWindowState(app);
-    if (saved) Object.assign(windowProperty, this.placeSaved(saved), { center: false });
+    // The window opens centered on the main display, so the lock and setup screens stay there
+    // as before; the workspace moves to its remembered place when it opens (setVaultMode, #107).
     let mainWindow = this.invokeWindow("/", windowProperty, null, null, "main");
     this.trackWindowState(mainWindow);
     return mainWindow;
@@ -199,7 +198,14 @@ class WindowService {
     }
     if (this.workspaceWindow) return setVaultWindow(w, mode, workArea);
     const visible = w.isVisible();
-    if (visible) w.hide();
+    if (visible) {
+      // Transparent first: a hidden window can still be drawn at its new place for a moment,
+      // so the unlock window seemed to move before it went away (#107). Any later show puts
+      // the opacity back.
+      w.setOpacity(0);
+      w.once("show", () => { if (!w.isDestroyed()) w.setOpacity(1); });
+      w.hide();
+    }
     const old = vaultPrevious(w);
     setVaultWindow(w, mode, workArea, { maximize: false });
     const saved = loadWindowState(app);

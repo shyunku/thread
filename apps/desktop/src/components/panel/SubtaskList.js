@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Subtask from "objects/Subtask";
 import Toast from "molecules/Toast";
 import { DatePicker, closeAllPopups } from "molecules/pickers";
@@ -42,7 +42,8 @@ const NoDueIcon = () => (
 // One subtask (#102 mock .subt): check, the name (click edits it in place: Enter saves, Esc puts
 // it back), a set due small on the right (red when overdue) and, on hover, 기한 / 삭제 (plus
 // 기한 빼기 when it has one). Deleting is immediate, as before the redesign. sortable adds the
-// grip on hover at the left (drag it, or Alt+↑/↓ on the row, #106).
+// grip on hover at the left to drag it (#106; no Alt+↑/↓ since #107: the row cannot be focused
+// without starting an edit).
 function SubtaskRow({ task, subtask, timeFormat, now, sortable }) {
   const { actions } = useTaskSelection();
   const [editing, setEditing] = useState(false);
@@ -56,7 +57,7 @@ function SubtaskRow({ task, subtask, timeFormat, now, sortable }) {
   return (
     <div ref={rowRef} className={"rp-subt" + (done ? " done" : "") + (editing ? " edit" : "") + (picker ? " hov" : "")} data-subtask-id={subtask.id}>
       {sortable && !editing && (
-        <span className="sgrip" data-tip="끌어서 순서 바꾸기 · Alt+↑↓" aria-hidden="true">
+        <span className="sgrip" data-tip="끌어서 순서 바꾸기" aria-hidden="true">
           <GripIcon />
         </span>
       )}
@@ -85,7 +86,6 @@ function SubtaskRow({ task, subtask, timeFormat, now, sortable }) {
           type="button"
           className="nm"
           data-tip="눌러서 이름 바꾸기"
-          aria-keyshortcuts={sortable ? "Alt+ArrowUp Alt+ArrowDown" : undefined}
           onClick={() => setEditing(true)}
         >
           {subtask.title}
@@ -137,7 +137,7 @@ function SubtaskRow({ task, subtask, timeFormat, now, sortable }) {
 
 // 하위 할 일 (#102 mock): the count and a progress bar, the rows, and 하위 할 일 추가 (Enter adds
 // and stays for the next one; Esc leaves). Rows follow the synced order (#106: sort_rank, then
-// created_at); with canSort they can be dragged by the grip or moved with Alt+↑/↓.
+// created_at); with canSort they can be dragged by the grip.
 export default function SubtaskList({ task, timeFormat, now, canSort = true }) {
   const { actions } = useTaskSelection();
   const [title, setTitle] = useState("");
@@ -192,29 +192,6 @@ export default function SubtaskList({ task, timeFormat, now, canSort = true }) {
     onDrop: (id, from, to) => move(id, to),
   });
 
-  // Alt+↑/↓ on a row (its check or name) moves it one place; the focus stays on it.
-  const refocus = useRef(null); // { id, check }
-  const onKeyDown = (event) => {
-    if (!sortable || !event.altKey || (event.key !== "ArrowUp" && event.key !== "ArrowDown")) return;
-    const row = event.target.closest?.(".rp-subt[data-subtask-id]");
-    if (!row || event.target.tagName === "INPUT") return;
-    event.preventDefault();
-    const id = row.dataset.subtaskId;
-    const to = subtasks.findIndex((s) => s.id === id) + (event.key === "ArrowUp" ? -1 : 1);
-    if (to < 0 || to >= subtasks.length) return;
-    refocus.current = { id, check: event.target.classList.contains("ck") };
-    move(id, to);
-  };
-  // Reordering can move the focused row's DOM node, which drops its focus.
-  useLayoutEffect(() => {
-    const target = refocus.current;
-    if (!target) return;
-    refocus.current = null;
-    const row = [...(boxRef.current?.querySelectorAll(".rp-subt[data-subtask-id]") ?? [])].find((el) => el.dataset.subtaskId === target.id);
-    const el = row?.querySelector(target.check ? ".ck" : ".nm");
-    if (el && document.activeElement !== el) el.focus();
-  });
-
   const add = () => {
     const text = title.trim();
     if (!text) return;
@@ -228,7 +205,7 @@ export default function SubtaskList({ task, timeFormat, now, canSort = true }) {
         하위 할 일
         {subtasks.length > 0 && <span>{doneCount}/{subtasks.length}</span>}
       </div>
-      <div ref={boxRef} className={"rp-box rp-subs" + (sortable ? " sortable" : "")} onKeyDown={onKeyDown}>
+      <div ref={boxRef} className={"rp-box rp-subs" + (sortable ? " sortable" : "")}>
         {subtasks.length > 0 && (
           <div className="rp-bar" role="progressbar" aria-label="하위 할 일 진행" aria-valuemin={0} aria-valuemax={subtasks.length} aria-valuenow={doneCount}>
             <i style={{ width: `${(doneCount / subtasks.length) * 100}%` }} />

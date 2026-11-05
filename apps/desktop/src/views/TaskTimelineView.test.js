@@ -113,7 +113,8 @@ test("a row: click opens the task, right-click the menu, the check completes it"
   fireEvent.contextMenu(row, { clientX: 10, clientY: 20 });
   expect(onTaskContextMenu.mock.calls[0][1]).toBe("a");
   fireEvent.click(within(row).getByRole("checkbox", { name: "할 일 완료" }));
-  expect(onToggleDone).toHaveBeenCalledWith(tasks.a, row, true);
+  // Done tasks stay in the timeline, so the row does not fall (#107).
+  expect(onToggleDone).toHaveBeenCalledWith(tasks.a, row, true, true);
   expect(onOpenTask).toHaveBeenCalledTimes(1);
   fireEvent.click(within(container.querySelector('[data-task-id="b"]')).getByRole("checkbox", { name: "완료 취소" }));
   expect(onToggleDone).toHaveBeenLastCalledWith(tasks.b, expect.anything(), false);
@@ -124,6 +125,28 @@ test("without onToggleDone the view completes through the selection actions", ()
   const { container } = setup({ filteredTaskMap: tasks });
   fireEvent.keyDown(container.querySelector('[data-task-id="a"]'), { key: " " });
   act(() => { jest.advanceTimersByTime(1000); });
+  expect(setDone).toHaveBeenCalledWith("a", true, expect.any(Function));
+});
+
+test("completing in the timeline: no fall while done tasks stay, the fall when they are hidden (#107)", () => {
+  const tasks = { a: task("a", "보고서", at(0, 16)) };
+  const shown = setup({ filteredTaskMap: tasks });
+  let row = shown.container.querySelector('[data-task-id="a"]');
+  fireEvent.click(within(row).getByRole("checkbox", { name: "할 일 완료" }));
+  act(() => { jest.advanceTimersByTime(200); });
+  expect(document.querySelector(".fall")).toBeNull();
+  expect(row.style.visibility).toBe("");
+  act(() => { jest.advanceTimersByTime(100); });
+  expect(setDone).toHaveBeenCalledWith("a", true, expect.any(Function));
+  shown.unmount();
+  setDone.mockClear();
+  const hidden = setup({ filteredTaskMap: tasks }, { hideDone: true });
+  row = hidden.container.querySelector('[data-task-id="a"]');
+  fireEvent.click(within(row).getByRole("checkbox", { name: "할 일 완료" }));
+  act(() => { jest.advanceTimersByTime(200); });
+  expect(document.querySelector(".fall")).not.toBeNull();
+  expect(setDone).not.toHaveBeenCalled();
+  act(() => { jest.advanceTimersByTime(500); });
   expect(setDone).toHaveBeenCalledWith("a", true, expect.any(Function));
 });
 

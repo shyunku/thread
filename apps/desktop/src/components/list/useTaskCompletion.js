@@ -28,8 +28,9 @@ export function restoreRow(row) {
   row.style.height = "";
 }
 
-// Returns complete(task, rowElement, done). Undone and repeating tasks change at once (after the
-// pop); others animate first. `apply(task, done, onFailed)` sends the change, once per
+// Returns complete(task, rowElement, done, stays). Undone and repeating tasks change at once (after
+// the pop), and so do tasks whose row stays where it is once done (stays: the timeline with done
+// tasks shown, #107); others animate first. `apply(task, done, onFailed)` sends the change, once per
 // completion, and calls onFailed when the change was refused: the row then shows again (the
 // caller tells the user). The timers are not tied to the row, so leaving the view mid-animation
 // still completes the task.
@@ -38,7 +39,7 @@ export default function useTaskCompletion(apply) {
   const latest = useRef(apply);
   latest.current = apply;
 
-  return useCallback((task, row, done = true) => {
+  return useCallback((task, row, done = true, stays = false) => {
     if (!done) {
       latest.current(task, false);
       return;
@@ -51,8 +52,8 @@ export default function useTaskCompletion(apply) {
       setTimeout(() => restoreRow(row), RESTORE_AFTER);
     };
     const repeating = normalRepeat(task.repeatPeriod) !== null && dueMs(task.dueDate) !== null;
-    if (repeating || !row?.isConnected) {
-      setTimeout(finish, repeating ? REPEAT_POP : 0);
+    if (repeating || stays || !row?.isConnected) {
+      setTimeout(finish, repeating || stays ? REPEAT_POP : 0);
       return;
     }
     if (reducedMotion()) {

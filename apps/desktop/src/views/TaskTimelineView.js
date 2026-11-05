@@ -93,7 +93,7 @@ export function DayJump({ anchor, first, today, weekStart, onPick, onClose }) {
 
 // A row like the list's (check, title, meta, read-only star; mock .tl-task). Click opens the
 // detail, right-click the task menu, Space completes.
-function TimelineRow({ task, cats, selected, timeFormat, now, onOpen, onMenu, onToggleDone, onKeyDown }) {
+function TimelineRow({ task, cats, selected, timeFormat, now, doneStays, onOpen, onMenu, onToggleDone, onKeyDown }) {
   const ref = useRef(null);
   const [pop, setPop] = useState(false);
   const done = !!task.done;
@@ -107,7 +107,8 @@ function TimelineRow({ task, cats, selected, timeFormat, now, onOpen, onMenu, on
     const timer = setTimeout(() => setPop(false), 1200);
     return () => clearTimeout(timer);
   }, [pop]);
-  // Done tasks stay in the timeline (struck through): show the row again after the fall.
+  // Done tasks shown in the timeline stay in place (struck through) without the fall (#107);
+  // a row hidden some other way shows again once done.
   useEffect(() => {
     if (done && ref.current) restoreRow(ref.current);
   }, [done]);
@@ -116,7 +117,7 @@ function TimelineRow({ task, cats, selected, timeFormat, now, onOpen, onMenu, on
     if (done) return onToggleDone?.(task, ref.current, false);
     if (pop) return undefined;
     setPop(true);
-    onToggleDone?.(task, ref.current, true);
+    onToggleDone?.(task, ref.current, true, doneStays);
     return undefined;
   };
 
@@ -183,7 +184,7 @@ function TimelineRow({ task, cats, selected, timeFormat, now, onOpen, onMenu, on
 // them, so the quick add and the panel follow). Columns scroll on their own, so the wheel does
 // not change days.
 // Props from TodoContent: filteredTaskMap, categories, catsOf?, header?, renderQuickAdd(day)?,
-// onTaskContextMenu(event, taskId)?, onOpenTask(taskId)?, onToggleDone(task, row, done)?,
+// onTaskContextMenu(event, taskId)?, onOpenTask(taskId)?, onToggleDone(task, row, done, stays)?,
 // searchNote? (in search: "검색 결과 N개", put before the summary).
 const TaskTimelineView = ({ filteredTaskMap, categories, catsOf, header, renderQuickAdd, onTaskContextMenu, onOpenTask, onToggleDone, searchNote }) => {
   const prefs = useSelector(prefsSelector);
@@ -297,6 +298,7 @@ const TaskTimelineView = ({ filteredTaskMap, categories, catsOf, header, renderQ
                       selected={task.id === selectedTaskId}
                       timeFormat={timeFormat}
                       now={now}
+                      doneStays={!prefs.hideDone}
                       onOpen={open}
                       onMenu={onTaskContextMenu}
                       onToggleDone={complete}

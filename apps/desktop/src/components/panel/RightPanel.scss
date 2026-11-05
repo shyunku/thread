@@ -270,7 +270,9 @@ $picked: #3d6fe6;
     .rp-subt:hover .sacts, .rp-subt:hover .sgrip { display: none; }
     .rp-subt.lifted { visibility: hidden; }
   }
-  .rp-subt.sub-ghost {
+  // Inside .rp-subs so it outranks `.rp-subs.sortable .rp-subt { position: relative }`; as a
+  // relative row the ghost took a row of space at the top of the list (#107).
+  .rp-subs .rp-subt.sub-ghost {
     position: absolute;
     z-index: 30;
     margin: 0;

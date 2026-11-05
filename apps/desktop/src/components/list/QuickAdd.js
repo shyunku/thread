@@ -112,8 +112,12 @@ export default function QuickAdd({ defaults, contextKey, categories = [], onAdd,
     const box = el.closest(".qa-chip") ?? el;
     // Where the chip sits in the bar: choosing a category re-renders the chips and can replace
     // this one, and a detached chip measures as 0, which threw the picker to the left edge (#106).
+    // Measured without the press scale (.qa-chip:active, still easing back on click): its
+    // centre with the layout width. The scaled left put the picker 1px off after the first
+    // pick, which detaches the plain 카테고리 chip (#107).
     const bar = barRef.current?.getBoundingClientRect(), at = box.getBoundingClientRect();
-    const dx = bar ? at.left - bar.left : 0, width = at.width;
+    const width = box.offsetWidth || at.width, left = (at.left + at.right) / 2 - width / 2;
+    const dx = bar ? left - bar.left : 0;
     setOpen((current) => (current?.kind === kind && current.el === el ? null : { kind, el, box, dx, width }));
   };
   const close = () => setOpen(null);

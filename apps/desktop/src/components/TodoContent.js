@@ -600,8 +600,9 @@ const TodoContent = ({ children }) => {
   // Completion from elsewhere (the panel) animates the task's list row when it is on screen.
   const completeTask = useCallback((task, done = true) => {
     const rowEl = document.querySelector(`.todo-content [data-task-id="${CSS.escape(task.id)}"]`);
-    complete(task, rowEl, done);
-  }, [complete]);
+    // A timeline row that stays once done does not fall (#107).
+    complete(task, rowEl, done, !!rowEl?.classList.contains("tv-task") && !prefs.hideDone);
+  }, [complete, prefs.hideDone]);
   const onSelect = useCallback((task) => openTask(task.id), [openTask]);
   const onToggleStar = useCallback((task) => actions.setImportant(task.id, !task.important), [actions]);
   const onMenu = useCallback((task, point, row) => {

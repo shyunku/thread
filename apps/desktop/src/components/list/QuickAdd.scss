@@ -37,16 +37,20 @@
     border-radius: 6px;
     &:disabled { cursor: default; }
   }
+  // The bar's height comes from padding: with height: 100% Chromium clipped the descenders of
+  // Latin letters (g, y, p) in this font (#107).
   input {
     flex: 1;
     min-width: 0;
-    height: 100%;
-    padding: 0;
+    box-sizing: border-box;
+    height: auto;
+    padding: 12px 0;
     border: 0;
     outline: none;
     background: transparent;
     color: var(--text);
     font: inherit;
+    line-height: 20px;
     &::placeholder { color: var(--muted); }
   }
   kbd {

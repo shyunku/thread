@@ -434,38 +434,24 @@ function placeSubRows() {
   });
 }
 
-test("subtask order: rank first, then created_at; Alt+↑/↓ moves the focused row and keeps the focus", () => {
+test("subtask order: rank first, then created_at; the grip drags, Alt+↑/↓ does nothing (#107)", () => {
   resetSubtaskOrderForTests();
   withThird();
   view();
   select("first");
   expect(subIds()).toEqual(["s3", "s1", "s2"]);
   const grip = subRows()[0].querySelector(".sgrip");
-  expect(grip).toHaveAttribute("data-tip", "끌어서 순서 바꾸기 · Alt+↑↓");
+  expect(grip).toHaveAttribute("data-tip", "끌어서 순서 바꾸기");
   // The grip sits in the row's reserved gutter, before the check.
   expect(grip.nextElementSibling).toHaveClass("ck");
   const name = within(subRows()[1]).getByRole("button", { name: "초안 쓰기" });
+  expect(name).not.toHaveAttribute("aria-keyshortcuts");
   name.focus();
   fireEvent.keyDown(name, { key: "ArrowUp", altKey: true });
-  expect(IpcSender.req.task.updateSubtaskOrder).toHaveBeenCalledWith("first", "s1", "s3", false, expect.any(Function));
-  // The dropped order shows at once and the focus stays on the moved row.
-  expect(subIds()).toEqual(["s1", "s3", "s2"]);
-  expect(document.activeElement).toBe(within(subRows()[0]).getByRole("button", { name: "초안 쓰기" }));
-  // Already first: nothing to send.
-  fireEvent.keyDown(document.activeElement, { key: "ArrowUp", altKey: true });
-  expect(IpcSender.req.task.updateSubtaskOrder).toHaveBeenCalledTimes(1);
-  // From the check too (anchored before the row it lands in front of).
-  const check = within(subRows()[0]).getByRole("checkbox", { name: /초안 쓰기/ });
-  check.focus();
+  const check = within(subRows()[1]).getByRole("checkbox", { name: /초안 쓰기/ });
   fireEvent.keyDown(check, { key: "ArrowDown", altKey: true });
-  expect(IpcSender.req.task.updateSubtaskOrder).toHaveBeenLastCalledWith("first", "s1", "s2", false, expect.any(Function));
+  expect(IpcSender.req.task.updateSubtaskOrder).not.toHaveBeenCalled();
   expect(subIds()).toEqual(["s3", "s1", "s2"]);
-  expect(document.activeElement).toBe(within(subRows()[1]).getByRole("checkbox", { name: /초안 쓰기/ }));
-  // Plain arrows and Alt+arrows while renaming do not move it.
-  fireEvent.keyDown(document.activeElement, { key: "ArrowDown" });
-  fireEvent.click(within(subRows()[1]).getByRole("button", { name: "초안 쓰기" }));
-  fireEvent.keyDown(within(subRows()[1]).getByRole("textbox", { name: "하위 할 일 이름" }), { key: "ArrowDown", altKey: true });
-  expect(IpcSender.req.task.updateSubtaskOrder).toHaveBeenCalledTimes(2);
 });
 
 test("subtask order: dragging the grip lifts after 4px, slides rows, settles and sends the move; Esc cancels", () => {
@@ -538,9 +524,13 @@ test("subtask order: no grip off E2EE; an unsupported reply restores the order a
   IpcSender.req.task.updateSubtaskOrder.mockImplementationOnce((...args) => args[4]({ success: false, data: { code: "UNSUPPORTED_V2_ACTION" } }));
   view();
   select("first");
-  const again = within(subRows()[1]).getByRole("button", { name: "초안 쓰기" });
-  again.focus();
-  fireEvent.keyDown(again, { key: "ArrowUp", altKey: true });
+  // Drag the second row to the top.
+  placeSubRows();
+  fireEvent.mouseDown(subRows()[1].querySelector(".sgrip"), { button: 0, clientX: 28, clientY: 256 });
+  fireEvent.mouseMove(document, { clientX: 28, clientY: 220 });
+  fireEvent.mouseUp(document, { button: 0 });
+  act(() => { jest.advanceTimersByTime(200); });
+  expect(IpcSender.req.task.updateSubtaskOrder).toHaveBeenCalledTimes(1);
   expect(subIds()).toEqual(["s3", "s1", "s2"]);
   expect(warn).toHaveBeenCalledWith("이 계정에서는 하위 할 일 순서를 바꿀 수 없어요.");
   expect(panel().querySelector(".sgrip")).toBeNull();

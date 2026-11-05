@@ -66,7 +66,23 @@ describe("dates", () => {
     ["11.30.", "2026-11-30"],
     ["11월 20일", "2026-11-20"],
     ["11월20일", "2026-11-20"],
+    ["261130", "2026-11-30"],
+    ["20261130", "2026-11-30"],
+    ["270105", "2027-1-5"],
   ])("%s → %s", (text, day) => expect(read(text)).toBe(day));
+
+  test("YYMMDD with a time (#107)", () => {
+    expect(read("261130 15:00")).toBe("2026-11-30 15:00");
+    expect(read("261130 09:05")).toBe("2026-11-30 9:05");
+    expect(read("20261130 15:30")).toBe("2026-11-30 15:30");
+    expect(read("261130 오후 3시")).toBe("2026-11-30 15:00");
+    expect(read("261130 15")).toBe("2026-11-30 15:00");
+    expect(read("261231 23:59")).toBe("2026-12-31 23:59");
+  });
+
+  test.each(["261340", "260230", "2611301", "26113", "261130 25:00"])("%s is not a date", (text) => {
+    expect(parseDue(text, NOW)).toBe(false);
+  });
 
   test("a month and day already past, without a year, is next year's", () => {
     expect(read("1/5")).toBe("2027-1-5");
