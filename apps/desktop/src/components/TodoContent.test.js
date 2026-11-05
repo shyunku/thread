@@ -348,8 +348,8 @@ test("decrypted application view: groups by date with the stored order and categ
   expect(rowIds(container)).toEqual(["a", "c", "b"]);
 });
 
-test("completing animates first and sends the change once; a repeating task rolls forward without falling", () => {
-  const { container } = view();
+test("completing animates first and sends the change once; a repeating task falls and its next occurrence flashes", () => {
+  const { container, rerender } = view();
   const check = within(row(container, "first")).getByRole("checkbox", { name: "할 일 완료" });
   fireEvent.click(check);
   fireEvent.click(check);
@@ -364,18 +364,41 @@ test("completing animates first and sends the change once; a repeating task roll
   expect(IpcSender.req.task.updateTaskDone).toHaveBeenCalledTimes(1);
   expect(IpcSender.req.task.updateTaskDone).toHaveBeenCalledWith("first", true, expect.any(Number), expect.any(Function));
 
+  // A repeating task falls too (#107) and comes back as its next occurrence, which flashes.
   fireEvent.click(within(row(container, "repeat")).getByRole("checkbox", { name: "할 일 완료" }));
   act(() => { jest.advanceTimersByTime(136); });
-  expect(document.querySelector("body > .task-row.fall")).toBeNull();
-  act(() => { jest.advanceTimersByTime(100); });
+  expect(document.querySelector("body > .task-row.fall")).not.toBeNull();
+  act(() => { jest.advanceTimersByTime(425); });
   expect(IpcSender.req.task.updateTaskDone).toHaveBeenLastCalledWith("repeat", true, expect.any(Number), expect.any(Function));
   expect(IpcSender.req.task.updateTaskDone).toHaveBeenCalledTimes(2);
+  const next = makeTask("repeat", "운동", at(1, 21), { repeatPeriod: "day" });
+  next.prev = mockContext.states.taskMap.repeat.prev;
+  if (next.prev) next.prev.next = next;
+  mockContext = { ...mockContext, states: { ...mockContext.states, taskMap: { ...mockContext.states.taskMap, repeat: next } } };
+  rerender(ui());
+  expect(row(container, "repeat")).toHaveClass("rolled");
+  expect(row(container, "repeat").style.visibility).toBe("");
+  expect(within(row(container, "repeat")).getByRole("checkbox", { name: "할 일 완료" })).toHaveAttribute("aria-checked", "false");
+  act(() => { jest.advanceTimersByTime(1720); });
+  expect(row(container, "repeat")).not.toHaveClass("rolled");
+  // Once: drawn again later, it does not flash.
+  rerender(ui());
+  expect(row(container, "repeat")).not.toHaveClass("rolled");
 });
 
-test("un-checking a done task sends it at once; the star toggles", () => {
+test("un-checking a done task: the check empties, the row rises, then the change is sent; the star toggles", () => {
   store.dispatch(setPrefs({ groupClosed: { done: false } }));
   const { container } = view();
-  fireEvent.click(within(row(container, "second")).getByRole("checkbox", { name: "완료 취소" }));
+  const check = within(row(container, "second")).getByRole("checkbox", { name: "완료 취소" });
+  fireEvent.click(check);
+  expect(check).toHaveAttribute("aria-checked", "false");
+  expect(IpcSender.req.task.updateTaskDone).not.toHaveBeenCalled();
+  act(() => { jest.advanceTimersByTime(136); });
+  expect(document.querySelector("body > .task-row.rise")).not.toBeNull();
+  expect(row(container, "second").style.visibility).toBe("hidden");
+  act(() => { jest.advanceTimersByTime(425); });
+  expect(document.querySelector("body > .task-row.rise")).toBeNull();
+  expect(IpcSender.req.task.updateTaskDone).toHaveBeenCalledTimes(1);
   expect(IpcSender.req.task.updateTaskDone).toHaveBeenCalledWith("second", false, expect.any(Number), expect.any(Function));
   fireEvent.click(within(row(container, "first")).getByRole("button", { name: "중요로 표시" }));
   expect(IpcSender.req.task.updateTaskImportant).toHaveBeenCalledWith("first", true, expect.any(Function));
@@ -672,6 +695,8 @@ test("completing a task shows the notice; Ctrl+Z unchecks it, a manual uncheck l
   act(() => { jest.advanceTimersByTime(136 + 425); });
   expect(notice()).toHaveTextContent("'배포 완료'를 완료했어요");
   act(() => selectionProbe.complete(mockContext.states.taskMap.second, false));
+  // Its row rises first (#107); the uncheck is sent after that.
+  act(() => { jest.advanceTimersByTime(136 + 425); });
   expect(notice()).toHaveClass("out");
   act(() => { jest.advanceTimersByTime(160); });
   expect(notice()).toBeNull();
@@ -736,7 +761,7 @@ test("a refused change shows no notice and keeps its toast; an undo before the a
 test("a repeating task's completion is taken back on E2EE only", () => {
   const { container, rerender } = view();
   fireEvent.click(within(row(container, "repeat")).getByRole("checkbox", { name: "할 일 완료" }));
-  act(() => { jest.advanceTimersByTime(220); });
+  act(() => { jest.advanceTimersByTime(136 + 425); });
   expect(notice()).toHaveTextContent("'운동'을 완료했어요");
   ctrlZ();
   expect(IpcSender.req.task.undoRecurringCompletion).toHaveBeenCalledWith("repeat", at(0, 21).getTime(), expect.any(Function));
@@ -746,7 +771,7 @@ test("a repeating task's completion is taken back on E2EE only", () => {
   mockContext = { ...mockContext, syncStatus: { protocolVersion: 2 } };
   rerender(ui());
   act(() => selectionProbe.complete(mockContext.states.taskMap.repeat, true));
-  act(() => { jest.advanceTimersByTime(220); });
+  act(() => { jest.advanceTimersByTime(136 + 425); });
   expect(notice()).toHaveTextContent("'운동'을 완료했어요");
   expect(within(notice()).queryByRole("button")).toBeNull();
   ctrlZ();
@@ -888,4 +913,99 @@ test("a click elsewhere in the home screen clears the selection; rows, the panel
   fireEvent.click(row(container, "first"));
   fireEvent.click(container.querySelector(".todo-content"));
   expect(selectionProbe.selectedTaskId).toBe(null);
+});
+
+// #107 list animations: found in review.
+const setTask = (id, task) => {
+  const old = mockContext.states.taskMap[id];
+  task.prev = old.prev; task.next = old.next;
+  if (task.prev) task.prev.next = task;
+  if (task.next) task.next.prev = task;
+  mockContext = { ...mockContext, states: { ...mockContext.states, taskMap: { ...mockContext.states.taskMap, [id]: task } } };
+};
+
+// the RESTORE_AFTER timer of the first completion shows the row again in the middle of a
+// second completion's fall (next occurrence in the same box, so the same row is completed twice).
+test("second completion of a rolled repeating row is not re-shown by the first RESTORE_AFTER", () => {
+  store.dispatch(setPrefs({ group: "none" }));
+  const { container, rerender } = view();
+  fireEvent.click(within(row(container, "repeat")).getByRole("checkbox", { name: "할 일 완료" }));
+  act(() => { jest.advanceTimersByTime(136 + 425); }); // t = 561: sent, timer A due at 10561
+  setTask("repeat", makeTask("repeat", "운동", at(1, 21), { repeatPeriod: "day" }));
+  rerender(ui());
+  expect(row(container, "repeat")).toHaveClass("rolled");
+  expect(row(container, "repeat").style.visibility).toBe("");
+  act(() => { jest.advanceTimersByTime(10300 - 561); }); // t = 10300
+  fireEvent.click(within(row(container, "repeat")).getByRole("checkbox", { name: "할 일 완료" }));
+  act(() => { jest.advanceTimersByTime(150); }); // t = 10450: falling, row hidden
+  expect(document.querySelector("body > .task-row.fall")).not.toBeNull();
+  expect(row(container, "repeat").style.visibility).toBe("hidden");
+  act(() => { jest.advanceTimersByTime(150); }); // t = 10600: timer A fired
+  expect(document.querySelector("body > .task-row.fall")).not.toBeNull();
+  // The row should still be hidden while its copy falls.
+  expect(row(container, "repeat").style.visibility).toBe("hidden");
+});
+
+// on 오늘 the next occurrence leaves the screen; taking the completion back within ROLL_WAIT
+// brings the old occurrence back, and it flashes as if it were the next one.
+test("undo of a repeating completion on 오늘 does not flash the restored row", () => {
+  mockContext = { ...mockContext, selectedTodoMenuType: "오늘의 할일", category: { title: "오늘의 할일", default: true } };
+  const { container, rerender } = view();
+  expect(row(container, "repeat")).not.toBeNull();
+  fireEvent.click(within(row(container, "repeat")).getByRole("checkbox", { name: "할 일 완료" }));
+  act(() => { jest.advanceTimersByTime(136 + 425); });
+  setTask("repeat", makeTask("repeat", "운동", at(1, 21), { repeatPeriod: "day" }));
+  rerender(ui());
+  expect(row(container, "repeat")).toBeNull(); // left 오늘
+  expect(notice()).toHaveTextContent("'운동'을 완료했어요");
+  ctrlZ();
+  expect(IpcSender.req.task.undoRecurringCompletion).toHaveBeenCalled();
+  setTask("repeat", makeTask("repeat", "운동", at(0, 21), { repeatPeriod: "day" }));
+  rerender(ui());
+  expect(row(container, "repeat")).not.toBeNull();
+  expect(row(container, "repeat")).not.toHaveClass("rolled");
+});
+
+// React rewrites className when a prop changes (selection), wiping the hand-set "rolled".
+test("selecting the flashing row keeps the flash", () => {
+  const { container, rerender } = view();
+  fireEvent.click(within(row(container, "repeat")).getByRole("checkbox", { name: "할 일 완료" }));
+  act(() => { jest.advanceTimersByTime(136 + 425); });
+  setTask("repeat", makeTask("repeat", "운동", at(1, 21), { repeatPeriod: "day" }));
+  rerender(ui());
+  expect(row(container, "repeat")).toHaveClass("rolled");
+  act(() => { jest.advanceTimersByTime(200); });
+  fireEvent.click(row(container, "repeat"));
+  expect(row(container, "repeat")).toHaveClass("sel");
+  expect(row(container, "repeat")).toHaveClass("rolled");
+});
+
+// unchecking from elsewhere (the panel, Ctrl+Z path) rises with the check still filled.
+test("uncheck from the panel: the rising copy shows an empty check", () => {
+  store.dispatch(setPrefs({ groupClosed: { done: false } }));
+  view();
+  act(() => selectionProbe.complete(mockContext.states.taskMap.second, false));
+  act(() => { jest.advanceTimersByTime(140); });
+  const copy = document.querySelector("body > .task-row.rise");
+  expect(copy).not.toBeNull();
+  expect(copy.querySelector(".ck").getAttribute("aria-checked")).toBe("false");
+});
+
+// a refused repeating completion leaves its rolled mark; an unrelated remount within 3 s flashes.
+test("refused repeating completion, then folding/unfolding its group, does not flash", () => {
+  IpcSender.req.task.updateTaskDone.mockImplementation((...args) => args.find((v) => typeof v === "function")?.({ success: false, data: {} }));
+  const errors = jest.spyOn(Toast, "error").mockImplementation(() => {});
+  const { container } = view();
+  fireEvent.click(within(container.querySelector('.task-row[data-task-id="repeat"]')).getByRole("checkbox", { name: "할 일 완료" }));
+  act(() => { jest.advanceTimersByTime(136 + 425); });
+  expect(errors).toHaveBeenCalled();
+  expect(container.querySelector('.task-row[data-task-id="repeat"]').style.visibility).toBe("");
+  const group = container.querySelector('.task-row[data-task-id="repeat"]').closest(".tl-group");
+  const head = group.querySelector(".tl-sec");
+  fireEvent.click(head);
+  expect(container.querySelector('.task-row[data-task-id="repeat"]')).toBeNull();
+  fireEvent.click(container.querySelector(`.tl-group[data-group="${group.dataset.group}"] .tl-sec`));
+  expect(container.querySelector('.task-row[data-task-id="repeat"]')).not.toBeNull();
+  expect(container.querySelector('.task-row[data-task-id="repeat"]')).not.toHaveClass("rolled");
+  errors.mockRestore();
 });

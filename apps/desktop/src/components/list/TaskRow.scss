@@ -185,6 +185,39 @@ $accent-hover: #7aa5ff;
     animation: task-done-fall 408ms cubic-bezier(.32, 0, .67, 0) forwards, task-done-fade 408ms linear forwards;
     &::before { display: none; }
   }
+  // Unchecking (#107 repeat mock): the copy rises instead, the opposite of the fall.
+  &.rise {
+    position: fixed;
+    z-index: 200;
+    margin: 0;
+    pointer-events: none;
+    border-radius: 10px;
+    box-shadow: 0 12px 28px #0008;
+    animation: task-undone-rise 408ms cubic-bezier(.32, 0, .67, 0) forwards, task-done-fade 408ms linear forwards;
+    &::before { display: none; }
+  }
+  // The next occurrence of a repeating task that fell (#107 repeat mock): it comes in and flashes
+  // for 1.6 s, its line on a layer above the rule between rows and rounded like the box at its
+  // ends, so nothing cuts it. The tint is an inset shadow over the background, so a selected or
+  // hovered row keeps its own background under it.
+  &.rolled {
+    animation: task-rolled-in 240ms ease-out, task-rolled-tint 1.6s ease-out 120ms both;
+    &::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      pointer-events: none;
+      box-shadow: inset 0 0 0 1px #3d6fe0;
+      opacity: 0;
+      animation: task-rolled-line 1.6s ease-out 120ms both;
+    }
+    &:first-child::after { border-top-left-radius: 10px; border-top-right-radius: 10px; }
+    &:last-child::after { border-bottom-left-radius: 10px; border-bottom-right-radius: 10px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    &.rolled { animation: task-rolled-tint 1.6s ease-out both; }
+  }
   &.closing {
     overflow: hidden;
     transition: height 153ms ease, min-height 153ms ease, padding 153ms ease;
@@ -196,4 +229,8 @@ $accent-hover: #7aa5ff;
 
 @keyframes task-done-fall { from { transform: translateY(0); } to { transform: translateY(80px); } }
 @keyframes task-done-fade { 0% { opacity: 1; } 30% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes task-undone-rise { from { transform: translateY(0); } to { transform: translateY(-80px); } }
+@keyframes task-rolled-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+@keyframes task-rolled-tint { 0% { box-shadow: inset 0 0 0 999px #6294ff24; } 100% { box-shadow: inset 0 0 0 999px #6294ff00; } }
+@keyframes task-rolled-line { 0% { opacity: 1; } 100% { opacity: 0; } }
 @keyframes task-ck-pop { 0% { transform: scale(.8); } 60% { transform: scale(1.12); } 100% { transform: scale(1); } }

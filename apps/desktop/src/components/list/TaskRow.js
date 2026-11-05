@@ -6,7 +6,10 @@ import { categoryColor } from "utils/categoryColors";
 import { normalRepeat, repeatShortName } from "utils/repeatRule";
 import { dueMs, formatTaskTimes } from "utils/timeDisplay";
 import { highlightParts } from "./listModel";
-import { restoreRow } from "./useTaskCompletion";
+import { restoreRow, takeRolled } from "./useTaskCompletion";
+
+// How long the next occurrence of a repeating task flashes (#107 repeat mock: 1.6 s after 0.12 s).
+const ROLL_FLASH = 1720;
 
 const SEP = "\u0001";
 
@@ -49,6 +52,10 @@ function TaskRow({
   const snippet = needsUnlock ? null : memoSnippet;
   const ref = useRef(null);
   const [pop, setPop] = useState(false);
+  // Unchecked and on its way out (it rises, #107): the check shows empty meanwhile.
+  const [unpop, setUnpop] = useState(false);
+  // The next occurrence of a repeating task flashing (#107); in the class list React draws.
+  const [rolled, setRolled] = useState(false);
   const cats = (catsOf ? catsOf(task) : fixedCats) ?? [];
   const due = dueMs(task.dueDate);
   const done = !!task.done;
@@ -58,8 +65,17 @@ function TaskRow({
   const subDone = subtasks.filter((s) => s.done).length;
   const hasMemo = !!String(task.memo ?? "").trim();
   const hasMeta = !!(first || repeat || subtasks.length || hasMemo || snippet);
-  const checked = done || pop;
+  const checked = (done && !unpop) || pop;
 
+  // An uncheck that was refused (or never answered) shows the check again.
+  useEffect(() => {
+    if (!unpop) return undefined;
+    const timer = setTimeout(() => setUnpop(false), 1200);
+    return () => clearTimeout(timer);
+  }, [unpop]);
+  useEffect(() => {
+    if (!done) setUnpop(false);
+  }, [done]);
   // A repeating task stays open with its next due: the check goes back once it rolled forward.
   useEffect(() => {
     if (!pop) return undefined;
@@ -67,10 +83,23 @@ function TaskRow({
     return () => clearTimeout(timer);
   }, [pop]);
 
-  // Done and still here (the row stays in the same box, e.g. search results): show it again.
+  // Done, or unchecked, and still here (the row stays in the same box, e.g. search results): show
+  // it again.
   useEffect(() => {
-    if (done && ref.current) restoreRow(ref.current);
+    if (ref.current) restoreRow(ref.current);
   }, [done]);
+
+  // A repeating task that fell (#107): its next occurrence comes back here, whether this row is new
+  // (another group) or the one that fell (same group, a new due), and flashes once.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || done || !takeRolled(task.id)) return undefined;
+    setPop(false);
+    restoreRow(el);
+    setRolled(true);
+    const timer = setTimeout(() => setRolled(false), ROLL_FLASH);
+    return () => clearTimeout(timer);
+  }, [task.id, due, done]);
 
   // Hidden secret hits ask for the unlock before anything happens.
   const gate = (fn) => {
@@ -80,7 +109,10 @@ function TaskRow({
   };
 
   const completeNow = () => {
-    if (done) return onToggleDone?.(task, ref.current, false);
+    if (done) {
+      setUnpop(true);
+      return onToggleDone?.(task, ref.current, false);
+    }
     if (pop) return undefined;
     setPop(true);
     onToggleDone?.(task, ref.current, true);
@@ -96,7 +128,7 @@ function TaskRow({
       ref={ref}
       className={
         "task-row" + (done ? " done" : "") + (selected ? " sel" : "") + (compact ? " compact" : "") + (hasMeta ? "" : " no-meta") +
-        (hidden ? " hidden-hit" : "")
+        (hidden ? " hidden-hit" : "") + (rolled ? " rolled" : "")
       }
       data-task-id={task.id}
       tabIndex={0}
