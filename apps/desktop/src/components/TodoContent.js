@@ -812,6 +812,8 @@ const TodoContent = ({ children }) => {
     [selectedTodoMenuType, customCategory, secretUnlocked, today, canStar]
   );
   const quickKey = `${selectedTodoMenuType}|${customCategory?.id ?? ""}|${secretUnlocked}|${canStar}`;
+  // One quick add for every view (#107): what was typed and chosen stays when the view changes.
+  const [quickState, setQuickState] = useState(null);
   // The calendar and timeline's quick add, preselected to their picked day (null: none, e.g. in
   // search or on a locked category). The day is not part of the key: another day moves only an
   // untouched date chip and keeps the chips the user chose.
@@ -824,9 +826,10 @@ const TodoContent = ({ children }) => {
       onCreateCategory={onCreateCategory}
       timeFormat={prefs.timeFormat}
       canStar={canStar}
+      store={[quickState, setQuickState]}
     />
   )), [searching, locked, selectedTodoMenuType, customCategory, secretUnlocked, today, canStar, quickKey, pickable, onTaskAdd,
-    onCreateCategory, prefs.timeFormat]);
+    onCreateCategory, prefs.timeFormat, quickState]);
   // Below 1000px the panel is a drawer; this header button opens it.
   const headerExtra = layout.overlayPanel ? <PanelOpenButton onOpen={() => layout.setPanelOpen(true)} /> : null;
   // The calendar and timeline draw their own header (title, month nav) with these.
@@ -883,6 +886,7 @@ const TodoContent = ({ children }) => {
                 onCreateCategory={onCreateCategory}
                 timeFormat={prefs.timeFormat}
                 canStar={canStar}
+                store={[quickState, setQuickState]}
               />
             )}
           </>

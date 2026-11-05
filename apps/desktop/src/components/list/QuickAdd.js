@@ -46,6 +46,15 @@ const followDefaults = (draft, was, next) => {
   for (const key of Object.keys(next)) if (same(draft[key], was?.[key])) out[key] = next[key];
   return out;
 };
+// The bar's state { title, draft, base (the defaults the draft follows), screenKey } brought up to
+// the screen and defaults it is drawn with: a new screen starts the chips over (the title stays),
+// new defaults move only the chips still at the old ones.
+const reconcile = (state, screenKey, defaults) => {
+  if (!state) return { title: "", draft: defaults, base: defaults, screenKey };
+  if (state.screenKey !== screenKey) return { ...state, draft: defaults, base: defaults, screenKey };
+  if (!same(state.base, defaults)) return { ...state, draft: followDefaults(state.draft, state.base, defaults), base: defaults };
+  return state;
+};
 
 // The quick-add bar at the bottom of a view (#102 mock quickAdd): "+", the title field (Enter
 // adds; Ctrl+N focuses it) and the chips 날짜 / 반복 / 카테고리 / 중요, whose pickers open above
@@ -55,30 +64,30 @@ const followDefaults = (draft, was, next) => {
 // defaults move (today's date at midnight, another picked day), untouched chips follow them and
 // changed ones stay.
 // Without it every change of `defaults` starts over.
+// store: [state, setState] kept by the screen, so the list, calendar and timeline bars share what
+// was typed and chosen (#107); each view's defaults still move the untouched chips. Without it the
+// bar keeps its own.
 // categories: the ones that can be chosen [{ id, title, color, secret }];
 // onAdd(task); onCreateCategory(name, color) → Promise<id> (the picker's 새 카테고리).
 // canStar false hides 중요 (the star would be dropped).
-export default function QuickAdd({ defaults, contextKey, categories = [], onAdd, onCreateCategory, timeFormat, canStar = true }) {
+export default function QuickAdd({ defaults, contextKey, categories = [], onAdd, onCreateCategory, timeFormat, canStar = true, store }) {
   const prefTf = useTimeFormat();
   const tf = timeFormat === "24" || timeFormat === "12" ? timeFormat : prefTf;
-  const [title, setTitle] = useState("");
-  const [draft, setDraft] = useState(defaults);
+  const own = useState(null);
+  const [stored, setStored] = store ?? own;
   const [open, setOpen] = useState(null); // { kind: "date" | "repeat" | "cat", el }
   const barRef = useRef(null);
   const inputRef = useRef(null);
-  const defaultsKey = JSON.stringify(defaults);
-  const screenKey = contextKey ?? defaultsKey;
-  const seen = useRef({ screenKey, defaults });
-
-  // A new screen starts the chips over; new defaults on the same screen replace only untouched chips.
+  const screenKey = contextKey ?? JSON.stringify(defaults);
+  // Drawn with the state brought up to this screen and its defaults; the store follows.
+  const state = reconcile(stored, screenKey, defaults);
   useEffect(() => {
-    const was = seen.current;
-    seen.current = { screenKey, defaults };
-    if (was.screenKey !== screenKey) setDraft(defaults);
-    else setDraft((d) => followDefaults(d, was.defaults, defaults));
-    // defaultsKey stands for defaults.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [defaultsKey, screenKey]);
+    if (state !== stored) setStored(state);
+  });
+  const { title, draft } = state;
+  const update = (change) => setStored((s) => change(reconcile(s, screenKey, defaults)));
+  const setTitle = (text) => update((s) => ({ ...s, title: text }));
+  const setDraft = (next) => update((s) => ({ ...s, draft: typeof next === "function" ? next(s.draft) : next }));
 
   useEffect(() => {
     const onKey = (event) => {
