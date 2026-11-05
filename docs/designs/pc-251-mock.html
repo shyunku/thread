@@ -65,7 +65,7 @@
   .badge.rec { background: #1d4a35; color: #7fe0ae; }
   .notes .n-new { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-top: 1px solid #242a35; cursor: pointer; user-select: none; }
   .notes .n-new input { accent-color: #3ddc84; }
-  body.show-new .win :is(.undo-toast, .memo-foot, .sexp, .rp-subt.wrapped .nm, .rp-sub-in.ml, .rp-subt.cut .nm[data-tip-wrap], .thread-tooltip.wrap), body.show-new #tip.wrap { outline: 2px solid #3ddc84; outline-offset: 1px; }
+  body.show-new .win :is(.undo-toast, .memo-foot, .rp-subt.wrapped .nm, .rp-sub-in.ml) { outline: 2px solid #3ddc84; outline-offset: 1px; }
 
   /* Shift + hover pickers (same as pc-250-mock.html). */
   body.shift-on .win .hot { outline: 1px dashed #9aa4b699; outline-offset: -1px; }
@@ -241,6 +241,10 @@
   .sgrip { position: absolute; left: 0; top: 0; bottom: 0; width: var(--gw); display: none; place-items: center; color: var(--faint); cursor: grab; }
   .sgrip:hover { color: var(--secondary); }
   .rp-subt:hover .sgrip, .rp-subt.hov .sgrip { display: grid; }
+  /* Item 1, grip only on hover: no gap kept for it (rows line up with the add row). */
+  body[data-grip="out"] .sgrip { display: grid; left: -18px; width: 18px; opacity: 0; }
+  body[data-grip="out"] .rp-subt:hover .sgrip, body[data-grip="out"] .rp-subt.hov .sgrip, body.shift-on[data-grip="out"] .win .rp-subt[data-sid] .sgrip { opacity: 1; }
+  body[data-grip="in"] .sgrip { width: 12px; }
   .rp-subt.add { color: var(--muted); cursor: text; }
   .rp-subt.add i { width: var(--ck); display: grid; place-items: center; font-style: normal; flex: none; }
   .rp-subt.add input { flex: 1; min-width: 0; height: 34px; padding: 0; border: 0; background: transparent; color: var(--text); font-size: 13px; outline: none; }
@@ -269,14 +273,25 @@
 
   /* New: the undo notice (item 3). */
   .undo-toast { position: absolute; z-index: 70; top: 46px; display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 6px 0 12px; border-radius: 10px; background: #1e2430; box-shadow: 0 10px 28px #000a, inset 0 0 0 1px #2f3644; color: var(--text); font-size: 13px; white-space: nowrap; overflow: hidden; }
-  .undo-toast.center { left: 50%; transform: translateX(-50%); }
-  .undo-toast.right { right: 50px; }
+  .undo-toast.center { left: 50%; translate: -50% 0; }
+  .undo-toast .ut-msg { display: flex; min-width: 0; }
+  .undo-toast .ut-nm { font-weight: 600; } /* names past 22 characters end in … */
+  /* Item 2: coming and going. */
+  .undo-toast.anim-slide.in { animation: utInSlide .2s cubic-bezier(.2, .8, .2, 1) both; }
+  .undo-toast.anim-slide.out { animation: utOutSlide .16s ease-in both; }
+  .undo-toast.anim-fade.in { animation: utInFade .16s ease-out both; }
+  .undo-toast.anim-fade.out { animation: utOutFade .14s ease-in both; }
+  @keyframes utInSlide { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: none; } }
+  @keyframes utOutSlide { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(-12px); } }
+  @keyframes utInFade { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: none; } }
+  @keyframes utOutFade { from { opacity: 1; transform: none; } to { opacity: 0; transform: scale(.94); } }
   .undo-toast .ut-i { display: grid; place-items: center; width: 16px; color: var(--success); }
   .undo-toast .ut-i.del { color: var(--muted); }
+  .undo-toast .ut-i.add { color: var(--accent); }
   .undo-toast .ut-btn { display: flex; align-items: center; gap: 7px; height: 26px; padding: 0 8px; border-radius: 7px; color: #a9c3ff; font-weight: 600; }
   .undo-toast .ut-btn:hover { background: var(--raise); }
   .undo-toast .ut-btn kbd { font: inherit; font-size: 11px; font-weight: 400; line-height: 1; color: var(--muted); border: 1px solid var(--border); border-radius: 4px; padding: 3px 5px; }
-  .undo-toast .ut-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--accent); transform-origin: left; animation: utDrain 5s linear infinite; }
+  .undo-toast .ut-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--accent); transform-origin: left; animation: utDrain 5s linear both; }
   @keyframes utDrain { from { transform: scaleX(1); } to { transform: scaleX(0); } }
   /* Where the notice would be, for Shift + hover while it is off. */
   .undo-slot { position: absolute; z-index: 69; top: 46px; left: 50%; width: 250px; height: 34px; margin-left: -125px; border-radius: 10px; pointer-events: none; }
@@ -372,34 +387,46 @@ function memoText(n) {
   for (let k = 1; t.length < n; k++) t += `\n■ 회의 메모 ${k}\n` + L.map((x, j) => `- ${x} (${k}-${j + 1})`).join('\n') + '\n';
   return t.slice(0, n);
 }
-const CAP = { none: 0, '10k': 10000, '50k': 50000 };
-const MEMO_LEN = { none: 9412, '10k': 9412, '50k': 47060 };
+const CAP = { none: 0, '1k': 1000, '5k': 5000, '10k': 10000 };
+const MEMO_LEN = 420;
 
 // ---------- State ----------
 // Defaults on open = the recommended candidates.
 const s = {
-  grip: '20', cut: 'wrap', undo: 'center', delAsk: 'direct', memo: '10k',
+  // Confirmed: names wrap, the notice sits top center (Ctrl+Z too), deleting asks nothing.
+  grip: 'out', cut: 'wrap', undo: 'center', delAsk: 'direct', anim: 'slide', memo: '10k',
   tasks: TASKS0.map(x => ({ ...x })), subs: SUBS0.map(x => ({ ...x })),
   toast: null, dlg: null, edit: null, open: new Set(['s7']), demoHov: true, memoNote: '', scrollTo: null,
 };
-s.memoText = memoText(MEMO_LEN[s.memo]);
+s.memoText = memoText(MEMO_LEN);
 const snap = () => JSON.stringify({ tasks: s.tasks, subs: s.subs });
 const restore = j => { const o = JSON.parse(j); s.tasks = o.tasks; s.subs = o.subs; };
 // Every undoable action: with the notice it remembers the state before and shows the message;
 // a new action replaces the notice (the one before can no longer be undone).
-function act(msg, kind, fn) {
+// The notice names the task: '<name>'를 <verb>. It goes after 5 s (or right after an undo).
+let toastTimer = 0;
+function act(name, verb, kind, fn) {
   const before = snap();
   fn();
-  s.toast = s.undo === 'none' ? null : { msg, kind, before, t0: Date.now() };
+  clearTimeout(toastTimer);
+  s.toast = { name, verb, kind, before, t0: Date.now(), entered: false };
+  toastTimer = setTimeout(leaveToast, 5000);
   render();
 }
-function undo() { if (!s.toast) return; restore(s.toast.before); s.toast = null; render(); }
+function leaveToast() {
+  clearTimeout(toastTimer);
+  if (!s.toast || s.toast.leaving) return;
+  if (s.anim === 'none') { s.toast = null; render(); return; }
+  s.toast.leaving = true; render();
+  toastTimer = setTimeout(() => { s.toast = null; render(); }, 220);
+}
+function undo() { if (!s.toast || s.toast.leaving) return; restore(s.toast.before); render(); leaveToast(); }
 const task = id => s.tasks.find(x => x.id === id);
 function askDelete(id) {
   if (s.undo !== 'none' && s.delAsk === 'direct') return doDelete(id);
   s.dlg = { id }; render();
 }
-function doDelete(id) { const t = task(id); s.dlg = null; act('할 일을 지웠어요', 'del', () => { s.tasks = s.tasks.filter(x => x !== t); }); }
+function doDelete(id) { const t = task(id); s.dlg = null; act(t.t, '지웠어요', 'del', () => { s.tasks = s.tasks.filter(x => x !== t); }); }
 
 // ---------- Main window pieces ----------
 const topBar = () => `<div class="top"><div class="brand"><img src="${ICON}" alt=""><span class="ver">Thread 2.5.1</span></div>
@@ -464,7 +491,7 @@ function subRow(x) {
 }
 function memoFoot() {
   const cap = CAP[s.memo], n = s.memoText.length;
-  if (!cap || (n < cap * 0.9 && !s.memoNote)) return '';
+  if (!cap) return '';
   return `<div class="memo-foot ${n >= cap ? 'full' : ''}">${s.memoNote ? `<span class="mf-note">${s.memoNote}</span>` : ''}<span class="mf-n">${num(n)} / ${num(cap)}</span></div>`;
 }
 function panel() {
@@ -490,9 +517,10 @@ function panel() {
     </div></div>`;
 }
 function toast() {
-  if (!s.toast) return '<div class="undo-slot ' + s.undo + '"></div>';
-  const delay = -((Date.now() - s.toast.t0) % 5000);
-  return `<div class="undo-toast ${s.undo}" role="status"><span class="ut-i ${s.toast.kind === 'del' ? 'del' : ''}">${s.toast.kind === 'del' ? I.trash(15) : I.tick(14)}</span><span>${s.toast.msg}</span>
+  if (!s.toast) return '<div class="undo-slot center"></div>';
+  const x = s.toast, delay = -Math.min(5000, Date.now() - x.t0);
+  const icon = x.kind === 'del' ? I.trash(15) : x.kind === 'add' ? I.plus(14) : I.tick(14);
+  return `<div class="undo-toast center anim-${s.anim} ${x.entered ? '' : 'in'} ${x.leaving ? 'out' : ''}" role="status"><span class="ut-i ${x.kind}">${icon}</span><span class="ut-msg">'<span class="ut-nm">${esc(x.name.length > 22 ? x.name.slice(0, 21).trimEnd() + '…' : x.name)}</span>'${objectParticle(x.name)}&nbsp;${x.verb}</span>
     <button class="ut-btn" data-act="undo">되돌리기<kbd>Ctrl Z</kbd></button><i class="ut-bar" style="animation-delay:${delay}ms"></i></div>`;
 }
 function dialog() {
@@ -521,9 +549,11 @@ function render() {
   const a = document.activeElement, fk = a && a.dataset && a.dataset.fk ? [a.dataset.fk, a.selectionStart, a.selectionEnd] : null;
   const sc = document.querySelector('.n-scroll')?.scrollTop ?? 0, pb = document.querySelector('.rp-body')?.scrollTop ?? 0;
   rendering = true;
-  document.documentElement.style.setProperty('--gw', s.grip + 'px');
+  document.documentElement.style.setProperty('--gw', (s.grip === 'out' || s.grip === 'in' ? 12 : +s.grip) + 'px');
+  document.body.dataset.grip = s.grip;
   document.getElementById('stage').innerHTML = `<div class="pieces">${mainWin()}</div>${notes()}`;
   rendering = false;
+  if (s.toast) s.toast.entered = true;
   document.querySelector('.n-scroll').scrollTop = sc;
   document.querySelectorAll('.rp-memo, .rp-sub-in.ml, .n-cm').forEach(grow);
   const body = document.querySelector('.rp-body');
@@ -569,9 +599,9 @@ document.addEventListener('click', e => {
   const a = e.target.closest('.win [data-act]');
   if (!a) return;
   const { act: k, sid, tid } = a.dataset, x = sid && s.subs.find(y => y.id === sid);
-  if (k === 'sck') { if (x.done) { x.done = false; render(); } else act('하위 할 일을 완료했어요', 'done', () => { x.done = true; }); }
-  else if (k === 'sdel') act('하위 할 일을 지웠어요', 'del', () => { s.subs = s.subs.filter(y => y !== x); });
-  else if (k === 'tck') { const t = task(tid); if (t.done) { t.done = false; render(); } else act('할 일을 완료했어요', 'done', () => { t.done = true; }); }
+  if (k === 'sck') { if (x.done) { x.done = false; render(); } else act(x.t, '완료했어요', 'done', () => { x.done = true; }); }
+  else if (k === 'sdel') act(x.t, '지웠어요', 'del', () => { s.subs = s.subs.filter(y => y !== x); });
+  else if (k === 'tck') { const t = task(tid); if (t.done) { t.done = false; render(); } else act(t.t, '완료했어요', 'done', () => { t.done = true; }); }
   else if (k === 'undo') undo();
   else if (k === 'dlgX') { s.dlg = null; render(); }
   else if (k === 'dlgOk') doDelete(s.dlg.id);
@@ -597,12 +627,12 @@ document.addEventListener('keydown', e => {
   }
   if (t.matches && t.matches('[data-fk="qa"]') && e.key === 'Enter' && t.value.trim()) {
     const v = t.value.trim(); t.value = '';
-    act('할 일을 추가했어요', 'done', () => { s.tasks.push({ id: 't' + Date.now(), g: 'today', t: v, when: '오늘', left: '9시간 39분 남음' }); });
+    act(v, '추가했어요', 'add', () => { s.tasks.push({ id: 't' + Date.now(), g: 'today', t: v, when: '오늘', left: '9시간 39분 남음' }); });
     return;
   }
   if (t.matches && t.matches('[data-fk="subadd"]') && e.key === 'Enter' && t.value.trim()) {
     const v = t.value.trim(); t.value = '';
-    act('하위 할 일을 추가했어요', 'done', () => { s.subs.push({ id: 's' + Date.now(), t: v, done: false }); });
+    act(v, '추가했어요', 'add', () => { s.subs.push({ id: 's' + Date.now(), t: v, done: false }); });
     return;
   }
   if (t.matches && t.matches('[data-fk="memo"]') && e.key === 'Escape') { t.blur(); return; }
@@ -664,28 +694,22 @@ document.addEventListener('mouseover', e => {
 // show(): opens what the choice changes, when it is picked.
 const resetDemo = () => { s.tasks = TASKS0.map(x => ({ ...x })); s.dlg = null; s.toast = null; s.edit = null; };
 const OPTS = [
-  { at: '.sgrip', key: 'grip', title: '하위 할 일 손잡이 좌우 여백', show: () => { s.demoHov = true; s.scrollTo = 'top'; },
-    items: [['16', '4px씩 (칸 16px)', '지금 모습. 점 바로 옆에 체크 원', 'old'], ['20', '6px씩 (칸 20px)', '점 양옆이 2px씩 넓어짐. 이름이 4px 오른쪽으로', 'rec'], ['24', '8px씩 (칸 24px)', '가장 넉넉함. 이름이 8px 오른쪽으로 가서 조금 더 일찍 잘림']] },
-  { at: '.rp-subt[data-sid] .nm, .rp-subt[data-sid] .sexp, .rp-subt[data-sid] .rp-sub-in', key: 'cut', title: '잘린 하위 할 일 보기', show: () => { s.demoHov = true; s.edit = null; s.scrollTo = 'top'; },
-    items: [['ellipsis', '말줄임만', '지금처럼 한 줄에서 잘림. 이름 바꾸기 칸도 한 줄짜리', 'old'],
-      ['wrap', '줄바꿈해서 다 보이기', '긴 이름은 필요한 만큼 여러 줄. 눌러서 이름 바꿀 때도 여러 줄 칸이 늘어남', 'rec'],
-      ['hover', '마우스 올리면 전체 이름', '잘린 이름에 올리면 툴팁으로 전체 이름'],
-      ['expand', '펼침 버튼', '잘린 줄 오른쪽 화살표로 그 줄만 펼치기 · 접기']] },
-  { at: '.undo-toast, .undo-slot', key: 'undo', title: '되돌리기 알림',
-    show: () => { resetDemo(); if (s.undo !== 'none') act('할 일을 완료했어요', 'done', () => { task('t3').done = true; }); },
-    items: [['none', '기능 없음', '지금처럼 바로 반영되고 되돌릴 수 없음', 'old'],
-      ['center', '위 가운데 · Ctrl+Z도 됨', '창 위 가운데, 5초 뒤 사라짐. 목록 머리 위라 거의 안 가림', 'rec'],
-      ['right', '위 오른쪽 · Ctrl+Z도 됨', '지금 경고 알림이 뜨는 자리. 상세 패널 탭을 가림']] },
-  { at: '.tp-dialog, .task-row', key: 'delAsk', title: '할 일 지울 때 확인 창', cur: () => s.undo === 'none' ? 'keep' : s.delAsk,
-    set: v => { s.delAsk = v; if (v === 'direct' && s.undo === 'none') s.undo = 'center'; },
-    show: () => { resetDemo(); askDelete('t1'); },
-    items: [['keep', '확인 창 그대로', '지금 확인 창 유지. 되돌리기가 있으면 본문 문구만 바뀜', 'old'],
-      ['direct', '바로 지우고 되돌리기 알림', '메뉴 삭제 · Del로 바로 지움. 고르면 되돌리기 알림도 켜짐', 'rec']] },
-  { at: '.memo-wrap', key: 'memo', title: '메모 글자 수 제한', set: v => { s.memo = v; s.memoText = memoText(MEMO_LEN[v]); s.memoNote = ''; },
+  { at: '.sgrip', key: 'grip', title: '하위 할 일 손잡이', show: () => { s.demoHov = true; s.scrollTo = 'top'; },
+    items: [['16', '늘 자리 둠 · 4px씩', '지금 모습. 손잡이 자리 16px을 늘 비워 둠', 'old'],
+      ['20', '늘 자리 둠 · 6px씩', '자리 20px. 점 양옆이 2px씩 넓어짐'],
+      ['out', '올릴 때만 · 박스 바깥', '평소 여백 없음. 올리면 박스 왼쪽 바깥에', 'rec'],
+      ['in', '올릴 때만 · 박스 안', '평소 여백 없음. 올리면 체크 원 옆 12px 안에']] },
+  { at: '.undo-toast, .undo-slot', key: 'anim', title: '되돌리기 알림 나타나고 사라지는 모습',
+    show: () => { resetDemo(); act(task('t3').t, '완료했어요', 'done', () => { task('t3').done = true; }); },
+    items: [['none', '애니메이션 없음', '바로 나타나고 5초 뒤 바로 사라짐', 'old'],
+      ['slide', '위에서 내려옴', '살짝 내려오며 나타나고 올라가며 사라짐', 'rec'],
+      ['fade', '제자리에서 또렷해짐', '살짝 커지며 나타나고 작아지며 흐려짐']] },
+  { at: '.memo-wrap', key: 'memo', title: '메모 글자 수 제한', set: v => { s.memo = v; s.memoNote = ''; },
     show: () => { s.scrollTo = 'memo'; },
-    items: [['none', '기능 없음', '지금처럼 무제한. 아주 긴 메모는 동기화(1MB)를 막을 수 있음', 'old'],
-      ['10k', '1만 자', '9,000자부터 글자 수 표시, 넘게 붙여 넣으면 잘림', 'rec'],
-      ['50k', '5만 자', '같은 방식. 45,000자부터 숫자가 보임']] },
+    items: [['none', '기능 없음', '지금처럼 무제한. 아주 길면 동기화가 막힐 수 있음', 'old'],
+      ['1k', '1천 자', 'A4 반 쪽 남짓. 긴 회의 메모는 모자람'],
+      ['5k', '5천 자', 'A4 3쪽쯤'],
+      ['10k', '1만 자', 'A4 6쪽쯤. 동기화 · 로딩 영향 거의 없음', 'rec']] },
 ];
 const curOf = o => o.cur ? o.cur() : s[o.key];
 const choose = (o, v) => { if (o.set) o.set(v); else s[o.key] = v; o.show(); render(); };
@@ -760,7 +784,7 @@ document.addEventListener('click', e => {
   if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
 });
 document.addEventListener('change', e => { if (e.target.matches('[data-nnew]')) document.body.classList.toggle('show-new', e.target.checked); });
-OPTS[2].show();
+OPTS[1].show();
 render();
 // Names are measured for cutting once the fonts are in.
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => render());
