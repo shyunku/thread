@@ -188,6 +188,7 @@
   .rcol .roll > span { display: block; animation: rollIn .26s cubic-bezier(.2, .8, .2, 1); }
   @keyframes rollIn { from { transform: translateY(100%); opacity: 0; } to { transform: none; opacity: 1; } }
   .task-row.rep-flash { animation: repFlash .7s ease-out; }
+  .task-row.rep-back-flash { animation: repBack .24s ease-out, repFlash .8s ease-out .12s; }
   @keyframes repFlash { 0% { background: var(--accent-soft); box-shadow: inset 0 0 0 1px #3d6fe0; } 100% { background: transparent; box-shadow: inset 0 0 0 1px transparent; } }
   .rep-rise { position: absolute; z-index: 50; pointer-events: none; display: flex; align-items: flex-start; gap: var(--ck-gap); box-sizing: border-box; border-radius: 10px; background: var(--raise); animation: repRise .408s cubic-bezier(.4, 0, 1, 1) forwards; }
   @keyframes repRise { to { transform: translateY(-80px); opacity: 0; } }
@@ -412,7 +413,7 @@ const MEMO_LEN = 420;
 // Defaults on open = the recommended candidates.
 const s = {
   // Confirmed: names wrap, the notice sits top center (Ctrl+Z too), deleting asks nothing.
-  grip: 'out', cut: 'wrap', undo: 'center', delAsk: 'direct', anim: 'slide', memo: '10k', repeatAnim: 'fall', uncheckAnim: 'rise',
+  grip: 'out', cut: 'wrap', undo: 'center', delAsk: 'direct', anim: 'slide', memo: '10k', repeatAnim: 'fallflash', uncheckAnim: 'rise',
   tasks: TASKS0.map(x => ({ ...x })), subs: SUBS0.map(x => ({ ...x })),
   toast: null, dlg: null, edit: null, open: new Set(['s7']), demoHov: true, memoNote: '', scrollTo: null,
 };
@@ -451,7 +452,7 @@ function repeatDone(t) {
   const r = row(); if (!r) return;
   const ck = r.querySelector('.ck');
   ck.classList.add('done', 'pop');
-  if (s.repeatAnim === 'fall') {
+  if (s.repeatAnim === 'fall' || s.repeatAnim === 'fallflash') {
     later(136, () => {
       const win = document.querySelector('.win'), w = win.getBoundingClientRect(), b = r.getBoundingClientRect(), cs = getComputedStyle(r);
       const copy = r.cloneNode(true); copy.className = 'task-row rep-fall';
@@ -519,7 +520,7 @@ function taskRow(t) {
     t.sel ? `<span>${I.sub}<i>${subDone}/${s.subs.length}</i></span>` : '',
     t.memo ? `<span>${I.memo}</span>` : '',
   ].join('');
-  const back = t.rolled === 'fall' || t.backAnim === 'rise' ? 'rep-back' : t.backAnim === 'fade' ? 'rep-fade-in' : t.rolled === 'flash' ? 'rep-flash' : '';
+  const back = t.rolled === 'fallflash' ? 'rep-back-flash' : t.rolled === 'fall' || t.backAnim === 'rise' ? 'rep-back' : t.backAnim === 'fade' ? 'rep-fade-in' : '';
   const roll = (text) => t.rolled === 'roll' ? `<span class="roll"><span>${text}</span></span>` : text;
   return `<div class="task-row ${t.sel ? 'sel' : ''} ${t.done ? 'done' : ''} ${back}" data-tid="${t.id}"><button class="ck ${t.done ? 'done' : ''}" data-act="tck" data-tid="${t.id}">${I.check}</button><div class="tx"><div class="t">${esc(t.t)}</div><div class="meta">${meta}</div></div>
     <div class="rcol"><span class="when ${t.over ? 'over' : ''}">${roll(t.when)}</span><span class="left ${t.over ? 'over' : ''}">${roll(t.left)}</span></div><button class="st ${t.imp ? 'on' : ''}">${I.star(t.imp, 16)}</button></div>`;
@@ -765,9 +766,8 @@ const replayUndone = () => { s.dlg = null; s.toast = null; Object.assign(task('t
 const OPTS = [
   { at: '.task-row[data-tid="t4"]', key: 'repeatAnim', title: '목록에서 반복 할 일 완료할 때', show: () => { s.scrollTo = 'top'; repTimers.forEach(clearTimeout); repTimers = []; setTimeout(replay, 0); },
     items: [['pop', '체크만 톡', '지금 모습. 체크가 튀고 줄이 내일 묶음으로 바로 옮겨짐', 'old'],
-      ['fall', '내려갔다 다시 나타남', '일반 할 일처럼 떨어지고, 다음 회차가 내일 묶음에 스르륵', 'rec'],
-      ['roll', '기한이 굴러 올라감', '내일 묶음으로 옮겨진 뒤 기한 글자가 아래에서 올라옴'],
-      ['flash', '줄이 살짝 빛남', '내일 묶음으로 옮겨진 줄이 파랗게 한 번 빛남']] },
+      ['fall', '내려갔다 다시 나타남', '일반 할 일처럼 떨어지고, 다음 회차가 내일 묶음에 스르륵'],
+      ['fallflash', '내려갔다 나타나며 빛남', '위와 같고, 나타난 줄이 파랗게 한 번 빛나 어디로 갔는지 보임', 'rec']] },
   { at: '.task-row[data-tid="t6"]', key: 'uncheckAnim', title: '완료한 할 일 체크 해제할 때', show: () => { s.scrollTo = 'top'; repTimers.forEach(clearTimeout); repTimers = []; setTimeout(replayUndone, 0); },
     items: [['none', '바로 옮겨짐', '지금 모습. 완료 묶음에서 원래 묶음으로 바로', 'old'],
       ['rise', '올라갔다 다시 나타남', '완료할 때의 반대. 위로 떠오르며 사라지고 원래 묶음에 스르륵', 'rec'],
