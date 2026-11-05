@@ -1,0 +1,769 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thread PC 2.5.1 시안 (#107)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet">
+<style>
+  /* Oxanium with the vertical metrics the app uses (fonts.scss), so Korean from Noto Sans KR sits centred. */
+  @font-face { font-family: 'Oxanium'; font-style: normal; font-weight: 300 700; font-display: swap;
+    ascent-override: 95%; descent-override: 5%; line-gap-override: 0%;
+    src: url(https://fonts.gstatic.com/s/oxanium/v21/RrQQboN_4yJ0JmiMe2zE0YBB.woff2) format('woff2');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+  @font-face { font-family: 'Oxanium'; font-style: normal; font-weight: 300 700; font-display: swap;
+    ascent-override: 95%; descent-override: 5%; line-gap-override: 0%;
+    src: url(https://fonts.gstatic.com/s/oxanium/v21/RrQQboN_4yJ0JmiMe2LE0Q.woff2) format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+
+  :root {
+    --page: #0b0d10;
+    /* apps/desktop/src/styles/index.scss with the main-screen (.main-scope) values. */
+    --canvas: #101216; --panel: #14171d; --surface: #1a1e25; --hover: #1d2129; --border: #2b303b;
+    --text: #edf1f7; --secondary: #a3acbb; --muted: #7f8a9c; --accent: #6294ff; --selected: #253858;
+    --success: #70d5a0; --warning: #edbc72; --danger: #f0838b;
+    --raise: #222731; --line: #232831; --faint: #5f697a; --accent-soft: #1b2741; --star: #f2c14e;
+    --side-x: 20px; --main-x: 40px; --row-x: 22px; --ck: 20px; --ck-gap: 12px; --panel-x: 20px; --in: 12px;
+    --gw: 20px; /* subtask grip gutter (item 1) */
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--text); font: 14px/1.5 Pretendard, "Malgun Gothic", "Segoe UI", sans-serif; word-break: keep-all; overflow-wrap: break-word; }
+  button, input, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  svg { display: block; flex: none; }
+
+  /* One screen: the main window at real size, notes on the right at full height. */
+  html, body { height: 100%; }
+  body { overflow: hidden; }
+  .stage { display: flex; gap: 28px; align-items: flex-start; height: 100%; padding: 24px; }
+  .pieces { display: flex; gap: 28px; align-items: flex-start; flex: none; }
+
+  .notes { display: flex; flex-direction: column; width: 400px; height: 100%; min-height: 0; flex: none; padding: 14px 0 0; border: 1px solid #2b303b; border-radius: 12px; background: #12151b; color: #a0aaba; font-size: 13px; }
+  .notes .n-top { display: flex; align-items: center; gap: 10px; padding: 0 16px 10px; border-bottom: 1px solid #242a35; }
+  .notes .n-copy { flex: none; padding: 6px 12px; border: 0; border-radius: 8px; background: #3d6fe0; color: #fff; font-size: 12.5px; font-weight: 600; }
+  .notes .n-copy.done { background: #2f9e6a; }
+  .notes .hint { margin: 0; color: #8b95a7; font-size: 12px; line-height: 1.45; }
+  .notes kbd { padding: 0 4px; border: 1px solid #3a4252; border-radius: 4px; font: inherit; font-size: 11px; color: #cfd6e2; }
+  .notes .n-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 0 10px; }
+  .notes .n-item { padding: 12px 0 10px; }
+  .notes .n-item + .n-item { border-top: 1px solid #2a303c; }
+  .notes h4 { margin: 2px 6px 4px; font-size: 13px; color: #edf1f7; font-weight: 600; }
+  .notes .n-why { margin: 0 6px 6px; color: #8b95a7; font-size: 12px; line-height: 1.5; }
+  .notes .n-row { display: grid; grid-template-columns: 1fr; gap: 2px; width: 100%; cursor: pointer; margin: 2px 0; padding: 7px 8px; border: 0; border-radius: 8px; background: transparent; color: #cfd6e2; text-align: left; font-size: 12.5px; }
+  .notes .n-row:hover { background: #1c222c; }
+  .notes .n-row.on { background: #22324f; color: #fff; }
+  .notes .n-nm { font-weight: 600; }
+  .notes .n-ds { color: #8b95a7; font-size: 12px; }
+  .notes .n-row.on .n-ds { color: #b9c6dc; }
+  .notes .n-cm { display: block; margin-top: 6px; width: 100%; min-height: 30px; padding: 5px 8px; border: 1px solid #3a4a66; border-radius: 6px; background: #151b26; color: #edf1f7; font-size: 12.5px; line-height: 1.5; outline: none; cursor: text; resize: none; overflow: hidden; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .notes .n-cm:focus { border-color: #6fa0ff; }
+  .badge { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 9px; font-size: 10.5px; font-weight: 600; line-height: 17px; vertical-align: 1px; }
+  .badge.old { background: #2c323d; color: #aab4c4; }
+  .badge.rec { background: #1d4a35; color: #7fe0ae; }
+  .notes .n-new { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-top: 1px solid #242a35; cursor: pointer; user-select: none; }
+  .notes .n-new input { accent-color: #3ddc84; }
+  body.show-new .win :is(.undo-toast, .memo-foot, .sexp, .rp-subt.wrapped .nm, .rp-sub-in.ml, .rp-subt.cut .nm[data-tip-wrap], .thread-tooltip.wrap), body.show-new #tip.wrap { outline: 2px solid #3ddc84; outline-offset: 1px; }
+
+  /* Shift + hover pickers (same as pc-250-mock.html). */
+  body.shift-on .win .hot { outline: 1px dashed #9aa4b699; outline-offset: -1px; }
+  body.shift-on .win [data-opts] { outline: 2px dashed #6fa0ff; outline-offset: -2px; }
+  body.shift-on .win .ck.hot { outline-offset: 2px; }
+  body.shift-on .win .rp-subt[data-sid] .sgrip { display: grid; }
+  body.shift-on .win :is(.dlg-wrap, .tp-scrim) { pointer-events: none; }
+  body.shift-on .win .tp-dialog { pointer-events: auto; }
+  .opt-pop { position: fixed; z-index: 500; display: none; min-width: 180px; max-width: 420px; padding: 8px; border: 1px solid #3a5486; border-radius: 10px; background: #161b24f5; box-shadow: 0 12px 32px #000b; font-size: 12.5px; color: #cfd6e2; }
+  .opt-pop.on { display: block; }
+  .opt-pop b { display: block; margin: 0 4px 6px; font-size: 11.5px; color: #8b95a7; font-weight: 600; }
+  .opt-pop button { display: block; width: 100%; margin: 2px 0; padding: 6px 10px; border: 0; border-radius: 7px; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+  .opt-pop button:hover { background: #232a37; }
+  .opt-pop button.on { background: #253858; color: #fff; }
+
+  /* App tooltip (Tooltip.scss). .wrap: the full subtask name (item 2 "마우스 올리면 전체 이름"). */
+  .thread-tooltip { position: fixed; z-index: 400; padding: 6px 9px; border: 1px solid #46536a; border-radius: 6px; background: #101720; color: #edf1f7; font: 12px/1.4 "Oxanium", "Noto Sans KR", sans-serif; white-space: nowrap; pointer-events: none; display: none; }
+  .thread-tooltip.on { display: block; }
+  .thread-tooltip.demo { position: absolute; display: block; }
+  .thread-tooltip.wrap { white-space: normal; max-width: 300px; word-break: keep-all; overflow-wrap: anywhere; }
+
+  /* ---------- Window ---------- */
+  .win, .win button, .win input, .win textarea { font-family: "Oxanium", "Noto Sans KR", sans-serif; }
+  .win { position: relative; display: flex; flex-direction: column; border: 1px solid #2b303b; border-radius: 10px; overflow: hidden; background: var(--canvas); color: var(--text); flex: none; word-break: keep-all; overflow-wrap: break-word; font-size: 14px; line-height: 1.5; }
+  .win button { appearance: none; margin: 0; padding: 0; border: 0; background: none; text-align: left; }
+
+  .top { height: 42px; flex: none; display: flex; align-items: center; background: #13161b; border-bottom: 1px solid var(--border); position: relative; }
+  .top .brand { display: flex; align-items: center; gap: 9px; padding: 0 12px; }
+  .top .brand img { width: 26px; height: 26px; object-fit: contain; }
+  .top .ver { font-size: 12px; font-weight: 500; color: var(--muted); white-space: nowrap; }
+  .top .search { position: absolute; left: 50%; transform: translateX(-50%); width: 470px; height: 28px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); display: flex; align-items: center; gap: 10px; padding: 0 12px; color: var(--secondary); font-size: 12px; }
+  .top .search .ph { flex: 1; color: var(--muted); }
+  .top kbd { font: inherit; font-size: 11px; color: var(--muted); border: 1px solid var(--border); border-radius: 4px; padding: 3px 5px; line-height: 1; }
+  .top .lock { position: absolute; top: 7px; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 7px; color: #7da8ff; background: #6294ff24; cursor: pointer; }
+  .top .wc { display: flex; align-self: stretch; margin-left: auto; }
+  .top .wc span { width: 44px; display: grid; place-items: center; color: var(--secondary); }
+  .body { flex: 1; min-height: 0; display: flex; position: relative; }
+
+  /* Sidebar (LeftSidebar.scss, Clock.scss). */
+  .side { position: relative; width: 232px; flex: none; display: flex; flex-direction: column; background: var(--panel); padding: 12px calc(var(--side-x) - 10px) 10px; overflow: hidden; }
+  .side-clock { flex: none; margin: 0 0 14px; padding: 12px 14px 9px; border-radius: 10px; background: var(--surface); }
+  .side-clock .cd { display: block; font-size: 12px; line-height: 18px; color: var(--muted); white-space: nowrap; }
+  .side-clock b { display: block; margin-top: 6px; font-size: 24px; line-height: 30px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; white-space: nowrap; }
+  .side-clock b small { font-size: 16px; font-weight: 500; color: var(--muted); margin-left: 1px; }
+  .side-scroll { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  .grp { display: flex; align-items: center; flex: none; height: 28px; margin-top: 16px; padding: 0 10px; font-size: 12px; color: var(--muted); }
+  .grp-add { margin-left: auto; width: 16px; height: 28px; display: grid; justify-items: end; align-items: center; cursor: pointer; }
+  .side-row { display: flex; align-items: center; flex: none; gap: 10px; height: 34px; padding: 0 10px; border-radius: 8px; color: var(--secondary); font-size: 13.5px; white-space: nowrap; cursor: pointer; position: relative; user-select: none; }
+  .side-row:hover { background: var(--hover); }
+  .side-row.on { background: var(--raise); color: var(--text); }
+  .side-row .ic { width: 18px; height: 18px; display: grid; place-items: center; color: var(--muted); flex: none; }
+  .side-row.on .ic { color: var(--text); }
+  .side-row .lbl { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .side-row .n { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 16px; text-align: right; }
+  .side-row .n.due { color: var(--danger); }
+  .side-row .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .side-row.cat-row { gap: 7px; }
+  .side .foot { flex: none; margin: 0 calc(10px - var(--side-x)) -10px; display: flex; align-items: center; gap: 10px; height: 60px; padding: 0 var(--side-x); border-top: 1px solid var(--line); background: #0e1014; }
+  .side .foot .av-w { position: relative; flex: none; display: grid; }
+  .side .foot .av { width: 32px; height: 32px; border-radius: 50%; background: #2a3242; display: grid; place-items: center; font-size: 13px; color: var(--secondary); }
+  .side .foot .sync-dot { position: absolute; right: -1px; bottom: -1px; width: 10px; height: 10px; border-radius: 50%; background: var(--success); box-shadow: 0 0 0 2px #0e1014; }
+  .side .foot .who { flex: 1; min-width: 0; font-size: 12.5px; line-height: 1.3; }
+  .side .foot .who .name { display: block; font-size: 13px; font-weight: 600; color: var(--text); }
+  .side .foot .who small { display: block; color: var(--muted); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .side .foot .gear { width: 28px; height: 28px; margin-right: -5px; display: grid; place-items: center; border-radius: 7px; color: var(--muted); cursor: pointer; }
+
+  /* List pane (TodoContent.scss, TaskListView.scss, TaskRow.scss). */
+  .tc { position: relative; display: flex; flex-direction: column; flex: 1; min-width: 0; overflow: hidden; }
+  .tc-head { flex: none; padding: var(--main-x) var(--main-x) 0; }
+  .tc-row1 { display: flex; align-items: center; gap: 8px; height: 32px; }
+  .tc-title { margin: 0; font-size: 22px; line-height: 32px; font-weight: 700; letter-spacing: -0.01em; white-space: nowrap; }
+  .tc-finding { margin: 2px 0 0; font-size: 13px; line-height: 20px; color: var(--secondary); white-space: nowrap; }
+  .tc-finding b { color: var(--danger); font-weight: 600; }
+  .tc-push { margin-left: auto; }
+  .tc-seg { display: flex; gap: 2px; height: 32px; padding: 2px; border-radius: 8px; background: var(--surface); }
+  .tc-seg span { display: grid; place-items: center; width: 32px; border-radius: 6px; color: var(--secondary); cursor: pointer; }
+  .tc-seg span.on { background: var(--raise); color: var(--text); }
+  .tc-ghost { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 8px; color: var(--secondary); cursor: pointer; }
+  .tc-ghost:hover { background: var(--hover); }
+  .tc-row1 > .tc-ghost:last-child { margin-right: -8px; }
+  .tc-scroll { flex: 1; min-height: 0; overflow: hidden; padding: 12px var(--main-x) 0; }
+  .tl-sec { display: flex; align-items: center; gap: 8px; width: 100%; height: 36px; margin-top: 20px; padding: 0 var(--row-x) 0 0; font-size: 13.5px; font-weight: 700; color: var(--text); cursor: pointer; }
+  .tl-group:first-child > .tl-sec { margin-top: 4px; }
+  .tl-sec .tl-c { min-width: 22px; height: 20px; padding: 2px 7px 0; display: grid; place-items: center; border-radius: 10px; background: var(--raise); color: var(--secondary); font-size: 11.5px; font-weight: 600; }
+  .tl-sec .tl-tog { margin-left: auto; width: 28px; height: 28px; margin-right: -6px; display: grid; place-items: center; border-radius: 7px; color: var(--muted); }
+  .tl-sec.over { color: var(--danger); }
+  .tl-sec.over .tl-c { background: #3a2226; color: var(--danger); }
+  .tl-box { border-radius: 10px; background: var(--surface); overflow: hidden; }
+  .task-row { display: flex; align-items: flex-start; gap: var(--ck-gap); min-height: 64px; padding: 12px var(--row-x); cursor: pointer; position: relative; }
+  .task-row:hover { background: var(--raise); }
+  .task-row.sel { background: var(--accent-soft); }
+  .task-row + .task-row::before { content: ""; position: absolute; left: calc(14px + var(--ck) + var(--ck-gap)); right: 14px; top: 0; height: 1px; background: var(--line); }
+  .task-row.sel::before, .task-row.sel + .task-row::before { display: none; }
+  .ck { width: var(--ck); height: var(--ck); flex: none; display: grid; place-items: center; border-radius: 50%; border: 2px solid #5a6475 !important; color: #fff; cursor: pointer; }
+  .ck svg { opacity: 0; }
+  .ck:not(.done):hover { border-color: var(--accent) !important; background: #6294ff1f !important; color: var(--accent); }
+  .ck:not(.done):hover svg { opacity: .7; }
+  .ck.done { background: var(--accent) !important; border-color: var(--accent) !important; }
+  .ck.done svg { opacity: 1; }
+  .task-row > .ck { align-self: center; }
+  .task-row .tx { flex: 1; min-width: 0; }
+  .task-row .t { font-size: 14px; line-height: 20px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .task-row.done .t { color: var(--muted); text-decoration: line-through; }
+  .task-row .meta { display: flex; align-items: center; gap: 12px; margin-top: 2px; height: 18px; font-size: 12px; line-height: 18px; color: var(--muted); white-space: nowrap; }
+  .task-row .meta > span { display: inline-flex; align-items: center; gap: 5px; }
+  .task-row .meta i { font-style: normal; }
+  .task-row .meta .dot { width: 7px; height: 7px; border-radius: 50%; }
+  .task-row .meta b { font-weight: 400; }
+  .task-row .rcol { min-width: 112px; flex: none; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .task-row .rcol .when { display: block; font-size: 13px; line-height: 20px; color: var(--secondary); }
+  .task-row .rcol .left { display: block; font-size: 12px; line-height: 18px; margin-top: 2px; color: var(--muted); }
+  .task-row .rcol .when.over { color: var(--danger); } .task-row .rcol .left.over { color: #cf7a81; }
+  .st { width: 28px; height: 28px; flex: none; display: grid; place-items: center; border-radius: 7px; color: #4d5666; cursor: pointer; }
+  .st.on { color: var(--star); }
+  .task-row > .st { margin: 0 -6px 0 0; align-self: center; }
+
+  /* Quick add (QuickAdd.scss). */
+  .tc-quick { flex: none; margin: 12px var(--main-x) var(--main-x); padding: 0 22px; border-radius: 10px; background: var(--surface); position: relative; }
+  .qa-in { display: flex; align-items: center; gap: var(--ck-gap); height: 44px; color: var(--muted); font-size: 13.5px; }
+  .qa-plus { width: var(--ck); height: var(--ck); display: grid; place-items: center; color: var(--accent); flex: none; }
+  .qa-in input { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; outline: none; background: none; color: var(--text); font-size: 13.5px; }
+  .qa-in input::placeholder { color: var(--muted); }
+  .qa-in kbd { font: inherit; font-size: 11px; line-height: 1; color: var(--muted); border: 1px solid #2b303b; border-radius: 4px; padding: 3px 5px; }
+  .qa-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 0 12px calc(var(--ck) + var(--ck-gap)); }
+  .qa-chip { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 8px; border-radius: 6px; background: var(--raise) !important; color: var(--secondary); font-size: 12px; white-space: nowrap; cursor: pointer; }
+  .qa-chip:hover { background: #2d3442 !important; color: var(--text); }
+  .qa-chip .qa-dot { width: 7px; height: 7px; border-radius: 50%; }
+
+  /* Right panel (Home.layout.scss, RightPanel.scss). */
+  .splitter { width: 1px; flex: none; background: var(--line); }
+  .home-panel { flex: none; width: 360px; display: flex; flex-direction: column; background: var(--panel); position: relative; }
+  .rp-tabs { display: flex; align-items: center; gap: 4px; height: 32px; flex: none; margin: 20px 0 12px; padding: 0 calc(var(--panel-x) - 8px); }
+  .rp-tab { height: 32px; display: grid; place-items: center; padding: 0 10px; border-radius: 7px; font-size: 12.5px; color: var(--secondary); white-space: nowrap; cursor: pointer; }
+  .rp-tab:first-child { padding-left: 8px; }
+  .rp-tab.on { background: var(--raise); color: var(--text); font-weight: 600; }
+  .rp-x { margin-left: auto; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 7px; color: var(--muted); cursor: pointer; }
+  .rp-body { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; scrollbar-color: #2b303b transparent; padding: 6px var(--panel-x) 20px; }
+  .rp-box { border-radius: 10px; background: var(--surface); }
+  .rp-block-h { display: flex; align-items: center; height: 20px; margin: 20px 0 8px; font-size: 12.5px; color: var(--secondary); font-weight: 600; }
+  .rp-block-h span { margin-left: auto; color: var(--muted); font-weight: 400; }
+  .rp-dt-title { display: flex; gap: var(--ck-gap); align-items: flex-start; margin: 0 0 16px; padding: 0 var(--in); }
+  .rp-dt-title > .ck { margin-top: 3px; }
+  .rp-dt-title > .st { margin: -1px -6px -1px 0; }
+  .rp-title { flex: 1; min-width: 0; font-size: 18px; line-height: 26px; font-weight: 700; cursor: text; }
+  .rp-prop { display: flex; align-items: center; gap: 12px; min-height: 40px; padding: 8px var(--in); font-size: 13px; cursor: pointer; }
+  .rp-prop + .rp-prop { border-top: 1px solid var(--line); }
+  .rp-prop:first-child { border-radius: 10px 10px 0 0; } .rp-prop:last-child { border-radius: 0 0 10px 10px; }
+  .rp-prop:hover { background: var(--raise); }
+  .rp-prop .k { width: 60px; flex: none; color: var(--muted); font-size: 12.5px; }
+  .rp-prop .v { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-variant-numeric: tabular-nums; }
+  .rp-prop .v .sub { color: var(--muted); font-size: 12px; }
+  .rp-chip { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 8px; border-radius: 6px; background: var(--raise); color: var(--secondary); font-size: 12px; white-space: nowrap; }
+  .rp-chip .rp-dot { width: 7px; height: 7px; border-radius: 50%; }
+  .rp-bar { height: 3px; background: var(--raise); overflow: hidden; border-radius: 10px 10px 0 0; }
+  .rp-bar i { display: block; height: 100%; background: var(--accent); }
+
+  /* Subtasks: no due dates any more (confirmed); hover shows the grip and the delete ×. */
+  .rp-subs { position: relative; }
+  .rp-subt { position: relative; display: flex; align-items: center; gap: var(--ck-gap); min-height: 36px; padding: 0 var(--in); font-size: 13px; background: var(--surface); }
+  .rp-subs .rp-subt { padding-left: var(--gw); }
+  .rp-subt + .rp-subt { border-top: 1px solid var(--line); }
+  .rp-subt:hover:not(.add), .rp-subt.hov { background: var(--raise); }
+  .rp-subt:last-child { border-radius: 0 0 10px 10px; }
+  .rp-subt .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: text; line-height: 34px; }
+  .rp-subt.done .nm { color: var(--muted); text-decoration: line-through; }
+  .rp-subt .sacts-w { display: none; gap: 2px; flex: none; margin-right: -6px; }
+  .rp-subt:hover .sacts-w, .rp-subt.hov .sacts-w, .rp-subt.cut .sacts-w:has(> .sexp), .rp-subt.open .sacts-w { display: flex; }
+  .rp-subt .sacts { display: none; gap: 2px; }
+  .rp-subt:hover .sacts, .rp-subt.hov .sacts { display: flex; }
+  .rp-subt .sacts-w:empty { display: none; }
+  .rp-ghost { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 7px; color: var(--secondary); cursor: pointer; }
+  .rp-ghost:hover { background: #2a303c; color: var(--text); }
+  .sgrip { position: absolute; left: 0; top: 0; bottom: 0; width: var(--gw); display: none; place-items: center; color: var(--faint); cursor: grab; }
+  .sgrip:hover { color: var(--secondary); }
+  .rp-subt:hover .sgrip, .rp-subt.hov .sgrip { display: grid; }
+  .rp-subt.add { color: var(--muted); cursor: text; }
+  .rp-subt.add i { width: var(--ck); display: grid; place-items: center; font-style: normal; flex: none; }
+  .rp-subt.add input { flex: 1; min-width: 0; height: 34px; padding: 0; border: 0; background: transparent; color: var(--text); font-size: 13px; outline: none; }
+  .rp-subt.add input::placeholder { color: var(--muted); }
+  .rp-sub-in { flex: 1; min-width: 0; height: 28px; margin: 4px 0; padding: 0 8px; border-radius: 7px; background: var(--canvas); border: 1px solid var(--accent); color: var(--text); font-size: 13px; outline: none; }
+  /* Item 2: whole names on several lines (all rows for "줄바꿈", an opened row for "펼침 버튼"). */
+  .rp-subt.ml { align-items: flex-start; }
+  .rp-subt.ml .nm { white-space: normal; overflow: visible; text-overflow: clip; line-height: 20px; padding: 8px 0; }
+  .rp-subt.ml > .ck { margin-top: 8px; }
+  .rp-subt.ml .sacts-w { margin-top: 5px; }
+  .rp-subt.ml .sgrip { bottom: auto; height: 35px; }
+  .rp-sub-in.ml { display: block; height: auto; min-height: 28px; padding: 3px 8px; line-height: 20px; resize: none; overflow: hidden; white-space: pre-wrap; }
+  .sexp { display: none !important; }
+  .rp-subt.cut .sexp, .rp-subt.open .sexp { display: grid !important; }
+  .rp-subt.open .sexp svg { transform: rotate(180deg); }
+
+  /* Memo (an auto-height textarea) and, new, the count under it (item 5). */
+  .rp-memo { display: block; width: 100%; min-height: 64px; margin: 0; padding: 12px var(--in); border: 0; resize: none; overflow: hidden; font-size: 13px; line-height: 1.6; color: var(--secondary); outline: none; }
+  .rp-memo::placeholder { color: var(--faint); }
+  .rp-memo:focus { box-shadow: inset 0 0 0 1px var(--accent); color: var(--text); }
+  .memo-foot { display: flex; align-items: baseline; gap: 10px; margin-top: 6px; padding: 0 var(--in); font-size: 11.5px; line-height: 16px; color: var(--muted); }
+  .memo-foot .mf-note { flex: 1; min-width: 0; color: var(--warning); }
+  .memo-foot .mf-n { margin-left: auto; flex: none; font-variant-numeric: tabular-nums; }
+  .memo-foot.full .mf-n { color: var(--warning); }
+  .rp-stamp { margin-top: 16px; padding: 0 var(--in); font-size: 11.5px; color: var(--muted); }
+
+  /* New: the undo notice (item 3). */
+  .undo-toast { position: absolute; z-index: 70; top: 46px; display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 6px 0 12px; border-radius: 10px; background: #1e2430; box-shadow: 0 10px 28px #000a, inset 0 0 0 1px #2f3644; color: var(--text); font-size: 13px; white-space: nowrap; overflow: hidden; }
+  .undo-toast.center { left: 50%; transform: translateX(-50%); }
+  .undo-toast.right { right: 50px; }
+  .undo-toast .ut-i { display: grid; place-items: center; width: 16px; color: var(--success); }
+  .undo-toast .ut-i.del { color: var(--muted); }
+  .undo-toast .ut-btn { display: flex; align-items: center; gap: 7px; height: 26px; padding: 0 8px; border-radius: 7px; color: #a9c3ff; font-weight: 600; }
+  .undo-toast .ut-btn:hover { background: var(--raise); }
+  .undo-toast .ut-btn kbd { font: inherit; font-size: 11px; font-weight: 400; line-height: 1; color: var(--muted); border: 1px solid var(--border); border-radius: 4px; padding: 3px 5px; }
+  .undo-toast .ut-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--accent); transform-origin: left; animation: utDrain 5s linear infinite; }
+  @keyframes utDrain { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+  /* Where the notice would be, for Shift + hover while it is off. */
+  .undo-slot { position: absolute; z-index: 69; top: 46px; left: 50%; width: 250px; height: 34px; margin-left: -125px; border-radius: 10px; pointer-events: none; }
+  .undo-slot.right { left: auto; right: 50px; margin-left: 0; }
+  body.shift-on .undo-slot { pointer-events: auto; }
+
+  /* Confirm dialog (ConfirmDialog, pickers.scss). */
+  .tp-pop { position: absolute; z-index: 40; background: #1e2430; box-shadow: 0 14px 36px #000a; color: var(--text); font-size: 13px; line-height: 1.5; word-break: keep-all; }
+  .tp-pop p { margin: 0; }
+  .dlg-wrap { position: absolute; inset: 42px 0 0; z-index: 60; display: grid; place-items: center; }
+  .tp-scrim { position: absolute; inset: 0; background: #0006; }
+  .tp-pop.tp-dialog { position: relative; width: 340px; padding: 20px; border-radius: 14px; box-shadow: 0 18px 44px #000b; text-align: center; }
+  .tp-dialog-i { width: 52px; height: 52px; margin: 0 auto 12px; border-radius: 14px; background: var(--surface); display: grid; place-items: center; color: var(--danger); }
+  .tp-dialog-t { display: block; font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+  .tp-dialog-b { margin: 0 0 4px !important; font-size: 13px; color: var(--secondary); line-height: 1.55; white-space: pre-line; }
+  .tp-dialog-f { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 12px; }
+  .dp-btn { height: 30px; padding: 0 12px !important; display: grid !important; place-items: center; border-radius: 8px; background: var(--raise) !important; font-size: 12.5px; }
+  .dp-btn:hover { background: #2d3442 !important; }
+  .dp-btn.danger { background: #3a2226 !important; color: var(--danger); font-weight: 600; }
+  .dp-btn.danger:hover { background: #4a2a2f !important; }
+</style>
+</head>
+<body>
+<div class="stage" id="stage"></div>
+<div class="opt-pop" id="optpop"></div>
+<div class="thread-tooltip" id="tip"></div>
+<script>
+const ICON = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAoLSURBVGhD7dhrUFNnGgdwu91dd2cHE+5JyDlJCLcASYBwDyTBBIQi4q2yitaq9S5Wt17AruLarm21trWXVbfV1kutWne3dW1ttVUL1rvWqqgtIiJ4RVpFRHLe83+fHXU/Zaa3nd3C7PCbeb/l/+T/zJzz4T09enTr1q1bt5+D7iBPFA/wscI+uVzYJVeEvSvNCXmmfU7Q6BtzAtzfVARkX68I7nOjQl3UVqEuaq8QCu8fQ2FHhbFQunciC6SK+Hyp3JInlSe7OyoyPFK5M0eqyHNK5X2dUnmJUy4f55DHTXNKyb7//x8TP5MyxcPYLR4i0p8g0h8j0h8h0h8k0lUTiR8SaVcSacqJQgczUnu8FPYQJ6GYSFdMFF5MFFlMFF1MFNePyNKXKLGQKLWAyJFP5Mkl6ptL9LCHaKSbaJKbaLqLaJ4L1ZXZksO3z08iVvHBusOQ9V8SiVWcxJ0yhE8YhI8YhA8ZxH/K988HgLiVQ1gjQVP+DVT55xGafg4a10Vo3deg97Qg0tOKqNzbMOXegcUjIcnt5Rm9Je5ySsh3ShjglFDqYBjjYHjcIdMCN9HiHPDns+VS314/iubTjmhxL7y6fUT3Su9gED6+X1zYIkN4n0H4uwxhswxhowxhvQzhHUD8G4f4lgRN2RWoMk5BnfIVRGcTjDnNiHLfQKy7DRa3FzYP43aPzF0uGQUuGQNdMkY4ZYxzyHjcwfCkg2GJi2i5C+wvGd54334/SNjJVt19VO4V3yVD3AmIOwBxO4e4jUN8n0PYhPvF18kQ18gQ32IQ32QQVwO6DRy6l9qgKToNtelziMknEJ5eh+iMRpgzr8FmvwF7VivPsd9Cgb0NA+23MSLrDiZmS5jtAv7sApY4GNa5iVY52Drfft/LtoJ+Jexg9WI1kXYbg3plB0KebkXIzOsInXEFqnnXEPbyzXvlxc0c4hpAt1KG+LoM4a8yxBUydMtlGFZzGNfICBt+FKqAldAHvI1o1RZuUW9HononUjVVPEu7H07tEfQWjiFPOIUifS2GRjfi8cRv8UK2hLU5RGsc8vlND9OvfXt+p+j3uJ+wg10Le49IOVOCX0krevVrRq+CJih610FhPwll5hEE5n8B9dQGiCu80K3hEJcD4qsydK/K0L8mw/CaDONyIPJtDv3MBuhUGxCj2Mytqh1IVu3imeo9cGgOISfsGDxhx5EfdgqF2loUa+swQKjHoxGXscwu0yYXrq/N5718e343oge029iXQc8T+U1m8JsowW9UOxSlN6EY0gxF8UUo8+ugzD4BRcJeBNr3QV12AfrlHIZlHPoXGQz/PuEvMRiXyohazRG54DqiwrbAGrANqZpqZIcdRI72GHK1J5GvPY2+wlkMEOtRom/EcMNljDBcxcx4Rmsd8onKHvQL35rfS7tOmqF6g8i/knHlTIZeZQx+47zoNbINimHfQjHoKpT9GqHsUwtl5lEo43cjOO8IdPNvIvwVjvBFDMbnGIyLGSIWM0QtYYhdxWGafRXmwK1IC90NR9ghuLXH75UvEs5ioO48hugvYLjhEsZENGN8VAufE0+0yNYxy7ffD4qtpF9rlsk71W8SBS4kUlbIpJguc7+JEvd77A5XjGjlit+3cMXAy1xZWM+V7lNckbwP/kmfQTv6AiIXcUQslBHxtISohQzRzzDEL2Iwv8ERV1yDFMU2nh12kOdqT/K+4td8oO48L9E38lLDJT7G2ExTotvoyXiiGab2nfkRvKdvvx9Fu5H/VvM6Xgx5Bc1BzxEFzL+7CFGv6US9JhEpHuOkGOkl5dA28h9wjZQFdVA6v4QyoRrqolOInisjdgGHaS5D7DwG858YrIs4rHPbkKqtohz1MSoQ66i/rolKDFdpRHgLPRZ5iyZHt9O0mDvXZpm8L1Tq6De+vX4yzWoeGLKUpwc+RS7lXMmpnC45lWXcqRwrOZWj2p3KR1odCtfxJ5TWXaQwb+MK0xb4CesRZNmCmLIbsP6RI34mg3k2Q8IcmdueIkod0DDNE3TQ2SfstKu//oJzsP6Cc6j+knO0sTmnLOZ2ermZ/H17/E/5G7dkBFiqyT9uO/eP/QjKmK3wEzfAP3IzYoZfQtIfOBKmMCROZUiZTWSp5Pm+MzpVSHqNJzjjDAWnHuXBKUcQlHQAgdY9CIj8GEH6f8DUrwEp4zlso2WkTSCyjpKH+M7oVCFZdZ7QrAsUknmGh2ScQXD6KYSknoAq8QuExlRDJX4Ac58mZAzjsA8lShnU1RZIr/OoHZdIZa/jKvtZqOx10KSfg5BSC23iSWij9kJv+BRpube4sy+R033H4zujUwX3b8hTZTWRKvMsV2XWQZtxHmL6BejSGxCeXA+j5TQMhiokWRrInc2/Lcz6mV/SH9JzM3kCh1ym0NjDXJ12Gtq0Oohp9TCkNyI6tQkxSQ2IMZ1Aauxl6mNj833zne7BreRRvAMKyT3Kgw1V0FiPQbR9BaOtHqbkJpiTmpBkuUSpMWfPVPagX/rmO13P1czjv51I2Cpx1YSvEBK1i4fp9iA89jhizbVItDQgw9pCmabz1b7ZLqHnepYbuOXuFRM8fDdH1LIbCM87AoP6E8To9iMpugbZcVfIYWrY55vtEn63gecEvUckvivz6I0yEt/lSF3LYZt8EXHRVTCH7ERWxNfkiqrtmgsoZ10xh64D6d7mFLOKwbaMwf4ig2cJR8FsL7LtNUhW76dM4VDXXCC0x/txmjH1FLGeKP41GSnPMzgWMOTNZhgwDRg5iWOI+zqlqnbv8c12CYKpJk5r3E/GoefIupghcyGHawbDQ1MYBo9meLREwrSHicZl3zz1ky8nPwejtSEu0vw1RYoHyZR0BOmjW5A3naNoDDCkRMLIfgwT8mTM6U00yyZN8c13Oqu1JS7BepWSzI1kMxxHsnYvsu216F/SgRGDOB7NYxjvYJiRQTTdItVs6kEP+s7oVHbrrbishDZyWlopJ+6q3DvqnHz3zus0HMCgzCsYk8MxIQ0os3KaHCm1TxZua3xndKoc6624/IQOKkrwUrGlDf3jv0GxqREF+pPorapCv8gajE/wYmo00SQt63hCxXW+MzrVAIs3fkiil4YlSlSa0IFSSztKza0YGnsNAyPOoo/mcxRqD2GiTqLJweiYpGzvWgtMjGsXxtkk78RkTuMTJYxPkDAuwYuxltsYFdeCYZHn8ZB2LwapaqlMyZtnBnI/3xmdinrQA7OT5QOV6USzkhlm2CRMtzGUJUmYYm3H2NjrGGqsRYnQSGMD2jb65ruEhSksf2kW0aIMogUpDPNSGCqSGZ5I9KLMcgsT4m5RaXhD+0j1xRjfbJexNF0qez0bWOUketlOtDiT6Ok0ovkpRFPjvc2PxDTk+Wa6nDecPHm1A6tWZMs1SzPlhmfT5cOVyXh2lvm21ve3Xd4u53/hw1S3bt3+f/0LyVJMzbV4YhcAAAAASUVORK5CYII=';
+const sv = (d, z = 16, w = 1.8) => `<svg width="${z}" height="${z}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+// Paths from apps/desktop/src/molecules/pickers/icons.js.
+const I = {
+  close: (z = 16) => `<svg width="${z}" height="${z}" viewBox="0 0 16 16" fill="currentColor"><path d="M8 8.707l3.646 3.647.708-.707L8.707 8l3.647-3.646-.707-.708L8 7.293 4.354 3.646l-.707.708L7.293 8l-3.646 3.646.707.708L8 8.707z"/></svg>`,
+  check: sv('<path d="M5 12l5 5 9-10"/>', 12, 3.2),
+  tick: (z = 14) => sv('<path d="M20 6 9 17l-5-5"/>', z, 2.4),
+  plus: (z = 16) => sv('<path d="M12 5v14M5 12h14"/>', z, 2.2),
+  search: sv('<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>', 14),
+  shield: (z = 16) => sv('<path d="M12 3l7 3v5.5c0 4.3-3 8-7 9.5-4-1.5-7-5.2-7-9.5V6z"/><path d="M9.2 12.2l2 2 3.8-4"/>', z),
+  sun: sv('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'),
+  week: sv('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'),
+  cal: (z = 13) => sv('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>', z),
+  star: (on, z = 16) => `<svg width="${z}" height="${z}" viewBox="0 0 24 24" fill="${on ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.3l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.6l-5.2 2.7 1-5.8L3.6 9.4l5.8-.8z"/></svg>`,
+  all: sv('<path d="M4 6h16M4 12h16M4 18h10"/>'),
+  gear: sv('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'),
+  trash: (z = 15) => sv('<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>', z),
+  repeat: sv('<path d="M17 2l3 3-3 3"/><path d="M4 11V9a4 4 0 0 1 4-4h12M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 0 1-4 4H4"/>', 12),
+  sub: sv('<path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/>', 12),
+  memo: sv('<path d="M5 4h14v16H5zM9 9h6M9 13h6"/>', 12),
+  sliders: sv('<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>', 15),
+  vList: sv('<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/>'),
+  vCal: sv('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'),
+  vTime: sv('<rect x="3" y="4" width="5" height="16" rx="1.5"/><rect x="10" y="4" width="5" height="16" rx="1.5"/><rect x="17" y="4" width="4" height="16" rx="1.5"/>'),
+  chev: (z = 14) => sv('<path d="M6 9l6 6 6-6"/>', z),
+  lock: (open) => sv(`<rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="${open ? 'M8 11V8a4 4 0 0 1 7.6-1.7' : 'M8 11V8a4 4 0 0 1 8 0v3'}"/>`),
+  grip: '<svg width="8" height="14" viewBox="0 0 8 14" fill="currentColor"><circle cx="2" cy="2" r="1.25"/><circle cx="6" cy="2" r="1.25"/><circle cx="2" cy="7" r="1.25"/><circle cx="6" cy="7" r="1.25"/><circle cx="2" cy="12" r="1.25"/><circle cx="6" cy="12" r="1.25"/></svg>',
+  min: '<svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor"/></svg>',
+  max: '<svg width="10" height="10" viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" fill="none" stroke="currentColor"/></svg>',
+  x10: '<svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0l10 10M10 0 0 10" stroke="currentColor"/></svg>',
+};
+const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+// 을/를 as deleteConfirm.js objectParticle(): both when the name does not end in Hangul.
+const objectParticle = w => { const c = String(w).trim().slice(-1).charCodeAt(0); if (!(c >= 0xac00 && c <= 0xd7a3)) return '을(를)'; return (c - 0xac00) % 28 ? '을' : '를'; };
+const num = n => n.toLocaleString('en-US');
+
+// ---------- Data (synthetic) ----------
+// The mock's "now": 2026-11-05 (Thu) 14:20.
+const CATS = [
+  { id: 'work', title: '업무', color: '#4fc3d9', n: 8 },
+  { id: 'home', title: '개인', color: '#44c98b', n: 5 },
+  { id: 'study', title: '공부', color: '#f2c14e', n: 3 },
+  { id: 'diary', title: '일기', color: '#b58cff', secret: true },
+  { id: 'gym', title: '운동', color: '#ff9f5a', n: 2 },
+];
+const cat = id => CATS.find(c => c.id === id);
+const TASKS0 = [
+  { id: 't1', g: 'over', t: '치과 예약 전화하기', cat: 'home', when: '어제 오후 6시', left: '20시간 20분 지남', over: true },
+  { id: 't2', g: 'today', t: '분기 보고서 마무리', cat: 'work', memo: true, when: '오후 6시', left: '3시간 40분 남음', imp: true, sel: true },
+  { id: 't3', g: 'today', t: '장보기 · 우유, 달걀', cat: 'home', when: '오후 8시', left: '5시간 40분 남음' },
+  { id: 't4', g: 'today', t: '영어 단어 30개', cat: 'study', rep: '매일', when: '오후 10시', left: '7시간 40분 남음' },
+];
+const SUBS0 = [
+  { id: 's1', t: '자료 모으기', done: true },
+  { id: 's2', t: '초안 쓰기', done: true },
+  { id: 's3', t: '타임라인 보기에서 완료 시 내려가는 애니메이션 나오고 다시 완료 상태로 나타나는 문제 해결', done: true },
+  { id: 's4', t: '표 정리하기', done: false },
+  { id: 's5', t: '지역별 매출 합계가 지난 분기 보고서와 다르게 나오는 부분 원인 찾아서 메모에 정리하기', done: false },
+  { id: 's6', t: '팀장님 검토 받기', done: false },
+  { id: 's7', t: '최종본 PDF로 내보내서 팀 공유 폴더와 메일 두 곳에 같이 올리기', done: false },
+];
+const HOV_SUB = 's5'; // the row shown hovered (grip and × visible)
+function memoText(n) {
+  let t = '매출 표는 10월 마감 숫자로 바꾸기.\n첨부: 3분기 요약.pdf\n';
+  const L = ['지역별 합계는 지난 분기 보고서 기준으로 다시 맞추기', '서울 · 경기 숫자가 두 번 들어간 줄 지우기', '그래프 색은 작년 보고서와 같게', '부록 표 번호 다시 매기기', '팀장님 의견: 요약은 한 쪽 안으로'];
+  for (let k = 1; t.length < n; k++) t += `\n■ 회의 메모 ${k}\n` + L.map((x, j) => `- ${x} (${k}-${j + 1})`).join('\n') + '\n';
+  return t.slice(0, n);
+}
+const CAP = { none: 0, '10k': 10000, '50k': 50000 };
+const MEMO_LEN = { none: 9412, '10k': 9412, '50k': 47060 };
+
+// ---------- State ----------
+// Defaults on open = the recommended candidates.
+const s = {
+  grip: '20', cut: 'wrap', undo: 'center', delAsk: 'direct', memo: '10k',
+  tasks: TASKS0.map(x => ({ ...x })), subs: SUBS0.map(x => ({ ...x })),
+  toast: null, dlg: null, edit: null, open: new Set(['s7']), demoHov: true, memoNote: '', scrollTo: null,
+};
+s.memoText = memoText(MEMO_LEN[s.memo]);
+const snap = () => JSON.stringify({ tasks: s.tasks, subs: s.subs });
+const restore = j => { const o = JSON.parse(j); s.tasks = o.tasks; s.subs = o.subs; };
+// Every undoable action: with the notice it remembers the state before and shows the message;
+// a new action replaces the notice (the one before can no longer be undone).
+function act(msg, kind, fn) {
+  const before = snap();
+  fn();
+  s.toast = s.undo === 'none' ? null : { msg, kind, before, t0: Date.now() };
+  render();
+}
+function undo() { if (!s.toast) return; restore(s.toast.before); s.toast = null; render(); }
+const task = id => s.tasks.find(x => x.id === id);
+function askDelete(id) {
+  if (s.undo !== 'none' && s.delAsk === 'direct') return doDelete(id);
+  s.dlg = { id }; render();
+}
+function doDelete(id) { const t = task(id); s.dlg = null; act('할 일을 지웠어요', 'del', () => { s.tasks = s.tasks.filter(x => x !== t); }); }
+
+// ---------- Main window pieces ----------
+const topBar = () => `<div class="top"><div class="brand"><img src="${ICON}" alt=""><span class="ver">Thread 2.5.1</span></div>
+  <div class="search">${I.search}<span class="ph">할 일, 메모, 카테고리 검색…</span><kbd>Ctrl K</kbd></div>
+  <span class="lock" style="left:calc(50% + 243px)" data-tip="비밀 카테고리 잠그기">${I.lock(true)}</span>
+  <div class="wc"><span>${I.min}</span><span>${I.max}</span><span>${I.x10}</span></div></div>`;
+function sidebar() {
+  const left = s.tasks.filter(x => !x.done).length;
+  const rows = [['all', '모든 할 일', I.all, 19 + left], ['today', '오늘', I.sun, left], ['week', '다음 7일', I.week, 5 + left], ['imp', '중요', I.star(false), 2]];
+  return `<aside class="side">
+    <div class="side-clock"><span class="cd">2026년 11월 5일 목요일</span><b>오후 2:20<small>:00</small></b></div>
+    <div class="side-scroll">
+      ${rows.map(([k, l, ic, n]) => `<div class="side-row ${k === 'today' ? 'on' : ''}"><span class="ic">${ic}</span><span class="lbl">${l}</span><span class="n ${k === 'today' ? 'due' : ''}">${n}</span></div>`).join('')}
+      <div class="grp"><span>카테고리</span><span class="grp-add" data-tip="카테고리 추가">${I.plus(14)}</span></div>
+      ${CATS.map(c => `<div class="side-row cat-row"><span class="ic" ${c.secret ? `style="color:${c.color}"` : ''}>${c.secret ? I.shield() : `<span class="dot" style="background:${c.color}"></span>`}</span>
+        <span class="lbl">${c.title}</span><span class="n">${c.secret ? '' : c.n}</span></div>`).join('')}
+    </div>
+    <div class="foot"><span class="av-w"><span class="av">김</span><i class="sync-dot"></i></span><span class="who"><span class="name">김하늘</span><small>haneul@example.com</small></span><span class="gear" data-tip="설정">${I.gear}</span></div>
+  </aside>`;
+}
+function taskRow(t) {
+  const c = t.cat && cat(t.cat);
+  const subDone = s.subs.filter(x => x.done).length;
+  const meta = [
+    c ? `<span class="cat"><span class="dot" style="background:${c.color}"></span><b>${c.title}</b></span>` : '',
+    t.rep ? `<span>${I.repeat}<i>${t.rep}</i></span>` : '',
+    t.sel ? `<span>${I.sub}<i>${subDone}/${s.subs.length}</i></span>` : '',
+    t.memo ? `<span>${I.memo}</span>` : '',
+  ].join('');
+  return `<div class="task-row ${t.sel ? 'sel' : ''} ${t.done ? 'done' : ''}" data-tid="${t.id}"><button class="ck ${t.done ? 'done' : ''}" data-act="tck" data-tid="${t.id}">${I.check}</button><div class="tx"><div class="t">${esc(t.t)}</div><div class="meta">${meta}</div></div>
+    <div class="rcol"><span class="when ${t.over ? 'over' : ''}">${t.when}</span><span class="left ${t.over ? 'over' : ''}">${t.left}</span></div><button class="st ${t.imp ? 'on' : ''}">${I.star(t.imp, 16)}</button></div>`;
+}
+function listPane() {
+  const shown = s.tasks.filter(x => !x.done || x.sel);
+  const groups = [['over', '기한 지남'], ['today', '오늘']].map(([k, n]) => [k, n, shown.filter(x => x.g === k)]).filter(g => g[2].length);
+  const left = s.tasks.filter(x => !x.done).length, over = s.tasks.filter(x => !x.done && x.over).length;
+  return `<div class="tc">
+    <div class="tc-head"><div class="tc-row1"><h1 class="tc-title">오늘</h1><span class="tc-push"></span>
+      <div class="tc-seg"><span class="on" data-tip="목록">${I.vList}</span><span data-tip="캘린더">${I.vCal}</span><span data-tip="타임라인">${I.vTime}</span></div>
+      <span class="tc-ghost" data-tip="보기 옵션">${I.sliders}</span></div>
+      <p class="tc-finding">남은 할 일 ${left}개${over ? ` · <b>기한 지남 ${over}개</b>` : ''}</p></div>
+    <div class="tc-scroll">${groups.map(([k, n, rows]) => `<div class="tl-group"><div class="tl-sec ${k === 'over' ? 'over' : ''}">${n}<span class="tl-c">${rows.length}</span><span class="tl-tog">${I.chev()}</span></div><div class="tl-box">${rows.map(taskRow).join('')}</div></div>`).join('')}</div>
+    <div class="tc-quick"><div class="qa-in"><span class="qa-plus">${I.plus()}</span><input data-fk="qa" placeholder="할 일 추가" spellcheck="false" autocomplete="off"><kbd>Ctrl N</kbd></div>
+      <div class="qa-chips"><span class="qa-chip">${I.cal()}<span>날짜</span></span>
+        <span class="qa-chip">${I.repeat}<span>반복</span></span><span class="qa-chip"><span class="qa-dot" style="background:var(--muted)"></span><span>카테고리</span></span><span class="qa-chip">${I.star(false, 13)}<span>중요</span></span></div></div>
+  </div>`;
+}
+function subRow(x) {
+  const ml = s.cut === 'wrap' || (s.cut === 'expand' && s.open.has(x.id));
+  const hov = s.demoHov && x.id === HOV_SUB && s.edit !== x.id;
+  const cls = ['rp-subt', x.done && 'done', ml && 'ml', hov && 'hov demo-hov', s.cut === 'expand' && s.open.has(x.id) && 'open'].filter(Boolean).join(' ');
+  const editing = s.edit === x.id;
+  const name = editing
+    ? (s.cut === 'wrap'
+      ? `<textarea class="rp-sub-in ml" rows="1" data-fk="sub:${x.id}" data-ren="${x.id}" spellcheck="false">${esc(x.t)}</textarea>`
+      : `<input class="rp-sub-in" data-fk="sub:${x.id}" data-ren="${x.id}" value="${esc(x.t)}" spellcheck="false" autocomplete="off">`)
+    : `<button class="nm" data-act="ren" data-sid="${x.id}" data-tip="눌러서 이름 바꾸기">${esc(x.t)}</button>`;
+  const exp = s.cut === 'expand' && !editing ? `<button class="rp-ghost sexp" data-act="sexp" data-sid="${x.id}" data-tip="${s.open.has(x.id) ? '접기' : '펼쳐 보기'}">${I.chev(14)}</button>` : '';
+  return `<div class="${cls}" data-sid="${x.id}">${editing ? '' : `<span class="sgrip" data-tip="끌어서 순서 바꾸기">${I.grip}</span>`}
+    <button class="ck ${x.done ? 'done' : ''}" data-act="sck" data-sid="${x.id}">${I.check}</button>${name}
+    <span class="sacts-w">${exp}${editing ? '' : `<span class="sacts"><button class="rp-ghost" data-act="sdel" data-sid="${x.id}" data-tip="하위 할 일 삭제">${I.close()}</button></span>`}</span></div>`;
+}
+function memoFoot() {
+  const cap = CAP[s.memo], n = s.memoText.length;
+  if (!cap || (n < cap * 0.9 && !s.memoNote)) return '';
+  return `<div class="memo-foot ${n >= cap ? 'full' : ''}">${s.memoNote ? `<span class="mf-note">${s.memoNote}</span>` : ''}<span class="mf-n">${num(n)} / ${num(cap)}</span></div>`;
+}
+function panel() {
+  const list = s.subs, done = list.filter(x => x.done).length, t2 = task('t2');
+  return `<div class="home-panel">
+    <div class="rp-tabs"><span class="rp-tab on">할 일 상세</span><span class="rp-tab">캘린더</span><span class="rp-x" data-tip="상세 닫기">${I.close(18)}</span></div>
+    <div class="rp-body">
+      <div class="rp-dt-title"><button class="ck ${t2 && t2.done ? 'done' : ''}" data-act="tck" data-tid="t2">${I.check}</button><div class="rp-title">분기 보고서 마무리</div><button class="st on">${I.star(true, 20)}</button></div>
+      <div class="rp-box">
+        <div class="rp-prop"><span class="k">기한</span><span class="v">2026.11.05 오후 6:00</span></div>
+        <div class="rp-prop"><span class="k">반복</span><span class="v"><span class="sub">안 함</span></span></div>
+        <div class="rp-prop"><span class="k">카테고리</span><span class="v"><span class="rp-chip"><span class="rp-dot" style="background:#4fc3d9"></span>업무</span><span class="rp-chip">${I.plus(14)}</span></span></div>
+      </div>
+      <div class="rp-block-h">하위 할 일<span>${done}/${list.length}</span></div>
+      <div class="rp-box rp-subs">
+        <div class="rp-bar"><i style="width:${list.length ? done / list.length * 100 : 0}%"></i></div>
+        ${list.map(subRow).join('')}
+        <div class="rp-subt add"><i>${I.plus(14)}</i><input data-fk="subadd" placeholder="하위 할 일 추가" spellcheck="false" autocomplete="off"></div>
+      </div>
+      <div class="rp-block-h">메모</div>
+      <div class="memo-wrap"><textarea class="rp-box rp-memo" data-fk="memo" placeholder="메모를 적어 두세요" spellcheck="false" ${CAP[s.memo] ? `maxlength="${CAP[s.memo]}"` : ''}>${esc(s.memoText)}</textarea>${memoFoot()}</div>
+      <div class="rp-stamp">만든 날 10월 28일 · 마지막 수정 오늘 오후 1:05</div>
+    </div></div>`;
+}
+function toast() {
+  if (!s.toast) return '<div class="undo-slot ' + s.undo + '"></div>';
+  const delay = -((Date.now() - s.toast.t0) % 5000);
+  return `<div class="undo-toast ${s.undo}" role="status"><span class="ut-i ${s.toast.kind === 'del' ? 'del' : ''}">${s.toast.kind === 'del' ? I.trash(15) : I.tick(14)}</span><span>${s.toast.msg}</span>
+    <button class="ut-btn" data-act="undo">되돌리기<kbd>Ctrl Z</kbd></button><i class="ut-bar" style="animation-delay:${delay}ms"></i></div>`;
+}
+function dialog() {
+  const t = s.dlg && task(s.dlg.id);
+  if (!t) return '';
+  const body = `'${t.t}'${objectParticle(t.t)} 지워요. ${s.undo === 'none' ? '되돌릴 수 없어요.' : '지운 뒤 5초 안에 되돌릴 수 있어요.'}`;
+  return `<div class="dlg-wrap"><div class="tp-scrim" data-act="dlgX"></div><div class="tp-pop tp-dialog">
+    <div class="tp-dialog-i">${I.trash(26)}</div><b class="tp-dialog-t">할 일을 삭제할까요?</b><p class="tp-dialog-b">${esc(body)}</p>
+    <div class="tp-dialog-f"><button class="dp-btn" data-act="dlgX">취소</button><button class="dp-btn danger" data-act="dlgOk">삭제</button></div></div></div>`;
+}
+const mainWin = () => `<div class="win" style="width:1280px;height:800px">${topBar()}<div class="body">${sidebar()}${listPane()}<div class="splitter"></div>${panel()}</div>${dialog()}${toast()}</div>`;
+
+function notes() {
+  return `<aside class="notes">
+    <div class="n-top"><button class="n-copy" data-ncopy>결과 복사</button><p class="hint"><kbd>Shift</kbd>+마우스로 파란 점선의 후보 보기</p></div>
+    <div class="n-scroll">${OPTS.map((o, i) => `<section class="n-item"><h4>${i + 1}. ${o.title}</h4>${o.why ? `<p class="n-why">${o.why}</p>` : ''}${o.items.map(([v, nm, ds, tag]) =>
+      `<div class="n-row ${curOf(o) === v ? 'on' : ''}" role="button" tabindex="0" data-no="${i}" data-v="${v}"><span class="n-nm">${nm}${tag === 'old' ? '<span class="badge old">기존</span>' : tag === 'rec' ? '<span class="badge rec">추천</span>' : ''}</span><span class="n-ds">${ds}</span>${curOf(o) === v ? `<textarea class="n-cm" rows="1" data-cm="${i}:${v}" data-fk="cm:${i}:${v}" placeholder="추가 의견 (선택)" spellcheck="false">${esc(comments[i + ':' + v] || '')}</textarea>` : ''}</div>`).join('')}</section>`).join('')}</div>
+    <label class="n-new"><input type="checkbox" data-nnew ${document.body.classList.contains('show-new') ? 'checked' : ''}>새로 생기는 부분 표시</label>
+  </aside>`;
+}
+// Auto height; the scrolling box around keeps its place while the field is measured.
+const grow = el => { const box = el.closest('.rp-body, .n-scroll'), top = box ? box.scrollTop : 0; el.style.height = 'auto'; el.style.height = el.scrollHeight + (el.offsetHeight - el.clientHeight) + 'px'; if (box) box.scrollTop = top; };
+let rendering = false;
+function render() {
+  // Keep the focused field (and its caret) and the scroll positions across the redraw.
+  const a = document.activeElement, fk = a && a.dataset && a.dataset.fk ? [a.dataset.fk, a.selectionStart, a.selectionEnd] : null;
+  const sc = document.querySelector('.n-scroll')?.scrollTop ?? 0, pb = document.querySelector('.rp-body')?.scrollTop ?? 0;
+  rendering = true;
+  document.documentElement.style.setProperty('--gw', s.grip + 'px');
+  document.getElementById('stage').innerHTML = `<div class="pieces">${mainWin()}</div>${notes()}`;
+  rendering = false;
+  document.querySelector('.n-scroll').scrollTop = sc;
+  document.querySelectorAll('.rp-memo, .rp-sub-in.ml, .n-cm').forEach(grow);
+  const body = document.querySelector('.rp-body');
+  if (s.scrollTo === 'memo') { body.scrollTop = pb; const w = body.querySelector('.memo-wrap'); body.scrollTop += w.getBoundingClientRect().bottom - body.getBoundingClientRect().bottom + 40; }
+  else if (s.scrollTo === 'top') body.scrollTop = 0;
+  else body.scrollTop = pb;
+  s.scrollTo = null;
+  place();
+  // A scroll by the user takes the pinned tooltip away (attached after the scroll set above).
+  setTimeout(() => body.addEventListener('scroll', () => document.querySelectorAll('.thread-tooltip.demo').forEach(t => t.remove()), { once: true }), 100);
+  markHot();
+  if (fk) { const el = document.querySelector(`[data-fk="${fk[0]}"]`); if (el) { el.focus({ preventScroll: true }); try { el.setSelectionRange(fk[1], fk[2]); } catch (e) {} } }
+}
+// After drawing: which names are cut (item 2), and the tooltip of the hovered row.
+function place() {
+  document.querySelectorAll('.rp-subt[data-sid]').forEach(row => {
+    const nm = row.querySelector('.nm');
+    const cut = !!nm && nm.scrollWidth > nm.clientWidth + 1;
+    row.classList.toggle('cut', cut);
+    row.classList.toggle('wrapped', !!nm && row.classList.contains('ml') && nm.clientHeight > 40);
+    if (nm && s.cut === 'hover' && cut) { nm.dataset.tip = s.subs.find(x => x.id === row.dataset.sid).t; nm.dataset.tipWrap = '1'; }
+  });
+  const win = document.querySelector('.win'), row = win.querySelector('.demo-hov');
+  if (!row) return;
+  const w = win.getBoundingClientRect(), r = row.getBoundingClientRect(), b = win.querySelector('.rp-body').getBoundingClientRect();
+  if (r.top < b.top || r.bottom + 40 > b.bottom) return;
+  const t = document.createElement('div');
+  if (s.cut === 'hover' && row.classList.contains('cut')) {
+    const nm = row.querySelector('.nm'), a = nm.getBoundingClientRect();
+    t.className = 'thread-tooltip demo wrap'; t.textContent = nm.dataset.tip; win.appendChild(t);
+    t.style.left = Math.max(6, Math.min(w.width - t.offsetWidth - 6, a.left - w.left + a.width / 2 - t.offsetWidth / 2)) + 'px';
+  } else {
+    const g = row.querySelector('.sgrip'); if (!g) return;
+    t.className = 'thread-tooltip demo'; t.textContent = g.dataset.tip; win.appendChild(t);
+    t.style.left = Math.max(6, g.getBoundingClientRect().left - w.left - 6) + 'px';
+  }
+  t.style.top = (r.bottom - w.top + 4) + 'px';
+}
+
+// ---------- Events ----------
+document.addEventListener('click', e => {
+  if (e.target.closest('.opt-pop') || document.body.classList.contains('shift-on')) return;
+  const a = e.target.closest('.win [data-act]');
+  if (!a) return;
+  const { act: k, sid, tid } = a.dataset, x = sid && s.subs.find(y => y.id === sid);
+  if (k === 'sck') { if (x.done) { x.done = false; render(); } else act('하위 할 일을 완료했어요', 'done', () => { x.done = true; }); }
+  else if (k === 'sdel') act('하위 할 일을 지웠어요', 'del', () => { s.subs = s.subs.filter(y => y !== x); });
+  else if (k === 'tck') { const t = task(tid); if (t.done) { t.done = false; render(); } else act('할 일을 완료했어요', 'done', () => { t.done = true; }); }
+  else if (k === 'undo') undo();
+  else if (k === 'dlgX') { s.dlg = null; render(); }
+  else if (k === 'dlgOk') doDelete(s.dlg.id);
+  else if (k === 'sexp') { s.open.has(sid) ? s.open.delete(sid) : s.open.add(sid); render(); }
+  else if (k === 'ren') {
+    s.edit = sid; render();
+    const f = document.querySelector(`[data-ren="${sid}"]`); if (f) { f.focus(); f.setSelectionRange(f.value.length, f.value.length); }
+  }
+});
+function endRename(save) {
+  const f = document.querySelector('[data-ren]'); if (!f) return;
+  const x = s.subs.find(y => y.id === f.dataset.ren), v = f.value.replace(/\s*[\r\n]+\s*/g, ' ').trim();
+  if (save && x && v) x.t = v;
+  s.edit = null; render();
+}
+document.addEventListener('focusout', e => { if (!rendering && e.target.matches && e.target.matches('[data-ren]')) endRename(true); });
+document.addEventListener('keydown', e => {
+  const t = e.target, typing = t.matches && t.matches('input, textarea');
+  if (e.isComposing || e.keyCode === 229) return;
+  if (t.matches && t.matches('[data-ren]')) {
+    if (e.key === 'Enter') { e.preventDefault(); endRename(true); } else if (e.key === 'Escape') { e.preventDefault(); endRename(false); }
+    return;
+  }
+  if (t.matches && t.matches('[data-fk="qa"]') && e.key === 'Enter' && t.value.trim()) {
+    const v = t.value.trim(); t.value = '';
+    act('할 일을 추가했어요', 'done', () => { s.tasks.push({ id: 't' + Date.now(), g: 'today', t: v, when: '오늘', left: '9시간 39분 남음' }); });
+    return;
+  }
+  if (t.matches && t.matches('[data-fk="subadd"]') && e.key === 'Enter' && t.value.trim()) {
+    const v = t.value.trim(); t.value = '';
+    act('하위 할 일을 추가했어요', 'done', () => { s.subs.push({ id: 's' + Date.now(), t: v, done: false }); });
+    return;
+  }
+  if (t.matches && t.matches('[data-fk="memo"]') && e.key === 'Escape') { t.blur(); return; }
+  // Ctrl+Z undoes the last action while the notice is up (text fields keep their own undo).
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z' && !typing && s.toast) { e.preventDefault(); undo(); return; }
+  // Delete on a hovered task row (the mock's stand-in for the row menu's 삭제 and the Del key).
+  if (e.key === 'Delete' && !typing) {
+    const row = document.querySelector('.task-row:hover');
+    if (row && !task(row.dataset.tid).sel) askDelete(row.dataset.tid);
+  }
+  if (e.key === 'Escape' && s.dlg) { s.dlg = null; render(); }
+});
+// Memo: typing stops at the limit (maxlength); a paste that goes over is cut and says so.
+document.addEventListener('paste', e => {
+  const t = e.target; if (!t.matches || !t.matches('[data-fk="memo"]')) return;
+  const cap = CAP[s.memo]; if (!cap) return;
+  const add = (e.clipboardData && e.clipboardData.getData('text')) || '';
+  const over = t.value.length - (t.selectionEnd - t.selectionStart) + add.length - cap;
+  s.memoPasteOver = over > 0 ? over : 0;
+});
+document.addEventListener('input', e => {
+  const t = e.target;
+  if (t.matches('[data-fk="memo"]')) {
+    s.memoText = t.value; grow(t);
+    const cap = CAP[s.memo];
+    s.memoNote = s.memoPasteOver ? `넘는 ${num(s.memoPasteOver)}자는 빼고 붙였어요` : '';
+    s.memoPasteOver = 0;
+    const old = t.parentElement.querySelector('.memo-foot'), html = memoFoot();
+    if (old) old.remove();
+    if (html) t.insertAdjacentHTML('afterend', html);
+  } else if (t.matches('.rp-sub-in.ml')) grow(t);
+});
+document.addEventListener('mouseover', e => {
+  // The pinned hover goes away once the mouse is on the subtasks.
+  if (s.demoHov && e.target.closest('.rp-subs')) { s.demoHov = false; document.querySelectorAll('.demo-hov').forEach(r => r.classList.remove('hov', 'demo-hov')); document.querySelectorAll('.thread-tooltip.demo').forEach(t => t.remove()); }
+});
+
+// App tooltips ([data-tip]).
+const tipEl = document.getElementById('tip');
+let tipTimer = 0, tipAt = null;
+const hideTip = () => { clearTimeout(tipTimer); tipEl.classList.remove('on'); tipAt = null; };
+document.addEventListener('mouseover', e => {
+  const el = e.target.closest('.win [data-tip]');
+  if (el === tipAt) return;
+  hideTip();
+  if (!el || document.body.classList.contains('shift-on')) return;
+  tipAt = el;
+  tipTimer = setTimeout(() => {
+    tipEl.textContent = el.dataset.tip; tipEl.classList.toggle('wrap', !!el.dataset.tipWrap); tipEl.classList.add('on');
+    const r = el.getBoundingClientRect(), w = tipEl.offsetWidth;
+    tipEl.style.left = Math.max(4, Math.min(innerWidth - w - 4, r.left + r.width / 2 - w / 2)) + 'px';
+    tipEl.style.top = (r.bottom + 6) + 'px';
+  }, 350);
+});
+
+// ---------- Shift + hover pickers and the notes ----------
+// at: where they sit; key: the state they set (cur/set when it depends on another item).
+// items: [value, name, one-line description, 'old' | 'rec']. The first is always 기존.
+// show(): opens what the choice changes, when it is picked.
+const resetDemo = () => { s.tasks = TASKS0.map(x => ({ ...x })); s.dlg = null; s.toast = null; s.edit = null; };
+const OPTS = [
+  { at: '.sgrip', key: 'grip', title: '하위 할 일 손잡이 좌우 여백', show: () => { s.demoHov = true; s.scrollTo = 'top'; },
+    items: [['16', '4px씩 (칸 16px)', '지금 모습. 점 바로 옆에 체크 원', 'old'], ['20', '6px씩 (칸 20px)', '점 양옆이 2px씩 넓어짐. 이름이 4px 오른쪽으로', 'rec'], ['24', '8px씩 (칸 24px)', '가장 넉넉함. 이름이 8px 오른쪽으로 가서 조금 더 일찍 잘림']] },
+  { at: '.rp-subt[data-sid] .nm, .rp-subt[data-sid] .sexp, .rp-subt[data-sid] .rp-sub-in', key: 'cut', title: '잘린 하위 할 일 보기', show: () => { s.demoHov = true; s.edit = null; s.scrollTo = 'top'; },
+    items: [['ellipsis', '말줄임만', '지금처럼 한 줄에서 잘림. 이름 바꾸기 칸도 한 줄짜리', 'old'],
+      ['wrap', '줄바꿈해서 다 보이기', '긴 이름은 필요한 만큼 여러 줄. 눌러서 이름 바꿀 때도 여러 줄 칸이 늘어남', 'rec'],
+      ['hover', '마우스 올리면 전체 이름', '잘린 이름에 올리면 툴팁으로 전체 이름'],
+      ['expand', '펼침 버튼', '잘린 줄 오른쪽 화살표로 그 줄만 펼치기 · 접기']] },
+  { at: '.undo-toast, .undo-slot', key: 'undo', title: '되돌리기 알림',
+    show: () => { resetDemo(); if (s.undo !== 'none') act('할 일을 완료했어요', 'done', () => { task('t3').done = true; }); },
+    items: [['none', '기능 없음', '지금처럼 바로 반영되고 되돌릴 수 없음', 'old'],
+      ['center', '위 가운데 · Ctrl+Z도 됨', '창 위 가운데, 5초 뒤 사라짐. 목록 머리 위라 거의 안 가림', 'rec'],
+      ['right', '위 오른쪽 · Ctrl+Z도 됨', '지금 경고 알림이 뜨는 자리. 상세 패널 탭을 가림']] },
+  { at: '.tp-dialog, .task-row', key: 'delAsk', title: '할 일 지울 때 확인 창', cur: () => s.undo === 'none' ? 'keep' : s.delAsk,
+    set: v => { s.delAsk = v; if (v === 'direct' && s.undo === 'none') s.undo = 'center'; },
+    show: () => { resetDemo(); askDelete('t1'); },
+    items: [['keep', '확인 창 그대로', '지금 확인 창 유지. 되돌리기가 있으면 본문 문구만 바뀜', 'old'],
+      ['direct', '바로 지우고 되돌리기 알림', '메뉴 삭제 · Del로 바로 지움. 고르면 되돌리기 알림도 켜짐', 'rec']] },
+  { at: '.memo-wrap', key: 'memo', title: '메모 글자 수 제한', set: v => { s.memo = v; s.memoText = memoText(MEMO_LEN[v]); s.memoNote = ''; },
+    show: () => { s.scrollTo = 'memo'; },
+    items: [['none', '기능 없음', '지금처럼 무제한. 아주 긴 메모는 동기화(1MB)를 막을 수 있음', 'old'],
+      ['10k', '1만 자', '9,000자부터 글자 수 표시, 넘게 붙여 넣으면 잘림', 'rec'],
+      ['50k', '5만 자', '같은 방식. 45,000자부터 숫자가 보임']] },
+];
+const curOf = o => o.cur ? o.cur() : s[o.key];
+const choose = (o, v) => { if (o.set) o.set(v); else s[o.key] = v; o.show(); render(); };
+let shiftOn = false;
+function markHot() {
+  document.querySelectorAll('.win .hot').forEach(el => el.classList.remove('hot'));
+  document.querySelectorAll('.win [data-opts]').forEach(el => delete el.dataset.opts);
+  OPTS.forEach((o, i) => document.querySelectorAll(o.at).forEach(el => { if (!el.dataset.opts) el.dataset.opts = i; }));
+  if (!shiftOn) return;
+  document.querySelectorAll('.win *').forEach(el => {
+    if (el.dataset.opts) return;
+    const cs = getComputedStyle(el);
+    if (el.matches('input, textarea, button, .rp-title, .top .search, .top .wc > span') || (cs.cursor === 'pointer' || cs.cursor === 'grab') && !['pointer', 'grab'].includes(getComputedStyle(el.parentElement).cursor)) el.classList.add('hot');
+  });
+}
+// Shift + hover opens the candidates where the mouse is (inside the area). It stays open when the
+// mouse moves onto it or Shift is released; a click elsewhere, Esc or another area closes it.
+const optPop = document.getElementById('optpop');
+let optAt = null;
+const hideOpt = () => { optPop.classList.remove('on'); optAt = null; };
+function showOpt(el, x, y) {
+  const i = +el.dataset.opts, o = OPTS[i]; optAt = el;
+  optPop.innerHTML = '<b>' + o.title + '</b>' + o.items.map(([v, nm, , tag]) => '<button class="' + (curOf(o) === v ? 'on' : '') + '" data-v="' + v + '">' + nm + (tag === 'old' ? '<span class="badge old">기존</span>' : tag === 'rec' ? '<span class="badge rec">추천</span>' : '') + '</button>').join('');
+  optPop.dataset.o = i; optPop.classList.add('on');
+  const w = optPop.offsetWidth, h = optPop.offsetHeight;
+  optPop.style.left = Math.max(8, Math.min(innerWidth - w - 8, x - 12)) + 'px';
+  optPop.style.top = Math.max(8, Math.min(innerHeight - h - 8, y - 12)) + 'px';
+}
+(() => {
+  const setShift = on => { if (shiftOn === on) return; shiftOn = on; document.body.classList.toggle('shift-on', on); if (on) hideTip(); markHot(); };
+  document.addEventListener('keydown', e => { if (e.key === 'Shift') setShift(true); if (e.key === 'Escape') hideOpt(); });
+  document.addEventListener('keyup', e => { if (e.key === 'Shift') setShift(false); });
+  window.addEventListener('blur', () => setShift(false));
+  document.addEventListener('mousemove', e => {
+    if (!e.shiftKey || optPop.contains(e.target)) return;
+    const el = e.target.closest('.win [data-opts]');
+    if (el && el !== optAt) showOpt(el, e.clientX, e.clientY);
+  });
+  document.addEventListener('pointerdown', e => { if (optAt && !optPop.contains(e.target)) hideOpt(); }, true);
+  optPop.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    e.stopPropagation();
+    const i = +optPop.dataset.o, x = parseFloat(optPop.style.left) + 12, y = parseFloat(optPop.style.top) + 12;
+    choose(OPTS[i], b.dataset.v);
+    // Keep the list open on the new state (the area was drawn again).
+    const el = document.querySelector('.win [data-opts="' + i + '"]');
+    if (el) showOpt(el, x, y); else hideOpt();
+  });
+})();
+// Notes: options change the mock; the chosen one takes an extra comment; copy gives both as text.
+const comments = {};
+document.addEventListener('input', e => { if (e.target.matches('.n-cm')) { comments[e.target.dataset.cm] = e.target.value; grow(e.target); } });
+document.addEventListener('click', e => {
+  if (e.target.closest('.n-cm')) return;
+  const row = e.target.closest('.n-row');
+  if (!row) return;
+  const o = OPTS[+row.dataset.no];
+  // Picking the chosen one again shows it again (the notice, the dialog, the memo end).
+  if (row.classList.contains('on')) { o.show(); render(); } else choose(o, row.dataset.v);
+  const f = document.querySelector(`.n-cm[data-cm="${row.dataset.no}:${row.dataset.v}"]`);
+  if (f) { f.focus({ preventScroll: true }); f.setSelectionRange(f.value.length, f.value.length); }
+});
+function resultText() {
+  return '#107 PC 2.5.1 시안 선택\n' + OPTS.map((o, i) => { const k = o.items.findIndex(([v]) => v === curOf(o)); const c = (comments[i + ':' + o.items[k][0]] || '').trim(); return `${i + 1}. ${o.title}: ${o.items[k][1]}${c ? ` (의견: ${c})` : ''}`; }).join('\n');
+}
+document.addEventListener('click', e => {
+  const copy = e.target.closest('[data-ncopy]');
+  if (!copy) return;
+  const text = resultText();
+  const done = () => { copy.textContent = '복사됨'; copy.classList.add('done'); setTimeout(() => { copy.textContent = '결과 복사'; copy.classList.remove('done'); }, 1400); };
+  const fallback = () => { const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); done(); };
+  if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
+});
+document.addEventListener('change', e => { if (e.target.matches('[data-nnew]')) document.body.classList.toggle('show-new', e.target.checked); });
+OPTS[2].show();
+render();
+// Names are measured for cutting once the fonts are in.
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => render());
+</script>
+</body>
+</html>
