@@ -7,9 +7,19 @@ export const composing = (event) => event.nativeEvent?.isComposing || event.keyC
 export const oneLine = (text) => text.replace(/\s*[\r\n]+\s*/g, " ");
 
 // The border counts too (the subtask name field has one; border-box).
-const fitHeight = (el) => {
+// A field with a max-height (the memo, #107) stops there and scrolls inside: data-capped turns its
+// scrolling on, and it is measured once more when that changes (a scrollbar narrows the text).
+const fit = (el) => {
   el.style.height = "auto";
   if (el.scrollHeight) el.style.height = `${el.scrollHeight + el.offsetHeight - el.clientHeight}px`;
+};
+const fitHeight = (el) => {
+  fit(el);
+  const capped = el.scrollHeight > el.clientHeight + 1;
+  if (capped === ("capped" in el.dataset)) return;
+  if (capped) el.dataset.capped = "";
+  else delete el.dataset.capped;
+  fit(el);
 };
 
 // Grows a textarea with its text, and again when its width changes (the panel is resized).

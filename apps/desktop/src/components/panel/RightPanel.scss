@@ -284,7 +284,8 @@ $picked: #3d6fe6;
     border-radius: 8px !important;
     border: 0 !important;
     background: #262c38 !important;
-    box-shadow: 0 10px 24px #000a, inset 0 0 0 1px #3a4354;
+    // Lighter since #107 (memo mock: 6px down, 16px blur).
+    box-shadow: 0 6px 16px #0006, inset 0 0 0 1px #3a4354;
     transform: scale(1.02);
     transition: top .16s cubic-bezier(.2, 0, 0, 1);
     .sacts { visibility: hidden !important; }
@@ -329,10 +330,13 @@ $picked: #3d6fe6;
     }
   }
 
+  // Grows with its text up to 12 lines (#107 memo mock), then scrolls inside (data-capped, set by
+  // useAutoHeight once the text is taller).
   .rp-memo {
     display: block;
     width: 100%;
     min-height: 64px;
+    max-height: calc(12 * 1.6 * 13px + 24px);
     margin: 0;
     padding: 12px var(--in);
     box-sizing: border-box;
@@ -343,6 +347,7 @@ $picked: #3d6fe6;
     line-height: 1.6;
     color: var(--secondary);
     outline: none;
+    &[data-capped] { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #3a4252 transparent; }
     &::placeholder { color: var(--faint); }
     &:focus { box-shadow: inset 0 0 0 1px var(--accent); color: var(--text); }
   }
