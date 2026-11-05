@@ -948,7 +948,7 @@ test("second completion of a rolled repeating row is not re-shown by the first R
 
 // on 오늘 the next occurrence leaves the screen; taking the completion back within ROLL_WAIT
 // brings the old occurrence back, and it flashes as if it were the next one.
-test("undo of a repeating completion on 오늘 does not flash the restored row", () => {
+test("undo of a repeating completion on 오늘: the restored row flashes where it comes back", () => {
   mockContext = { ...mockContext, selectedTodoMenuType: "오늘의 할일", category: { title: "오늘의 할일", default: true } };
   const { container, rerender } = view();
   expect(row(container, "repeat")).not.toBeNull();
@@ -963,7 +963,50 @@ test("undo of a repeating completion on 오늘 does not flash the restored row",
   setTask("repeat", makeTask("repeat", "운동", at(0, 21), { repeatPeriod: "day" }));
   rerender(ui());
   expect(row(container, "repeat")).not.toBeNull();
+  expect(row(container, "repeat")).toHaveClass("rolled");
+});
+
+test("undo of a completion whose row already moved: it rises away first, then the change is sent", () => {
+  store.dispatch(setPrefs({ groupClosed: { done: false } }));
+  const { container, rerender } = view();
+  fireEvent.click(within(row(container, "first")).getByRole("checkbox", { name: "할 일 완료" }));
+  act(() => { jest.advanceTimersByTime(136 + 425); });
+  // The lists have it done: it shows in 완료됨.
+  setTask("first", makeTask("first", "리뷰 준비", at(0, 18), { done: true, memo: "문서 초안" }));
+  rerender(ui());
+  expect(row(container, "first")).toHaveClass("done");
+  expect(row(container, "first").style.visibility).toBe("");
+  const calls = IpcSender.req.task.updateTaskDone.mock.calls.length;
+  ctrlZ();
+  expect(IpcSender.req.task.updateTaskDone).toHaveBeenCalledTimes(calls);
+  act(() => { jest.advanceTimersByTime(136); });
+  expect(document.querySelector("body > .task-row.rise")).not.toBeNull();
+  act(() => { jest.advanceTimersByTime(425); });
+  expect(document.querySelector("body > .task-row.rise")).toBeNull();
+  expect(IpcSender.req.task.updateTaskDone).toHaveBeenLastCalledWith("first", false, expect.any(Number), expect.any(Function));
+  // A plain task does not flash when it comes back.
+  setTask("first", makeTask("first", "리뷰 준비", at(0, 18), { memo: "문서 초안" }));
+  rerender(ui());
+  expect(row(container, "first")).not.toHaveClass("rolled");
+});
+
+test("an undo that is refused shows the row again and does not flash", () => {
+  const errors = jest.spyOn(Toast, "error").mockImplementation(() => {});
+  IpcSender.req.task.undoRecurringCompletion.mockImplementation((tid, due, cb) => cb({ success: false }));
+  const { container, rerender } = view();
+  fireEvent.click(within(row(container, "repeat")).getByRole("checkbox", { name: "할 일 완료" }));
+  act(() => { jest.advanceTimersByTime(136 + 425); });
+  setTask("repeat", makeTask("repeat", "운동", at(1, 21), { repeatPeriod: "day" }));
+  rerender(ui());
+  act(() => { jest.advanceTimersByTime(1720); });
+  ctrlZ();
+  act(() => { jest.advanceTimersByTime(136 + 425); });
+  expect(IpcSender.req.task.undoRecurringCompletion).toHaveBeenCalledTimes(1);
+  expect(errors).toHaveBeenCalledWith("되돌리지 못했어요.");
+  expect(row(container, "repeat").style.visibility).toBe("");
+  rerender(ui());
   expect(row(container, "repeat")).not.toHaveClass("rolled");
+  errors.mockRestore();
 });
 
 // React rewrites className when a prop changes (selection), wiping the hand-set "rolled".

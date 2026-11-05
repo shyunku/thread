@@ -23,6 +23,13 @@ export function takeRolled(id) {
   rolled.delete(id);
   return until !== undefined && until >= Date.now();
 }
+// The row of the task flashes where it shows next (an undo brings a repeating task back, #107).
+export function markRolled(id) {
+  rolled.set(id, Date.now() + ROLL_WAIT);
+}
+export function forgetRolled(id) {
+  rolled.delete(id);
+}
 
 const reducedMotion = () =>
   typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -74,6 +81,27 @@ function leaveRow(row, kind) {
   return copy;
 }
 const isListRow = (row) => !!row?.isConnected && row.classList.contains("task-row");
+
+// A completion taken back with the undo notice (#107 undo mock): the list row where the task is
+// now rises away like an uncheck, then `then` runs. Without a shown list row it runs at once.
+export function riseAway(row, then) {
+  if (!isListRow(row) || row.style.visibility === "hidden") return then();
+  if (reducedMotion()) {
+    if (typeof row.animate === "function") row.animate([{ opacity: 1 }, { opacity: 0 }], { duration: FADE_TIME, fill: "forwards" });
+    setTimeout(then, FADE_TIME);
+    return undefined;
+  }
+  setTimeout(() => {
+    if (!row.isConnected) return then();
+    const copy = leaveRow(row, "rise");
+    setTimeout(() => {
+      copy.remove();
+      then();
+    }, FALL_TIME);
+    return undefined;
+  }, POP_DELAY);
+  return undefined;
+}
 
 // Returns complete(task, rowElement, done, stays). Tasks whose row stays where it is once done
 // change at once after the pop (stays: the timeline with done tasks shown, #107), and so do

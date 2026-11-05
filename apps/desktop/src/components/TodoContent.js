@@ -28,7 +28,7 @@ import { PickedDayContext, startOfDay } from "./panel/pickedDay";
 import QuickAdd, { quickAddDefaults } from "./list/QuickAdd";
 import { searchSections, storedOrder } from "./list/listModel";
 import { TaskSelectionContext } from "./list/taskSelection";
-import useTaskCompletion from "./list/useTaskCompletion";
+import useTaskCompletion, { forgetRolled, markRolled, restoreRow, riseAway } from "./list/useTaskCompletion";
 import UndoNotice from "./UndoNotice";
 import useUndoNotice from "./useUndoNotice";
 import {
@@ -365,11 +365,12 @@ const TodoContent = ({ children }) => {
   // Taking back a completion. A repeating task rolled forward: on E2EE task/
   // undoRecurringCompletion deletes the done copy and puts the due and the subtasks back. The
   // plaintext and legacy paths roll it on the server, so there is nothing to take back there.
+  // Each returns send(callback) or null.
   const undoDone = (task) => {
-    if (!task.repeatPeriod) return () => IpcSender.req.task.updateTaskDone(task.id, false, Date.now(), undoFailed);
+    if (!task.repeatPeriod) return (callback = undoFailed) => IpcSender.req.task.updateTaskDone(task.id, false, Date.now(), callback);
     const due = dueMs(task.dueDate);
     if (current.current.protocol !== 3 || due === null) return null;
-    return () => IpcSender.req.task.undoRecurringCompletion(task.id, due, undoFailed);
+    return (callback = undoFailed) => IpcSender.req.task.undoRecurringCompletion(task.id, due, callback);
   };
   // The restores are composites of the E2EE and plaintext v2 paths; the legacy one has none.
   const canRestore = () => current.current.protocol === 2 || current.current.protocol === 3;
@@ -716,13 +717,28 @@ const TodoContent = ({ children }) => {
   // A refused change shows the row again and says so; a completion that went through has the
   // undo notice (list, calendar, timeline and the panel all complete through here).
   const complete = useTaskCompletion((task, done, onFailed) => {
-    // An undo also shows the row the fall hid, in case the list has not dropped it yet.
     const takeBack = done ? undoDone(task) : null;
+    // Taking it back (#107 undo mock): the list row where the task is now (완료됨, or the next
+    // occurrence) rises away first, and a repeating task flashes where it comes back. A row the
+    // list has not moved yet (still hidden by the fall) just shows again in place.
+    const undo = takeBack && (() => {
+      const row = document.querySelector(`.todo-content .task-row[data-task-id="${CSS.escape(task.id)}"]`);
+      const moved = !!row && row.style.visibility !== "hidden";
+      onFailed?.();
+      const send = () => {
+        if (task.repeatPeriod) markRolled(task.id);
+        takeBack((reply = {}) => {
+          if (reply.success !== false) return;
+          forgetRolled(task.id);
+          if (row) restoreRow(row);
+          undoFailed(reply);
+        });
+      };
+      if (moved) riseAway(row, send);
+      else send();
+    });
     const settle = done
-      ? showNotice({
-        kind: "done", name: task.title, target: { tid: task.id }, secret: secretOf(task),
-        undo: takeBack && (() => { onFailed?.(); takeBack(); }),
-      })
+      ? showNotice({ kind: "done", name: task.title, target: { tid: task.id }, secret: secretOf(task), undo })
       : null;
     actions.setDone(task.id, done, ({ success } = {}) => {
       settle?.(success !== false);
