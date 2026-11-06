@@ -71,12 +71,6 @@ func parseOperations(v interface{}, retained bool) ([]operation, error) {
 	return result, nil
 }
 func (s *Store) Push(ctx context.Context, uid string, raw []byte) (PushResult, error) {
-	return s.push(ctx, uid, raw, false)
-}
-func (s *Store) MigrationPush(ctx context.Context, uid string, raw []byte) (PushResult, error) {
-	return s.push(ctx, uid, raw, true)
-}
-func (s *Store) push(ctx context.Context, uid string, raw []byte, migrating bool) (PushResult, error) {
 	if !validAccount(uid) {
 		return PushResult{}, ErrForbidden
 	}
@@ -94,7 +88,7 @@ func (s *Store) push(ctx context.Context, uid string, raw []byte, migrating bool
 	generation, gok := b["keyGeneration"].(uint64)
 	counter, cok := decimal(b["counter"], true)
 	ops, e := parseOperations(b["operations"], schema == 2)
-	if e != nil || len(b) != 9 || (schema != 1 && schema != 2) || (migrating && schema != 2) || !identifier.MatchString(id) || !identifier.MatchString(device) || !identifier.MatchString(mutation) || !identifier.MatchString(epoch) || !rok || !gok || !cok {
+	if e != nil || len(b) != 9 || (schema != 1 && schema != 2) || !identifier.MatchString(id) || !identifier.MatchString(device) || !identifier.MatchString(mutation) || !identifier.MatchString(epoch) || !rok || !gok || !cok {
 		return PushResult{}, ErrInvalid
 	}
 	tx, e := s.DB.BeginTx(ctx, nil)
@@ -102,15 +96,6 @@ func (s *Store) push(ctx context.Context, uid string, raw []byte, migrating bool
 		return PushResult{}, e
 	}
 	defer tx.Rollback()
-	if migrating {
-		var accountMode string
-		if e = tx.QueryRowContext(ctx, `SELECT mode FROM sync_users WHERE uid=? FOR UPDATE`, uid).Scan(&accountMode); e != nil {
-			return PushResult{}, ErrForbidden
-		}
-		if accountMode != "e2ee_frozen" && accountMode != "e2ee" {
-			return PushResult{}, ErrInactive
-		}
-	}
 	var mode, currentEpoch string
 	var currentRevision, currentGeneration uint64
 	e = tx.QueryRowContext(ctx, `SELECT mode,epoch,membership_revision,current_key_generation FROM vaults WHERE vault_id=? AND account_id=? FOR UPDATE`, id, uid).Scan(&mode, &currentEpoch, &currentRevision, &currentGeneration)
@@ -120,19 +105,8 @@ func (s *Store) push(ctx context.Context, uid string, raw []byte, migrating bool
 	if e != nil {
 		return PushResult{}, e
 	}
-	if (!migrating && mode != "active") || (migrating && mode != "migrating" && mode != "active") {
+	if mode != "active" {
 		return PushResult{}, ErrInactive
-	}
-	var migrationID, migrationPhase string
-	if migrating {
-		var coordinator, target string
-		e = tx.QueryRowContext(ctx, `SELECT m.migration_id,m.phase,m.coordinator,m.target_epoch FROM vault_migration_active a JOIN vault_migrations m ON a.migration_id=m.migration_id WHERE a.vault_id=?`, id).Scan(&migrationID, &migrationPhase, &coordinator, &target)
-		if e != nil || coordinator != device {
-			return PushResult{}, ErrForbidden
-		}
-		if target != epoch || currentEpoch != epoch {
-			return PushResult{}, ErrConflict
-		}
 	}
 	var signing []byte
 	var role string
@@ -164,9 +138,6 @@ func (s *Store) push(ctx context.Context, uid string, raw []byte, migrating bool
 	if e != sql.ErrNoRows {
 		return PushResult{}, e
 	}
-	if migrating && migrationPhase != "FROZEN" && migrationPhase != "UPLOADING" {
-		return PushResult{}, ErrConflict
-	}
 	if epoch != currentEpoch || revision != currentRevision || generation != currentGeneration || counter <= lastCounter {
 		return PushResult{}, ErrConflict
 	}
@@ -192,7 +163,7 @@ func (s *Store) push(ctx context.Context, uid string, raw []byte, migrating bool
 		if e != nil && e != sql.ErrNoRows {
 			return PushResult{}, e
 		}
-		if version != op.Base || deleted || (version == 0 && op.Deleted && !migrating) || (migrating && (op.Base != 0 || version != 0)) {
+		if version != op.Base || deleted || (version == 0 && op.Deleted) {
 			return PushResult{}, ErrObjectConflict
 		}
 		_, e = tx.ExecContext(ctx, `INSERT INTO encrypted_objects(vault_id,object_id,version,seq,deleted,operation_index,record_digest) VALUES(?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE version=VALUES(version),seq=VALUES(seq),deleted=VALUES(deleted),operation_index=VALUES(operation_index),record_digest=VALUES(record_digest)`, id, op.ID, version+1, seq, op.Deleted, index, digest[:])
@@ -218,11 +189,6 @@ func (s *Store) push(ctx context.Context, uid string, raw []byte, migrating bool
 	}
 	if _, e = tx.ExecContext(ctx, `UPDATE vault_sync SET last_seq=? WHERE vault_id=?`, seq, id); e != nil {
 		return PushResult{}, e
-	}
-	if migrating {
-		if _, e = tx.ExecContext(ctx, `UPDATE vault_migrations SET phase='UPLOADING' WHERE migration_id=?`, migrationID); e != nil {
-			return PushResult{}, e
-		}
 	}
 	return result, tx.Commit()
 }

@@ -225,7 +225,7 @@ pnpm cert:desktop:renew <현재 trust 폴더> [만료일] [--rotate-release-keys
 
 | 설치본 | 상태 | 조치 |
 | --- | --- | --- |
-| 1.x (v2 평문) | 서버의 `/v2/sync`가 없어 404가 난다 | 관리자 웹의 구 방식 릴리스(업로드, 검증, 알림 게시)로 새 설치 파일을 안내한다 |
+| 1.x (v2 평문) | 서버의 `/v2/sync`, `/v1/websocket/connect`가 없어 404가 난다(#108에서 1.x 안내 응답 426·410과 새 버전 알림도 지움) | 관리자 웹의 구 방식 릴리스(업로드, 검증)로 새 설치 파일을 올린다 |
 | `2.0.0-beta.2` 등 root가 없는 v3 설치본 | 서명 업데이트를 받을 수 없다 | 새 설치 파일을 **한 번 수동으로** 설치한다 |
 | root가 들어간 설치본 | `/tuf/`로 자동 안내 | 없음 |
 
@@ -233,13 +233,8 @@ pnpm cert:desktop:renew <현재 trust 폴더> [만료일] [--rotate-release-keys
 
 ## 9. 데이터 보존 정책
 
-- 운영자 계정의 v2 평문과 평문이 든 백업은 2026-10-10에 정리했다(#80). 그 전 평문이 남은 MySQL binlog(binlog.000004)는 2026-11-09쯤 30일 보관 규칙으로 지워진다. 앞으로 v2 평문을 가진 계정이 생기면 같은 [정리 계획](initiatives/v3-encryption/protocol/v3-plaintext-purge-plan.md)대로, 사용자 결정 뒤에만 정리한다.
-- 남은 평문 양은 읽기 전용 도구로 확인한다. 원문은 출력하지 않는다.
-  ```bash
-  cd services/api
-  THREAD_V3_INVENTORY_DSN='<SELECT 전용 DSN>' go run ./cmd/v3-legacy-inventory --user <UID>
-  ```
-- 평문 정리(#80)는 `cmd/v3-legacy-purge`로 한다. E2EE로 옮기기가 끝난 계정(sync_users.mode=e2ee, vault active, 진행 중인 옮기기 없음)만 받는다. 옵션 없이 돌리면 지울 행 수(계획)만 출력하고, `-execute -plan <계획 파일> -backup-sha256 <백업 해시>`로 돌리면 계획과 행 수가 같을 때만 한 트랜잭션으로 지운다. 로그인·기기·vault·옮기기 기록과 암호화 데이터는 지우지 않는다. 실행 전 4장의 백업·복원 확인은 필수다.
+- 운영자 계정의 v2 평문과 평문이 든 백업은 2026-10-10에 정리했다(#80). 그 전 평문이 남은 MySQL binlog(binlog.000004)는 2026-11-09쯤 30일 보관 규칙으로 지워진다.
+- 서버에는 v2 평문을 쓰는 경로가 없다. 옛 평문 테이블(blocks, transactions, tasks 등)은 빈 채로 남아 있고 마이그레이션 v1~v12도 그대로 둔다. 평문 확인·정리 도구(`cmd/v3-legacy-inventory`, `cmd/v3-legacy-purge`)와 옮기기 도구(`thread-sync-migrate`)는 #108에서 지웠다.
 - 암호화 백업 가져오기는 원본 DB를 덮어쓰지 않고 복구용 사본만 만든다.
 - 계정 삭제(#92)는 사용자가 앱에서 한다. `POST /v1/auth/account/delete`(로그인 세션 인증)가 계정과 그 계정의 모든 행(로그인, v2 평문, vault, 기기, 암호화 데이터, 옮기기 기록)을 한 트랜잭션으로 지우고, 남은 행이 없을 때만 커밋한다. 그 뒤 Redis의 세션과 기기 연결 상태를 지우고 열린 동기화 알림 연결을 닫는다. 되돌릴 수 없다. 다른 기기는 다음 토큰 갱신에서 `ACCOUNT_DELETED`(401)를 받는다. 이미 만든 DB 백업과 binlog에는 지운 행이 보관 기간 동안 남는다.
 

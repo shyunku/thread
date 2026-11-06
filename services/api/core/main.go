@@ -13,7 +13,6 @@ import (
 	"thread_api/service/database/migrations"
 	"thread_api/service/pairing"
 	"thread_api/service/session"
-	"thread_api/service/state"
 	"time"
 )
 
@@ -48,7 +47,6 @@ func main() {
 		"JWT_ACCESS_EXPIRE",
 		"JWT_REFRESH_SECRET",
 		"JWT_REFRESH_EXPIRE",
-		"STATE_SCHEME_VERSION",
 		"USE_HTTPS",
 	}
 	missingVariables := make([]string, 0)
@@ -70,18 +68,6 @@ func main() {
 	if err != nil {
 		log.Error("Invalid USE_HTTPS value: ", os.Getenv("USE_HTTPS"))
 		os.Exit(-1)
-	}
-
-	// scheme version
-	rawSchemeVersion := os.Getenv("STATE_SCHEME_VERSION")
-	parsedSchemeVersion, err := strconv.Atoi(rawSchemeVersion)
-	if err != nil {
-		log.Error("Invalid scheme version: ", rawSchemeVersion)
-		os.Exit(-1)
-	}
-	state.SchemeVersion = parsedSchemeVersion
-	if state.SchemeVersion == 0 {
-		panic("txType cannot be 0, maybe env is not set correctly")
 	}
 
 	// Initialize Jwt
@@ -113,8 +99,6 @@ func main() {
 	controllers.UseAccountDeletion(database.DB.DB)
 
 	// TODO :: check redis connection
-
-	// v3-only release: never load legacy block chains into memory.
 
 	// Run web server with gin
 	controllers.RunGin(useHTTPS)

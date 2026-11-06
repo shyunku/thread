@@ -110,32 +110,6 @@ function createReleaseAlerts({ db, axios, releaseRoot, apiEntry }) {
         );
       }
     },
-    latest: async (req, res) => {
-      res.set("Cache-Control", "no-store");
-      const category = req.query.category;
-      if (!["win", "mac"].includes(category))
-        return resolver.fail(res, 400, null, "지원하지 않는 플랫폼입니다.");
-      try {
-        const betaClause =
-          req.query.include_beta === "true" ? "" : " AND beta=false";
-        const rows = await db.query(
-          `SELECT * FROM version_master WHERE verified=true AND (alerted=true OR not_compatible=true) AND ${category}=true${betaClause} ORDER BY updated_timestamp DESC`
-        );
-        const releases = rows.filter((item) =>
-          hasRelease(releaseRoot(), item, category)
-        );
-        return resolver.ok(
-          res,
-          releases.map((row) => ({
-            version: row.version,
-            beta: enabled(row.beta),
-            mandatory: enabled(row.not_compatible),
-          }))
-        );
-      } catch {
-        return resolver.fail(res, 300, null, "알림을 확인하지 못했습니다.");
-      }
-    },
   };
 }
 

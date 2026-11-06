@@ -8,7 +8,6 @@ class Dashboard extends Component {
 
     this.state = {
       latest_version: {},
-      online_users: {},
       entered_users: {},
       user_count: {},
       workspace_count: {},
@@ -23,7 +22,6 @@ class Dashboard extends Component {
 
     this.fetcher = util.fastInterval(() => {
       this.fetchLatestVersion();
-      this.fetchOnlineUsers();
       this.fetchUserCount();
     }, 10000);
   };
@@ -65,23 +63,6 @@ class Dashboard extends Component {
       });
   };
 
-  fetchOnlineUsers = () => {
-    axios
-      .get(`${process.env.REACT_APP_APP_SERVER_ENTRY}/v1/admin/online-user-count`)
-      .then((res) => {
-        const resp = res.data;
-        this.setState({
-          online_users: {
-            value: resp,
-            updated_timestamp: Date.now(),
-          },
-        });
-      })
-      .catch((err) => {
-        console.error(err);
-      });
-  };
-
   fetchUserCount = () => {
     axios
       .get(`${process.env.REACT_APP_APP_SERVER_ENTRY}/v1/admin/user-count`)
@@ -100,7 +81,7 @@ class Dashboard extends Component {
   };
 
   render() {
-    const { latest_version, online_users, entered_users, user_count, workspace_count, online_workspaces } = this.state;
+    const { latest_version, entered_users, user_count, workspace_count, online_workspaces } = this.state;
 
     return (
       <div className="dashboard-cards">
@@ -113,12 +94,10 @@ class Dashboard extends Component {
         </div>
         <div className="card box" onClick={(e) => this.menuSelectHandler("users")}>
           <div className="content">
-            <div className="high">{online_users?.value ?? "?"}</div>
-            <div className="slash">/</div>
-            <div className="base">{user_count?.value ?? "?"}</div>
+            <div className="high">{user_count?.value ?? "?"}</div>
           </div>
-          <div className="title">Online Users / Total Users</div>
-          <div className="last-update-time">{util.toRelativeTime(online_users?.updated_timestamp)}</div>
+          <div className="title">Total Users</div>
+          <div className="last-update-time">{util.toRelativeTime(user_count?.updated_timestamp)}</div>
         </div>
       </div>
     );

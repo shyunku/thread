@@ -24,8 +24,6 @@ func UseRouterV1(r *gin.Engine) {
 	UseGoogleAuthRouter(g)
 	UseAdminRouter(g)
 	UseTokenRouter(g)
-	UseTestRouter(g) // comment this on production
-	UseSocketRouter(g)
 }
 
 func DefaultMiddleware(c *gin.Context) {

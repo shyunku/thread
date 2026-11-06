@@ -49,6 +49,9 @@ func TestMySQLSignedMembership(t *testing.T) {
 	if _, e = migrations.Run(ctx, db, migrations.Server); e != nil {
 		t.Fatal(e)
 	}
+	if _, e = db.ExecContext(ctx, "INSERT INTO sync_users(uid,mode) VALUES('fixture-user','e2ee_pending')"); e != nil {
+		t.Fatal(e)
+	}
 	store := Store{db}
 	owner, key := testDevice("owner", 3, "write", true)
 	_, recoveryKey := testDevice("recovery", 8, "write", true)
@@ -61,7 +64,7 @@ func TestMySQLSignedMembership(t *testing.T) {
 		t.Fatal("identical genesis retry failed", e)
 	}
 	status, statusErr := store.Status(ctx, "fixture-user")
-	if statusErr != nil || status.VaultID != "fixture" || status.AccountMode != "v2" || status.VaultMode != "pending" || status.Epoch != "1" || status.Revision != 0 || status.KeyGeneration != 1 || status.Head != head.Digest {
+	if statusErr != nil || status.VaultID != "fixture" || status.AccountMode != "e2ee_pending" || status.VaultMode != "pending" || status.Epoch != "1" || status.Revision != 0 || status.KeyGeneration != 1 || status.Head != head.Digest {
 		t.Fatal("vault routing state", status, statusErr)
 	}
 	if _, err := store.Status(ctx, "other-user"); !errors.Is(err, ErrNotFound) {
@@ -384,9 +387,6 @@ func TestMySQLSignedMembership(t *testing.T) {
 	if e = db.QueryRowContext(ctx, "SELECT COUNT(*) FROM vault_membership_events").Scan(&count); e != nil || count != 7 {
 		t.Fatal("partial rotation event", e)
 	}
-	testMigrationFreeze(t, db)
-	testMigrationCancellation(t, db)
-	testLostMigrationCoordinator(t, db)
 	testNewAccountActivation(t, db)
 }
 
@@ -422,13 +422,13 @@ func testNewAccountActivation(t *testing.T, db *sql.DB) {
 	if _, err := store.ActivateEmpty(ctx, "test-v2-user", raw); !errors.Is(err, ErrNotFound) {
 		t.Fatal("cross-account activation", err)
 	}
-	if _, err := db.ExecContext(ctx, "INSERT INTO blocks(uid,block_number,state) VALUES('new-v3-user',1,'synthetic-private-data')"); err != nil {
+	if _, err := db.ExecContext(ctx, "INSERT INTO encrypted_receipts(vault_id,device_id,mutation_id,counter,request_digest,result) VALUES('new-v3-vault','new-owner','synthetic',1,REPEAT('a',32),'synthetic')"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := store.ActivateEmpty(ctx, "new-v3-user", raw); !errors.Is(err, ErrConflict) {
-		t.Fatal("plaintext account activated", err)
+		t.Fatal("account with encrypted data activated", err)
 	}
-	if _, err := db.ExecContext(ctx, "DELETE FROM blocks WHERE uid='new-v3-user'"); err != nil {
+	if _, err := db.ExecContext(ctx, "DELETE FROM encrypted_receipts WHERE vault_id='new-v3-vault'"); err != nil {
 		t.Fatal(err)
 	}
 	status, err := store.ActivateEmpty(ctx, "new-v3-user", raw)

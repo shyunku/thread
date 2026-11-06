@@ -6,7 +6,7 @@ import (
 )
 
 // ActivateEmpty creates an active encrypted account only from an explicitly
-// pending new account. It cannot convert a v2 account or discard old data.
+// pending new account. It never discards existing encrypted data.
 func (s *Store) ActivateEmpty(ctx context.Context, uid string, raw []byte) (AccountStatus, error) {
 	var out AccountStatus
 	c, err := parseMigrationControl(raw, "activate-empty")
@@ -66,23 +66,11 @@ func (s *Store) ActivateEmpty(ctx context.Context, uid string, raw []byte) (Acco
 	if mode != "e2ee_pending" || vaultMode != "pending" || epoch.Valid || seq != 0 || minimum != 1 {
 		return out, ErrConflict
 	}
-	// A corrupt or manually altered pending account must never hide plaintext.
+	// A corrupt or manually altered pending account must never hide data.
 	for _, source := range []struct {
 		query string
 		arg   interface{}
 	}{
-		{"SELECT EXISTS(SELECT 1 FROM blocks WHERE uid=?)", uid},
-		{"SELECT EXISTS(SELECT 1 FROM transactions WHERE `from`=?)", uid},
-		{"SELECT EXISTS(SELECT 1 FROM tasks WHERE user_id=?)", user},
-		{"SELECT EXISTS(SELECT 1 FROM categories WHERE user_id=?)", user},
-		{"SELECT EXISTS(SELECT 1 FROM subtasks WHERE user_id=?)", user},
-		{"SELECT EXISTS(SELECT 1 FROM task_categories WHERE user_id=?)", user},
-		{"SELECT EXISTS(SELECT 1 FROM sync_devices WHERE user_id=?)", user},
-		{"SELECT EXISTS(SELECT 1 FROM sync_change_log WHERE user_id=?)", user},
-		{"SELECT EXISTS(SELECT 1 FROM sync_receipts WHERE user_id=?)", user},
-		{"SELECT EXISTS(SELECT 1 FROM sync_occurrences WHERE user_id=?)", user},
-		{"SELECT EXISTS(SELECT 1 FROM sync_snapshots WHERE user_id=?)", user},
-		{"SELECT EXISTS(SELECT 1 FROM sync_backfills WHERE user_id=?)", user},
 		{"SELECT EXISTS(SELECT 1 FROM encrypted_objects WHERE vault_id=?)", c.vaultID},
 		{"SELECT EXISTS(SELECT 1 FROM encrypted_changes WHERE vault_id=?)", c.vaultID},
 		{"SELECT EXISTS(SELECT 1 FROM encrypted_receipts WHERE vault_id=?)", c.vaultID},

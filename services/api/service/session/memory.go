@@ -15,7 +15,6 @@ type Memory struct {
 	sids      map[string]memoryValue
 	users     map[string]map[string]bool
 	legacyOff map[string]time.Time
-	Legacy    map[string]string
 }
 
 type memoryToken struct {
@@ -43,7 +42,6 @@ func NewMemory() *Memory {
 		sids:      map[string]memoryValue{},
 		users:     map[string]map[string]bool{},
 		legacyOff: map[string]time.Time{},
-		Legacy:    map[string]string{},
 	}
 }
 
@@ -147,26 +145,4 @@ func (m *Memory) Active(_ context.Context, uid, sid string) (bool, error) {
 		return !off || !m.Now().Before(until), nil
 	}
 	return m.alive(Info{UID: uid, SID: sid}), nil
-}
-
-func (m *Memory) TakeLegacy(_ context.Context, raw, uid string) (bool, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if until, off := m.legacyOff[uid]; off && m.Now().Before(until) {
-		return false, nil
-	}
-	if m.Legacy[raw] != uid {
-		return false, nil
-	}
-	delete(m.Legacy, raw)
-	return true, nil
-}
-
-func (m *Memory) DropLegacy(_ context.Context, raw, uid string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.Legacy[raw] == uid {
-		delete(m.Legacy, raw)
-	}
-	return nil
 }

@@ -148,22 +148,7 @@ func RefreshToken(c *gin.Context) {
 			sessionUnavailable(c, err)
 		}
 	case errors.Is(err, session.ErrNotFound):
-		// A token issued before sessions were tracked becomes a session on its first refresh.
-		took, err := Sessions.TakeLegacy(ctx, raw, uid)
-		if err != nil {
-			sessionUnavailable(c, err)
-			return
-		}
-		if !took {
-			unauthorized(c, "INVALID_REFRESH_TOKEN")
-			return
-		}
-		auth, err := issueSession(ctx, uid, uid == adminTokenSubject)
-		if err != nil {
-			sessionUnavailable(c, err)
-			return
-		}
-		c.JSON(http.StatusOK, auth)
+		unauthorized(c, "INVALID_REFRESH_TOKEN")
 	default:
 		sessionUnavailable(c, err)
 	}
@@ -194,7 +179,7 @@ func Logout(c *gin.Context) {
 			err = Sessions.Revoke(ctx, info)
 		}
 	case errors.Is(err, session.ErrNotFound):
-		err = Sessions.DropLegacy(ctx, raw, uid)
+		err = nil
 	}
 	if err != nil {
 		sessionUnavailable(c, err)

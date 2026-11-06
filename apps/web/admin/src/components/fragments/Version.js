@@ -7,7 +7,6 @@ import util from "static/js/util";
 import { IoIosCloseCircle, IoMdClose, IoMdDownload } from "react-icons/io";
 import { IoCheckmarkSharp } from "react-icons/io5";
 import { ImCheckmark } from "react-icons/im";
-import { AiFillAlert } from "react-icons/ai";
 import ReleaseLink from "./ReleaseLink";
 
 const RELEASE_CHUNK_SIZE = 8 * 1024 * 1024;
@@ -168,30 +167,6 @@ class Version extends Component {
               console.error(resp.code);
           }
         }
-      })
-      .catch((err) => {
-        console.error(err);
-      });
-  };
-
-  alertNewVersion = (version) => {
-    axios
-      .post(`${process.env.REACT_APP_RMS_ENTRY}/admin/alert-new-version`, { version })
-      .then((res) => {
-        const resp = res.data;
-        if (resp.code === 200) {
-          console.log(resp.data);
-          alert(resp.data?.warning || "알림을 발행했습니다. 연결된 클라이언트에는 즉시 전달하고, 누락은 재접속·주기 확인으로 복구합니다.");
-        } else {
-          switch (resp.code) {
-            default:
-              console.error(resp.code);
-              alert(resp.msg || `Alert Failed. (${resp.code})`);
-          }
-        }
-
-        this.fetchAlertedLatestVersion();
-        this.fetchVersions();
       })
       .catch((err) => {
         console.error(err);
@@ -403,19 +378,10 @@ class Version extends Component {
                                 <ImCheckmark />
                                 verified
                               </div>
-                              {versionInfo?.alerted == true ? (
-                                <div className={"tag alerted clickable"} title="알림 다시 보내기"
-                                  onClick={() => this.alertNewVersion(versionInfo.version)}>
+                              {versionInfo?.alerted == true && (
+                                <div className={"tag alerted"}>
                                   <ImCheckmark />
                                   alerted
-                                </div>
-                              ) : (
-                                <div
-                                  className={"tag alert clickable"}
-                                  onClick={(e) => this.alertNewVersion(versionInfo?.version)}
-                                >
-                                  <AiFillAlert />
-                                  alert
                                 </div>
                               )}
                             </>

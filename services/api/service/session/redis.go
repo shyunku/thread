@@ -3,7 +3,6 @@ package session
 import (
 	"context"
 	"errors"
-	"strings"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -155,25 +154,4 @@ func (r *Redis) Active(ctx context.Context, uid, sid string) (bool, error) {
 		return false, nil
 	}
 	return err == nil && value == uid, err
-}
-
-var takeLegacyScript = redis.NewScript(`
-if redis.call("EXISTS", KEYS[2]) == 1 then return 0 end
-if redis.call("TYPE", KEYS[1]).ok ~= "string" or redis.call("GET", KEYS[1]) ~= ARGV[1] then return 0 end
-redis.call("DEL", KEYS[1])
-return 1
-`)
-
-func (r *Redis) TakeLegacy(ctx context.Context, raw, uid string) (bool, error) {
-	// Old refresh tokens were stored under their raw value. Never touch session keys.
-	if raw == "" || strings.HasPrefix(raw, prefix) {
-		return false, nil
-	}
-	n, err := takeLegacyScript.Run(ctx, r.client, []string{raw, legacyOffKey(uid)}, uid).Int()
-	return n == 1, err
-}
-
-func (r *Redis) DropLegacy(ctx context.Context, raw, uid string) error {
-	_, err := r.TakeLegacy(ctx, raw, uid)
-	return err
 }

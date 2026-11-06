@@ -197,8 +197,8 @@ func TestRevokeOtherSessions(t *testing.T) {
 	}
 }
 
-// Tokens issued before sessions were tracked: refresh tokens stored under their
-// raw value and access tokens without a sid.
+// Signed tokens without a session: an access token without a sid and a
+// refresh token that no session knows.
 func legacyTokens(t *testing.T, uid string) (string, string) {
 	t.Helper()
 	sign := func(secret string, claims jwt.MapClaims) string {
@@ -214,55 +214,44 @@ func legacyTokens(t *testing.T, uid string) (string, string) {
 	return access, refresh
 }
 
-func TestLegacyTokensConvertOnceAndStopAfterRevokeAll(t *testing.T) {
-	store := sessionTestEnv(t)
+func TestSessionlessTokensStopAfterRevokeAll(t *testing.T) {
+	sessionTestEnv(t)
 	r := sessionRouter()
 	access, raw := legacyTokens(t, adminTokenSubject)
-	store.Legacy[raw] = adminTokenSubject
 
+	// A refresh token without a session never becomes one.
+	if got := refresh(t, r, raw); got.status != http.StatusUnauthorized || got.code != "INVALID_REFRESH_TOKEN" {
+		t.Fatalf("sessionless refresh token accepted: %+v", got)
+	}
+	if got := call(t, r, http.MethodPost, "/v1/auth/logout", map[string]string{"X-Refresh-Token": raw}, ""); got.status != http.StatusNoContent {
+		t.Fatalf("logout with sessionless token: %d", got.status)
+	}
 	if got := protected(t, r, access); got.status != http.StatusOK {
-		t.Fatalf("legacy access token rejected during transition: %d", got.status)
-	}
-	converted := refresh(t, r, raw)
-	if converted.status != http.StatusOK {
-		t.Fatalf("legacy refresh failed: %+v", converted)
-	}
-	if got := refresh(t, r, raw); got.status != http.StatusUnauthorized {
-		t.Fatalf("legacy token converted twice: %d", got.status)
-	}
-	if got := protected(t, r, converted.auth.AccessToken.Token); got.status != http.StatusOK {
-		t.Fatalf("converted session rejected: %d", got.status)
+		t.Fatalf("sessionless access token rejected before revoke: %d", got.status)
 	}
 
 	// Keeping the current session needs a token that has one.
 	legacyHeaders := map[string]string{"Authorization": "Bearer " + access}
 	if got := call(t, r, http.MethodPost, "/v1/auth/sessions/revoke", legacyHeaders, `{"keep_current":true}`); got.code != "SESSION_REFRESH_REQUIRED" {
-		t.Fatalf("legacy keep_current: %+v", got)
+		t.Fatalf("sessionless keep_current: %+v", got)
 	}
 
-	_, other := legacyTokens(t, adminTokenSubject)
-	store.Legacy[other] = adminTokenSubject
-	headers := map[string]string{"Authorization": "Bearer " + converted.auth.AccessToken.Token}
+	mine := login(t)
+	headers := map[string]string{"Authorization": "Bearer " + mine.AccessToken.Token}
 	if got := call(t, r, http.MethodPost, "/v1/auth/sessions/revoke", headers, `{"keep_current":true}`); got.status != http.StatusNoContent {
 		t.Fatalf("revoke failed: %+v", got)
 	}
 	if got := protected(t, r, access); got.code != "SESSION_REVOKED" {
-		t.Fatalf("legacy access token survived revoke: %+v", got)
+		t.Fatalf("sessionless access token survived revoke: %+v", got)
 	}
-	if got := refresh(t, r, other); got.status != http.StatusUnauthorized {
-		t.Fatalf("legacy refresh token survived revoke: %d", got.status)
-	}
-	if got := protected(t, r, converted.auth.AccessToken.Token); got.status != http.StatusOK {
+	if got := protected(t, r, mine.AccessToken.Token); got.status != http.StatusOK {
 		t.Fatalf("kept session revoked: %d", got.status)
 	}
 }
 
 func TestRefreshRequiresOurSignature(t *testing.T) {
-	store := sessionTestEnv(t)
+	sessionTestEnv(t)
 	r := sessionRouter()
-	// A stored value under an arbitrary key must not become a session.
-	store.Legacy["thread:session:sid:anything"] = adminTokenSubject
-	store.Legacy["forged"] = adminTokenSubject
 	for _, token := range []string{"thread:session:sid:anything", "forged"} {
 		if got := refresh(t, r, token); got.status != http.StatusUnauthorized || got.code != "INVALID_REFRESH_TOKEN" {
 			t.Fatalf("unsigned token accepted: %+v", got)
@@ -270,7 +259,6 @@ func TestRefreshRequiresOurSignature(t *testing.T) {
 	}
 	_, wrongKey := legacyTokens(t, adminTokenSubject)
 	t.Setenv("JWT_REFRESH_SECRET", "rotated-secret")
-	store.Legacy[wrongKey] = adminTokenSubject
 	if got := refresh(t, r, wrongKey); got.status != http.StatusUnauthorized {
 		t.Fatalf("token with another key accepted: %d", got.status)
 	}
@@ -305,16 +293,13 @@ func TestSessionFlowOnRedis(t *testing.T) {
 	r := sessionRouter()
 	ctx := context.Background()
 
-	access, raw := legacyTokens(t, adminTokenSubject)
-	if err := client.Set(ctx, raw, adminTokenSubject, time.Hour).Err(); err != nil {
-		t.Fatal(err)
-	}
+	access, _ := legacyTokens(t, adminTokenSubject)
 	if got := protected(t, r, access); got.status != http.StatusOK {
-		t.Fatalf("legacy access token rejected: %d", got.status)
+		t.Fatalf("sessionless access token rejected: %d", got.status)
 	}
-	converted := refresh(t, r, raw)
-	if converted.status != http.StatusOK || client.Exists(ctx, raw).Val() != 0 {
-		t.Fatalf("legacy conversion: %+v", converted)
+	converted := refresh(t, r, login(t).RefreshToken.Token)
+	if converted.status != http.StatusOK {
+		t.Fatalf("refresh: %+v", converted)
 	}
 	next := refresh(t, r, converted.auth.RefreshToken.Token)
 	if next.status != http.StatusOK || protected(t, r, next.auth.AccessToken.Token).status != http.StatusOK {

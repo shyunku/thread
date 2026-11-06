@@ -61,11 +61,6 @@ type Store interface {
 	// Active reports whether an access token's session is still valid. An empty
 	// sid is a token issued before sessions were tracked.
 	Active(ctx context.Context, uid, sid string) (bool, error)
-	// TakeLegacy consumes a refresh token stored by the previous scheme
-	// (raw token key, uid value). It succeeds once per token.
-	TakeLegacy(ctx context.Context, rawToken, uid string) (bool, error)
-	// DropLegacy deletes a refresh token stored by the previous scheme.
-	DropLegacy(ctx context.Context, rawToken, uid string) error
 }
 
 // Hash returns the storage key of a refresh token. Raw tokens are never stored.

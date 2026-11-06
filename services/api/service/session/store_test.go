@@ -14,8 +14,7 @@ import (
 // Both stores must follow the same rules. The Redis run needs a disposable
 // server: THREAD_TEST_REDIS_ADDR=127.0.0.1:6379 go test ./service/session
 func TestMemoryStore(t *testing.T) {
-	m := NewMemory()
-	testStore(t, m, func(raw, uid string) { m.Legacy[raw] = uid })
+	testStore(t, NewMemory())
 }
 
 func TestRedisStore(t *testing.T) {
@@ -29,29 +28,21 @@ func TestRedisStore(t *testing.T) {
 	if err := client.Ping(ctx).Err(); err != nil {
 		t.Fatal(err)
 	}
-	testStore(t, NewRedis(client), func(raw, uid string) {
-		if err := client.Set(ctx, raw, uid, time.Hour).Err(); err != nil {
-			t.Fatal(err)
-		}
-	})
-	// The previous scheme stored tokens under arbitrary strings; session keys are never consumed.
+	testStore(t, NewRedis(client))
 	store := NewRedis(client)
 	uid := "user-" + uuid.NewString()
 	if err := store.Create(ctx, Info{UID: uid, SID: "s"}, "h", time.Hour); err != nil {
 		t.Fatal(err)
 	}
-	if took, err := store.TakeLegacy(ctx, prefix+"sid:s", uid); err != nil || took {
-		t.Fatal("session key consumed as legacy token")
-	}
 	if active, _ := store.Active(ctx, uid, "s"); !active {
-		t.Fatal("session key was modified")
+		t.Fatal("session not active")
 	}
 	if ttl := client.PTTL(ctx, rtKey("h")).Val(); ttl <= 0 || ttl > time.Hour {
 		t.Fatalf("refresh token without expiry: %v", ttl)
 	}
 }
 
-func testStore(t *testing.T, store Store, setLegacy func(raw, uid string)) {
+func testStore(t *testing.T, store Store) {
 	ctx := context.Background()
 	ttl := time.Hour
 	uid := "user-" + uuid.NewString()
@@ -122,20 +113,9 @@ func testStore(t *testing.T, store Store, setLegacy func(raw, uid string)) {
 		t.Fatalf("replay of a used chain not detected: %v", err)
 	}
 
-	// Legacy tokens convert once and stop after "log out everywhere".
-	setLegacy("legacy-1", uid)
-	setLegacy("legacy-2", uid)
-	if took, err := store.TakeLegacy(ctx, "legacy-1", "someone-else"); err != nil || took {
-		t.Fatal("legacy token taken by another account")
-	}
-	if took, err := store.TakeLegacy(ctx, "legacy-1", uid); err != nil || !took {
-		t.Fatal("legacy token not taken")
-	}
-	if took, _ := store.TakeLegacy(ctx, "legacy-1", uid); took {
-		t.Fatal("legacy token taken twice")
-	}
+	// Tokens without a session (Google tokens) work until "log out everywhere".
 	if !active(Info{UID: uid}) {
-		t.Fatal("legacy access refused before revoke")
+		t.Fatal("sessionless access refused before revoke")
 	}
 
 	d := Info{UID: uid, SID: uuid.NewString()}
@@ -143,9 +123,6 @@ func testStore(t *testing.T, store Store, setLegacy func(raw, uid string)) {
 	must(store.RevokeUser(ctx, uid, d.SID, ttl))
 	if active(b) || !active(d) || active(Info{UID: uid}) {
 		t.Fatal("revoke others did not keep exactly the current session")
-	}
-	if took, _ := store.TakeLegacy(ctx, "legacy-2", uid); took {
-		t.Fatal("legacy token converted after revoke")
 	}
 
 	must(store.Revoke(ctx, d))
