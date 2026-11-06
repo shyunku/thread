@@ -18,8 +18,8 @@ function page(osAvailable){
  const e=React.createElement;
  const markup=e("main",{className:"application-gate"},
   e("div",{className:"application-gate__titlebar"},e("span",null,"Thread"),e("div",{className:"application-gate__window-actions"},e("button",{"aria-label":"최소화"},e(VscChromeMinimize)),e("button",{"aria-label":"닫기"},e(VscChromeClose)))),
-  e("div",{className:"application-gate__card"},e("header",{className:"application-gate__header"},e("div",{className:"application-gate__heading"},e("h1",null,"데이터 보호 업데이트"))),
-   e("section",{className:"vault-workspace"},e("ol",{className:"vault-progress"},e("li",{className:"vault-progress__reached"},"1. 본인 확인"),e("li",null,"2. 백업 수단 저장"),e("li",null,"3. 데이터 이동")),e(VaultUnlock,{setup:true,osAvailable,preparationOnly:true}))));
+  e("div",{className:"application-gate__card"},e("header",{className:"application-gate__header"},e("div",{className:"application-gate__heading"},e("h1",null,"새 데이터 보호 설정"))),
+   e("section",{className:"vault-workspace"},e("ol",{className:"vault-progress"},e("li",{className:"vault-progress__reached"},"1. 암호화 준비"),e("li",null,"2. 백업 수단 저장"),e("li",null,"3. 시작")),e(VaultUnlock,{setup:true,osAvailable}))));
  return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}</style><style>html,body,#root{margin:0;width:100%;height:100%}</style></head><body><div id="root">${renderToStaticMarkup(markup)}</div></body></html>`;
 }
 for(const [name,available] of [["methods",true],["password",false]])fs.writeFileSync(path.join(output,name+".html"),page(available),{flag:"wx"});
@@ -33,7 +33,7 @@ async function recoveryPage(){
  fireEvent.click(await screen.findByText("복구 파일 저장"));
  await screen.findByText(/^THREAD1-F52B8\*/);
  const controls=renderToStaticMarkup(React.createElement("div",{className:"application-gate__window-actions"},React.createElement("button",{"aria-label":"최소화"},React.createElement(VscChromeMinimize)),React.createElement("button",{"aria-label":"닫기"},React.createElement(VscChromeClose))));
- const markup=`<main class="application-gate"><div class="application-gate__titlebar"><span>Thread</span>${controls}</div><div class="application-gate__card"><header class="application-gate__header"><div class="application-gate__heading"><h1>데이터 보호 업데이트</h1></div></header><section class="vault-workspace">${view.container.innerHTML}</section></div></main>`;
+ const markup=`<main class="application-gate"><div class="application-gate__titlebar"><span>Thread</span>${controls}</div><div class="application-gate__card"><header class="application-gate__header"><div class="application-gate__heading"><h1>새 데이터 보호 설정</h1></div></header><section class="vault-workspace">${view.container.innerHTML}</section></div></main>`;
  fs.writeFileSync(path.join(output,"recovery.html"),`<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}</style><style>html,body,#root{margin:0;width:100%;height:100%}</style></head><body><div id="root">${markup}</div></body></html>`,{flag:"wx"});
  view.unmount();dom.window.close();
 }

@@ -64,4 +64,5 @@ test("account deletion removes only this account's old plaintext databases", asy
   for (const target of removed) assert.equal(fs.existsSync(target), false, target);
   for (const target of kept) assert.equal(fs.existsSync(target), true, target);
   await assert.rejects(service.removeUserDatabases("../a"), /User ID is not valid/);
+  await assert.rejects(service.removeUserDatabases("a" + String.fromCharCode(92) + "b"), /User ID is not valid/);
 });

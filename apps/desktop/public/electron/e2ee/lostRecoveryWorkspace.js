@@ -13,7 +13,7 @@ async function execute(service,action,input={}){
  if(service.busy)throw Error("VAULT_BUSY");
  const entry=service.context(),generation=service.generation,store=entry.controller.use(value=>value);
  const ready=()=>{if(service.active!==entry||service.generation!==generation||entry.abort.signal.aborted)throw Error("VAULT_SESSION_CHANGED");entry.controller.use(()=>{});};
- const base=service.transportFor(entry),transport={membership:after=>base.membership(after,entry.abort.signal),accountStatus:()=>base.accountStatus(entry.abort.signal),transition:record=>base.transition(record,entry.abort.signal),recoverPending:record=>base.recoverPending(record,entry.abort.signal)};
+ const base=service.transportFor(entry),transport={membership:after=>base.membership(after,entry.abort.signal),accountStatus:()=>base.accountStatus(entry.abort.signal),transition:record=>base.transition(record,entry.abort.signal)};
  service.busy=true;
  try{
   if(action==="status")return recovery.status(store);

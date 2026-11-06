@@ -39,7 +39,7 @@ class DatabaseService {
   // Account deletion (#92): removes this account's plaintext databases older versions left
   // (datafiles/v1..vN and datafiles/sync-v2). Other accounts' files stay.
   async removeUserDatabases(userId) {
-    if (typeof userId !== "string" || !userId || userId.length > 256 || /[\/:\0]/.test(userId) || userId.includes(".."))
+    if (typeof userId !== "string" || !userId || userId.length > 256 || /[\\/:\0]/.test(userId) || userId.includes(".."))
       throw new Error("User ID is not valid.");
     const datafileDirPath = path.join(FileSystem.getUserDataPath(), "datafiles");
     const bases = [path.join(datafileDirPath, "sync-v2", "user-" + encodeURIComponent(userId) + ".sqlite3")];
