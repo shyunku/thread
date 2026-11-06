@@ -9,7 +9,7 @@ const call=(method,...args)=>new Promise((resolve,reject)=>{
  if(!IpcSender.vault?.[method])return reject(Error("UNAVAILABLE"));
  IpcSender.vault[method](...args,response=>response?.success?resolve(response.data):reject(Error(response?.data?.code==="RECOVERY_FILE_EXISTS"?"RECOVERY_FILE_EXISTS":"RECOVERY_FAILED")));
 });
-export default function RecoverySetup({onRegistered,newAccount=false}){
+export default function RecoverySetup(){
  const [state,setState]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState(""),[saved,setSaved]=useState(false),[copied,setCopied]=useState(false),[preview,setPreview]=useState(""),[step,setStep]=useState("save");
  const live=useRef(true),pending=useRef(false),input=useRef(null);
  useEffect(()=>{
@@ -26,9 +26,8 @@ export default function RecoverySetup({onRegistered,newAccount=false}){
   try{await action();}catch(error){if(live.current)setError(error.message);}
   finally{pending.current=false;if(live.current)setBusy(false);}
  };
- if(state?.phase==="RECOVERY_CONFIRMED"&&onRegistered)return <section aria-label="계정 등록 최종 확인"><h3>백업 수단 설정을 마쳤어요</h3><VaultRegistration newAccount={newAccount} onRegistered={onRegistered}/></section>;
  return <section className="recovery-setup" aria-label="백업 수단 설정">
-  {state?.phase==="RECOVERY_CONFIRMED"?<><h3>백업 수단 설정 완료</h3><p role="status">복구 자료 확인 완료</p>{!onRegistered&&<VaultRegistration newAccount={newAccount} onRegistered={onRegistered}/>}</>:
+  {state?.phase==="RECOVERY_CONFIRMED"?<><h3>백업 수단 설정 완료</h3><p role="status">복구 자료 확인 완료</p><VaultRegistration/></>:
    step==="save"?<>
    <h3>백업 수단 설정</h3>
     {state?.recoveryStale&&<p role="alert">다른 기기에서 복구 자료가 바뀌었습니다. 기기·키 관리에서 새 자료를 준비해주세요.</p>}

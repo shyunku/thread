@@ -245,7 +245,7 @@ export default function NewAccountSetup({ uid, onContinue }) {
         const state = !resumed ? "" : STEPS.indexOf(id) < STEPS.indexOf(next) ? "done" : id === next ? "here" : "";
         return <li key={id} className={state || undefined}>{LABEL[id]}{state === "done" && <span className="gate-sr"> (끝남)</span>}</li>;
       })}</ol>
-      <GateButton variant="primary" className="gate-button--block" disabled={!ready} onClick={begin}>시작하기</GateButton>
+      <GateButton variant="primary" className="gate-button--block" disabled={!ready} onClick={begin}>{resumed ? "이어서 하기" : "시작하기"}</GateButton>
       {unknown && <p className="gate-muted" style={{ marginTop: 12 }}>이 기기의 상태를 확인하지 못했어요. 앱을 다시 열어 주세요.</p>}
       <div className="gate-start__bottom">
         <GateLink disabled={loggingOut} onClick={logout}>다른 계정으로 로그인</GateLink>

@@ -189,7 +189,7 @@ test("going back keeps the same recovery material and what was already done", as
   expect(screen.getByRole("button", { name: "다음" })).toBeEnabled();
   await click("이전");
   expect(screen.getByRole("heading", { name: "새 데이터 보호 설정" })).toBeInTheDocument();
-  await click("시작하기"); // the lock exists: back to the file step, not the lock step
+  await click("이어서 하기"); // the lock exists: back to the file step, not the lock step
   expect(screen.getByRole("heading", { name: "복구 파일 저장" })).toBeInTheDocument();
   await click("다음");
   expect(screen.getByRole("button", { name: "적어 뒀어요" })).toBeEnabled();
@@ -204,7 +204,7 @@ test("a setup closed after the recovery check resumes at the start step", async 
     identityStatus: reply("identityStatus", { phase: "RECOVERY_CONFIRMED", fingerprint: "f" }),
   });
   await renderSetup();
-  await click("시작하기");
+  await click("이어서 하기");
   expect(screen.getByRole("heading", { name: "준비 끝" })).toBeInTheDocument();
   await click("이전");
   expect(screen.getByText("복구 코드와 파일을 확인했어요.")).toBeInTheDocument();
@@ -259,7 +259,8 @@ test("right after the lock is made, going back resumes at the file step without 
   const items = screen.getAllByRole("listitem");
   expect(items[0]).toHaveClass("done");
   expect(items[1]).toHaveClass("here");
-  await click("시작하기");
+  expect(screen.getByRole("button", { name: "이어서 하기" })).toBeEnabled();
+  await click("이어서 하기");
   expect(screen.getByRole("heading", { name: "복구 파일 저장" })).toBeInTheDocument();
   expect(names().filter((name) => name === "create")).toHaveLength(1);
 });
