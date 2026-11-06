@@ -53,9 +53,8 @@ const activateWithKeyboard = (event) => {
   }
 };
 
-// The account band's second line, from the sync-v2 status (E2EE and plaintext v2) or, on
-// the legacy path, from the block nonces.
-export function syncLine(status, { offlineMode = false, localNonce, remoteNonce } = {}) {
+// The account band's second line, from the sync-v2 status (until it comes, from offlineMode).
+export function syncLine(status, { offlineMode = false } = {}) {
   if (status) {
     if (status.error) return { state: "error", text: "동기화 오류" };
     if (!status.ready || status.connected === false) return { state: "offline", text: "오프라인" };
@@ -63,19 +62,11 @@ export function syncLine(status, { offlineMode = false, localNonce, remoteNonce 
     return { state: "synced", text: "모두 동기화됨" };
   }
   if (offlineMode) return { state: "offline", text: "오프라인" };
-  if (remoteNonce == null || localNonce !== remoteNonce) return { state: "syncing", text: "동기화 중…" };
-  return { state: "synced", text: "모두 동기화됨" };
+  return { state: "syncing", text: "동기화 중…" };
 }
 
-// The category order (sort_rank) is E2EE-only: the E2EE status says protocolVersion 3, and
-// the legacy and plaintext v2 paths answer the move with UNSUPPORTED_*. Seen once, the
-// sidebar stops offering the drag for the rest of the run (all sidebar instances).
-let orderRefused = false;
-export const orderSupported = (syncStatus) => !orderRefused && syncStatus?.protocolVersion === 3;
-export const resetOrderSupportForTests = () => {
-  orderRefused = false;
-};
-const isUnsupported = (data) => /^UNSUPPORTED_/.test(data?.code ?? "");
+// The category order (sort_rank) can be dragged once the sync status has come.
+export const orderSupported = (syncStatus) => !!syncStatus;
 
 // Whether the synced order has the move: the category right after (or before) its anchor.
 const hasMove = (ids, { id, anchorId, after }) => {
@@ -86,7 +77,7 @@ const hasMove = (ids, { id, anchorId, after }) => {
 // mode: "full" (232px), "rail" (icons, 56px) or "drawer" (full sidebar in the ☰ drawer).
 const LeftSidebar = ({ setSelectedTodoMenuType, selectedTodoMenuType, mode = "full" }) => {
   const context = useOutletContext();
-  const { localNonce, remoteNonce, states, syncStatus, searchQuery = "" } = context;
+  const { states, syncStatus, searchQuery = "" } = context;
   // While searching, the results cover every menu, so no menu row shows as the current one.
   const searching = String(searchQuery).trim().length > 0;
   const { categories, taskMap } = states;
@@ -94,7 +85,6 @@ const LeftSidebar = ({ setSelectedTodoMenuType, selectedTodoMenuType, mode = "fu
   const rootRef = useRef(null);
   const addRef = useRef(null);
   const secret = useSecretSession();
-  const [, setRefused] = useState(orderRefused);
   const canSort = orderSupported(syncStatus);
 
   const accountInfo = useSelector(accountInfoSlice);
@@ -105,7 +95,7 @@ const LeftSidebar = ({ setSelectedTodoMenuType, selectedTodoMenuType, mode = "fu
   const accountLine = email && email !== username ? email : "나의 작업 공간";
   const profileImageUrl =
     (offlineMode ? accountInfo?.profileImageUrl : accountInfo?.googleProfileImageUrl) ?? null;
-  const sync = syncLine(syncStatus, { offlineMode, localNonce, remoteNonce });
+  const sync = syncLine(syncStatus, { offlineMode });
 
   /* ----------------------------- Order (drag) ----------------------------- */
   const syncedOrder = useMemo(() => sortCategories(Object.values(categories)), [categories]);
@@ -219,14 +209,9 @@ const LeftSidebar = ({ setSelectedTodoMenuType, selectedTodoMenuType, mode = "fu
       next.splice(next.indexOf(move.anchorId) + (move.after ? 1 : 0), 0, id);
       const seq = ++dropSeq.current;
       setPending({ seq, ids: next, move: { id, ...move }, acked: false });
-      IpcSender.req.category.updateCategoryOrder(id, move.anchorId, move.after, ({ success, data } = {}) => {
+      IpcSender.req.category.updateCategoryOrder(id, move.anchorId, move.after, ({ success } = {}) => {
         setPending((p) => (p?.seq !== seq ? p : success ? { ...p, acked: true } : null));
-        if (success) return;
-        if (isUnsupported(data)) {
-          orderRefused = true;
-          setRefused(true);
-          Toast.warn("이 계정에서는 카테고리 순서를 바꿀 수 없어요.");
-        } else Toast.warn("카테고리 순서를 바꾸지 못했어요.");
+        if (!success) Toast.warn("카테고리 순서를 바꾸지 못했어요.");
       });
     },
   });
@@ -289,11 +274,11 @@ const LeftSidebar = ({ setSelectedTodoMenuType, selectedTodoMenuType, mode = "fu
       row,
       props: categoryDeleteConfirm({ title: category.title, secret: category.secret, color: colorOf(category) }, n),
       // n counts only the tasks this screen may show; hidden secret tasks can still use the
-      // category. On E2EE "take it off its tasks, then delete" covers them (and is a plain delete
-      // when nothing uses it); the plaintext paths know only the plain delete.
+      // category. "Take it off its tasks, then delete" covers them (and is a plain delete when
+      // nothing uses it); before the sync status comes only the plain delete is sent.
       run: (choice) => {
         if (choice === "tasks") IpcSender.req.category.deleteCategoryWithTasks(category.id, done("카테고리를 삭제"));
-        else if (n > 0 || syncStatus?.protocolVersion === 3) IpcSender.req.category.deleteCategoryInUse(category.id, done("카테고리를 삭제"));
+        else if (n > 0 || syncStatus) IpcSender.req.category.deleteCategoryInUse(category.id, done("카테고리를 삭제"));
         else IpcSender.req.category.deleteCategory(category.id, done("카테고리를 삭제"));
       },
     });
@@ -325,10 +310,9 @@ const LeftSidebar = ({ setSelectedTodoMenuType, selectedTodoMenuType, mode = "fu
         const session = secretRef.current;
         // The lock closed while the question was open: a secret one needs the unlock again.
         if (category.secret && !session.unlocked && !(await session.unlock({ color }))) return;
-        IpcSender.req.category.updateCategorySecret(category.id, !category.secret, ({ success, data } = {}) => {
+        IpcSender.req.category.updateCategorySecret(category.id, !category.secret, ({ success } = {}) => {
           if (success !== false) return;
-          if (isUnsupported(data)) Toast.warn("이 계정에서는 비밀 카테고리를 바꿀 수 없어요.");
-          else Toast.error(category.secret ? "일반 카테고리로 바꾸지 못했어요." : "비밀 카테고리로 바꾸지 못했어요.");
+          Toast.error(category.secret ? "일반 카테고리로 바꾸지 못했어요." : "비밀 카테고리로 바꾸지 못했어요.");
         });
       },
     });

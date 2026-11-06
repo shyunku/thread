@@ -32,7 +32,7 @@ export default function DevicePairing({osAvailable=false}){
   <button disabled={busy||!/^[a-f0-9]{64}$/.test(pin)} onClick={()=>run("requestQR",{fingerprint:pin},value=>setRequest(value))}>연결 요청 QR 표시</button>
   {request?.qr&&<PairingQR request={request}/>}
   {request&&<p>요청 지문: <code>{request.fingerprint}</code></p>}
-  <button disabled={busy} onClick={()=>run("accept",{},value=>{if(value?.phase==="PAIRED")setMessage("기기 키 연결을 완료했습니다. 기존 데이터 이관·동기화는 아직 실행하지 않았습니다.");})}>승인받은 키 전달 파일 열기</button>
+  <button disabled={busy} onClick={()=>run("accept",{},value=>{if(value?.phase==="PAIRED")setMessage("기기 키 연결을 완료했습니다.");})}>승인받은 키 전달 파일 열기</button>
   <h4>기존 기기에서</h4>
   <button disabled={busy} onClick={()=>run("preview",{},value=>{setPreview(value);setConfirmed(false);})}>연결 요청 파일 열기</button>
   <label>연결 QR 이미지 열기<input type="file" accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={readImage}/></label>

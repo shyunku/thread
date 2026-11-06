@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
-import LeftSidebar, { resetOrderSupportForTests, syncLine } from "./LeftSidebar";
+import LeftSidebar, { syncLine } from "./LeftSidebar";
 import { Popover } from "../molecules/pickers";
 import Toast from "../molecules/Toast";
 import Task from "../objects/Task";
@@ -89,11 +89,9 @@ function setup({ selected = TODO_MENU_TYPE.ALL, mode = "full", tasks, categories
     task("mixed", { due: at(1, 9), cats: ["work", "diary"] }),
   ];
   mockContext = {
-    localNonce: 0,
-    remoteNonce: 0,
     addPromise: jest.fn(),
-    // E2EE status (protocolVersion 3): the category order can be changed.
-    syncStatus: syncStatus ?? { protocolVersion: 3, ready: true, connected: true, syncing: false, pending: 0, error: null },
+    // With a sync status the category order can be changed; null is "no status yet".
+    syncStatus: syncStatus === undefined ? { protocolVersion: 3, ready: true, connected: true, syncing: false, pending: 0, error: null } : syncStatus,
     states: { taskMap: Object.fromEntries(list.map((t) => [t.id, t])), categories: cats },
     searchQuery,
   };
@@ -114,7 +112,6 @@ beforeEach(() => {
   jest.useFakeTimers();
   jest.setSystemTime(NOW);
   jest.clearAllMocks();
-  resetOrderSupportForTests();
 });
 afterEach(() => {
   act(() => jest.runOnlyPendingTimers());
@@ -378,8 +375,8 @@ test("a category used only by hidden secret tasks still deletes (the count stays
   expect(IpcSender.req.category.deleteCategory).not.toHaveBeenCalled();
 });
 
-test("without E2EE an unused category is deleted plainly", () => {
-  const { container } = setup({ syncStatus: { protocolVersion: 2, ready: true, connected: true } });
+test("before the sync status comes an unused category is deleted plainly", () => {
+  const { container } = setup({ syncStatus: null });
   fireEvent.contextMenu(catRows(container)[2]);
   fireEvent.click(screen.getByText("카테고리 삭제"));
   fireEvent.click(screen.getByRole("button", { name: "삭제" }));
@@ -484,15 +481,14 @@ test("account band: name and second line, the sync state as a dot on the photo, 
   expect(container.querySelector("[title]")).toBeNull();
 });
 
-test("syncLine maps the sync-v2 status and the legacy nonces", () => {
+test("syncLine maps the sync-v2 status, and offlineMode until it comes", () => {
   const base = { ready: true, connected: true, syncing: false, pending: 0, error: null };
   expect(syncLine(base).text).toBe("모두 동기화됨");
   expect(syncLine({ ...base, syncing: true }).text).toBe("동기화 중…");
   expect(syncLine({ ...base, connected: false }).text).toBe("오프라인");
   expect(syncLine({ ...base, error: "SYNC_UNAVAILABLE" }).text).toBe("동기화 오류");
   expect(syncLine(null, { offlineMode: true }).state).toBe("offline");
-  expect(syncLine(null, { localNonce: 3, remoteNonce: 3 }).state).toBe("synced");
-  expect(syncLine(null, { localNonce: 2, remoteNonce: 3 }).state).toBe("syncing");
+  expect(syncLine(null).state).toBe("syncing");
 });
 
 const lift = (container, row = catRows(container)[0]) => {
@@ -551,32 +547,13 @@ test("the app window losing focus cancels a lifted row", () => {
   expect(setSelected).toHaveBeenCalledWith("work");
 });
 
-test("without the E2EE order (legacy, plaintext v2) the rows are not offered for dragging", () => {
-  const { container } = setup({ syncStatus: { ready: true, connected: true, syncing: false, pending: 0, error: null } });
+test("before the sync status comes the rows are not offered for dragging", () => {
+  const { container } = setup({ syncStatus: null });
   lift(container);
   expect(document.querySelector(".cat-ghost")).toBeNull();
   fireEvent.mouseUp(document, { button: 0 });
   fireEvent.click(catRows(container)[0]);
   expect(setSelected).toHaveBeenCalledWith("work");
-});
-
-test("an UNSUPPORTED order reply stops the drag for the run, with one toast", () => {
-  IpcSender.req.category.updateCategoryOrder.mockImplementation((...args) => args[3]({ success: false, data: { code: "UNSUPPORTED_V2_ACTION" } }));
-  const { container } = setup();
-  lift(container);
-  fireEvent.mouseUp(document, { button: 0 });
-  act(() => jest.advanceTimersByTime(200));
-  expect(Toast.warn).toHaveBeenCalledTimes(1);
-  expect(Toast.warn).toHaveBeenCalledWith("이 계정에서는 카테고리 순서를 바꿀 수 없어요.");
-  // The order is back and no row lifts any more.
-  expect(catRows(container).map((r) => r.dataset.catrow)).toEqual(["work", "study", "exam"]);
-  lift(container);
-  expect(document.querySelector(".cat-ghost")).toBeNull();
-  fireEvent.mouseUp(document, { button: 0 });
-  act(() => jest.advanceTimersByTime(200));
-  expect(IpcSender.req.category.updateCategoryOrder).toHaveBeenCalledTimes(1);
-  expect(Toast.warn).toHaveBeenCalledTimes(1);
-  IpcSender.req.category.updateCategoryOrder.mockReset();
 });
 
 test("two quick drops: the older reply does not end the newer order; the synced move does", async () => {
@@ -798,16 +775,14 @@ test("a menu left open while the lock closed asks for the unlock before turning 
   expect(IpcSender.req.category.updateCategorySecret).not.toHaveBeenCalled();
 });
 
-test("a refused switch says so: UNSUPPORTED (legacy) warns, other failures show an error", async () => {
+test("a refused switch shows an error", async () => {
   const { container } = setup();
   await unlockSecrets();
-  IpcSender.req.category.updateCategorySecret.mockImplementationOnce((cid, value, cb) =>
-    cb({ success: false, data: { code: "UNSUPPORTED_LEGACY_ACTION" } })
-  );
+  IpcSender.req.category.updateCategorySecret.mockImplementationOnce((cid, value, cb) => cb({ success: false }));
   fireEvent.contextMenu(catRows(container)[0]);
   fireEvent.click(screen.getByText("비밀 카테고리로 바꾸기"));
   await act(async () => fireEvent.click(await screen.findByRole("button", { name: "비밀로 바꾸기" })));
-  expect(Toast.warn).toHaveBeenCalledWith("이 계정에서는 비밀 카테고리를 바꿀 수 없어요.");
+  expect(Toast.error).toHaveBeenCalledWith("비밀 카테고리로 바꾸지 못했어요.");
   IpcSender.req.category.updateCategorySecret.mockImplementationOnce((cid, value, cb) => cb({ success: false }));
   fireEvent.contextMenu(catRows(container)[3]);
   fireEvent.click(screen.getByText("일반 카테고리로 바꾸기"));

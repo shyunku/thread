@@ -8,15 +8,6 @@ import { useTaskSelection } from "../list/taskSelection";
 import { composing, useAutoHeight, useInPlaceEdit } from "./inPlaceEdit";
 import useSubtaskDrag from "./useSubtaskDrag";
 
-// The subtask order (sort_rank, #106) is E2EE-only (canSort), and the legacy and plaintext v2
-// paths answer the move with UNSUPPORTED_*. Seen once, the panel stops offering the order for
-// the rest of the run.
-let orderRefused = false;
-export const resetSubtaskOrderForTests = () => {
-  orderRefused = false;
-};
-const isUnsupported = (data) => /^UNSUPPORTED_/.test(data?.code ?? "");
-
 // Whether the synced order has the move: the subtask right after (or before) its anchor.
 const hasMove = (ids, { id, anchorId, after }) => {
   const i = ids.indexOf(id), j = ids.indexOf(anchorId);
@@ -115,8 +106,7 @@ export default function SubtaskList({ task, canSort = true }) {
   const { actions } = useTaskSelection();
   const [title, setTitle] = useState("");
   const boxRef = useRef(null);
-  const [, setRefused] = useState(orderRefused);
-  const sortable = canSort && !orderRefused;
+  const sortable = canSort;
   const synced = sortSubtasks(Object.values(task.subtasks ?? {}));
   const syncedKey = synced.map((s) => s.id).join("\n");
 
@@ -147,14 +137,9 @@ export default function SubtaskList({ task, canSort = true }) {
     next.splice(next.indexOf(anchor.anchorId) + (anchor.after ? 1 : 0), 0, id);
     const seq = ++moveSeq.current;
     setPending({ seq, ids: next, move: { id, ...anchor }, acked: false });
-    actions.moveSubtask(task.id, id, anchor.anchorId, anchor.after, ({ success, data } = {}) => {
+    actions.moveSubtask(task.id, id, anchor.anchorId, anchor.after, ({ success } = {}) => {
       setPending((p) => (p?.seq !== seq ? p : success ? { ...p, acked: true } : null));
-      if (success) return;
-      if (isUnsupported(data)) {
-        orderRefused = true;
-        setRefused(true);
-        Toast.warn("이 계정에서는 하위 할 일 순서를 바꿀 수 없어요.");
-      } else Toast.warn("하위 할 일 순서를 바꾸지 못했어요.");
+      if (!success) Toast.warn("하위 할 일 순서를 바꾸지 못했어요.");
     });
   };
 

@@ -8,9 +8,9 @@ test.each([null, { connected: true, pending: 0, seq: "1" }, { connected: false, 
   }
 );
 
-test("keeps migration review warnings", () => {
-  render(<SyncWarning status={{ error: "LEGACY_REVIEW_REQUIRED", detail: "SOURCE_REVIEW", recovery: [{}] }} />);
-  expect(screen.getByRole("status")).toHaveTextContent("이관 검토 전까지 편집과 전송을 보류합니다.");
+test("keeps error details and recovery warnings", () => {
+  render(<SyncWarning status={{ error: "SYNC_UNAVAILABLE", detail: "SOURCE_REVIEW", recovery: [{}] }} />);
+  expect(screen.getByRole("status")).toHaveTextContent("동기화를 보류했습니다. · SYNC_UNAVAILABLE");
   expect(screen.getByRole("status")).toHaveTextContent("SOURCE_REVIEW");
   expect(screen.getByRole("status")).toHaveTextContent("복구 검토 1개");
 });

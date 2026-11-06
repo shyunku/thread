@@ -11,8 +11,8 @@ import { useTimeFormat } from "utils/timeFormat";
 
 // What the chips start with, from the screen (#102): 오늘 and 다음 7일 → today; calendar /
 // timeline → the picked day (`day`); a category screen → that category (a secret one only while
-// unlocked); 중요 → starred, unless the star cannot be stored (canStar false: the plaintext sync
-// and legacy paths drop it). A day means its end (no time).
+// unlocked); 중요 → starred, unless the star cannot be stored yet (canStar false: no sync
+// status yet). A day means its end (no time).
 export function quickAddDefaults({ menuType, category, secretUnlocked = false, day = null, now = Date.now(), canStar = true } = {}) {
   const picked = day !== null && day !== undefined ? endOfDay(day) : null;
   const own = category && category.default === false && category.id != null && (!category.secret || secretUnlocked);

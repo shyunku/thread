@@ -76,22 +76,11 @@ const IpcSender = {
   vault: {
     windowMode:(mode,callback)=>sender("vault/windowMode",callback,mode),
     windowReady:(callback)=>sender("vault/windowReady",callback),
-    reconcileLegacy:(input,callback)=>sender("vault/reconcileLegacy",callback,input),
-    groupConflict:(action,input,callback)=>sender("vault/groupConflict",callback,action,input),
     rotation:(action,input,callback)=>sender("vault/rotation",callback,action,input),
     lostRecovery:(action,input,callback)=>sender("vault/lostRecovery",callback,action,input),
     backup:(action,input,callback)=>sender("vault/backup",callback,action,input),
     reencryption:(action,input,callback)=>sender("vault/reencryption",callback,action,input),
-    legacyManual:(action,input,callback)=>sender("vault/legacyManual",callback,action,input),
-    migrationStatus:callback=>sender("vault/migrationStatus",callback),
-    migration:(action,input,callback)=>sender("vault/migration",callback,action,input),
-    sync:callback=>sender("vault/sync",callback),
     bootstrap:(uid,callback)=>sender("vault/bootstrap",callback,uid),
-    chooseMigration:(uid,callback)=>sender("vault/chooseMigration",callback,uid),
-    outboxReviews:(request,callback)=>sender("vault/outboxReviews",callback,request),
-    outboxDetail:(request,callback)=>sender("vault/outboxDetail",callback,request),
-    resolveConflict:(request,callback)=>sender("vault/resolveConflict",callback,request),
-    reconcileConflict:(request,callback)=>sender("vault/reconcileConflict",callback,request),
     pairing:(action,input,callback)=>sender("vault/pairing",callback,action,input),
     relay:(action,input,callback)=>sender("vault/relay",callback,action,input),
     registrationEndpoint:callback=>sender("vault/registrationEndpoint",callback),
@@ -118,8 +107,6 @@ const IpcSender = {
      return ()=>IpcSender.off("vault/status",listener);
     },
     lock:callback=>sender("vault/lock",callback),
-    intakes:callback=>sender("vault/intakes",callback),
-    reviews:(request,callback)=>sender("vault/reviews",callback,request),
     revokeOtherSessions:callback=>sender("vault/revokeOtherSessions",callback),
     // Deletes the account after confirming the user (input like verifyUser). The reply data is
     // {deleted:true} or {deleted:false,code,...} (see VaultWorkspaceService.deleteAccount).
@@ -218,42 +205,6 @@ const IpcSender = {
       setAsLoginWindow: (callback) => {
         sender("system/setAsLoginWindow", callback);
       },
-      getLastTxUpdateTime: (callback) => {
-        sender("system/lastTxUpdateTime", callback);
-      },
-      getLastBlockNumber: (callback) => {
-        sender("system/localLastBlockNumber", callback);
-      },
-      getRemoteLastBlockNumber: (callback) => {
-        sender("system/remoteLastBlockNumber", callback);
-      },
-      isDatabaseClear: (callback) => {
-        sender("system/isDatabaseClear", callback);
-      },
-      isLegacyMigrationAvailable: (callback) => {
-        sender("system/isLegacyMigrationAvailable", callback);
-      },
-      migrateLegacyDatabase: (version, callback) => {
-        sender("system/migrateLegacyDatabase", callback, version);
-      },
-      truncateLegacyDatabase: (version, callback) => {
-        sender("system/truncateLegacyDatabase", callback, version);
-      },
-      migrateCheckDoneSignal: (callback) => {
-        sender("system/migrateCheckDoneSignal", callback);
-      },
-      mismatchTxAcceptTheirs: (start, end, callback) => {
-        sender("system/mismatchTxAcceptTheirs", callback, start, end);
-      },
-      mismatchTxAcceptMine: (start, end, callback) => {
-        sender("system/mismatchTxAcceptMine", callback, start, end);
-      },
-      initializeState: (callback) => {
-        sender("system/initializeState", callback);
-      },
-      clearStatePermanently: (callback) => {
-        sender("system/clearStatePermanently", callback);
-      },
       stateListenReady: (ready, callback) => {
         sender("system/stateListenReady", callback, ready);
       },
@@ -304,9 +255,6 @@ const IpcSender = {
       isDatabaseReady: (userId, callback) => {
         sender("auth/isDatabaseReady", callback, userId);
       },
-      initializeDatabase: (userId, callback) => {
-        sender("auth/initializeDatabase", callback, userId);
-      },
       signUpWithGoogleAuth: (signupRequest, callback) => {
         sender("auth/signUpWithGoogleAuth", callback, signupRequest);
       },
@@ -320,9 +268,6 @@ const IpcSender = {
     socket: {
       tryConnect: (userId, accessToken, refreshToken, callback) => {
         sender("socket/connect", callback, userId, accessToken, refreshToken);
-      },
-      tryDisconnect: (callback) => {
-        sender("socket/disconnect", callback);
       },
     },
     task: {
@@ -450,7 +395,7 @@ const IpcSender = {
         sender("category/deleteCategoryInUse", callback, categoryId);
       },
       // Deletes every task that has the category (with their subtasks), then the
-      // category. E2EE and plaintext v2; one change set on E2EE.
+      // category, in one change set.
       deleteCategoryWithTasks: (categoryId, callback) => {
         sender("category/deleteCategoryWithTasks", callback, categoryId);
       },
@@ -472,7 +417,6 @@ const IpcSender = {
         sender("category/updateCategoryColor", callback, categoryId, color);
       },
       // Makes the category secret (true) or normal (false), on every device.
-      // E2EE and plaintext v2; the legacy path answers UNSUPPORTED_LEGACY_ACTION.
       updateCategorySecret: (categoryId, secret, callback) => {
         sender("category/updateCategorySecret", callback, categoryId, secret);
       },

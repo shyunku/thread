@@ -119,7 +119,6 @@ test("unlocked owner sees protection summary, devices and can lock the app", asy
   IpcSender.vault = {
     status: ok({ uid: "fixture", phase: "UNLOCKED", osAvailable: true, generation: 1 }),
     identityStatus: ok({ phase: "RECOVERY_CONFIRMED", fingerprint: "a".repeat(64) }),
-    intakes: ok([]),
     lock: jest.fn(ok(true)),
     rotation: okAction({ status: null, devices: [
       device({ id: "own-1", own: true, name: "Windows PC", model: "Windows PC", showId: false }),
@@ -137,7 +136,6 @@ test("unlocked owner sees protection summary, devices and can lock the app", asy
   expect(screen.getByText("보기만 가능 · 9월 24일 연결")).toBeInTheDocument();
   expect(screen.getAllByRole("button", { name: "해제" })).toHaveLength(1);
   expect(screen.queryByRole("button", { name: /더 보기/ })).not.toBeInTheDocument();
-  expect(screen.queryByText("이전 버전 데이터 검토")).not.toBeInTheDocument();
   await act(async () => { fireEvent.click(screen.getByRole("button", { name: /앱 잠금/ })); });
   expect(IpcSender.vault.lock).toHaveBeenCalledTimes(1);
   expect(close).toHaveBeenCalled();
@@ -149,7 +147,6 @@ test("non-owner device lists devices without managing them and sees unconfirmed 
   IpcSender.vault = {
     status: ok({ uid: "fixture", phase: "UNLOCKED", osAvailable: false }),
     identityStatus: ok(null),
-    intakes: ok([{ id: "intake-1", count: 3 }]),
     rotation: jest.fn(okAction({ status: null, devices: [
       device({ id: "owner-pc" }),
       device({ id: "this-pc", own: true, name: "Windows PC", model: "Windows PC", showId: false }),
@@ -167,7 +164,6 @@ test("non-owner device lists devices without managing them and sees unconfirmed 
   expect(screen.queryByRole("button", { name: "해제" })).not.toBeInTheDocument();
   expect(screen.getByText("9월 29일")).toBeInTheDocument();
   expect(screen.getByText(/다시 보호하는 작업이 멈췄어요/)).toBeInTheDocument();
-  expect(screen.getByText("이전 버전 데이터 검토")).toBeInTheDocument();
 });
 
 test("a stale locked state recovers on unlock events and when the window regains focus", async () => {
@@ -177,7 +173,6 @@ test("a stale locked state recovers on unlock events and when the window regains
   IpcSender.vault = {
     status: (cb) => cb({ success: true, data: { uid: "fixture", phase, osAvailable: true } }),
     identityStatus: ok({ phase: "RECOVERY_CONFIRMED", fingerprint: "a".repeat(64) }),
-    intakes: ok([]),
     rotation: okAction({ status: null, devices: [] }),
     reencryption: okAction({ status: null }),
     backup: okAction({ last: null }),
@@ -199,7 +194,6 @@ function renameFixture() {
   IpcSender.vault = {
     status: ok({ uid: "fixture", phase: "UNLOCKED", osAvailable: true, generation: 1 }),
     identityStatus: ok({ phase: "RECOVERY_CONFIRMED", fingerprint: "a".repeat(64) }),
-    intakes: ok([]),
     rotation: okAction({ status: null, devices: [
       renamable({ id: "4d6be81f", own: true, name: "Windows PC", model: "Windows PC", showId: true }),
       renamable({ id: "7be0a1c2", name: "Windows PC", model: "Windows PC", showId: true, addedAt: new Date(2026, 8, 24).getTime() }),

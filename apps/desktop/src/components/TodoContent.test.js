@@ -758,7 +758,7 @@ test("a refused change shows no notice and keeps its toast; an undo before the a
   errors.mockRestore();
 });
 
-test("a repeating task's completion is taken back on E2EE only", () => {
+test("a repeating task's completion is taken back once the sync status has come", () => {
   const { container, rerender } = view();
   fireEvent.click(within(row(container, "repeat")).getByRole("checkbox", { name: "할 일 완료" }));
   act(() => { jest.advanceTimersByTime(136 + 425); });
@@ -767,8 +767,8 @@ test("a repeating task's completion is taken back on E2EE only", () => {
   expect(IpcSender.req.task.undoRecurringCompletion).toHaveBeenCalledWith("repeat", at(0, 21).getTime(), expect.any(Function));
   expect(IpcSender.req.task.updateTaskDone).toHaveBeenCalledTimes(1);
   act(() => { jest.advanceTimersByTime(160); });
-  // Plaintext v2 rolls it on the server: the notice has no 되돌리기 (and no Ctrl+Z).
-  mockContext = { ...mockContext, syncStatus: { protocolVersion: 2 } };
+  // Before the sync status comes the notice has no 되돌리기 (and no Ctrl+Z).
+  mockContext = { ...mockContext, syncStatus: null };
   rerender(ui());
   act(() => selectionProbe.complete(mockContext.states.taskMap.repeat, true));
   act(() => { jest.advanceTimersByTime(136 + 425); });
@@ -842,12 +842,12 @@ test("the notice's name is cut by characters, never inside an emoji", () => {
   expect(notice().querySelector(".un-nm").textContent).toBe("가나다라마바사아자차카타파하가나다라마바😀…");
 });
 
-test("plaintext v2 (protocolVersion 2 in its status) can take a delete back", () => {
-  mockContext = { ...mockContext, syncStatus: { protocolVersion: 2, uid: "fixture", ready: true } };
+test("before the sync status comes a delete cannot be taken back", () => {
+  mockContext = { ...mockContext, syncStatus: null };
   view();
   act(() => selectionProbe.actions.deleteTask("first"));
   ctrlZ();
-  expect(IpcSender.req.task.restoreTask).toHaveBeenCalledTimes(1);
+  expect(IpcSender.req.task.restoreTask).not.toHaveBeenCalled();
 });
 
 test("quick add: context defaults per menu and the one addTask call", () => {
@@ -874,8 +874,8 @@ test("quick add: context defaults per menu and the one addTask call", () => {
   expect(add("이번 주 작업")[0]).toMatchObject({ due_date: at(0, 23, 59).getTime() + 59000 });
 });
 
-test("quick add without the E2EE star (plaintext sync, legacy): no 중요 chip and no star default", () => {
-  mockContext = { ...mockContext, syncStatus: { protocolVersion: 2 }, selectedTodoMenuType: "중요한 할일", category: { title: "중요한 할일", default: true } };
+test("quick add before the sync status comes: no 중요 chip and no star default", () => {
+  mockContext = { ...mockContext, syncStatus: null, selectedTodoMenuType: "중요한 할일", category: { title: "중요한 할일", default: true } };
   view();
   expect(screen.queryByRole("button", { name: "중요" })).toBeNull();
   const input = screen.getByRole("textbox", { name: "새 할 일" });

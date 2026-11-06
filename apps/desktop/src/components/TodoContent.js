@@ -31,25 +31,6 @@ import { TaskSelectionContext } from "./list/taskSelection";
 import useTaskCompletion, { forgetRolled, markRolled, restoreRow, riseAway } from "./list/useTaskCompletion";
 import UndoNotice from "./UndoNotice";
 import useUndoNotice from "./useUndoNotice";
-import {
-  applyAddTask,
-  applyAddTaskCategory,
-  applyCreateSubtask,
-  applyDeleteSubtask,
-  applyDeleteTask,
-  applyDeleteTaskCategory,
-  applyUpdateCategoryColor,
-  applyUpdateSubtaskDone,
-  applyUpdateSubtaskDueDate,
-  applyUpdateSubtaskTitle,
-  applyUpdateTaskDone,
-  applyUpdateTaskDueDate,
-  applyUpdateTaskImportant,
-  applyUpdateTaskMemo,
-  applyUpdateTaskOrder,
-  applyUpdateTaskRepeatPeriod,
-  applyUpdateTaskTitle,
-} from "../hooks/UseTransaction";
 
 const isEditable = (el) =>
   el instanceof Element && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
@@ -322,10 +303,7 @@ const TodoContent = ({ children }) => {
       await fetchAll();
     })();
 
-    IpcSender.onAll("system/initializeState", fetchAll);
-
     return () => {
-      IpcSender.offAll("system/initializeState");
       (async () => {
         await IpcSender.req.system.stateListenReady(false);
       })();
@@ -338,7 +316,7 @@ const TodoContent = ({ children }) => {
   const undoNotice = useUndoNotice();
   const { show: showNotice, dismissDone, clear: clearNotice } = undoNotice;
   const current = useRef({});
-  current.current = { taskMap, categories, ordered, selectedTaskId, protocol: syncStatus?.protocolVersion };
+  current.current = { taskMap, categories, ordered, selectedTaskId, synced: !!syncStatus };
   const secretOf = (task) => !!task && isSecretTask(task, current.current.categories);
   // A secret task's name never stays on screen once the lock closes; a vault lock, another
   // account and leaving the screen take any notice away.
@@ -362,18 +340,17 @@ const TodoContent = ({ children }) => {
       setReselect(null);
     }
   }, [reselect, selectedTaskId, visibleIds]);
-  // Taking back a completion. A repeating task rolled forward: on E2EE task/
-  // undoRecurringCompletion deletes the done copy and puts the due and the subtasks back. The
-  // plaintext and legacy paths roll it on the server, so there is nothing to take back there.
-  // Each returns send(callback) or null.
+  // Taking back a completion. A repeating task rolled forward: task/undoRecurringCompletion
+  // deletes the done copy and puts the due and the subtasks back. Before the sync status comes
+  // there is nothing to take back. Each returns send(callback) or null.
   const undoDone = (task) => {
     if (!task.repeatPeriod) return (callback = undoFailed) => IpcSender.req.task.updateTaskDone(task.id, false, Date.now(), callback);
     const due = dueMs(task.dueDate);
-    if (current.current.protocol !== 3 || due === null) return null;
+    if (!current.current.synced || due === null) return null;
     return (callback = undoFailed) => IpcSender.req.task.undoRecurringCompletion(task.id, due, callback);
   };
-  // The restores are composites of the E2EE and plaintext v2 paths; the legacy one has none.
-  const canRestore = () => current.current.protocol === 2 || current.current.protocol === 3;
+  // The restores are composites; they need the sync status first.
+  const canRestore = () => current.current.synced;
 
   /* ------------------------------ Handlers ------------------------------ */
   // A task added with a secret category on a screen that hides secret tasks (locked) would
@@ -478,106 +455,6 @@ const TodoContent = ({ children }) => {
     if (task.categories?.[cid]) actions.removeCategory(task.id, cid);
     else actions.addCategory(task.id, cid);
   };
-
-  useEffect(() => {
-    IpcSender.onAll("task/addTask", ({ success, data }) => {
-      applyAddTask({ addPromise, success, data });
-    });
-
-    IpcSender.onAll("task/deleteTask", ({ success, data }) => {
-      applyDeleteTask({ addPromise, success, data });
-    });
-
-    IpcSender.onAll("task/updateTaskOrder", ({ success, data }) => {
-      applyUpdateTaskOrder({ addPromise, success, data });
-    });
-
-    IpcSender.onAll("task/updateTaskTitle", ({ success, data }) => {
-      applyUpdateTaskTitle({ addPromise, success, data });
-    });
-
-    IpcSender.onAll("task/updateTaskDueDate", ({ success, data }) => {
-      applyUpdateTaskDueDate({ addPromise, success, data });
-    });
-
-    IpcSender.onAll("task/updateTaskMemo", ({ success, data }) => {
-      applyUpdateTaskMemo({ addPromise, success, data });
-    });
-
-    IpcSender.onAll(
-      "task/updateTaskDone",
-      ({ success, data }, isRepeated, newDueDate) => {
-        applyUpdateTaskDone({
-          addPromise,
-          success,
-          data,
-          isRepeated,
-          newDueDate,
-        });
-      }
-    );
-
-    IpcSender.onAll("task/updateTaskRepeatPeriod", ({ success, data }) => {
-      applyUpdateTaskRepeatPeriod({ addPromise, success, data });
-    });
-
-    IpcSender.onAll("task/updateTaskImportant", ({ success, data }) => {
-      applyUpdateTaskImportant({ addPromise, success, data });
-    });
-
-    IpcSender.onAll("task/createSubtask", ({ success, data }) => {
-      applyCreateSubtask({ addPromise, success, data });
-    });
-
-    IpcSender.onAll("task/deleteSubtask", ({ success, data }) => {
-      applyDeleteSubtask({ addPromise, success, data });
-    });
-
-    IpcSender.onAll("task/updateSubtaskTitle", ({ success, data }) => {
-      applyUpdateSubtaskTitle({ addPromise, success, data });
-    });
-
-    IpcSender.onAll("task/updateSubtaskDueDate", ({ success, data }) => {
-      applyUpdateSubtaskDueDate({ addPromise, success, data });
-    });
-
-    IpcSender.onAll("task/updateSubtaskDone", ({ success, data }) => {
-      applyUpdateSubtaskDone({ addPromise, success, data });
-    });
-
-    IpcSender.onAll("task/addTaskCategory", ({ success, data }) => {
-      applyAddTaskCategory({ addPromise, success, data });
-    });
-
-    IpcSender.onAll("task/deleteTaskCategory", ({ success, data }) => {
-      applyDeleteTaskCategory({ addPromise, success, data });
-    });
-
-    IpcSender.onAll("category/updateCategoryColor", ({ success, data }) => {
-      applyUpdateCategoryColor({ addPromise, success, data });
-    });
-
-    return () => {
-      IpcSender.offAll("task/addTask");
-      IpcSender.offAll("task/deleteTask");
-      IpcSender.offAll("task/updateTaskOrder");
-      IpcSender.offAll("task/updateTaskTitle");
-      IpcSender.offAll("task/updateTaskDueDate");
-      IpcSender.offAll("task/updateTaskMemo");
-      IpcSender.offAll("task/updateTaskDone");
-      IpcSender.offAll("task/updateTaskRepeatPeriod");
-      IpcSender.offAll("task/updateTaskImportant");
-      IpcSender.offAll("task/createSubtask");
-      IpcSender.offAll("task/deleteSubtask");
-      IpcSender.offAll("task/updateSubtaskTitle");
-      IpcSender.offAll("task/updateSubtaskDueDate");
-      IpcSender.offAll("task/updateSubtaskDone");
-      IpcSender.offAll("task/addTaskCategory");
-      IpcSender.offAll("task/deleteTaskCategory");
-      IpcSender.offAll("category/updateCategoryColor");
-
-    };
-  }, [addPromise, taskMap, categories]);
 
   /* ------------------------------ Selection ------------------------------ */
   // Showing a task's detail: below 1000px the panel drawer opens; the calendar view's panel has
@@ -819,8 +696,8 @@ const TodoContent = ({ children }) => {
     onUnlock: () => secretSession.unlock({ color: categoryColor(customCategory) }),
   } : null;
 
-  // The star syncs only on the E2EE path; the plaintext sync and legacy paths drop it.
-  const canStar = syncStatus?.protocolVersion === 3;
+  // The star shows once the sync status has come.
+  const canStar = !!syncStatus;
   // The 오늘 / 다음 7일 date default is today's end, so a new day refreshes the defaults (the
   // quick add keeps chips the user changed; only a new screen starts them over).
   const quickDefaults = useMemo(

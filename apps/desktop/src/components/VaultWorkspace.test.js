@@ -1,12 +1,11 @@
 import {act,fireEvent,render,screen,waitFor} from "@testing-library/react";
 import VaultWorkspace from "./VaultWorkspace";
 import IpcSender from "../utils/IpcSender";
-jest.mock("../utils/IpcSender",()=>({onAll:jest.fn(),off:jest.fn(),vault:{status:jest.fn(),unlock:jest.fn(),intakes:jest.fn(),lock:jest.fn()}}));
+jest.mock("../utils/IpcSender",()=>({onAll:jest.fn(),off:jest.fn(),vault:{status:jest.fn(),unlock:jest.fn(),lock:jest.fn()}}));
 let notify;
 beforeEach(()=>{
  jest.clearAllMocks();IpcSender.onAll.mockImplementation((topic,callback)=>{notify=callback;return callback;});
  IpcSender.vault.status.mockImplementation(callback=>callback({success:true,data:{enabled:true,uid:"user",phase:"LOCKED",osAvailable:true,passwordAvailable:true,generation:1}}));
- IpcSender.vault.intakes.mockImplementation(callback=>callback({success:true,data:[]}));
 });
 test("real panel connects unlock and clears state on lock notification",async()=>{
  IpcSender.vault.unlock.mockImplementation((method,password,callback)=>callback({success:true,data:{enabled:true,uid:"user",phase:"UNLOCKED",generation:1}}));
@@ -23,7 +22,6 @@ test("late unlock response after lock is not rendered",async()=>{
  act(()=>notify({data:{uid:"user",phase:"LOCKED",generation:2}}));
  await act(async()=>finish({success:true,data:{uid:"user",phase:"UNLOCKED"}}));
  expect(screen.queryByText(/데이터 잠금 해제됨/)).not.toBeInTheDocument();
- expect(IpcSender.vault.intakes).not.toHaveBeenCalled();
 });
 test("manual lock notifies its owner so the settings modal can close",async()=>{
  const onLocked=jest.fn();

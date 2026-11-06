@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import "./VaultUnlock.scss";
 import PasswordField from "./PasswordField";
 
-export default function VaultUnlock({ setup = false, osAvailable = false, passwordAvailable = true, preparationOnly = false, embedded = false,
+export default function VaultUnlock({ setup = false, osAvailable = false, passwordAvailable = true,
   onOSUnlock, onPasswordUnlock, onCreate, onUnlocked }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -34,9 +34,9 @@ export default function VaultUnlock({ setup = false, osAvailable = false, passwo
       if (mounted.current) setBusy(false);
     }
   };
-  return <section className="vault-unlock" aria-labelledby={embedded ? undefined : "vault-unlock-title"} aria-label={embedded ? "내 데이터 잠금 해제 방법" : undefined}>
-    {!embedded && <><h2 id="vault-unlock-title">{setup ? "데이터 잠금 방법 선택" : "내 데이터 잠금 해제"}</h2>
-      <p>{setup ? "이 기기에서 데이터를 열 때 사용할 방법을 고르세요. 복구 자료는 다음 단계에서 준비합니다." : "암호화된 데이터를 열려면 이 기기에서 본인 확인이 필요해요."}</p></>}
+  return <section className="vault-unlock" aria-labelledby="vault-unlock-title">
+    <h2 id="vault-unlock-title">{setup ? "데이터 잠금 방법 선택" : "내 데이터 잠금 해제"}</h2>
+    <p>{setup ? "이 기기에서 데이터를 열 때 사용할 방법을 고르세요. 복구 자료는 다음 단계에서 준비합니다." : "암호화된 데이터를 열려면 이 기기에서 본인 확인이 필요해요."}</p>
     {setup && osAvailable && <div className="vault-unlock-methods" role="group" aria-label="데이터 잠금 방법"><button type="button" aria-pressed={setupMethod==="os"} disabled={busy} onClick={()=>setSetupMethod("os")}>Windows Hello / Touch ID만</button><button type="button" aria-pressed={setupMethod==="password"} disabled={busy} onClick={()=>setSetupMethod("password")}>비밀번호도 사용</button></div>}
     {setup && setupMethod==="os" && <><p className="vault-unlock-note">이 기기의 OS 인증으로 엽니다. 기기를 잃어버릴 때를 대비해 다음 단계의 복구 자료는 꼭 보관하세요.</p><button type="button" className="vault-unlock-os" disabled={busy} onClick={()=>submit("os")}>{busy?"확인 중…":"OS 인증으로 설정"}</button></>}
     {!setup && osAvailable && <button type="button" className="vault-unlock-os" disabled={busy} onClick={() => submit("os")}>Windows Hello / Touch ID로 열기</button>}

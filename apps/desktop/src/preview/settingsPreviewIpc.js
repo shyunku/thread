@@ -119,7 +119,6 @@ export function installSettingsPreviewIpc(IpcSender, { recovery = "confirmed", l
   IpcSender.vault = {
     ...(IpcSender.vault || {}),
     status: (cb) => reply(cb, { uid: "settings-preview", phase: "UNLOCKED", generation: 1, osAvailable: true, passwordAvailable: true, enabled: true }),
-    intakes: (cb) => reply(cb, []),
     lock: (cb) => reply(cb, true),
     identityStatus: (cb) => reply(cb, identity),
     prepareIdentity: (cb) => reply(cb, identity),

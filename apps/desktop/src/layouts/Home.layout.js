@@ -7,11 +7,9 @@ import "./Home.layout.scss";
 import Category from "../objects/Category";
 import { SecretSessionProvider } from "../hooks/useSecretSession";
 import SecretLock from "../components/SecretLock";
-import { applyCreateCategory, applyDeleteCategory } from "../hooks/UseTransaction";
 import { trapTab } from "../molecules/pickers/Popover";
 import { accountInfoSlice } from "../store/accountSlice";
 import { prefsSelector, setPrefs } from "../store/prefsSlice";
-import IpcSender from "../utils/IpcSender";
 import { TODO_MENU_TYPE } from "../utils/menuFilters";
 import { HomeLayoutContext, layoutForWidth, useWindowWidth } from "./homeLayoutContext";
 
@@ -30,7 +28,7 @@ const HomeLayout = () => {
   const [overlayEl, setOverlayEl] = useState(null);
   const drawerRef = useRef(null);
 
-  const { states, addPromise } = props;
+  const { states } = props;
   const { categories } = states;
 
   const mergedCategories = useMemo(() => {
@@ -83,21 +81,6 @@ const HomeLayout = () => {
       if (opener?.isConnected && opener !== document.body) opener.focus({ preventScroll: true });
     };
   }, [drawerOpen]);
-
-  // Legacy path transitions (E2EE and v2 refresh from sync-v2/state instead). Kept here, not
-  // in the sidebar, so they stay while the sidebar is a closed drawer.
-  useEffect(() => {
-    IpcSender.onAll("category/createCategory", ({ success, data }) => {
-      applyCreateCategory({ success, data, addPromise });
-    });
-    IpcSender.onAll("category/deleteCategory", ({ success, data }) => {
-      applyDeleteCategory({ success, data, addPromise });
-    });
-    return () => {
-      IpcSender.offAll("category/createCategory");
-      IpcSender.offAll("category/deleteCategory");
-    };
-  }, [addPromise]);
 
   // Picking a menu in the drawer closes it.
   const selectMenu = useCallback((id) => {

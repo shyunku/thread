@@ -16,7 +16,6 @@ import { usePickedDay } from "./pickedDay";
 import { dayTasks, sortByDue } from "./CalendarTab";
 import { panelTab } from "./RightPanel";
 import { stampText } from "./DetailPanel";
-import { resetSubtaskOrderForTests } from "./SubtaskList";
 
 let mockContext;
 jest.mock("react-router-dom", () => ({ useOutletContext: () => mockContext }));
@@ -334,7 +333,7 @@ test("check and star; no star where it cannot be stored", () => {
   fireEvent.click(within(title).getByRole("button", { name: "중요로 표시" }));
   expect(IpcSender.req.task.updateTaskImportant).toHaveBeenCalledWith("first", true, expect.any(Function));
   unmount();
-  mockContext = { ...mockContext, syncStatus: { protocolVersion: 2 } };
+  mockContext = { ...mockContext, syncStatus: null };
   view();
   select("first");
   expect(inPanel().queryByRole("button", { name: "중요로 표시" })).toBeNull();
@@ -488,7 +487,6 @@ function placeSubRows() {
 }
 
 test("subtask order: rank first, then created_at; the grip drags, Alt+↑/↓ does nothing (#107)", () => {
-  resetSubtaskOrderForTests();
   withThird();
   view();
   select("first");
@@ -513,7 +511,6 @@ test("subtask order: rank first, then created_at; the grip drags, Alt+↑/↓ do
 });
 
 test("subtask order: dragging the grip lifts after 4px, slides rows, settles and sends the move; Esc cancels", () => {
-  resetSubtaskOrderForTests();
   withThird();
   view();
   select("first");
@@ -565,7 +562,6 @@ test("subtask order: dragging the grip lifts after 4px, slides rows, settles and
 });
 
 test("subtask order: a wrapped (taller) row moves the others by its own height and settles in its slot (#107)", () => {
-  resetSubtaskOrderForTests();
   withThird();
   view();
   select("first");
@@ -609,10 +605,9 @@ test("subtask order: a wrapped (taller) row moves the others by its own height a
   expect(subIds()).toEqual(["s1", "s2", "s3"]);
 });
 
-test("subtask order: no grip off E2EE; an unsupported reply restores the order and stops offering it", () => {
-  resetSubtaskOrderForTests();
+test("subtask order: no grip before the sync status; a refused reply restores the order", () => {
   withThird();
-  mockContext = { ...mockContext, syncStatus: { protocolVersion: 2 } };
+  mockContext = { ...mockContext, syncStatus: null };
   const { unmount } = view();
   select("first");
   expect(panel().querySelector(".sgrip")).toBeNull();
@@ -624,7 +619,7 @@ test("subtask order: no grip off E2EE; an unsupported reply restores the order a
 
   mockContext = { ...mockContext, syncStatus: { protocolVersion: 3 } };
   const warn = jest.spyOn(Toast, "warn").mockImplementation(() => {});
-  IpcSender.req.task.updateSubtaskOrder.mockImplementationOnce((...args) => args[4]({ success: false, data: { code: "UNSUPPORTED_V2_ACTION" } }));
+  IpcSender.req.task.updateSubtaskOrder.mockImplementationOnce((...args) => args[4]({ success: false }));
   view();
   select("first");
   // Drag the second row to the top.
@@ -635,10 +630,8 @@ test("subtask order: no grip off E2EE; an unsupported reply restores the order a
   act(() => { jest.advanceTimersByTime(200); });
   expect(IpcSender.req.task.updateSubtaskOrder).toHaveBeenCalledTimes(1);
   expect(subIds()).toEqual(["s3", "s1", "s2"]);
-  expect(warn).toHaveBeenCalledWith("이 계정에서는 하위 할 일 순서를 바꿀 수 없어요.");
-  expect(panel().querySelector(".sgrip")).toBeNull();
+  expect(warn).toHaveBeenCalledWith("하위 할 일 순서를 바꾸지 못했어요.");
   warn.mockRestore();
-  resetSubtaskOrderForTests();
 });
 
 test("memo: saved after a pause and on leaving, with the placeholder when empty", () => {

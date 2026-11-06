@@ -229,12 +229,3 @@ test("the sidebar drawer is a modal dialog: focus goes in, Tab stays, and comes 
   expect(screen.queryByRole("dialog", { name: "메뉴" })).toBeNull();
   expect(document.activeElement).toBe(menuButton);
 });
-
-test("the legacy category transitions are listened to by the layout, not the sidebar", () => {
-  const IpcSender = require("../utils/IpcSender");
-  const { unmount } = render(<HomeLayout />);
-  expect(IpcSender.onAll).toHaveBeenCalledWith("category/createCategory", expect.any(Function));
-  expect(IpcSender.onAll).toHaveBeenCalledWith("category/deleteCategory", expect.any(Function));
-  unmount();
-  expect(IpcSender.offAll).toHaveBeenCalledWith("category/createCategory");
-});

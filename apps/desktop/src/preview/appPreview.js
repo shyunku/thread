@@ -145,7 +145,7 @@ function PreviewRoot() {
       <Prompt.Prompt />
       <Toast.Toaster />
       <div className="root-layout__content">
-        <Outlet context={{ localNonce: 0, remoteNonce: 0, addPromise: () => {}, states, searchQuery, syncStatus }} />
+        <Outlet context={{ addPromise: () => {}, states, searchQuery, syncStatus }} />
       </div>
       <UndoNotice notice={notice} onUndo={() => setNotice(null)} />
     </div>

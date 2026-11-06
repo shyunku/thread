@@ -10,7 +10,6 @@ import DeviceNameDialog from "./DeviceNameDialog";
 import KeyChangeDialog from "./KeyChangeDialog";
 import BackupDialog from "./BackupDialog";
 import RecoverySetupDialog from "./RecoverySetupDialog";
-import LegacyReviewDialog from "./LegacyReviewDialog";
 
 const ROTATION_PENDING = ["RECOVERY_UNCONFIRMED", "RECOVERY_CONFIRMED", "COMMITTING"];
 const REENCRYPTION_ACTIVE = ["READY", "WAITING", "PAUSED"];
@@ -33,7 +32,6 @@ export default function DataOverview({ uid, vault, ready = true, sync, initialDi
   const [lastBackup, setLastBackup] = useState(cached.lastBackup);
   const [rotation, setRotation] = useState(cached.rotation ?? null);
   const [reencryption, setReencryption] = useState(cached.reencryption ?? null);
-  const [intakes, setIntakes] = useState(cached.intakes || []);
   const [dialog, setDialog] = useState(null);
   const [resuming, setResuming] = useState(false);
   const live = useRef(true);
@@ -46,12 +44,10 @@ export default function DataOverview({ uid, vault, ready = true, sync, initialDi
     const rotationStatus = await softly(vaultAction("rotation", "status"));
     const reencryptionStatus = await softly(vaultAction("reencryption", "status"));
     const backup = await softly(vaultAction("backup", "last"));
-    const pending = await softly(vaultCall("intakes"));
     if (!live.current) return;
     setRotation(rotationStatus ?? null);
     setReencryption(reencryptionStatus ?? null);
     setLastBackup(backup ?? null);
-    setIntakes(pending || []);
     // Every connected PC lists the devices (#77); only the owner adds or removes them.
     try {
       const list = await vaultAction("rotation", "devices");
@@ -60,8 +56,8 @@ export default function DataOverview({ uid, vault, ready = true, sync, initialDi
   }, []);
   useEffect(() => { if (ready) void load(); }, [load, uid, ready]);
   useEffect(() => {
-    overviewCache.set(uid, { identity, devices, lastBackup, rotation, reencryption, intakes });
-  }, [uid, identity, devices, lastBackup, rotation, reencryption, intakes]);
+    overviewCache.set(uid, { identity, devices, lastBackup, rotation, reencryption });
+  }, [uid, identity, devices, lastBackup, rotation, reencryption]);
   useEffect(() => {
     if (PREVIEW_DIALOGS[initialDialog]) setDialog(PREVIEW_DIALOGS[initialDialog]);
   }, [initialDialog]);
@@ -171,24 +167,12 @@ export default function DataOverview({ uid, vault, ready = true, sync, initialDi
         </SettingsCard>
       </SettingsSection>
 
-      {intakes.length > 0 && (
-        <details className="data-overview__advanced">
-          <summary>고급</summary>
-          <SettingsCard>
-            <SettingsRow label="이전 버전 데이터 검토" description={`업데이트 전에 보내지 못한 변경 ${intakes.reduce((sum, item) => sum + (item.count || 0), 0)}개가 남아 있어요.`}>
-              <SettingsButton onClick={() => setDialog({ type: "legacy" })}>검토</SettingsButton>
-            </SettingsRow>
-          </SettingsCard>
-        </details>
-      )}
-
       {dialog?.type === "add" && <AddDeviceDialog vaultCode={identity?.fingerprint} osAvailable={osAvailable} onClose={close} onChanged={load} />}
       {dialog?.type === "key" && <KeyChangeDialog mode={dialog.mode} device={dialog.device} resumePhase={dialog.resume} osAvailable={osAvailable} onClose={close} onChanged={load} />}
       {dialog?.type === "name" && <DeviceNameDialog device={dialog.device} onClose={close}
         onSaved={(name) => { setDevices((list) => list && withShownIds(list.map((item) => item.id === dialog.device.id ? { ...item, name } : item))); close(); }} />}
       {dialog?.type === "backup" &&<BackupDialog osAvailable={osAvailable} onClose={close} onChanged={load} />}
       {dialog?.type === "recovery" && <RecoverySetupDialog onClose={close} onChanged={load} />}
-      {dialog?.type === "legacy" && <LegacyReviewDialog uid={uid} generation={vault?.generation} intakes={intakes} onClose={() => { close(); void load(); }} />}
     </div>
   );
 }

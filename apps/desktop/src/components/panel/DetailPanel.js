@@ -141,8 +141,7 @@ function MemoField({ task }) {
 
 // 할 일 상세 (#102 mock detailBody): title with the check and the star, 기한 / 반복 / 카테고리
 // rows that open their pickers below the row, 하위 할 일, 메모 and the stamp line. No remaining
-// time here (decided). canStar false leaves the star out (the plaintext sync and legacy paths
-// drop it).
+// time here (decided). canStar false leaves the star out (before the sync status comes).
 export default function DetailPanel({ task, catsOf, prefs, canStar = true }) {
   const { actions, pickable, complete } = useTaskSelection();
   const tf = prefs?.timeFormat === "24" ? "24" : "12";
