@@ -10,7 +10,7 @@ Thread 서버를 운영하고 데스크톱 앱을 배포할 때의 절차와 주
 - [Windows 서명 업데이트 운영 절차](initiatives/v3-encryption/v3-update-operations.md): 키, TUF 저장소, 게시 도구의 세부 사항
 - [업데이트 서명 정책](initiatives/v3-encryption/protocol/v3-update-signing-policy.md)
 - [v3 평문 정리 계획](initiatives/v3-encryption/protocol/v3-plaintext-purge-plan.md), [암호화 백업](initiatives/v3-encryption/protocol/v3-encrypted-data-backup.md)
-- [Task 64](tasks/0064.md): 현재 배포 진행 상태
+- [Task 64](tasks/done/0064.md): 첫 v3 배포 기록
 
 ## 1. 운영 구성
 
