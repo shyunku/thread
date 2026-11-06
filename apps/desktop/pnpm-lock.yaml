@@ -119,9 +119,6 @@ dependencies:
   web-vitals:
     specifier: 2.1.4
     version: 2.1.4
-  ws:
-    specifier: 8.13.0
-    version: 8.13.0
 
 devDependencies:
   '@testing-library/jest-dom':
@@ -13409,6 +13406,7 @@ packages:
         optional: true
       utf-8-validate:
         optional: true
+    dev: true
 
   /xml-name-validator@3.0.0:
     resolution: {integrity: sha512-A5CUptxDsvxKJEU3yO6DuWBSJz/qizqzJKOMIfUJHETbBw/sFaDxgd6fxm1ewUaM0jZ444Fc5vC5ROYurg/4Pw==}

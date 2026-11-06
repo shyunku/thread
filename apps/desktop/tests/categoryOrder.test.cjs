@@ -1,4 +1,4 @@
-const {test}=require("node:test"),assert=require("node:assert/strict"),fs=require("node:fs"),os=require("node:os"),path=require("node:path"),Module=require("node:module");
+const {test}=require("node:test"),assert=require("node:assert/strict"),fs=require("node:fs"),os=require("node:os"),path=require("node:path");
 const {EncryptedStore}=require("../public/electron/e2ee/localStore"),{EncryptedReplica}=require("../public/electron/e2ee/replica");
 const {ApplicationAdapter}=require("../public/electron/e2ee/applicationAdapter");
 require("../public/electron/e2ee/platform");
@@ -51,7 +51,7 @@ test("categories without sort_rank (older clients) keep created_at order and get
   const row={entityType:"category",entityId:cid,operation:"upsert",version:"1",fields:{title:cid,secret:false,locked:false,color:"",created_at}};
   rows.set(identity(row),row);
  }
- const {entityLists}=require("../public/electron/sync-v2/entities");
+ const {entityLists}=require("@thread/e2ee/src/model/entities");
  assert.deepEqual(entityLists({rows:[...rows.values()]}).categories.map(row=>row.cid),["old1","old2","old3"]);
  optimistic(rows,{entityType:"category",entityId:"old3",operation:"move",anchorId:"old1",after:false,localTime:500});
  const lists=entityLists({rows:[...rows.values()]});
@@ -91,7 +91,7 @@ test("a move of ranked categories changes only the moved row; ranks are rebuilt 
   rows.set(identity(row),row);
  }
  optimistic(rows,{entityType:"category",entityId:"z",operation:"move",anchorId:"y",after:false,localTime:5});
- const {entityLists}=require("../public/electron/sync-v2/entities");
+ const {entityLists}=require("@thread/e2ee/src/model/entities");
  const lists=entityLists({rows:[...rows.values()]}).categories;
  assert.deepEqual(lists.map(row=>row.cid),["x","z","y"]);
  assert.equal(new Set(lists.map(row=>row.sort_rank)).size,3);
@@ -105,29 +105,4 @@ test("a move of ranked categories changes only the moved row; ranks are rebuilt 
  optimistic(mixed,{entityType:"category",entityId:"u2",operation:"move",anchorId:"r1",after:true,localTime:5});
  assert.equal(mixed.get(identity({entityType:"category",entityId:"r1"})),r1);
  assert.deepEqual(entityLists({rows:[...mixed.values()]}).categories.map(row=>row.cid),["r1","u2","r2","u1"]);
-});
-
-test("plaintext v2 never queues a category move",async()=>{
- const original=Module._load;
- Module._load=function(request,parent,...rest){
-  if(parent?.filename.endsWith("sync-v2"+path.sep+"service.js")){
-   if(request==="../modules/filesystem")return {getUserDataPath:()=>os.tmpdir()};
-   if(request==="../modules/util")return {getServerFinalEndpoint:()=>"http://fixture/v1"};
-  }
-  return original.call(this,request,parent,...rest);
- };
- let SyncV2Service;
- try{({SyncV2Service}=require("../public/electron/sync-v2/service"));}finally{Module._load=original;}
- const events=[],queued=[],service=new SyncV2Service();
- service.inject({userService:{getCurrent:()=>"fixture"},ipcService:{sender:(...event)=>events.push(event)}});
- service.sessions.set("fixture",{uid:"fixture",connected:false,replica:{
-  enqueue:async change=>{queued.push(change);return "change-"+queued.length;},
-  view:async()=>({rows:[],pending:[],epoch:null}),meta:async()=>undefined}});
- assert.equal(await service.intercept("category/updateCategoryOrder","move",["a","b",true]),true);
- assert.equal(queued.length,0);
- assert.deepEqual(events.find(e=>e[0]==="category/updateCategoryOrder"),["category/updateCategoryOrder","move",false,{syncV2Ack:true,code:"UNSUPPORTED_V2_ACTION"}]);
- // A create request never carries sort_rank to the plaintext server.
- assert.equal(await service.intercept("category/createCategory","create",[{cid:"c",title:"C",sort_rank:"5",created_at:1}]),true);
- assert.equal(queued.length,1);
- assert.equal(Object.hasOwn(queued[0].changes,"sort_rank"),false);
 });

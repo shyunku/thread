@@ -1,4 +1,4 @@
-const {test}=require("node:test"),assert=require("node:assert/strict"),fs=require("node:fs"),os=require("node:os"),path=require("node:path"),Module=require("node:module");
+const {test}=require("node:test"),assert=require("node:assert/strict"),fs=require("node:fs"),os=require("node:os"),path=require("node:path");
 const {EncryptedStore}=require("../public/electron/e2ee/localStore"),{EncryptedReplica}=require("../public/electron/e2ee/replica");
 const {ApplicationAdapter}=require("../public/electron/e2ee/applicationAdapter");
 
@@ -202,48 +202,4 @@ test("task/duplicateTask copies title, memo, due, repeat, importance, categories
  app.mutate("task/duplicateTask",["plain",{tid:"plain2"}]);
  const plain=task(app,"plain2");
  assert.equal(plain.due_date,0);assert.equal(plain.repeat_period,"");assert.equal(plain.important,undefined);
-});
-
-function plaintextService(rows){
- const original=Module._load;
- Module._load=function(request,parent,...rest){
-  if(parent?.filename.endsWith("sync-v2"+path.sep+"service.js")){
-   if(request==="../modules/filesystem")return {getUserDataPath:()=>os.tmpdir()};
-   if(request==="../modules/util")return {getServerFinalEndpoint:()=>"http://fixture/v1"};
-  }
-  return original.call(this,request,parent,...rest);
- };
- let SyncV2Service;
- try{({SyncV2Service}=require("../public/electron/sync-v2/service"));}finally{Module._load=original;}
- const events=[],queued=[],service=new SyncV2Service();
- service.inject({userService:{getCurrent:()=>"fixture"},ipcService:{sender:(...event)=>events.push(event)}});
- service.sessions.set("fixture",{uid:"fixture",connected:false,replica:{
-  enqueue:async change=>{queued.push(change);return "change-"+queued.length;},
-  enqueueMany:async builders=>{const batch=builders.map(build=>build({rows}));queued.push(...batch);return "change-"+queued.length;},
-  view:async()=>({rows,pending:[],epoch:null}),meta:async()=>undefined}});
- return {service,events,queued};
-}
-const row=(entityType,entityId,fields,parentId)=>({entityType,entityId,parentId,operation:"upsert",version:"1",fields});
-
-test("plaintext v2 queues the composites as their steps and drops the star from the copy",async()=>{
- const rows=[row("category","work",{title:"Work"}),row("task","src",{title:"Src",memo:"",due_date:due,repeat_period:"day",repeat_start_at:due,important:true}),
-  row("taskCategory","work",{present:true},"src"),row("subtask","s",{title:"Sub",created_at:5},"src")];
- const {service,events,queued}=plaintextService(rows);
- assert.equal(await service.intercept("task/duplicateTask","dup",["src",{tid:"copy"}]),true);
- assert.deepEqual(queued.map(change=>[change.entityType,change.operation]),[["task","create"],["subtask","create"]]);
- assert.equal(queued[0].entityId,"copy");assert.deepEqual(queued[0].categoryIds,["work"]);
- assert.equal(Object.hasOwn(queued[0].changes,"important"),false);
- assert.equal(queued[1].parentId,"copy");
- assert.equal(events.find(e=>e[0]==="task/duplicateTask")[2],true);
- queued.length=0;
- assert.equal(await service.intercept("category/deleteCategoryInUse","del",["work"]),true);
- assert.deepEqual(queued.map(change=>[change.entityType,change.operation,change.parentId??null]),[["taskCategory","remove","src"],["category","delete",null]]);
- queued.length=0;
- assert.equal(await service.intercept("category/deleteCategoryWithTasks","delAll",["work"]),true);
- assert.deepEqual(queued.map(change=>[change.entityType,change.operation,change.entityId]),[["task","delete","src"],["category","delete","work"]]);
- assert.equal(events.find(e=>e[0]==="category/deleteCategoryWithTasks")[2],true);
- // The due/repeat patch is plain fields the server knows.
- queued.length=0;
- await service.intercept("task/updateTaskDueDate","due",["src",0]);
- assert.deepEqual(queued[0].changes,{due_date:0,repeat_period:"",repeat_start_at:0});
 });

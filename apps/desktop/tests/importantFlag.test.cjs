@@ -1,4 +1,4 @@
-const {test}=require("node:test"),assert=require("node:assert/strict"),fs=require("node:fs"),os=require("node:os"),path=require("node:path"),Module=require("node:module");
+const {test}=require("node:test"),assert=require("node:assert/strict"),fs=require("node:fs"),os=require("node:os"),path=require("node:path");
 const {EncryptedStore}=require("../public/electron/e2ee/localStore"),{EncryptedReplica}=require("../public/electron/e2ee/replica");
 const {ApplicationAdapter}=require("../public/electron/e2ee/applicationAdapter");
 
@@ -29,29 +29,4 @@ test("task/updateTaskImportant sets fields.important and later patches keep it",
  // Anything but a real true clears the star.
  app.mutate("task/updateTaskImportant",["starred","yes"]);
  assert.equal(task(app,"starred").important,false);
-});
-
-test("plaintext v2 never queues the star: the action is rejected and addTask drops the field",async()=>{
- const original=Module._load;
- Module._load=function(request,parent,...rest){
-  if(parent?.filename.endsWith("sync-v2"+path.sep+"service.js")){
-   if(request==="../modules/filesystem")return {getUserDataPath:()=>os.tmpdir()};
-   if(request==="../modules/util")return {getServerFinalEndpoint:()=>"http://fixture/v1"};
-  }
-  return original.call(this,request,parent,...rest);
- };
- let SyncV2Service;
- try{({SyncV2Service}=require("../public/electron/sync-v2/service"));}finally{Module._load=original;}
- const events=[],queued=[],service=new SyncV2Service();
- service.inject({userService:{getCurrent:()=>"fixture"},ipcService:{sender:(...event)=>events.push(event)}});
- service.sessions.set("fixture",{uid:"fixture",connected:false,replica:{
-  enqueue:async change=>{queued.push(change);return "change-"+queued.length;},
-  view:async()=>({rows:[],pending:[],epoch:null}),meta:async()=>undefined}});
- assert.equal(await service.intercept("task/updateTaskImportant","star",["a",true]),true);
- assert.equal(queued.length,0);
- assert.deepEqual(events.find(e=>e[0]==="task/updateTaskImportant"),["task/updateTaskImportant","star",false,{syncV2Ack:true,code:"UNSUPPORTED_V2_ACTION"}]);
- assert.equal(await service.intercept("task/addTask","add",[{tid:"b",title:"New",important:true}]),true);
- assert.equal(queued.length,1);
- assert.equal(queued[0].changes.title,"New");
- assert.equal(Object.hasOwn(queued[0].changes,"important"),false);
 });

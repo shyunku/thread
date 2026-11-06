@@ -2,8 +2,6 @@ const {ApplicationAdapter,mutationTopics:single,compositeTopics}=require("./appl
 // Composite topics (duplicate, delete a category in use) are mutations too.
 const mutationTopics={has:topic=>single.has(topic)||compositeTopics.has(topic)};
 const reads={"task/getAllTaskList":"tasks","task/getAllSubtaskList":"subtasks","category/getCategoryList":"categories","tasks_categories/getTasksCategoriesList":"relations"};
-const blocked=new Set(["auth/initializeDatabase","system/migrateLegacyDatabase","system/truncateLegacyDatabase","system/mismatchTxAcceptTheirs","system/mismatchTxAcceptMine","system/initializeState","system/clearStatePermanently"]);
-const passive=new Set(["auth/isDatabaseReady","system/isLegacyMigrationAvailable","system/localLastBlockNumber","system/remoteLastBlockNumber","system/migrateCheckDoneSignal","system/lastTxUpdateTime"]);
 // A mutation that arrives while a vault action holds the vault (a sync, a user check, pairing)
 // waits for it, up to MUTATION_WAIT ms, and then applies in arrival order. The sync engine signs,
 // pushes and settles outbox drafts across awaits, so a change must never land inside a run. Nothing
@@ -40,15 +38,13 @@ function applyMutation(service,entry,topic,reqId,args){
 async function intercept(service,topic,reqId,args){
  const entry=service.active,ipc=service.group?.ipcService;
  if(!entry?.applicationActive||entry.uid!==service.runtime().getAccount()||!ipc)return false;
- const supported=mutationTopics.has(topic)||reads[topic]||blocked.has(topic)||passive.has(topic)||["socket/connect","socket/disconnect","category/getCategoryTasks","system/isDatabaseClear","system/stateListenReady","sync-v2/getStatus","sync-v2/retry"].includes(topic);
+ const supported=mutationTopics.has(topic)||reads[topic]||["auth/isDatabaseReady","socket/connect","system/stateListenReady","sync-v2/getStatus","sync-v2/retry"].includes(topic);
  const handled=supported||/^(task|category|tasks_categories)\//.test(topic);
  if(!handled)return false;
  try{
   if(!supported)throw Error("UNSUPPORTED_APPLICATION_ACTION");
-  if(blocked.has(topic))throw Error("E2EE_LEGACY_ACTION_BLOCKED");
   if(topic==="auth/isDatabaseReady"&&args[0]!==entry.uid)throw Error("ACCOUNT_MISMATCH");
   if(topic==="socket/connect"){await service.syncEncrypted();ipc.sender(topic,reqId,true);return true;}
-  if(topic==="socket/disconnect"){service.lock();ipc.sender(topic,reqId,true);return true;}
   if(mutationTopics.has(topic)){
    const run=()=>applyMutation(service,entry,topic,reqId,args);
    if(service.busy||service.mutationQueue?.length)await queueMutation(service,run);
@@ -60,10 +56,7 @@ async function intercept(service,topic,reqId,args){
    const {EncryptedReplica}=require("./replica"),meta=store.get("confirmed","$sync-state");
    if(!meta)throw Error("SYNC_REQUIRED");
    const replica=new EncryptedReplica(store,meta.scope,{initialize:false}),adapter=new ApplicationAdapter(replica);
-   if(passive.has(topic))return ["auth/isDatabaseReady","system/migrateCheckDoneSignal"].includes(topic)?true:0;
    if(reads[topic])return adapter.lists()[reads[topic]];
-   if(topic==="category/getCategoryTasks")return adapter.lists().relations.filter(row=>row.cid===args[0]);
-   if(topic==="system/isDatabaseClear")return adapter.lists().tasks.length===0;
    if(topic==="sync-v2/getStatus")return statusOf(entry,replica.status());
    return true;
   });

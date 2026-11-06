@@ -1,7 +1,7 @@
-const {test}=require("node:test"),assert=require("node:assert/strict"),fs=require("node:fs"),os=require("node:os"),path=require("node:path"),Module=require("node:module");
+const {test}=require("node:test"),assert=require("node:assert/strict"),fs=require("node:fs"),os=require("node:os"),path=require("node:path");
 const {EncryptedStore}=require("../public/electron/e2ee/localStore"),{EncryptedReplica}=require("../public/electron/e2ee/replica");
 const {ApplicationAdapter}=require("../public/electron/e2ee/applicationAdapter");
-const {command,mutationTopics}=require("../public/electron/sync-v2/entities");
+const {command,mutationTopics}=require("@thread/e2ee/src/model/entities");
 const {planReminders}=require("@thread/e2ee/src/model/reminders");
 
 // Synthetic local vault; no network, no user data.
@@ -69,33 +69,11 @@ test("due reminders follow the flag: a task's title is left out once its categor
  assert.deepEqual(titles(),["Report"]);
 });
 
-test("plaintext v2 queues the switch as a patch of known category fields",async()=>{
- const original=Module._load;
- Module._load=function(request,parent,...rest){
-  if(parent?.filename.endsWith("sync-v2"+path.sep+"service.js")){
-   if(request==="../modules/filesystem")return {getUserDataPath:()=>os.tmpdir()};
-   if(request==="../modules/util")return {getServerFinalEndpoint:()=>"http://fixture/v1"};
-  }
-  return original.call(this,request,parent,...rest);
- };
- let SyncV2Service;
- try{({SyncV2Service}=require("../public/electron/sync-v2/service"));}finally{Module._load=original;}
- const events=[],queued=[],service=new SyncV2Service();
- service.inject({userService:{getCurrent:()=>"fixture"},ipcService:{sender:(...event)=>events.push(event)}});
- service.sessions.set("fixture",{uid:"fixture",connected:false,replica:{
-  enqueue:async change=>{queued.push(change);return "change-"+queued.length;},
-  view:async()=>({rows:[],pending:[],epoch:null}),meta:async()=>undefined}});
- assert.equal(await service.intercept("category/updateCategorySecret","secret",["c",true]),true);
- assert.equal(queued.length,1);
- assert.deepEqual(queued[0].changes,{secret:true,locked:true});
- assert.equal(events.find(e=>e[0]==="category/updateCategorySecret")?.[2],true);
-});
-
-test("the renderer may send it and the legacy path refuses it",()=>{
+test("the renderer may send it and it is refused without an open vault",()=>{
  const preload=fs.readFileSync(path.join(__dirname,"../public/electron/modules/preload.js"),"utf8");
  assert.match(preload,/"category\/updateCategorySecret"/);
  const ipc=fs.readFileSync(path.join(__dirname,"../public/electron/configures/ipc.config.js"),"utf8");
- const refused=ipc.match(/for \(const topic of \[([^\]]*)\]\) \{\s*s\.register\(topic, async \(event, reqId\) => \{\s*s\.sender\(topic, reqId, false, \{ code: "UNSUPPORTED_LEGACY_ACTION" \}\)/);
+ const refused=ipc.match(/for \(const topic of \[([^\]]*)\]\) \{\s*s\.register\(topic, async \(event, reqId\) => \{\s*s\.sender\(topic, reqId, false, \{ code: "E2EE_APPLICATION_REQUIRED" \}\)/);
  assert.ok(refused);
  assert.match(refused[1],/"category\/updateCategorySecret"/);
 });

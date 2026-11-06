@@ -20,14 +20,6 @@ function getServerFinalEndpoint() {
   return `${appServerEndpoint}/${appServerApiVersion}`;
 }
 
-/**
- * @returns {string}
- */
-function getWebsocketFinalEndpoint() {
-  const appServerFinalEndpoint = getServerFinalEndpoint();
-  return `${appServerFinalEndpoint.replace(/http/g, "ws")}/websocket/connect`;
-}
-
 async function sleep(milli) {
   return new Promise((resolve, reject) => {
     setTimeout(() => {
@@ -97,7 +89,6 @@ module.exports = {
   getSystemArchCategory,
   getSystemArchitectureLabel,
   getServerFinalEndpoint,
-  getWebsocketFinalEndpoint,
   formatFileSize,
   sleep,
   shorten,

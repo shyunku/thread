@@ -1,7 +1,7 @@
-const {test}=require("node:test"),assert=require("node:assert/strict"),fs=require("node:fs"),os=require("node:os"),path=require("node:path"),Module=require("node:module");
+const {test}=require("node:test"),assert=require("node:assert/strict"),fs=require("node:fs"),os=require("node:os"),path=require("node:path");
 const {EncryptedStore}=require("../public/electron/e2ee/localStore"),{EncryptedReplica}=require("../public/electron/e2ee/replica");
 const {ApplicationAdapter}=require("../public/electron/e2ee/applicationAdapter");
-const {expand}=require("../public/electron/sync-v2/entities");
+const {expand}=require("@thread/e2ee/src/model/entities");
 const {occurrenceID}=require("../public/electron/e2ee/recurrence");
 
 // The undo notice's restores (#107). The renderer keeps a snapshot of what it deletes; the
@@ -201,42 +201,7 @@ test("task/undoRecurringCompletion keeps a moved repeat anchor (a monthly task o
  assert.equal(next.repeat_start_at,start);
 });
 
-function plaintextService(rows){
- const original=Module._load;
- Module._load=function(request,parent,...rest){
-  if(parent?.filename.endsWith("sync-v2"+path.sep+"service.js")){
-   if(request==="../modules/filesystem")return {getUserDataPath:()=>os.tmpdir()};
-   if(request==="../modules/util")return {getServerFinalEndpoint:()=>"http://fixture/v1"};
-  }
-  return original.call(this,request,parent,...rest);
- };
- let SyncV2Service;
- try{({SyncV2Service}=require("../public/electron/sync-v2/service"));}finally{Module._load=original;}
- const events=[],queued=[],service=new SyncV2Service();
- service.inject({userService:{getCurrent:()=>"fixture"},ipcService:{sender:(...event)=>events.push(event)}});
- service.sessions.set("fixture",{uid:"fixture",connected:false,replica:{
-  enqueue:async change=>{queued.push(change);return "change-"+queued.length;},
-  enqueueMany:async builders=>{const batch=builders.map(build=>build({rows}));queued.push(...batch);return "change-"+queued.length;},
-  view:async()=>({rows,pending:[],epoch:null}),meta:async()=>undefined}});
- return {service,events,queued};
-}
-const row=(entityType,entityId,fields,parentId)=>({entityType,entityId,parentId,operation:"upsert",version:"1",fields});
-
-test("plaintext v2 queues a restore as its steps without subtask moves, and refuses the recurring undo",async()=>{
- const rows=[row("task","a",{title:"A"}),row("category","work",{title:"Work"})];
- const {service,events,queued}=plaintextService(rows);
- const snap={tid:"back",title:"Back",categories:["work","gone"],important:true,prevId:"a",
-  subtasks:[{title:"Late",created_at:20},{title:"Early",created_at:10}]};
- assert.equal(await service.intercept("task/restoreTask","restore",[snap]),true);
- assert.deepEqual(queued.map(change=>[change.entityType,change.operation]),[["task","create"],["task","move"],["subtask","create"],["subtask","create"]]);
- assert.deepEqual(queued[0].categoryIds,["work"]);
- assert.equal(Object.hasOwn(queued[0].changes,"important"),false);
- assert.equal(events.find(e=>e[0]==="task/restoreTask")[2],true);
- await service.intercept("task/undoRecurringCompletion","undo",["a",{due_date:due}]);
- assert.deepEqual(events.find(e=>e[0]==="task/undoRecurringCompletion").slice(2),[false,{syncV2Ack:true,code:"UNSUPPORTED_V2_ACTION"}]);
-});
-
-test("the restore topics are open to the window and answered as unsupported on the legacy path",()=>{
+test("the restore topics are open to the window and refused without an open vault",()=>{
  const {REQUEST_TOPICS}=require("../public/electron/modules/preload");
  const legacy=fs.readFileSync(path.join(__dirname,"../public/electron/configures/ipc.config.js"),"utf8");
  for(const topic of ["task/restoreTask","task/restoreSubtask","task/undoRecurringCompletion"]){

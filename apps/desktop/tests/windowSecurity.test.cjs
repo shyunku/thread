@@ -161,3 +161,16 @@ test("all active renderer event subscriptions exist in the bridge contract", () 
       assert.ok(contract.canReceive(match[1]), file + ": " + match[1]);
   }
 });
+
+test("every data topic the window may send stays registered and is refused without an open vault", () => {
+  // register() routes only registered topics to the open vault.
+  const source = fs.readFileSync(path.join(__dirname, "../public/electron/configures/ipc.config.js"), "utf8");
+  const list = source.match(/for \(const topic of \[([^\]]*)\]\) \{\s*s\.register\(topic, async \(event, reqId\) => \{\s*s\.sender\(topic, reqId, false, \{ code: "E2EE_APPLICATION_REQUIRED" \}\)/);
+  assert.ok(list);
+  const refused = [...list[1].matchAll(/"([^"]+)"/g)].map(match => match[1]);
+  const data = contract.REQUEST_TOPICS.filter(topic => /^(task|category|tasks_categories|device)\//.test(topic));
+  assert.deepEqual(data.filter(topic => !refused.includes(topic)), []);
+  assert.deepEqual(refused.filter(topic => !contract.REQUEST_TOPICS.includes(topic)), []);
+  for (const topic of ["socket/connect", "system/stateListenReady", "auth/isDatabaseReady", "sync-v2/getStatus", "sync-v2/retry"])
+    assert.ok(refused.includes(topic), topic);
+});

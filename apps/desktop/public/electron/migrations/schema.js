@@ -20,26 +20,6 @@ const manifests = {
     requiredTables: { users: ["uid", "username", "auth_id", "google_auth_id", "access_token", "refresh_token"] },
     statements: [],
   }],
-  user: [{
-    version: 1,
-    name: "user_schema_baseline",
-    requiredTables: {
-      tasks: ["tid", "title", "memo", "done", "done_at", "created_at", "due_date", "next", "repeat_period", "repeat_start_at"],
-      subtasks: ["sid", "tid", "title", "done", "done_at", "created_at", "due_date"],
-      categories: ["cid", "title", "secret", "locked", "color", "created_at"],
-      tasks_categories: ["tid", "cid"],
-      transactions: ["type", "timestamp", "content", "block_number", "hash", "version", "block_hash"],
-    },
-    statements: [],
-  }, {
-    version: 2,
-    name: "sync_metadata",
-    requiredTables: {},
-    statements: [
-      "CREATE TABLE thread_sync_metadata (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL)",
-      "INSERT INTO thread_sync_metadata(key,value) VALUES ('protocol','1')",
-    ],
-  }],
 };
 
 function validate(scope, migrations, rows) {

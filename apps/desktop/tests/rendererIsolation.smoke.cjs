@@ -54,7 +54,6 @@ function finish(code) {
   service = new WindowService();
   service.ipcService = ipc;
   ipc.windowService = service;
-  ipc.syncV2Service = { intercept: async () => false };
   ipc.register("task/addTask", (event, id, body) => {
     assert.equal(body.title, "synthetic task");
     ipc.sender("task/addTask", id, true, { accepted: true });

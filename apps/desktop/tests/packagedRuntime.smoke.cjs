@@ -11,7 +11,7 @@ assert.equal(process.versions.electron, "43.6.0");
 assert.equal(process.arch, "x64");
 assert.equal(metadata.name, "thread");
 assert.equal(packagedRequire("./build/electron/modules/appIdentity").getDesktopAppId(metadata), "kr.threadapp.desktop");
-for (const name of ["axios", "ws", "electron-log", "dotenv", "sha256", "uuid"])
+for (const name of ["axios", "electron-log", "dotenv", "sha256", "uuid"])
   packagedRequire(name);
 packagedRequire("./build/electron/modules/keyProtection");
 const fs = require("node:fs"), os = require("node:os");

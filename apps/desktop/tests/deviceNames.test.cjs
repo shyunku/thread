@@ -1,4 +1,4 @@
-const {test}=require("node:test"),assert=require("node:assert/strict"),fs=require("node:fs"),os=require("node:os"),path=require("node:path"),Module=require("node:module");
+const {test}=require("node:test"),assert=require("node:assert/strict"),fs=require("node:fs"),os=require("node:os"),path=require("node:path");
 const {EncryptedStore}=require("../public/electron/e2ee/localStore"),{EncryptedReplica}=require("../public/electron/e2ee/replica");
 const {ApplicationAdapter}=require("../public/electron/e2ee/applicationAdapter");
 const {restoreCopies}=require("../public/electron/e2ee/backupCopies");
@@ -124,29 +124,13 @@ test("a backup restore copies tasks and leaves device names out",t=>{
  assert.deepEqual(lists.deviceNames,[]);
 });
 
-test("the renderer may call setDeviceName; legacy and plaintext v2 refuse it",async()=>{
+test("the renderer may call setDeviceName; it is refused without an open vault",()=>{
  const contract=require("../public/electron/modules/preload");
  assert.ok(contract.REQUEST_TOPICS.includes("device/setDeviceName"));
  // The own model is written by main only.
  assert.equal(contract.REQUEST_TOPICS.includes("device/setDeviceModel"),false);
- const original=Module._load;
- Module._load=function(request,parent,...rest){
-  if(parent?.filename.endsWith("sync-v2"+path.sep+"service.js")){
-   if(request==="../modules/filesystem")return {getUserDataPath:()=>os.tmpdir()};
-   if(request==="../modules/util")return {getServerFinalEndpoint:()=>"http://fixture/v1"};
-  }
-  return original.call(this,request,parent,...rest);
- };
- let SyncV2Service;
- try{({SyncV2Service}=require("../public/electron/sync-v2/service"));}finally{Module._load=original;}
- const events=[],queued=[],service=new SyncV2Service();
- service.inject({userService:{getCurrent:()=>"fixture"},ipcService:{sender:(...event)=>events.push(event)}});
- service.sessions.set("fixture",{uid:"fixture",connected:false,replica:{enqueue:async change=>{queued.push(change);return "x";},view:async()=>({rows:[],pending:[],epoch:null}),meta:async()=>undefined}});
- assert.equal(await service.intercept("device/setDeviceName","rename",["owner","이름"]),true);
- assert.equal(queued.length,0);
- assert.deepEqual(events.at(-1),["device/setDeviceName","rename",false,{syncV2Ack:true,code:"UNSUPPORTED_V2_ACTION"}]);
  const source=fs.readFileSync(path.join(__dirname,"../public/electron/configures/ipc.config.js"),"utf8");
- assert.match(source,/"device\/setDeviceName",[\s\S]*UNSUPPORTED_LEGACY_ACTION/);
+ assert.match(source,/"device\/setDeviceName",[\s\S]*E2EE_APPLICATION_REQUIRED/);
 });
 
 // A real unlocked E2EE workspace with an in-memory server (as in mutationQueue.test.cjs).

@@ -541,7 +541,7 @@ test("lists go to the window only after a change or when it asks, not after ever
  const states=()=>events.filter(event=>event[0]==="sync-v2/state").length;
  await intercept(service,"task/addTask","add",[{tid:"one",title:"One"}]);
  assert.equal(states(),1);
- for(const topic of ["task/getAllTaskList","task/getAllSubtaskList","category/getCategoryList","tasks_categories/getTasksCategoriesList","auth/isDatabaseReady","system/lastTxUpdateTime","sync-v2/getStatus"])
+ for(const topic of ["task/getAllTaskList","task/getAllSubtaskList","category/getCategoryList","tasks_categories/getTasksCategoriesList","auth/isDatabaseReady","sync-v2/getStatus"])
   await intercept(service,topic,topic,topic==="auth/isDatabaseReady"?["fixture"]:[]);
  assert.equal(states(),1);
  assert.equal(events.find(event=>event[1]==="task/getAllTaskList")[3][0].title,"One");

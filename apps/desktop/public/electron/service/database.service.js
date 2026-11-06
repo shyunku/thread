@@ -7,12 +7,7 @@ const DatabaseContext = require("../contexts/database.context");
 class DatabaseService {
   constructor() {
     this.rootDatabaseContext = null;
-    this.userDatabaseContexts = new Map();
     this.rootDatabaseReadyPromise = null;
-    this.userDatabaseReadyPromises = new Map();
-
-    /** @type {WebsocketService} */
-    this.websocketService = null;
 
     /** @type {ServiceGroup} */
     this.serviceGroup = null;
@@ -22,7 +17,6 @@ class DatabaseService {
    * @param serviceGroup {ServiceGroup}
    */
   inject(serviceGroup) {
-    this.websocketService = serviceGroup.websocketService;
     this.serviceGroup = serviceGroup;
   }
 
@@ -33,7 +27,7 @@ class DatabaseService {
     if (this.rootDatabaseContext != null) return this.rootDatabaseContext;
     if (this.rootDatabaseReadyPromise == null) {
       this.rootDatabaseReadyPromise = (async () => {
-        const context = new DatabaseContext(null, this.serviceGroup);
+        const context = new DatabaseContext();
         await context.initializeAsRoot();
         this.rootDatabaseContext = context;
         return context;
@@ -42,136 +36,19 @@ class DatabaseService {
     return this.rootDatabaseReadyPromise;
   }
 
-  /**
-   * @param userId {string}
-   * @returns {Promise<DatabaseContext>}
-   */
-  async getUserDatabaseContext(userId) {
-    if (userId == null) throw new Error("User ID is not valid.");
-    const context = this.userDatabaseContexts.get(userId);
-    if (context != null) return context;
-    if (!this.userDatabaseReadyPromises.has(userId)) {
-      const ready = (async () => {
-        const pending = new DatabaseContext(userId, this.serviceGroup);
-        await pending.initialize();
-        this.userDatabaseContexts.set(userId, pending);
-        return pending;
-      })().finally(() => { this.userDatabaseReadyPromises.delete(userId); });
-      this.userDatabaseReadyPromises.set(userId, ready);
-    }
-    return this.userDatabaseReadyPromises.get(userId);
-  }
-
-  async initializeUserDatabase(userId) {
-    if (userId == null) throw new Error("User ID is not valid.");
-    if (this.userDatabaseContexts.has(userId)) {
-      let context = new DatabaseContext(userId);
-      await context.initialize();
-      this.userDatabaseContexts.set(userId, context);
-    }
-  }
-
-  async isUserDatabaseReady(userId) {
-    if (userId == null) throw new Error("User ID is not valid.");
-    const context = await this.getUserDatabaseContext(userId);
-    return context.isReady();
-  }
-
-  async deleteUserDatabase(userId) {
-    if (userId == null) throw new Error("User ID is not valid.");
-    console.info("Deleting User Database... [User ID: " + userId + "]");
-
-    const userDataPath = FileSystem.getUserDataPath();
-    const schemeVersion = "v" + packageJson.config["scheme_version"];
-    let datafileDirPath = path.join(userDataPath, "datafiles");
-
-    let databaseDirPath = path.join(datafileDirPath, schemeVersion);
-    let databaseFileName = `user-${userId}.sqlite3`;
-    let databaseFilePath = path.join(databaseDirPath, databaseFileName);
-
-    if (fs.existsSync(databaseFilePath)) {
-      fs.unlinkSync(databaseFilePath);
-    }
-  }
-
-  // Account deletion (#92): closes this account's local database and removes it with the
-  // copies older schemes left (datafiles/v1..vN). Other accounts' files stay.
+  // Account deletion (#92): removes this account's plaintext databases older versions left
+  // (datafiles/v1..vN and datafiles/sync-v2). Other accounts' files stay.
   async removeUserDatabases(userId) {
-    if (typeof userId !== "string" || !userId || userId.length > 256 || /[\\/:\0]/.test(userId) || userId.includes(".."))
+    if (typeof userId !== "string" || !userId || userId.length > 256 || /[\/:\0]/.test(userId) || userId.includes(".."))
       throw new Error("User ID is not valid.");
-    const context = this.userDatabaseContexts.get(userId);
-    this.userDatabaseContexts.delete(userId);
-    if (context?.db) {
-      const db = context.db;
-      context.db = null;
-      await new Promise((resolve) => db.close(() => resolve()));
-    }
     const datafileDirPath = path.join(FileSystem.getUserDataPath(), "datafiles");
-    for (let version = 1; version <= Number(packageJson.config["scheme_version"]); version++) {
-      const base = path.join(datafileDirPath, "v" + version, `user-${userId}.sqlite3`);
+    const bases = [path.join(datafileDirPath, "sync-v2", "user-" + encodeURIComponent(userId) + ".sqlite3")];
+    for (let version = 1; version <= Number(packageJson.config["scheme_version"]); version++)
+      bases.push(path.join(datafileDirPath, "v" + version, `user-${userId}.sqlite3`));
+    for (const base of bases) {
       for (const file of [base, base + "-wal", base + "-shm", base + "-journal"]) {
         try { fs.rmSync(file, { force: true, maxRetries: 5, retryDelay: 100 }); } catch {}
       }
-    }
-  }
-
-  /**
-   * @param userId {string}
-   * @returns {Number}
-   */
-  doesLegacyDatabaseExists(userId) {
-    const rootSchemeVersion = "v" + packageJson.config["root_scheme_version"];
-    const latestSchemeVersionPostfix = packageJson.config["scheme_version"];
-    const userDataPath = FileSystem.getUserDataPath();
-    const datafileDirPath = path.join(userDataPath, "datafiles");
-
-    if (rootSchemeVersion !== "v1") {
-      console.warn(
-        `Elder version of database scheme doesn't support migration. (current: ${rootSchemeVersion}, target: v1)`
-      );
-      return 0;
-    }
-
-    // find most latest legacy database
-    for (let i = latestSchemeVersionPostfix - 1; i >= 1; i--) {
-      const schemeVersion = "v" + i;
-      let legacyDatabaseFilePath = path.join(
-        datafileDirPath,
-        schemeVersion,
-        `user-${userId}.sqlite3`
-      );
-
-      if (fs.existsSync(legacyDatabaseFilePath)) {
-        return i;
-      }
-    }
-
-    return 0;
-  }
-
-  async truncateLegacyDatabase(userId, version) {
-    const rootSchemeVersion = "v" + packageJson.config["root_scheme_version"];
-    const schemeVersion = "v" + version;
-    const userDataPath = FileSystem.getUserDataPath();
-    let datafileDirPath = path.join(userDataPath, "datafiles");
-
-    if (rootSchemeVersion !== "v1") {
-      console.warn(
-        `Elder version of database scheme doesn't support migration. (current: ${rootSchemeVersion}, target: v1)`
-      );
-      throw new Error(
-        "Elder version of database scheme doesn't support migration."
-      );
-    }
-
-    let legacyDatabaseFilePath = path.join(
-      datafileDirPath,
-      schemeVersion,
-      `user-${userId}.sqlite3`
-    );
-
-    if (fs.existsSync(legacyDatabaseFilePath)) {
-      fs.renameSync(legacyDatabaseFilePath, legacyDatabaseFilePath + ".bak");
     }
   }
 }

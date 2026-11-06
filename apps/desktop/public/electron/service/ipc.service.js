@@ -21,15 +21,6 @@ class IpcService extends IpcRouter {
     /** @type {UserService} */
     this.userService = null;
 
-    /** @type {SyncerService} */
-    this.syncerService = null;
-
-    /** @type {WebsocketService} */
-    this.websocketService = null;
-
-    /** @type {ExecutorService} */
-    this.executorService = null;
-
     // Updater subscriptions must work before the main window IPC is configured.
     this.register("system/subscribe", (event, _reqId, _claimedId, topics) => {
       const role = this.windowService.trustedWindows.get(event.sender.id);
@@ -46,54 +37,9 @@ class IpcService extends IpcRouter {
     this.windowService = group.windowService;
     this.databaseService = group.databaseService;
     this.userService = group.userService;
-    this.syncerService = group.syncerService;
-    this.websocketService = group.websocketService;
-    this.executorService = group.executorService;
-    this.syncV2Service = group.syncV2Service;
     this.releaseAlertService = group.releaseAlertService;
     this.remindersService = group.remindersService;
     this.vaultWorkspaceService = group.vaultWorkspaceService;
-  }
-
-  /**
-   * @returns {Promise<DatabaseContext>}
-   */
-  async getUserDatabaseContext() {
-    const userId = this.userService.getCurrent();
-    if (userId == null) throw new Error("User ID is null");
-    return await this.databaseService.getUserDatabaseContext(userId);
-  }
-
-  async getUserLastLocalBlockNumber() {
-    const userId = this.userService.getCurrent();
-    if (userId == null) throw new Error("User ID is null");
-    const syncerContext = await this.syncerService.getUserSyncerContext(userId);
-    return await syncerContext.getLocalLastBlockNumber();
-  }
-
-  async getUserLastRemoteBlockNumber() {
-    const userId = this.userService.getCurrent();
-    if (userId == null) throw new Error("User ID is null");
-    const syncerContext = await this.syncerService.getUserSyncerContext(userId);
-    return await syncerContext.getRemoteLastBlockNumber();
-  }
-
-  /**
-   * @returns {Promise<WebsocketContext>}
-   */
-  async getUserWebsocketContext() {
-    const userId = this.userService.getCurrent();
-    if (userId == null) throw new Error("User ID is null");
-    return await this.websocketService.getUserWebsocketContext(userId);
-  }
-
-  /**
-   * @returns {Promise<SyncerContext>}
-   */
-  async getUserSyncerContext() {
-    const userId = this.userService.getCurrent();
-    if (userId == null) throw new Error("User ID is null");
-    return await this.syncerService.getUserSyncerContext(userId);
   }
 
   register(topic, callback, ...arg) {
@@ -116,7 +62,6 @@ class IpcService extends IpcRouter {
       }
       try {
         if (await this.vaultWorkspaceService?.interceptApplication(topic, reqId, arg)) return;
-        if (await this.syncV2Service?.intercept(topic, reqId, arg)) return;
         return await originalCallback(event, reqId, ...arg);
       } catch (err) {
         console.error("IPC_HANDLER_FAILED", err);

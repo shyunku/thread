@@ -1,6 +1,7 @@
 const {randomUUID}=require("node:crypto");
-const {entityLists}=require("../sync-v2/entities");
-const {identity}=require("../sync-v2/replica"),{ApplicationAdapter}=require("./applicationAdapter");
+const {ApplicationAdapter}=require("./applicationAdapter");
+const {entityLists}=require("@thread/e2ee/src/model/entities");
+const {identity}=require("@thread/e2ee/src/model/optimistic");
 function restoreCopies(replica,source,backupId){
  return replica.store.transaction(db=>{
   const marker="$restored-backup-copies-"+backupId,prior=db.get("recovery",marker);

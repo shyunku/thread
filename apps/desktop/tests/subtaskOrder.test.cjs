@@ -1,9 +1,9 @@
-const {test}=require("node:test"),assert=require("node:assert/strict"),fs=require("node:fs"),os=require("node:os"),path=require("node:path"),Module=require("node:module");
+const {test}=require("node:test"),assert=require("node:assert/strict"),fs=require("node:fs"),os=require("node:os"),path=require("node:path");
 const {EncryptedStore}=require("../public/electron/e2ee/localStore"),{EncryptedReplica}=require("../public/electron/e2ee/replica");
 const {ApplicationAdapter}=require("../public/electron/e2ee/applicationAdapter");
 require("../public/electron/e2ee/platform");
 const {optimistic,identity,compareSubtasks}=require("@thread/e2ee/src/model/optimistic");
-const {entityLists,expand}=require("../public/electron/sync-v2/entities");
+const {entityLists,expand}=require("@thread/e2ee/src/model/entities");
 
 // Synthetic local vault; no network, no user data.
 function adapter(t){
@@ -189,30 +189,9 @@ test("compareSubtasks orders listed rows like entityLists",()=>{
  assert.deepEqual([...rows].sort(compareSubtasks).map(row=>row.sid),["first","second","bad","early","late"]);
 });
 
-test("plaintext v2 never queues a subtask move",async()=>{
- const original=Module._load;
- Module._load=function(request,parent,...rest){
-  if(parent?.filename.endsWith("sync-v2"+path.sep+"service.js")){
-   if(request==="../modules/filesystem")return {getUserDataPath:()=>os.tmpdir()};
-   if(request==="../modules/util")return {getServerFinalEndpoint:()=>"http://fixture/v1"};
-  }
-  return original.call(this,request,parent,...rest);
- };
- let SyncV2Service;
- try{({SyncV2Service}=require("../public/electron/sync-v2/service"));}finally{Module._load=original;}
- const events=[],queued=[],service=new SyncV2Service();
- service.inject({userService:{getCurrent:()=>"fixture"},ipcService:{sender:(...event)=>events.push(event)}});
- service.sessions.set("fixture",{uid:"fixture",connected:false,replica:{
-  enqueue:async change=>{queued.push(change);return "change-"+queued.length;},
-  view:async()=>({rows:[],pending:[],epoch:null}),meta:async()=>undefined}});
- assert.equal(await service.intercept("task/updateSubtaskOrder","move",["t","a","b",true]),true);
- assert.equal(queued.length,0);
- assert.deepEqual(events.find(e=>e[0]==="task/updateSubtaskOrder"),["task/updateSubtaskOrder","move",false,{syncV2Ack:true,code:"UNSUPPORTED_V2_ACTION"}]);
-});
-
-test("the subtask move is allowed through the preload and refused by the legacy path",()=>{
+test("the subtask move is allowed through the preload and refused without an open vault",()=>{
  const contract=require("../public/electron/modules/preload");
  assert.ok(contract.REQUEST_TOPICS.includes("task/updateSubtaskOrder"));
  const source=fs.readFileSync(path.join(__dirname,"../public/electron/configures/ipc.config.js"),"utf8");
- assert.match(source,/"task\/updateSubtaskOrder",[\s\S]*UNSUPPORTED_LEGACY_ACTION/);
+ assert.match(source,/"task\/updateSubtaskOrder",[\s\S]*E2EE_APPLICATION_REQUIRED/);
 });
