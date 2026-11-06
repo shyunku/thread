@@ -10,6 +10,7 @@ const stages=[
  ["lock","setup",lock,/1\/5 · 잠금 방법[\s\S]*Windows Hello로 설정/],
  ["lock-password","setup",[...lock,"^Windows Hello + 비밀번호"],/비밀번호 확인/],
  ["file","setup",file,/2\/5 · 복구 파일[\s\S]*파일 저장/],
+ ["file-back","setup",[...file,"이전"],/잠금 방법\s*\(끝남\)[\s\S]*복구 파일[\s\S]*시작하기/],
  ["file-saved","setup",saved,/복구 파일을 저장했어요[\s\S]*다른 곳에 또 저장/],
  ["code","setup",code,/3\/5 · 복구 코드[\s\S]*THREAD1-F52B8\*/],
  ["code-copied","setup",copied,/복사됨/],
@@ -19,6 +20,8 @@ const stages=[
  ["resume","resume",["시작하기"],/준비 끝/],
  ["unlock","unlock",[],/Windows Hello/],
  ["connect","connect",[],/이 기기에서 데이터 열기/],
+ // Settings > data with an unlocked vault (the pre-#75 "보관함 열기" step no longer exists).
+ ["settings","settings",[],/데이터[\s\S]*복구 키[\s\S]*백업과 복구/,[[1000,800]]],
 ];
 const sizes=[[528,820],[360,500]];
 async function step(w,action){
@@ -31,7 +34,7 @@ async function step(w,action){
 }
 app.whenReady().then(async()=>{
  let count=0;
- for(const [width,height] of sizes)for(const [name,stage,actions,expected] of stages){
+ for(const [name,stage,actions,expected,only] of stages)for(const [width,height] of only||sizes){
   const w=new BrowserWindow({show:false,width,height,useContentSize:true,webPreferences:{offscreen:true,nodeIntegration:false,contextIsolation:true,sandbox:true}});
   await w.loadFile(path.join(output,"index.html"),{query:{stage}});
   await new Promise(resolve=>setTimeout(resolve,350));
@@ -46,7 +49,7 @@ app.whenReady().then(async()=>{
    const outline=await w.webContents.executeJavaScript("(()=>{const input=document.querySelector('.gate-step input');input.focus();return getComputedStyle(input).outlineStyle;})()");
    assert.equal(outline,"none",name+" focused input outline");
   }
-  const layout=await w.webContents.executeJavaScript("({viewport:innerWidth,root:document.documentElement.scrollWidth,overflow:[...document.querySelectorAll('.application-gate__card,.gate-step__body,.gate-start')].filter(e=>e.scrollWidth>e.clientWidth+1).map(e=>({name:e.className,scroll:e.scrollWidth,client:e.clientWidth}))})");
+  const layout=await w.webContents.executeJavaScript("({viewport:innerWidth,root:document.documentElement.scrollWidth,overflow:[...document.querySelectorAll('.application-gate__card,.gate-step__body,.gate-start,.data-settings')].filter(e=>e.scrollWidth>e.clientWidth+1).map(e=>({name:e.className,scroll:e.scrollWidth,client:e.clientWidth}))})");
   fs.writeFileSync(path.join(output,name+"-"+width+".png"),(await w.webContents.capturePage()).toPNG());
   assert.equal(layout.root>layout.viewport||layout.overflow.length>0,false,name+" horizontal overflow: "+JSON.stringify(layout));w.destroy();count++;
  }

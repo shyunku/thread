@@ -170,11 +170,19 @@
     display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%;
     background: #252c3a; color: #edf1f7; font-size: 12px; font-weight: 700;
   }
+  li.done { color: #8792a4; }
+  li.done::before { content: "✓"; background: #1b3328; color: #70d5a0; }
+  li.here { color: #edf1f7; }
+  li.here::before { background: #6294ff; color: #0b1222; }
+}
+
+.application-gate .gate-sr {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
 }
 
 .application-gate .gate-step {
   .gate-sub { margin: 0 0 14px; color: #8792a4; font-size: 12.5px; }
-  .gate-ok { margin: 0 0 12px; font-size: 13px; }
+  .gate-ok--compact { font-size: 13px; }
 }
 
 .application-gate .gate-file {

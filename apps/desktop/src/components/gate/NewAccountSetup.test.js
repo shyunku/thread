@@ -227,3 +227,76 @@ test("signing in with another account clears this device's login", async () => {
   expect(IpcSender.req.auth.deleteAuthInfoSync).toHaveBeenCalledWith("u1");
   expect(store.getState().account.account.uid).toBeFalsy();
 });
+
+test("a recovery code that fails to load shows an error and can be loaded again", async () => {
+  let attempts = 0;
+  vault({ recoveryCodePreview: reply("recoveryCodePreview", () => (++attempts === 1 ? Error("RECOVERY_REFRESH_REQUIRED") : PREVIEW)) });
+  await renderSetup();
+  await click("시작하기");
+  await click("Windows Hello로 설정");
+  await click("파일 저장");
+  await click("다음");
+  expect(screen.getByRole("alert")).toHaveTextContent("복구 코드를 불러오지 못했어요");
+  expect(screen.getByRole("button", { name: "복구 코드 복사" })).toBeDisabled();
+  await click("다시 시도");
+  expect(screen.getByText(PREVIEW)).toBeInTheDocument();
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  await click("복구 코드 복사");
+  expect(screen.getByRole("button", { name: "적어 뒀어요" })).toBeEnabled();
+});
+
+test("right after the lock is made, going back resumes at the file step without reading status again", async () => {
+  let reads = 0;
+  vault();
+  const status = IpcSender.vault.status;
+  IpcSender.vault.status = (cb) => (++reads === 1 ? status(cb) : calls.push(["status"])); // later reads never answer
+  await renderSetup();
+  await click("시작하기");
+  await click("Windows Hello로 설정");
+  expect(screen.getByRole("heading", { name: "복구 파일 저장" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "파일 저장" })).toBeEnabled();
+  await click("이전");
+  const items = screen.getAllByRole("listitem");
+  expect(items[0]).toHaveClass("done");
+  expect(items[1]).toHaveClass("here");
+  await click("시작하기");
+  expect(screen.getByRole("heading", { name: "복구 파일 저장" })).toBeInTheDocument();
+  expect(names().filter((name) => name === "create")).toHaveLength(1);
+});
+
+test("an unreadable status after the lock offers a retry on the file step", async () => {
+  let reads = 0;
+  const answers = [{ uid: "u1", enabled: true, phase: "ABSENT", osAvailable: true }, Error("VAULT_ACTION_FAILED"), { uid: "u1", enabled: true, phase: "UNLOCKED", osAvailable: true }];
+  // create answers nothing here, so the file step has to read status itself; that read fails once.
+  vault({ create: reply("create", null), status: reply("status", () => answers[Math.min(reads++, 2)]) });
+  await renderSetup();
+  await click("시작하기");
+  await click("Windows Hello로 설정");
+  expect(screen.getByRole("heading", { name: "복구 파일 저장" })).toBeInTheDocument();
+  expect(screen.getByRole("alert")).toHaveTextContent("복구 자료를 준비하지 못했어요");
+  await click("다시 시도");
+  expect(screen.getByRole("button", { name: "파일 저장" })).toBeEnabled();
+  expect(names().filter((name) => name === "status")).toHaveLength(3);
+  expect(names().filter((name) => name === "prepareIdentity")).toHaveLength(1);
+});
+
+test("Enter submits the recovery code and the lock password", async () => {
+  vault();
+  await renderSetup();
+  await click("시작하기");
+  await act(async () => { fireEvent.click(screen.getByRole("radio", { name: /비밀번호/ })); });
+  fireEvent.change(document.getElementById("gate-lock-password"), { target: { value: "synthetic-pass-12" } });
+  fireEvent.change(document.getElementById("gate-lock-confirm"), { target: { value: "synthetic-pass-12" } });
+  await act(async () => { fireEvent.submit(document.getElementById("gate-lock-password").form); });
+  expect(calls).toContainEqual(["create", "synthetic-pass-12"]);
+  await click("파일 저장");
+  await click("다음");
+  await click("복구 코드 복사");
+  await click("적어 뒀어요");
+  const input = screen.getByPlaceholderText("THREAD1-…");
+  expect(input).toHaveFocus();
+  typeCode("SYNTHETIC-CODE");
+  await act(async () => { fireEvent.submit(input.form); });
+  expect(calls).toContainEqual(["confirmRecovery", "SYNTHETIC-CODE"]);
+  expect(screen.getByRole("heading", { name: "준비 끝" })).toBeInTheDocument();
+});
