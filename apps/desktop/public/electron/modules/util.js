@@ -1,4 +1,3 @@
-const Constants = require("./constants");
 const ArchCategory = require("../constants/ArchCategory.constants");
 const isBuildMode = !process.env.ELECTRON_START_URL;
 const PackageJson = require("../../../package.json");
@@ -43,20 +42,6 @@ function shorten(obj, maxLength = 100) {
     return str.substring(0, maxLength) + "...";
   }
   return str;
-}
-
-function registerSocketLogger(socket) {
-  const originalOn = socket.on, originalEmit = socket.emit;
-  socket.on = function (topic, callback, ...options) {
-    return originalOn.call(socket, topic, function (...args) {
-      if (!Constants.SocketSilentTopics.includes(topic)) console.system("SOCKET_RECEIVED");
-      return callback.apply(this, args);
-    }, ...options);
-  };
-  socket.emit = function (topic, ...args) {
-    if (!Constants.SocketSilentTopics.includes(topic)) console.system("SOCKET_SENT");
-    return originalEmit.call(socket, topic, ...args);
-  };
 }
 
 function getSystemArchCategory() {
@@ -108,7 +93,6 @@ const reqIdTag = (reqId) => {
 };
 
 module.exports = {
-  registerSocketLogger,
   isProductionMode,
   getSystemArchCategory,
   getSystemArchitectureLabel,

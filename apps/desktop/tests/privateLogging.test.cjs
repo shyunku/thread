@@ -31,6 +31,5 @@ test("secure IPC main logs omit request, response and exception payloads",async(
  await callbacks.get("fixture/action")({sender:{id:1}},"req",{title:secret});
  service.sender("fixture/action","req",true,{title:secret});
  service.emiter("fixture/action","req",{title:secret});
- service.fastSender("fixture/action",{code:200,data:secret});
  assert.equal(JSON.stringify(logs).includes(secret),false);
 });

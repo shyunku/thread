@@ -1,7 +1,6 @@
 const { reqIdTag } = require("../modules/util");
 const { ipcMain } = require("electron");
 const IpcRouter = require("../objects/IpcRouter");
-const Request = require("../core/request");
 const { isTrustedEvent, canRequest, canSubscribe } = require("../modules/windowSecurity");
 
 const COLOR = console.RGB(78, 119, 138);
@@ -168,42 +167,7 @@ class IpcService extends IpcRouter {
     );
   }
 
-  fastSender(topic, socketResponse) {
-    let success = socketResponse.code === Request.ok;
-    let data = socketResponse
-      ? success
-        ? socketResponse.data
-        : socketResponse.code
-      : null;
-
-    let packagedData = { success, data };
-    let sendeeCount = this.broadcast(topic, null, packagedData);
-
-    if (silentTopics.includes(topic)) return;
-    console.system(
-      `${TAG} ${console.wrap(
-        `--${reqIdTag("NIL")}->`,
-        console.CYAN
-      )} ${console.wrap(topic, console.MAGENTA)} ${console.wrap(
-        `(${sendeeCount})`,
-        console.BLUE
-      )}`
-    );
-  }
-
   silentSender(topic, success, data) {
-    let packagedData = { success, data };
-    this.broadcast(topic, null, packagedData);
-  }
-
-  fastSilentSender(topic, socketResponse) {
-    let success = socketResponse.code === Request.ok;
-    let data = socketResponse
-      ? success
-        ? socketResponse.data
-        : socketResponse.code
-      : null;
-
     let packagedData = { success, data };
     this.broadcast(topic, null, packagedData);
   }

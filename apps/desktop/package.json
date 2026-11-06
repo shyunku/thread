@@ -70,7 +70,6 @@
     "redux-persist": "6.0.0",
     "sass": "1.58.3",
     "sha256": "0.2.0",
-    "socket.io-client": "4.6.0",
     "sqlite3": "5.1.4",
     "tuf-js": "6.0.0",
     "uuid": "9.0.0",
