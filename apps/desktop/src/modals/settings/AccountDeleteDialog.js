@@ -25,7 +25,7 @@ const callDelete = (input) => new Promise((resolve) => {
   IpcSender.vault.deleteAccount(input, ({ success, data } = {}) => resolve(success ? data : { deleted: false, code: data?.code || "VAULT_ACTION_FAILED" }));
 });
 
-// 계정 삭제 confirmation (#92, docs/designs/account-delete-mock.html frame ②): what goes,
+// 계정 삭제 confirmation (#92, docs/designs/pc-2.4.1-account-delete-mock.html frame ②): what goes,
 // a backup hint, the "이해했어요" check, then the identity check that unlocks this PC
 // (Windows Hello, or the vault password) right before the server deletes the account.
 export default function AccountDeleteDialog({ account, onBackup, onDeleted, onClose }) {
