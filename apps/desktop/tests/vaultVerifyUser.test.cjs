@@ -50,7 +50,7 @@ test("verifyUser falls back to the vault password when OS auth is not available"
  assert.equal((await s.verifyUser({})).code,"PASSWORD_REJECTED");
  assert.equal((await s.verifyUser({method:"os"})).code,"OS_AUTH_UNAVAILABLE");
  // Still unlocked and usable after a wrong password.
- assert.deepEqual(s.intakes(),[]);
+ assert.deepEqual(s.outboxReviews(),{items:[],next:"",more:false});
 });
 
 test("a password vault with OS auth verifies with OS auth by default and the password on request",async t=>{

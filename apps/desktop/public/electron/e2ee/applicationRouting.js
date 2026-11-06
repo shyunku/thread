@@ -28,7 +28,6 @@ function drainMutations(service){
 // Applies one mutation and answers it; throws when it cannot (the caller answers the error).
 function applyMutation(service,entry,topic,reqId,args){
  if(service.active!==entry||entry.uid!==service.runtime().getAccount())throw Error("VAULT_SESSION_CHANGED");
- if(entry.migrationActive)throw Error("MIGRATION_IN_PROGRESS");
  if(!entry.applicationActive)throw Error("VAULT_SESSION_CHANGED");
  const result=entry.controller.use(store=>{
   const {EncryptedReplica}=require("./replica"),meta=store.get("confirmed","$sync-state");
@@ -40,10 +39,6 @@ function applyMutation(service,entry,topic,reqId,args){
 }
 async function intercept(service,topic,reqId,args){
  const entry=service.active,ipc=service.group?.ipcService;
- if(entry?.migrationActive&&entry.uid===service.runtime().getAccount()&&ipc&&
-  (mutationTopics.has(topic)||reads[topic]||blocked.has(topic)||passive.has(topic)||/^(task|category|tasks_categories|sync-v2|socket)\//.test(topic)||["system/stateListenReady","system/isDatabaseClear"].includes(topic))){
-  ipc.sender(topic,reqId,false,{code:"MIGRATION_IN_PROGRESS"});return true;
- }
  if(!entry?.applicationActive||entry.uid!==service.runtime().getAccount()||!ipc)return false;
  const supported=mutationTopics.has(topic)||reads[topic]||blocked.has(topic)||passive.has(topic)||["socket/connect","socket/disconnect","category/getCategoryTasks","system/isDatabaseClear","system/stateListenReady","sync-v2/getStatus","sync-v2/retry"].includes(topic);
  const handled=supported||/^(task|category|tasks_categories)\//.test(topic);
@@ -124,7 +119,7 @@ function publish(service,entry,{force=false}={}){
 // model as its own name when the vault has none for it. Returns true when a change was queued.
 function ensureOwnName(service,entry){
  if(entry.ownNameChecked||!require("@thread/e2ee/src/model/deviceNames").writable())return false;
- if(service.active!==entry||!entry.applicationActive||entry.migrationActive||!entry.sync)return false;
+ if(service.active!==entry||!entry.applicationActive||!entry.sync)return false;
  entry.ownNameChecked=true;
  const {ownNameMutation}=require("@thread/e2ee/src/model/deviceNames"),{pcModel}=require("./rotationWorkspace");
  const engine=entry.sync.engine,deviceId=engine.deviceId,role=engine.history.current.devices.get(deviceId)?.role;

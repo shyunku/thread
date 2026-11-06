@@ -1,5 +1,5 @@
 // Main-process only. VaultSession must authenticate before opening user data.
-// isPreparationOnly is a closed, read-only routing probe: no session or data escapes.
+// hasApplicationMarker is a closed, read-only routing probe: no session or data escapes.
 // Never migrate, regenerate a missing key, reset, or delete an existing vault. The one
 // exception is destroy(), only after the server has deleted the account (#92).
 const fs = require("node:fs");
@@ -91,13 +91,6 @@ class LocalVault {
       if (error.code === "ENOENT") throw Error("VAULT_RECOVERY_REQUIRED");
       throw error;
     } finally { key?.fill(0); }
-  }
-  isPreparationOnly() {
-    let store;
-    try {
-      store = this.#open(true);
-      return require("./applicationBootstrap").preparationOnly(store);
-    } finally { store?.close(); }
   }
   hasApplicationMarker() {
     let store;

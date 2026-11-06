@@ -31,7 +31,7 @@ app.whenReady().then(async () => {
   const baseDirectory = path.join(temp, "vaults");
   const vault = new LocalVault({ baseDirectory, scope: vaultScope, protector });
   vault.create();
-  assert.equal(vault.isPreparationOnly(),true);
+  assert.equal(vault.hasApplicationMarker(),false);
   let encryptedStore = vault.open();
   encryptedStore.put("outbox", "fixture", { title: "SYNTHETIC_DPAPI_VAULT_DATA" });
   encryptedStore.close();

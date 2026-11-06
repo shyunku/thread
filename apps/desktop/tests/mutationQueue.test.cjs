@@ -18,14 +18,13 @@ async function workspace(t){
  const saved=s.context().controller.use(store=>store.get("recovery","$owner-identity")),vaultId=s.context().controller.use(store=>store.scope().vaultId),accepted=[];
  deps.transport={
   accountStatus:async()=>({vaultId,accountMode:"e2ee",vaultMode:"active",epoch:"1",revision:0,keyGeneration:1,head:saved.fingerprint}),
-  legacyCapabilities:async()=>{throw Error("MUST_NOT_USE_V2");},
   membership:async()=>({genesis:p.encode(saved.genesis).toString("base64"),head:{vaultId,revision:0,digest:saved.fingerprint},records:[],next:0,more:false}),
   snapshot:async()=>({id:"00000000-0000-0000-0000-000000000001",epoch:"1",seq:"0",membershipHead:saved.fingerprint,count:0,digest:createHash("sha256").digest("hex")}),
   snapshotPage:async()=>({objects:[],next:"",more:false}),
   pull:async proof=>{const target=proof.body.parameters.until==="0"?String(accepted.length):proof.body.parameters.until;return {changes:accepted.slice(Number(proof.body.parameters.after),Number(target)),next:target,until:target,more:false};},
   push:async record=>{const result={seq:String(accepted.length+1),versions:Object.fromEntries(record.body.operations.map(op=>[op.objectId,String(BigInt(op.baseVersion)+1n)]))};accepted.push({record:p.encode(record).toString("base64"),result});return result;}
  };
- s.inject({userService:{setCurrent:()=>{}},ipcService:{sender:(...event)=>events.push(event)},syncV2Service:{sessions:new Map(),file:()=>path.join(dir,"missing-v2")}});
+ s.inject({userService:{setCurrent:()=>{}},ipcService:{sender:(...event)=>events.push(event)}});
  assert.deepEqual(await s.bootstrap("fixture"),{mode:"E2EE"});
  // Every sync the service starts, to wait for them all at the end.
  const runs=[],sync=s.syncEncrypted.bind(s);

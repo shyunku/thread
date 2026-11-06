@@ -25,10 +25,8 @@ test("actual workspace creation, password reopen, lock and account isolation pre
  assert.equal((await s.create("synthetic test password")).phase,"LOCKED");
  await assert.rejects(s.create("synthetic test password"),/EXISTS/);
  assert.equal((await s.unlock("password","synthetic test password")).phase,"UNLOCKED");
- assert.deepEqual(s.intakes(),[]);
  assert.deepEqual(s.outboxReviews(),{items:[],next:"",more:false});
- f.power.emit("lock-screen");assert.throws(()=>s.intakes(),/LOCKED/);
- assert.throws(()=>s.outboxReviews(),/LOCKED/);
+ f.power.emit("lock-screen");assert.throws(()=>s.outboxReviews(),/LOCKED/);
  assert.throws(()=>s.outboxDetail({id:"0".repeat(32),objectId:"task"}),/LOCKED/);
  assert.throws(()=>s.resolveConflict({}),/LOCKED/);
  s.busy=true;assert.throws(()=>s.resolveConflict({}),/VAULT_BUSY/);s.busy=false;
@@ -42,7 +40,7 @@ test("actual workspace creation, password reopen, lock and account isolation pre
  f.switchAccount("fixture");assert.equal((await s.status()).phase,"LOCKED");
  assert.equal((await s.unlock("password","synthetic test password")).phase,"UNLOCKED");
  f.window.webContents.emit("render-process-gone");
- assert.throws(()=>s.intakes(),/LOCKED/);
+ assert.throws(()=>s.outboxReviews(),/LOCKED/);
 });
 test("OS-only creation requires authentication and never creates a password envelope",async t=>{
  const f=fixture(t),s=f.service;let allowed=false;
@@ -57,7 +55,7 @@ test("OS-only creation requires authentication and never creates a password enve
 });
 test("new v3 account cannot enter legacy home before local setup",async t=>{
  const f=fixture(t),s=f.service;
- f.deps.transport={accountStatus:async()=>({accountMode:"e2ee_pending",vaultMode:"uninitialized"}),legacyCapabilities:async()=>{throw Error("V2_PROBE_FORBIDDEN");}};
+ f.deps.transport={accountStatus:async()=>({accountMode:"e2ee_pending",vaultMode:"uninitialized"})};
  assert.deepEqual(await s.bootstrap("fixture"),{mode:"NEW_ACCOUNT_SETUP"});
  await s.create("synthetic test password");
  await s.unlock("password","synthetic test password");
@@ -104,7 +102,7 @@ test("late OS authentication cannot reopen a switched account; explicit disabled
  await assert.rejects(f.service.create("synthetic test password"),/NOT_ENABLED/);
 });
 
-test("application bootstrap reopens pinned E2EE offline after restart and never probes legacy",async t=>{
+test("application bootstrap reopens pinned E2EE offline after restart without the network",async t=>{
  const f=fixture(t),s=f.service,{pinApplication}=require("../public/electron/e2ee/applicationBootstrap"),{EncryptedReplica}=require("../public/electron/e2ee/replica");
  await s.create("synthetic test password");await s.unlock("os");
  s.context().controller.use(store=>{
@@ -113,101 +111,47 @@ test("application bootstrap reopens pinned E2EE offline after restart and never 
  });
  s.reset();assert.deepEqual(await s.bootstrap("fixture"),{mode:"LOCKED"});
  await s.unlock("password","synthetic test password");
- f.deps.transport={accountStatus:async()=>{throw Error("MUST_NOT_FETCH");},legacyCapabilities:async()=>{throw Error("MUST_NOT_FETCH");}};
+ f.deps.transport={accountStatus:async()=>{throw Error("MUST_NOT_FETCH");}};
  assert.deepEqual(await s.bootstrap("fixture"),{mode:"E2EE"});
  assert.equal(s.active.applicationActive,true);assert.ok(s.active.poller);
  s.lock();assert.equal(s.active.poller,null);assert.deepEqual(await s.bootstrap("fixture"),{mode:"LOCKED"});
 });
-test("bootstrap refuses v2 without migration and unknown or changed modes",async t=>{
+test("bootstrap refuses v2, unknown or changed modes",async t=>{
  const f=fixture(t),s=f.service;
- f.deps.transport={accountStatus:async()=>{throw Error("SYNC_UNAVAILABLE");},legacyCapabilities:async()=>({mode:"v2",protocolVersion:2,enabled:true})};
- await assert.rejects(s.bootstrap("fixture"),/MIGRATION_UNAVAILABLE/);assert.equal(fs.readdirSync(f.dir).length,0);
- f.deps.transport.legacyCapabilities=async()=>{throw Error("UPDATE_REQUIRED");};
- assert.deepEqual(await s.bootstrap("fixture"),{mode:"MIGRATION_REQUIRED"});
- f.deps.transport.legacyCapabilities=async()=>{throw Error("SYNC_UNAVAILABLE");};
+ f.deps.transport={accountStatus:async()=>{throw Error("SYNC_UNAVAILABLE");}};
+ await assert.rejects(s.bootstrap("fixture"),/APPLICATION_MODE_UNAVAILABLE/);assert.equal(fs.readdirSync(f.dir).length,0);
+ f.deps.transport.accountStatus=async()=>({accountMode:"v2",vaultMode:"pending"});
  await assert.rejects(s.bootstrap("fixture"),/APPLICATION_MODE_UNAVAILABLE/);
  f.deps.transport.accountStatus=async()=>({accountMode:"e2ee",vaultMode:"active"});
  assert.deepEqual(await s.bootstrap("fixture"),{mode:"SETUP_REQUIRED"});
  f.deps.transport.accountStatus=async()=>({accountMode:"v2"});
- f.deps.transport.legacyCapabilities=async()=>({mode:"v2",protocolVersion:2,enabled:true,migrationAvailable:true});
  await assert.rejects(s.bootstrap("fixture"),/APPLICATION_MODE_CHANGED/);
 });
-test("prepared vault enters locked migration without authentication or opening v2",async t=>{
+test("a locked vault answers LOCKED without authentication, network or writes",async t=>{
  const f=fixture(t),s=f.service;
  await s.create("synthetic test password");s.reset();
  f.deps.osAuth.verify=async()=>{throw Error("MUST_NOT_AUTHENTICATE");};
- f.deps.transport={accountStatus:async()=>({accountMode:"v2",vaultMode:"pending"}),legacyCapabilities:async()=>({mode:"v2",protocolVersion:2,enabled:true,migrationAvailable:true})};
+ f.deps.transport={accountStatus:async()=>{throw Error("MUST_NOT_FETCH");}};
  const db=path.join(f.dir,fs.readdirSync(f.dir)[0],"vault.db"),before=fs.readFileSync(db);
- assert.deepEqual(await s.bootstrap("fixture"),{mode:"LOCKED",migrationPending:true});
- assert.equal(s.active.unlocked,false);assert.throws(()=>s.intakes(),/LOCKED/);
+ assert.deepEqual(await s.bootstrap("fixture"),{mode:"LOCKED"});
+ assert.equal(s.active.unlocked,false);assert.throws(()=>s.outboxReviews(),/LOCKED/);
  assert.deepEqual(fs.readFileSync(db),before);
- s.lock();assert.deepEqual(await s.bootstrap("fixture"),{mode:"LOCKED",migrationPending:true});
-});
-
-test("prepared vault refuses old v2 server and fails closed on unreadable metadata",async t=>{
- const f=fixture(t),s=f.service;await s.create("synthetic test password");s.reset();
- f.deps.transport={accountStatus:async()=>{throw Error("NOT_FOUND");},legacyCapabilities:async()=>({mode:"v2",protocolVersion:2,enabled:true})};
- await assert.rejects(s.bootstrap("fixture"),/MIGRATION_UNAVAILABLE/);
  f.deps.protector.unprotect=()=>{throw Error("KEY_UNAVAILABLE");};
  assert.deepEqual(await s.bootstrap("fixture"),{mode:"LOCKED"});
-});
-
-test("migration journal or encrypted replica blocks locked v2 fallback after restart",async t=>{
- const f=fixture(t),s=f.service;await s.create("synthetic test password");await s.unlock("os");
- s.context().controller.use(store=>require("../public/electron/e2ee/applicationMigration").stateFor(store).begin("fixture-migration"));
- s.reset();f.deps.transport={accountStatus:async()=>{throw Error("MUST_NOT_PROBE");}};
- assert.deepEqual(await s.bootstrap("fixture"),{mode:"LOCKED"});
- await s.unlock("os");
- s.context().controller.use(store=>{
-  store.delete("recovery","$e2ee-migration");
-  new (require("../public/electron/e2ee/replica").EncryptedReplica)(store,{vaultId:store.scope().vaultId,deviceId:"fixture",epoch:"1"});
- });
- s.reset();assert.deepEqual(await s.bootstrap("fixture"),{mode:"LOCKED"});
-});
-test("locked pre-migration v2 account receives only a read-only introduction hint",async t=>{
- const f=fixture(t),s=f.service;
- await s.create("synthetic test password");await s.unlock("os");
- s.context().controller.use(store=>require("../public/electron/e2ee/applicationMigration").stateFor(store).begin("fixture-migration"));
- s.reset();
- f.deps.transport={accountStatus:async()=>({accountMode:"v2",vaultMode:"pending"})};
- assert.deepEqual(await s.bootstrap("fixture"),{mode:"LOCKED",migrationPending:true});
- assert.equal(s.active.unlocked,false);
-});
-
-test("cancelled preparation cannot use a preserved offline v2 DB",async t=>{
- const f=fixture(t),s=f.service;await s.create("synthetic test password");await s.unlock("os");
- s.context().controller.use(store=>store.put("recovery","$e2ee-migration",{scope:{vaultId:store.scope().vaultId},phase:"CANCELLED"}));
- s.reset();f.deps.transport={accountStatus:async()=>{throw Error("OFFLINE");},legacyCapabilities:async()=>{throw Error("OFFLINE");}};
- await assert.rejects(s.bootstrap("fixture"),/APPLICATION_MODE_UNAVAILABLE/);
- const oldFile=path.join(f.dir,"synthetic-v2.db");fs.writeFileSync(oldFile,"synthetic-only");
- s.group={userService:{setCurrent:()=>{}},syncV2Service:{file:()=>oldFile}};
- await assert.rejects(s.bootstrap("fixture"),/APPLICATION_MODE_UNAVAILABLE/);
- assert.equal(s.active.unlocked,false);
-});
-
-test("a prepared vault becoming encrypted while the server responds cannot select v2",async t=>{
- const f=fixture(t),s=f.service;await s.create("synthetic test password");
- f.deps.transport={accountStatus:async()=>({accountMode:"v2"}),legacyCapabilities:async()=>{
-  const store=s.context().vault.open();
-  try{store.put("recovery","$application-mode",{schema:1});}finally{store.close();}
-  return {mode:"v2",protocolVersion:2,enabled:true,migrationAvailable:true};
- }};
- await assert.rejects(s.bootstrap("fixture"),/APPLICATION_MODE_CHANGED/);
- assert.equal(s.active.unlocked,false);
 });
 
 test("real bootstrap through the IPC reply boundary accepts initial account selection",async t=>{
  const f=fixture(t),s=f.service;let current=null;
  f.deps.getAccount=()=>current;
- f.deps.transport={accountStatus:async()=>({accountMode:"v2"}),legacyCapabilities:async()=>({mode:"v2",protocolVersion:2,enabled:true,migrationAvailable:true})};
+ f.deps.transport={accountStatus:async()=>({accountMode:"e2ee_pending",vaultMode:"pending"})};
  const group={userService:{getCurrent:()=>current,setCurrent:uid=>{current=uid;}}};s.inject(group);
  const {vaultIpcReply}=require("../public/electron/e2ee/vaultIpcReply");
- assert.deepEqual(await vaultIpcReply(group,"vault/bootstrap",uid=>s.bootstrap(uid),["fixture"]),{success:true,data:{mode:"MIGRATION_REQUIRED",migrationPending:true}});
+ assert.deepEqual(await vaultIpcReply(group,"vault/bootstrap",uid=>s.bootstrap(uid),["fixture"]),{success:true,data:{mode:"NEW_ACCOUNT_SETUP"}});
 });
 
 test("bootstrap cannot pin a late response onto another account",async t=>{
  const f=fixture(t);let finish;
- f.deps.transport={accountStatus:()=>new Promise(resolve=>{finish=resolve;}),legacyCapabilities:async()=>({mode:"v2",protocolVersion:2,enabled:true})};
+ f.deps.transport={accountStatus:()=>new Promise(resolve=>{finish=resolve;})};
  const result=f.service.bootstrap("fixture");f.switchAccount("other");finish({accountMode:"e2ee",vaultMode:"active"});
  await assert.rejects(result,/VAULT_SESSION_CHANGED/);
  assert.equal(f.service.active,null);
@@ -222,14 +166,13 @@ test("real service bootstraps signed E2EE, handles normal CRUD, restarts offline
  const saved=s.context().controller.use(store=>store.get("recovery","$owner-identity")),vaultId=s.context().controller.use(store=>store.scope().vaultId),accepted=[];
  f.deps.transport={
   accountStatus:async()=>({vaultId,accountMode:"e2ee",vaultMode:"active",epoch:"1",revision:0,keyGeneration:1,head:saved.fingerprint}),
-  legacyCapabilities:async()=>{throw Error("MUST_NOT_USE_V2");},
   membership:async()=>({genesis:p.encode(saved.genesis).toString("base64"),head:{vaultId,revision:0,digest:saved.fingerprint},records:[],next:0,more:false}),
   snapshot:async()=>({id:"00000000-0000-0000-0000-000000000001",epoch:"1",seq:"0",membershipHead:saved.fingerprint,count:0,digest:createHash("sha256").digest("hex")}),
   snapshotPage:async()=>({objects:[],next:"",more:false}),
   pull:async proof=>{const target=proof.body.parameters.until==="0"?String(accepted.length):proof.body.parameters.until;return {changes:accepted.slice(Number(proof.body.parameters.after),Number(target)),next:target,until:target,more:false};},
   push:async record=>{await p.verify(saved.device.signing.publicKey,"mutation",record.body,record.signature);const result={seq:String(accepted.length+1),versions:Object.fromEntries(record.body.operations.map(op=>[op.objectId,String(BigInt(op.baseVersion)+1n)]))};accepted.push({record:p.encode(record).toString("base64"),result});return result;}
  };
- s.inject({userService:{setCurrent:()=>{}},ipcService:{sender:(...event)=>events.push(event)},syncV2Service:{sessions:new Map(),file:()=>path.join(f.dir,"missing-v2")}});
+ s.inject({userService:{setCurrent:()=>{}},ipcService:{sender:(...event)=>events.push(event)}});
  assert.deepEqual(await s.bootstrap("fixture"),{mode:"E2EE"});
  assert.equal(await s.interceptApplication("auth/isDatabaseReady","ready",["fixture"]),true);
  assert.ok(events.some(event=>event[0]==="auth/isDatabaseReady"&&event[2]===true&&event[3]===true));

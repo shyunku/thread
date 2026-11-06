@@ -120,30 +120,7 @@ class VaultWorkspaceService{
   check();
   return ok===true?{verified:true,method}:answer(method==="os"?"OS_AUTH_CANCELLED":"PASSWORD_REJECTED");
  }
- intakes(){
-  return this.context().controller.use(store=>{
-   const result=[];let after="";
-   for(;;){const rows=store.entries("recovery",after,256);
-    for(const row of rows)if(/^\$legacy-pending-[a-f0-9]{32}$/.test(row.id)&&row.value.phase==="REVIEW_REQUIRED")result.push({id:row.id.slice(16),count:row.value.count});
-    if(rows.length<256)return result;after=rows.at(-1).id;
-   }
-  });
- }
- reviews(request){return this.context().controller.legacyReviews(request);}
- reconcileLegacy(request){
-  if(this.busy)throw Error("VAULT_BUSY");
-  if(request?.confirmed!==true)throw Error("LEGACY_REVIEW_CONSENT_REQUIRED");
-  const entry=this.context();if(!entry.applicationActive)throw Error("E2EE_APPLICATION_REQUIRED");
-  return entry.controller.use(store=>{
-   const meta=store.get("confirmed","$sync-state");if(!meta)throw Error("SYNC_REQUIRED");
-   const replica=new (require("./replica").EncryptedReplica)(store,meta.scope,{initialize:false});
-   return require("./legacyReconcile").reconcileLegacyPending({replica,id:request.id});
-  });
- }
  bootstrap(uid){return require("./applicationBootstrap").bootstrap(this,uid);}
- chooseMigration(uid){return require("./applicationBootstrap").chooseMigration(this,uid);}
- migrationStatus(){return require("./applicationMigration").status(this);}
- migration(action,input){return require("./applicationMigration").execute(this,action,input);}
  rotation(action,input){return require("./rotationWorkspace").execute(this,action,input);}
  lostRecovery(action,input){return require("./lostRecoveryWorkspace").execute(this,action,input);}
  backup(action,input){return require("./backupWorkspace").execute(this,action,input);}
@@ -153,16 +130,6 @@ class VaultWorkspaceService{
   return entry.controller.use(store=>{
    const meta=store.get("confirmed","$sync-state");if(!meta)throw Error("SYNC_REQUIRED");
    return require("./reencryption").execute(new (require("./replica").EncryptedReplica)(store,meta.scope,{initialize:false}),action,input);
-  });
- }
- legacyManual(action,input){
-  if(this.busy)throw Error("VAULT_BUSY");
-  if(!["review","resolve"].includes(action))throw Error("INVALID_REVIEW_ACTION");
-  const entry=this.context();if(!entry.applicationActive)throw Error("E2EE_APPLICATION_REQUIRED");
-  return entry.controller.use(store=>{
-   const meta=store.get("confirmed","$sync-state");if(!meta)throw Error("SYNC_REQUIRED");
-   const replica=new (require("./replica").EncryptedReplica)(store,meta.scope,{initialize:false});
-   return require("./legacyManual")[action](replica,input);
   });
  }
  interceptApplication(topic,reqId,args){return require("./applicationRouting").intercept(this,topic,reqId,args);}
