@@ -10,6 +10,6 @@ module.exports = {
     '^cborg$': '<rootDir>/node_modules/cborg/cborg.js',
   },
   transformIgnorePatterns: [
-    'node_modules/(?!((jest-)?react-native|@react-native(-community)?|@react-navigation|react-native-screens|react-native-safe-area-context|react-redux|@reduxjs/toolkit|immer|reselect|redux|cborg|@noble/hashes|@noble/ciphers)/)',
+    'node_modules/(?!((jest-)?react-native|@react-native(-community)?|@react-navigation|react-native-screens|react-native-safe-area-context|cborg|@noble/hashes|@noble/ciphers)/)',
   ],
 };

@@ -1,8 +1,7 @@
 const {historyFor}=require("./filePairing"),{validateKeys}=require("./keyTransition");
 const {EncryptedReplica}=require("./replica"),{EncryptedSynchronizer}=require("./synchronize");
 const {refreshSessionKeys}=require("./sessionKeys");
-// migrationJournalFor(store): desktop-only migration journal (null elsewhere).
-async function openSyncSession({store,transport,signal,migrationJournalFor=null}){
+async function openSyncSession({store,transport,signal}){
  if(store.get("recovery","$pending-rotation")?.phase==="COMMITTING")throw Error("ROTATION_RECONCILE_REQUIRED");
  const ready=()=>{if(signal?.aborted)throw Error("SYNC_CANCELLED");store.scope();};
  ready();const state=await transport.accountStatus(signal);ready();
@@ -30,21 +29,16 @@ async function openSyncSession({store,transport,signal,migrationJournalFor=null}
  };
  signal?.addEventListener("abort",close,{once:true});
  try{
-  const journal=migrationJournalFor?.(store)??null,migration=journal?.get();
-  // The journal stays ACTIVE after a migration; once the migrated snapshot has been
-  // installed locally (READY mark) the replica syncs like any other (#98.5).
-  const migrating=migration&&migration.phase!=="CANCELLED"&&
-   !(migration.phase==="ACTIVE"&&store.get("recovery","$migration-local-"+migration.id)?.phase==="READY");
   // A replica that already synced pulls only the changes since its cursor and then
-  // compares its objects with the server's state digest; a first sync, a migration
-  // or a mismatch restores from a full snapshot (#98).
+  // compares its objects with the server's state digest; a first sync or a mismatch
+  // restores from a full snapshot (#98).
   const meta=store.get("confirmed","$sync-state");
   let restored=false;
-  if(!migrating&&meta&&meta.cursor!=="0"){
+  if(meta&&meta.cursor!=="0"){
    ready();await engine.refreshMembership();await engine.pull();ready();
    restored=(await engine.verifyState())!==false;ready();
   }
-  if(!restored){ready();await engine.snapshot(migrating?journal:null);ready();}
+  if(!restored){ready();await engine.snapshot();ready();}
   const latest=await transport.accountStatus(signal);ready();
   if(latest.accountMode!=="e2ee"||latest.vaultMode!=="active"||latest.vaultId!==state.vaultId||latest.epoch!==state.epoch)throw Error("SYNC_STATE_CHANGED");
   return {phase:"ACTIVE",engine,replica,close,epoch:state.epoch};

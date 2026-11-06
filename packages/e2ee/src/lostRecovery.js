@@ -24,23 +24,15 @@ async function prepare({store,transport,code,bytes,ready}){
   if(ring.keyGeneration!==history.current.keyGeneration)throw Error("RECOVERY_KIT_STALE");
   await p.verify(history.current.recoveryKey,"recovery-check",fingerprint,await p.sign(restored.recoveryAuthoritySecret,"recovery-check",fingerprint));
   const remote=await transport.accountStatus();ready();
-  const active=remote.accountMode==="e2ee"&&remote.vaultMode==="active";
-  const pending=(remote.accountMode==="v2"&&remote.vaultMode==="pending")||(remote.accountMode==="e2ee_frozen"&&remote.vaultMode==="migrating");
-  if((!active&&!pending)||remote.vaultId!==store.scope().vaultId||
+  if(remote.accountMode!=="e2ee"||remote.vaultMode!=="active"||remote.vaultId!==store.scope().vaultId||
    remote.revision!==history.current.revision||remote.head!==history.current.head||remote.keyGeneration!==history.current.keyGeneration)throw Error("SYNC_STATE_CHANGED");
   device=await p.createDevice();const deviceId=randomBytes(16).toString("hex");
   proposal=await proposeTransition({state:history.current,epoch:remote.epoch,operation:"recover",recoveryAuthoritySecret:restored.recoveryAuthoritySecret,
    recipients:[{id:deviceId,role:"write",canAuthorizeDevices:true,signingKey:device.signing.publicKey,encryptionKey:device.encryption.publicKey}],keys:ring.keys});
-  if(pending){
-   const {vaultId,revision,previous,operation,keyGeneration,recoveryKey,devices}=proposal.record.body;
-   const body={vaultId,revision,previous,operation,keyGeneration,recoveryKey,devices};
-   proposal.record={body,signature:await p.sign(restored.recoveryAuthoritySecret,"recovery",body)};
-   await require("./membership").applyRecovery(history.current,proposal.record);
-  }
   ready();store.transaction(db=>{
    empty(db);if(!same(db.get("recovery",KEY),previous))throw Error("RECOVERY_CHANGED");
    if(previous)db.put("recovery","$lost-recovery-history-"+previous.deviceId,previous);
-   db.put("recovery",KEY,{phase:"RECOVERY_UNCONFIRMED",pending,device,deviceId,genesis:history.genesis,fingerprint,epoch:remote.epoch,record:proposal.record,
+   db.put("recovery",KEY,{phase:"RECOVERY_UNCONFIRMED",device,deviceId,genesis:history.genesis,fingerprint,epoch:remote.epoch,record:proposal.record,
     keyring:proposal.keyring,recoverySecret:proposal.recovery.secret,recoveryBundle:proposal.recovery.bundle});
   });return status(store);
  }finally{wipe(restored);wipe({device});wipe(proposal);proposal?.recovery.secret.fill(0);}
@@ -70,11 +62,10 @@ async function commit({store,transport,ready}){
   let history=await historyFor(store,transport,saved.fingerprint);ready();
   const remote=await transport.accountStatus();ready();
   if(remote.vaultId!==store.scope().vaultId)throw Error("SYNC_STATE_CHANGED");
-  if(!saved.pending&&(remote.accountMode!=="e2ee"||remote.vaultMode!=="active"||remote.epoch!==saved.epoch))throw Error("SYNC_STATE_CHANGED");
-  if(saved.pending&&!((remote.accountMode==="v2"&&remote.vaultMode==="pending")||(remote.accountMode==="e2ee_frozen"&&remote.vaultMode==="migrating")))throw Error("SYNC_STATE_CHANGED");
+  if(remote.accountMode!=="e2ee"||remote.vaultMode!=="active"||remote.epoch!==saved.epoch)throw Error("SYNC_STATE_CHANGED");
   if(history.current.revision===saved.record.body.revision-1&&history.current.head===saved.record.body.previous){
    store.transaction(db=>{empty(db);if(!same(db.get("recovery",KEY),saved))throw Error("RECOVERY_CHANGED");db.put("recovery",KEY,{...saved,phase:"COMMITTING"});});
-   await (saved.pending?transport.recoverPending(saved.record):transport.transition(saved.record));ready();
+   await transport.transition(saved.record);ready();
    history=await historyFor(store,transport,saved.fingerprint);ready();
   }
   if(history.current.revision!==saved.record.body.revision||!same(history.records.get(saved.record.body.revision),saved.record))throw Error("RECOVERY_UNCONFIRMED");

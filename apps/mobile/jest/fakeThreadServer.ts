@@ -69,7 +69,7 @@ export function createFakeThreadServer(vaultId: string) {
       };
     },
     createVault: async (record: any) => {
-      if (genesis) fail('MIGRATION_CONFLICT');
+      if (genesis) fail('MEMBERSHIP_CONFLICT');
       if (record.body.vaultId !== vaultId) fail('INVALID_VAULT');
       genesis = record;
       state = await m.verifyGenesis(record, p.fingerprint(record.body));
