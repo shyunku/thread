@@ -1,8 +1,8 @@
 import {useCallback,useEffect,useRef,useState} from "react";
 import IpcSender from "../utils/IpcSender";
 import LockScreen from "./LockScreen";
-import VaultWorkspace from "./VaultWorkspace";
 import DeviceConnect from "./gate/DeviceConnect";
+import NewAccountSetup from "./gate/NewAccountSetup";
 import UpdateButton,{useReleaseAlert} from "./UpdateButton";
 import {CircularProgress} from "react-cssfx-loading";
 import {VscChromeMinimize,VscChromeClose,VscRefresh} from "react-icons/vsc";
@@ -14,7 +14,7 @@ const invoke=(method,...args)=>new Promise((resolve,reject)=>IpcSender.vault[met
 export default function ApplicationGate({uid,children}){
  // Screens before the main window have no TopBar: show pending updates in this title bar.
  const update=useReleaseAlert();
- const [screen,setScreen]=useState({mode:"CHECKING"}),[setupProgressed,setSetupProgressed]=useState(false),sequence=useRef(0),live=useRef(true);
+ const [screen,setScreen]=useState({mode:"CHECKING"}),sequence=useRef(0),live=useRef(true);
  const refresh=useCallback(async()=>{
   const request=++sequence.current;setScreen({mode:"CHECKING"});
   try{
@@ -29,7 +29,6 @@ export default function ApplicationGate({uid,children}){
   const listener=IpcSender.onAll("vault/status",({data})=>{if(data?.uid===uid&&data.phase==="LOCKED")void refresh();});
   return()=>{live.current=false;sequence.current++;IpcSender.off("vault/status",listener);};
  },[uid,refresh]);
- useEffect(()=>setSetupProgressed(false),[uid]);
  // A lock uses the compact lock window; setup flows keep the larger one.
  const plainLock=screen.mode==="LOCKED";
  useEffect(()=>{
@@ -42,19 +41,18 @@ export default function ApplicationGate({uid,children}){
   return true;
  };
  if(screen.mode==="E2EE")return typeof children==="function"?children(screen.mode):children;
- const workspace=screen.mode==="NEW_ACCOUNT_SETUP";
  // Full-window step flows draw their own header and footer.
- const flow=screen.mode==="SETUP_REQUIRED";
+ const flow=screen.mode==="SETUP_REQUIRED"||screen.mode==="NEW_ACCOUNT_SETUP";
  const title={CHECKING:"작업 공간을 준비하고 있어요",LOCKED:"내 데이터 잠금 해제",SETUP_REQUIRED:"이 기기에서 데이터 연결",NEW_ACCOUNT_SETUP:"새 데이터 보호 설정",RECOVERY_REQUIRED:"데이터 확인이 필요해요",ERROR:"데이터에 연결하지 못했어요"}[screen.mode];
- return <main className={`application-gate${workspace?" application-gate--workspace":""}${plainLock?" application-gate--lock":""}${flow?" application-gate--flow":""}`}>
+ return <main className={`application-gate${plainLock?" application-gate--lock":""}${flow?" application-gate--flow":""}`}>
   <div className="application-gate__titlebar"><span>Thread</span><UpdateButton update={update}/><div className="application-gate__window-actions"><button aria-label="최소화" onClick={()=>IpcSender.system.minimizeWindow()}><VscChromeMinimize aria-hidden="true"/></button><button aria-label="닫기" onClick={()=>IpcSender.system.closeWindow()}><VscChromeClose aria-hidden="true"/></button></div></div>
   <div className="application-gate__card" aria-busy={screen.mode==="CHECKING"}>
-  {!(screen.mode==="NEW_ACCOUNT_SETUP"&&setupProgressed)&&!plainLock&&!flow&&<header className="application-gate__header"><div className="application-gate__heading"><h1>{title}</h1>{["ERROR","RECOVERY_REQUIRED"].includes(screen.mode)&&<button type="button" className="application-gate__refresh" aria-label="상태 다시 확인" title="상태 다시 확인" onClick={()=>void refresh()}><VscRefresh aria-hidden="true"/></button>}</div></header>}
+  {!plainLock&&!flow&&<header className="application-gate__header"><div className="application-gate__heading"><h1>{title}</h1>{["ERROR","RECOVERY_REQUIRED"].includes(screen.mode)&&<button type="button" className="application-gate__refresh" aria-label="상태 다시 확인" title="상태 다시 확인" onClick={()=>void refresh()}><VscRefresh aria-hidden="true"/></button>}</div></header>}
   {screen.mode==="CHECKING"?<div className="application-gate__checking" role="status"><CircularProgress color="#6294ff" width="32px" height="32px"/><p>계정의 저장소를 확인하고 있습니다…</p></div>:
    plainLock?<LockScreen osAvailable={screen.status?.osAvailable} passwordAvailable={screen.status?.passwordAvailable}
     onOSUnlock={()=>unlock("os")} onPasswordUnlock={password=>unlock("password",password)}/>:
    screen.mode==="SETUP_REQUIRED"?<DeviceConnect key={uid} onConnected={()=>void refresh()}/>:
-   screen.mode==="NEW_ACCOUNT_SETUP"?<>{!setupProgressed&&<p className="application-gate__notice">새 계정의 데이터는 처음부터 이 기기에서 암호화돼요. 잠금 방법과 복구 자료를 준비하면 시작할 수 있습니다.</p>}<VaultWorkspace uid={uid} newAccount onStarted={()=>setSetupProgressed(true)} onContinue={()=>void refresh()}/></>:
+   screen.mode==="NEW_ACCOUNT_SETUP"?<NewAccountSetup key={uid} uid={uid} onContinue={()=>void refresh()}/>:
    screen.mode==="RECOVERY_REQUIRED"?<p role="alert">데이터 파일 확인이 필요합니다. 초기화하거나 기존 데이터를 삭제하지 마세요.</p>:
    <p role="alert">데이터에 연결하지 못했어요. 연결을 확인하고 다시 시도해주세요. 기존 보호 방식으로 돌아가지는 않습니다.</p>}
   {screen.mode==="ERROR"&&<p className="application-gate__diagnostic">진단 코드: <code>{screen.code}</code></p>}

@@ -5,7 +5,7 @@ import { vaultCall } from "../../modals/settings/data/vaultIpc";
 import { GateButton, GateCallout, GateStep, OptionCard } from "./GateFlow";
 
 // Creates this device's local vault: OS authentication, optionally with a password.
-export default function LockMethodStep({ kicker, step, total, osAvailable, onBack, onCreated }) {
+export default function LockMethodStep({ kicker, step, total, osAvailable, onBack, onCreated, description = "앱을 열 때 이 방법으로 본인을 확인해요." }) {
   const [method, setMethod] = useState(osAvailable ? "os" : "password");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -40,7 +40,7 @@ export default function LockMethodStep({ kicker, step, total, osAvailable, onBac
           {busy ? "설정 중…" : method === "os" ? `${os}로 설정` : "설정"}
         </GateButton>
       </>}>
-      <p>앱을 열 때 이 방법으로 본인을 확인해요.</p>
+      <p>{description}</p>
       {osAvailable ? (
         <div role="radiogroup" aria-label="잠금 방법">
           <OptionCard selected={method === "os"} disabled={busy} onSelect={() => setMethod("os")}

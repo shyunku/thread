@@ -7,16 +7,14 @@ import RotationPanel from "./RotationPanel";
 import LostRecoveryPanel from "./LostRecoveryPanel";
 import BackupPanel from "./BackupPanel";
 import ReencryptionPanel from "./ReencryptionPanel";
-import VaultOnboarding from "./VaultOnboarding";
 import { IoCloudDownloadOutline, IoKeyOutline, IoLockClosedOutline, IoPhonePortraitOutline, IoRefreshOutline, IoShieldCheckmarkOutline } from "react-icons/io5";
 import "./VaultWorkspace.scss";
 const invoke=(method,...args)=>new Promise((resolve,reject)=>{
  if(!IpcSender.vault?.[method])return reject(Error("UNAVAILABLE"));
  IpcSender.vault[method](...args,response=>response?.success?resolve(response.data):reject(Error("VAULT_ACTION_FAILED")));
 });
-export default function VaultWorkspace({uid,onContinue,onStarted,onLocked,newAccount=false,preview=false,initialPanel=null}){
+export default function VaultWorkspace({uid,onLocked,preview=false,initialPanel=null}){
  const [panel,setPanel]=useState(initialPanel);
- const [onboardingStep,setOnboardingStep]=useState("recovery");
  const [status,setStatus]=useState(preview?{uid,phase:"UNLOCKED",generation:1,osAvailable:true}:null),[error,setError]=useState(false);
  const generation=useRef(0);
  const invalidate=useCallback(()=>{generation.current++;},[]);
@@ -41,18 +39,14 @@ export default function VaultWorkspace({uid,onContinue,onStarted,onLocked,newAcc
   setStatus(next);setError(false);
   return true;
  };
- useEffect(()=>{if(newAccount&&status?.uid===uid&&status.phase==="UNLOCKED")onStarted?.();},[newAccount,status?.uid,status?.phase,uid,onStarted]);
  if(status?.enabled===false)return <p>이 빌드에서는 보관함을 사용할 수 없습니다.</p>;
  const current=status?.uid===uid?status:null;
- const progressStep=current?.phase!=="UNLOCKED"?1:onboardingStep==="activate"?3:2;
   return <section className="vault-workspace" aria-label="데이터 관리">
-  {onContinue&&<ol className="vault-progress" aria-label="새 데이터 설정 진행 단계">{["암호화 준비","백업 수단 저장","시작"].map((label,index)=><li key={label} className={index+1<=progressStep?"vault-progress__reached":""} aria-current={index+1===progressStep?"step":undefined}>{index+1}. {label}</li>)}</ol>}
-  {!onContinue&&<><h3>보호된 데이터 관리</h3><p>복구 자료와 연결된 기기를 관리하세요.</p></>}
+  <h3>보호된 데이터 관리</h3><p>복구 자료와 연결된 기기를 관리하세요.</p>
   {error&&<p role="alert">보관함 상태를 확인하지 못했습니다. 기존 데이터는 삭제되지 않았습니다.</p>}
   {!current?<p>상태 확인 중…</p>:current.phase==="RECOVERY_REQUIRED"?<p role="alert">보관함 파일이 불완전합니다. 새로 만들거나 초기화하지 말고 복구가 필요합니다.</p>:
    current.phase==="UNLOCKED"?<>
-    {!onContinue&&<p className="vault-status" role="status">데이터 잠금 해제됨</p>}
-    {onContinue?<VaultOnboarding key={uid+":"+current.generation} onContinue={onContinue} onStepChange={setOnboardingStep}/>:<>
+    <p className="vault-status" role="status">데이터 잠금 해제됨</p>
      {!panel?<nav className="vault-menu" aria-label="데이터 관리 작업">{[["recovery","복구 자료","복구 코드와 파일 보관",<IoKeyOutline/>],["pair","기기 연결","QR 또는 파일로 새 기기 승인",<IoPhonePortraitOutline/>],["backup","암호화 백업","파일 내보내기·복원",<IoCloudDownloadOutline/>],["rotation","기기·키 관리","기기 해지와 키 갱신",<IoShieldCheckmarkOutline/>],["lost","기기 분실 복구","복구 자료로 접근 복원",<IoLockClosedOutline/>],["reencrypt","암호화 갱신","기존 데이터의 키 세대 갱신",<IoRefreshOutline/>]].map(([id,title,description,icon])=><button key={id} onClick={()=>setPanel(id)}><span className="vault-menu__title">{icon}<strong>{title}</strong></span><span>{description}</span></button>)}</nav>:<button className="vault-back" onClick={()=>setPanel(null)}>← 관리 메뉴</button>}
      {panel==="recovery"&&<RecoverySetup/>}
      {panel==="pair"&&<DevicePairing osAvailable={current.osAvailable}/>}
@@ -60,8 +54,7 @@ export default function VaultWorkspace({uid,onContinue,onStarted,onLocked,newAcc
      {panel==="lost"&&<LostRecoveryPanel osAvailable={current.osAvailable}/>}
      {panel==="backup"&&<BackupPanel osAvailable={current.osAvailable}/>}
      {panel==="reencrypt"&&<ReencryptionPanel/>}
-    </>}
-    {!onContinue&&<button disabled={preview} onClick={()=>{generation.current++;setStatus({...current,phase:"LOCKED"});invoke("lock").then(()=>onLocked?.()).catch(()=>setError(true));}}>데이터 잠그기</button>}
+    <button disabled={preview} onClick={()=>{generation.current++;setStatus({...current,phase:"LOCKED"});invoke("lock").then(()=>onLocked?.()).catch(()=>setError(true));}}>데이터 잠그기</button>
    </>:<VaultUnlock key={uid+":"+current.phase} setup={current.phase==="ABSENT"} osAvailable={current.osAvailable} passwordAvailable={current.passwordAvailable}
     onCreate={password=>act("create",password)} onOSUnlock={()=>act("unlock","os",undefined)} onPasswordUnlock={password=>act("unlock","password",password)}/>}
  </section>;

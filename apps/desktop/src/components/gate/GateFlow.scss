@@ -160,3 +160,39 @@
   }
   &__bottom { margin-top: auto; padding-top: 16px; text-align: center; }
 }
+
+// New account setup (#75): start screen step list, recovery file row and code box.
+.application-gate .gate-start__steps {
+  margin: 0 0 14px; padding: 0; list-style: none; counter-reset: gate-step;
+  li { position: relative; padding: 8px 0 8px 34px; color: #a0aaba; font-size: 13.5px; }
+  li::before {
+    counter-increment: gate-step; content: counter(gate-step); position: absolute; left: 0; top: 7px;
+    display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%;
+    background: #252c3a; color: #edf1f7; font-size: 12px; font-weight: 700;
+  }
+}
+
+.application-gate .gate-step {
+  .gate-sub { margin: 0 0 14px; color: #8792a4; font-size: 12.5px; }
+  .gate-ok { margin: 0 0 12px; font-size: 13px; }
+}
+
+.application-gate .gate-file {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 12px; padding: 14px;
+  border: 1px solid #2b303b; border-radius: 10px; background: #1c2028;
+  &__icon { display: grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: 10px; background: #252c3a; color: #a0aaba; font-size: 18px; }
+  &--done .gate-file__icon { background: #1b3328; color: #70d5a0; }
+  &__text { flex: 1; min-width: 0; }
+  &__text b { display: block; color: #edf1f7; }
+  &__text > span { color: #a0aaba; font-size: 13px; }
+  .gate-button { flex: none; }
+}
+
+.application-gate .gate-codebox {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 8px; padding: 12px 14px;
+  border: 1px solid #2b303b; border-radius: 10px; background: #10141a;
+  code { flex: 1; min-width: 0; color: #edf1f7; font: 600 15px/1.6 Consolas, "Cascadia Mono", monospace; letter-spacing: .06em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .gate-button { flex: none; display: inline-flex; align-items: center; gap: 6px; }
+}
+
+.application-gate .gate-field--code input { font-family: Consolas, "Cascadia Mono", monospace; letter-spacing: .05em; }

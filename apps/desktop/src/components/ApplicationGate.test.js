@@ -2,7 +2,7 @@ import {act,fireEvent,render,screen} from "@testing-library/react";
 import ApplicationGate from "./ApplicationGate";
 import IpcSender from "../utils/IpcSender";
 jest.mock("../utils/IpcSender",()=>({onAll:jest.fn(),off:jest.fn(),vault:{bootstrap:jest.fn(),status:jest.fn(),unlock:jest.fn()}}));
-jest.mock("./VaultWorkspace",()=>()=> <p>Setup panel</p>);
+jest.mock("./gate/NewAccountSetup",()=>({onContinue})=> <><h1>새 데이터 보호 설정</h1><p>Setup panel</p><button onClick={onContinue}>New account started</button></>);
 jest.mock("./gate/DeviceConnect",()=>()=> <h1>Setup panel</h1>);
 let notify;
 beforeEach(()=>{
@@ -32,10 +32,21 @@ test("an already migrated account opens its home in E2EE mode after unlock",asyn
 });
 test("new v3 account requires setup and does not mount home",async()=>{
  IpcSender.vault.bootstrap.mockImplementation((uid,cb)=>cb({success:true,data:{mode:"NEW_ACCOUNT_SETUP"}}));
- render(<ApplicationGate uid="u"><p>Private application</p></ApplicationGate>);
+ const view=render(<ApplicationGate uid="u"><p>Private application</p></ApplicationGate>);
  expect(await screen.findByRole("heading",{name:"새 데이터 보호 설정"})).toBeInTheDocument();
  expect(screen.getByText("Setup panel")).toBeInTheDocument();
+ // The step flow draws its own head: no gate header or notice on top of it.
+ expect(screen.getAllByRole("heading",{level:1})).toHaveLength(1);
+ expect(view.container.querySelector(".application-gate--flow .application-gate__header")).toBeNull();
  expect(screen.queryByText("Private application")).not.toBeInTheDocument();
+});
+test("a started new account checks the mode again before the app opens",async()=>{
+ IpcSender.vault.bootstrap.mockImplementationOnce((uid,cb)=>cb({success:true,data:{mode:"NEW_ACCOUNT_SETUP"}}))
+  .mockImplementationOnce((uid,cb)=>cb({success:true,data:{mode:"E2EE"}}));
+ render(<ApplicationGate uid="u"><p>Private application</p></ApplicationGate>);
+ fireEvent.click(await screen.findByRole("button",{name:"New account started"}));
+ expect(await screen.findByText("Private application")).toBeInTheDocument();
+ expect(IpcSender.vault.bootstrap).toHaveBeenCalledTimes(2);
 });
 test("mode failure does not mount app and retry can recover",async()=>{
  IpcSender.vault.bootstrap.mockImplementationOnce((uid,cb)=>cb({success:false}))
