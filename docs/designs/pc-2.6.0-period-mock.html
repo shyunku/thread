@@ -411,6 +411,8 @@
   .tp-mi.two { height: auto; min-height: 42px; padding: 5px 10px !important; }
   .tp-lb small, .bell-pop .tp-lb small { display: block; color: var(--muted); font-size: 11.5px; line-height: 1.4; }
   .tp-mi.on .tp-lb small { color: #8fb0f0; }
+  .bp-now { margin: -2px 10px 6px; font-size: 12px; color: #a9c3ff; }
+  .bp-now.off { color: var(--muted); }
   .pk-cbx { width: 16px; height: 16px; border-radius: 4px; border: 2px solid #5a6475; display: grid; place-items: center; color: #fff; flex: none; }
   .pk-cbx.on { background: var(--accent); border-color: var(--accent); }
   .bell-pop { width: 252px; padding: 6px; border-radius: 10px; }
@@ -660,7 +662,8 @@ const fresh = () => TASKS0.map(x => ({ start: null, ...x, al: x.al ? { ...x.al }
 // Confirmed (round 1): bars in the month, 진행 중이면 오늘, "11/9 ~ 11/12" in rows, timeline blocks + band,
 // 시작 추가 in the picker, 알림 ▸ submenu, bells in the detail, a 시작 알림 group in the settings, and
 // no date reading in the quick-add title (only the picker's 직접 입력 reads periods).
-// Open: how a side with several alerts (10분 전 and 정각) shows per task (multi).
+// Round 2: a side with several alerts is one switch ("끝 알림 · 10분 전 · 정각"); the bell popover
+// lists the side's alerts under its header.
 const s = {
   cal: 'bar', tl: 'mixed', multi: 'group',
   view: 'list', menuSel: 'all', sel: null, tabHold: null, picked: TODAY, calMonth: { y: 2026, m: 10 }, miniMonth: { y: 2026, m: 10 },
@@ -1152,23 +1155,15 @@ function ctxMenu() {
 // The bell's popover in the detail (open item: one switch per side, or one per alert).
 function bellPop() {
   const b = s.bell; if (!b || !s.sel) return '';
-  const t = task(s.sel), k = b.kind, m = s.multi;
-  const head = `<div class="tp-hd">${KN[k]} 알림 · ${clockS(atOf(t, k))}</div>`;
-  if (m === 'each') {
-    const rows = SLOTS.map(x => {
-      const on = slotOn(t, k, x), v = slotState(t, k, x);
-      return `<button class="tp-mi ${on ? 'on' : ''}" data-act="bslot" data-x="${x}"><span class="pk-cbx ${on ? 'on' : ''}">${on ? I.tick(10) : ''}</span><span class="tp-lb" style="white-space:normal">${slotName(k, x)}<small>${clockS(slotAt(t, k, x))}에 알림</small></span><span class="tp-kb ${v !== 'follow' ? 'dir' : ''}">${v === 'follow' ? '전체 설정' : '직접'}</span></button>`;
-    }).join('');
-    return `<div class="tp-pop bell-pop is-new" data-bellpop>${head}${rows}<div class="tp-sp"></div>
-      ${alertDirect(t, k) ? '<button class="tp-mi" data-act="bellset" data-v="follow"><span class="tp-mic">' + I.undo + '</span><span class="tp-lb">전체 설정 따르기로 되돌리기</span></button>' : ''}
-      <div class="tp-note">바꾼 알림만 직접 설정이 되고, 나머지는 설정 &gt; 알림을 따라요.</div></div>`;
-  }
-  const v = t.al[k], grp = m === 'group';
-  const row = (val, l, sub) => `<button class="tp-mi ${v === val ? 'on' : ''}" data-act="bellset" data-v="${val}"><span class="pk-rd"></span><span class="tp-lb" style="white-space:normal">${l}${sub ? `<small>${sub}</small>` : ''}</span></button>`;
-  return `<div class="tp-pop bell-pop is-new" data-bellpop>${head}
-    ${row('follow', '전체 설정 따르기', grp ? `지금 ${globalDesc(k)} · 설정 &gt; 알림을 바꾸면 같이 바뀌어요` : '설정 &gt; 알림을 바꾸면 같이 바뀌어요')}
-    ${row('on', '이 할 일만 켜기', grp ? `${onDesc(k)}에 알려요 · 설정을 바꿔도 그대로` : '설정을 바꿔도 그대로')}
-    ${row('off', '이 할 일만 끄기', grp ? `${KN[k]} 알림을 모두 꺼요 · 설정을 바꿔도 그대로` : '설정을 바꿔도 그대로')}</div>`;
+  const t = task(s.sel), k = b.kind, v = t.al[k];
+  // The side's alerts that ring now: the settings' when following, the forced-on ones, or none.
+  const list = kind => { const a = SLOTS.filter(x => globalSlot(kind, x)).map(x => slotName(kind, x)); return a.length ? a.join(', ') : slotName(kind, 'before'); };
+  const now = v === 'off' ? '꺼짐' : v === 'on' ? list(k) : globalOn(k) ? list(k) : '꺼짐 (설정에서 꺼짐)';
+  const row = (val, l, sub) => `<button class="tp-mi ${v === val ? 'on' : ''}" data-act="bellset" data-v="${val}"><span class="pk-rd"></span><span class="tp-lb" style="white-space:normal">${l}<small>${sub}</small></span></button>`;
+  return `<div class="tp-pop bell-pop is-new" data-bellpop><div class="tp-hd">${KN[k]} 알림 · ${clockS(atOf(t, k))}</div><div class="bp-now ${v === 'off' || (v === 'follow' && !globalOn(k)) ? 'off' : ''}">${now}</div>
+    ${row('follow', '전체 설정 따르기', '설정 &gt; 알림을 바꾸면 같이 바뀌어요')}
+    ${row('on', '이 할 일만 켜기', '설정을 바꿔도 그대로')}
+    ${row('off', '이 할 일만 끄기', '설정을 바꿔도 그대로')}</div>`;
 }
 
 // ---------- Period picker (item 5) ----------
@@ -1308,7 +1303,7 @@ const mainWin = () => `<div class="win" style="width:${WIN.w}px;height:${WIN.h}p
 // ---------- Notes ----------
 function notes() {
   return `<aside class="notes">
-    <div class="n-top"><button class="n-copy" data-ncopy>결과 복사</button><p class="hint"><kbd>Shift</kbd>+마우스로 파란 점선의 후보 보기</p></div>
+    <div class="n-top"><button class="n-copy" data-ncopy>결과 복사</button><p class="hint">정할 것은 모두 정했어요. 확정된 모습이에요.</p></div>
     <div class="n-scroll">${OPTS.map((o, i) => `<section class="n-item"><h4>${i + 1}. ${o.title}</h4>${o.items.map(([v, nm, dsc, tag]) =>
       `<div class="n-row ${s[o.key] === v ? 'on' : ''}" role="button" tabindex="0" data-no="${i}" data-v="${v}"><span class="n-nm">${nm}${tag === 'old' ? '<span class="badge old">기존</span>' : tag === 'rec' ? '<span class="badge rec">추천</span>' : ''}</span><span class="n-ds">${dsc}</span>${s[o.key] === v ? `<textarea class="n-cm" rows="1" data-cm="${i}:${v}" data-fk="cm:${i}:${v}" placeholder="추가 의견 (선택)" spellcheck="false">${esc(comments[i + ':' + v] || '')}</textarea>` : ''}</div>`).join('')}</section>`).join('')}</div>
     <label class="n-new"><input type="checkbox" data-nnew ${document.body.classList.contains('show-new') ? 'checked' : ''}>새로 생기는 부분 표시</label>
@@ -1518,12 +1513,8 @@ function showAlerts() {
   s.menu = { tid: 'p3', x: r.left - W.left + 150, y: r.top - W.top + 40, sub: 'al' };
   s.bell = { kind: 'end' };
 }
-const OPTS = [
-  { at: '.tp-menu.ctx [data-sub="al"], .tp-sub.alert, [data-bellpop], .rp-bell', key: 'multi', title: '한쪽에 알림이 여러 개일 때 (알림 ▸ 메뉴 · 상세 종)', show: showAlerts,
-    items: [['none', '기능 없음', '"끝 알림" 하나로만 켜고 끔. 몇 분 전 · 정각인지는 안 보임', 'old'],
-      ['group', '묶어서 하나', '"끝 알림 · 10분 전 · 정각"처럼 보이고, 그쪽 알림을 한꺼번에 켜고 끔', 'rec'],
-      ['each', '하나씩 따로', '"끝 10분 전", "끝 정각"을 줄마다 따로 켜고 끔']] },
-];
+// Every decision of #109 is made; nothing left to pick.
+const OPTS = [];
 const choose = (o, v) => { s[o.key] = v; o.show(); render(); };
 let shiftOn = false;
 function markHot() {
@@ -1583,7 +1574,7 @@ document.addEventListener('click', e => {
   if (f) { f.focus({ preventScroll: true }); f.setSelectionRange(f.value.length, f.value.length); }
 });
 function resultText() {
-  return '#109 PC 2.6.0 기간 시안 선택 (2차)\n' + OPTS.map((o, i) => { const it = o.items.find(([v]) => v === s[o.key]); const c = (comments[i + ':' + it[0]] || '').trim(); return `${i + 1}. ${o.title}: ${it[1]}${c ? ` (의견: ${c})` : ''}`; }).join('\n');
+  return '#109 PC 2.6.0 기간 시안 (확정)\n' + (OPTS.map((o, i) => { const it = o.items.find(([v]) => v === s[o.key]); const c = (comments[i + ':' + it[0]] || '').trim(); return `${i + 1}. ${o.title}: ${it[1]}${c ? ` (의견: ${c})` : ''}`; }).join('\n') || '남은 결정 없음');
 }
 document.addEventListener('click', e => {
   const copy = e.target.closest('[data-ncopy]');
