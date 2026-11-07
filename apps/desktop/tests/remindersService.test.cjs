@@ -60,3 +60,17 @@ test("turning reminders off while locked clears them; one found too late after a
  svc.tick();
  assert.equal(shown.length,0);
 });
+
+test("periods (#109): start alerts show at their time; locked, a settings change keeps forced ones",t=>{
+ const s={enabled:true,before:true,minutes:10,due:false,startBefore:true,startMinutes:10,startAt:false};
+ const {svc,shown,settings}=setup(t,s);
+ svc.update({tasks:[{tid:"w",title:"워크숍",due_date:at(17),start_offset:at(17)-at(15)},{tid:"f",title:"강제",due_date:at(19),start_offset:at(19)-at(18),alert_start:"on",alert_end:"off"}],categories:[],relations:[]});
+ assert.deepEqual(svc.plan.map(p=>p.id),["w:start-before","w:before","f:start-before"]);
+ mock.timers.tick(at(14,50)-NOW);
+ assert.deepEqual([shown[0].o.title,shown[0].o.body],["워크숍","오후 3:00부터 · 10분 뒤 시작"]);
+ svc.lock();
+ settings.startBefore=false;svc.settingsChanged();
+ assert.deepEqual(svc.plan.map(p=>p.id),["w:before","f:start-before"]);
+ settings.enabled=false;svc.settingsChanged();
+ assert.deepEqual(svc.plan.map(p=>p.id),["f:start-before"]);
+});

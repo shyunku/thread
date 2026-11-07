@@ -2,7 +2,7 @@
 // Dev runs use their own userData (thread-dev), so settings never mix with the installed app.
 const fs = require("node:fs");
 const path = require("node:path");
-const { DEFAULT_REMINDERS, normalReminders, MINUTE_CHOICES } = require("@thread/e2ee/src/model/reminders");
+const { normalPeriodReminders, MINUTE_CHOICES } = require("@thread/e2ee/src/model/reminders");
 
 const DEFAULTS = Object.freeze({
   autoStart: true,
@@ -11,8 +11,9 @@ const DEFAULTS = Object.freeze({
   betaUpdates: false,
   // Show the patch notes window once after an update (#99).
   showPatchNotes: true,
-  // Due reminders (#91): this PC's own choice, not synced.
-  reminders: DEFAULT_REMINDERS,
+  // Due reminders (#91): this PC's own choice, not synced. With the start group (#109):
+  // startBefore, startMinutes, startAt.
+  reminders: Object.freeze(normalPeriodReminders()),
 });
 
 function settingsFile(app) {
@@ -25,7 +26,7 @@ function sanitize(raw) {
     for (const key of Object.keys(DEFAULTS))
       if (typeof DEFAULTS[key] === "boolean" && typeof raw[key] === "boolean") value[key] = raw[key];
   }
-  value.reminders = normalReminders(raw?.reminders);
+  value.reminders = normalPeriodReminders(raw?.reminders);
   return value;
 }
 
@@ -40,12 +41,15 @@ function loadSettings(app) {
   }
 }
 
-// A whole reminders value: the four keys and nothing else.
+// A reminders value: the four end keys, and the start keys (#109) or none of them (an older
+// value keeps this PC's start choices).
+const END_KEYS = "before,due,enabled,minutes", START_KEYS = "startAt,startBefore,startMinutes";
 function validReminders(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const keys = Object.keys(value).sort().join(",");
-  return keys === "before,due,enabled,minutes" && ["before", "due", "enabled"].every((k) => typeof value[k] === "boolean") &&
-    MINUTE_CHOICES.includes(value.minutes);
+  if (keys !== END_KEYS && keys !== [...END_KEYS.split(","), ...START_KEYS.split(",")].sort().join(",")) return false;
+  return ["before", "due", "enabled"].every((k) => typeof value[k] === "boolean") && MINUTE_CHOICES.includes(value.minutes) &&
+    (!("startMinutes" in value) || (["startBefore", "startAt"].every((k) => typeof value[k] === "boolean") && MINUTE_CHOICES.includes(value.startMinutes)));
 }
 
 function validatePatch(patch) {
@@ -57,7 +61,8 @@ function validatePatch(patch) {
 }
 
 function saveSettings(app, current, patch) {
-  const next = sanitize({ ...current, ...validatePatch(patch) });
+  validatePatch(patch);
+  const next = sanitize({ ...current, ...patch, ...(patch.reminders && { reminders: { ...current?.reminders, ...patch.reminders } }) });
   const file = settingsFile(app);
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const temp = file + ".tmp";

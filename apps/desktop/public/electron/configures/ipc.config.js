@@ -635,6 +635,9 @@ module.exports = function (s) {
     "task/deleteTaskCategory",
     "task/updateTaskRepeatPeriod",
     "task/updateTaskImportant",
+    // Periods and per-task alerts (#109).
+    "task/updateTaskPeriod",
+    "task/updateTaskAlert",
     "task/duplicateTask",
     // The undo notice's restores (#107).
     "task/restoreTask",

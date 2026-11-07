@@ -14,6 +14,9 @@ const mutationTopics = new Set([
   "task/deleteTaskCategory",
   "task/updateTaskRepeatPeriod",
   "task/updateTaskImportant",
+  // Periods (#109): the start and the due in one patch, and the per-task alert overrides.
+  "task/updateTaskPeriod",
+  "task/updateTaskAlert",
   "task/createSubtask",
   "task/deleteSubtask",
   "task/updateSubtaskTitle",
@@ -65,17 +68,20 @@ function command(topic, args, view) {
           "task",
           a.tid || randomUUID(),
           "create",
-          clean(a, [
-            "title",
-            "memo",
-            "created_at",
-            "done",
-            "done_at",
-            "due_date",
-            "repeat_period",
-            "repeat_start_at",
-            "important",
-          ])
+          {
+            ...clean(a, [
+              "title",
+              "memo",
+              "created_at",
+              "done",
+              "done_at",
+              "due_date",
+              "repeat_period",
+              "repeat_start_at",
+              "important",
+            ]),
+            ...periodFields(a),
+          }
         ),
         categoryIds: Array.isArray(a.categories)
           ? a.categories
@@ -89,24 +95,25 @@ function command(topic, args, view) {
       return make("task", a, "patch", { title: b ?? "" });
     case "task/updateTaskMemo":
       return make("task", a, "patch", { memo: b ?? "" });
-    case "task/updateTaskDueDate": {
-      // A repeating task keeps its rule on the new day: the recurrence anchor moves
-      // with the due date. Without a due date the repeat cannot stand, so it is
-      // cleared in the same patch (prepareSchedule rejects a repeat with no due).
-      // Saving the same due date leaves the anchor alone: after a completion the anchor
-      // and the due date differ, and rewriting it would bump the recurrence generation.
-      const due = b ?? 0,
-        row = findRow(view, "task", a);
-      if (!row?.fields.repeat_period || (due && due === row.fields.due_date))
-        return make("task", a, "patch", { due_date: due });
-      return make(
-        "task",
-        a,
-        "patch",
-        due
-          ? { due_date: due, repeat_start_at: due }
-          : { due_date: 0, repeat_period: "", repeat_start_at: 0 }
-      );
+    // A period start (#109) is kept as start_offset (ms before the due), so it moves with
+    // the due here, as it does on apps from before #109; no due clears it.
+    case "task/updateTaskDueDate":
+      return make("task", a, "patch", dueChanges(findRow(view, "task", a), b ?? 0));
+    // (task id, { due, start }): start is a time before the due, or 0 for no period. Both go in
+    // one patch, with the due's repeat-anchor rules.
+    case "task/updateTaskPeriod": {
+      const due = b?.due ?? 0, start = b?.start ?? 0;
+      if (!Number.isSafeInteger(due) || due < 0 || !Number.isSafeInteger(start) || start < 0) throw Error("INVALID_PERIOD");
+      if (!due && start) throw Error("INVALID_PERIOD");
+      const row = findRow(view, "task", a), changes = dueChanges(row, due);
+      if (due) changes.start_offset = periodOffset(due, start);
+      return make("task", a, "patch", changes);
+    }
+    // (task id, "start" | "end", "on" | "off" | null): null follows the settings again.
+    case "task/updateTaskAlert": {
+      if (b !== "start" && b !== "end") throw Error("INVALID_ALERT");
+      if (c !== "on" && c !== "off" && c != null) throw Error("INVALID_ALERT");
+      return make("task", a, "patch", { ["alert_" + b]: c ?? null });
     }
     case "task/updateTaskRepeatPeriod": {
       // The anchor moves to the current due date when a repeat is turned on or its
@@ -224,6 +231,39 @@ function command(topic, args, view) {
       throw Error("UNSUPPORTED_V2_ACTION");
   }
 }
+// The patch a new due makes. A repeating task keeps its rule on the new day: the recurrence
+// anchor moves with the due date. Without a due date the repeat cannot stand, so it is cleared
+// in the same patch (prepareSchedule rejects a repeat with no due), and so is a period start.
+// Saving the same due date leaves the anchor alone: after a completion the anchor and the due
+// date differ, and rewriting it would bump the recurrence generation.
+function dueChanges(row, due) {
+  const clearStart = !due && row?.fields.start_offset ? { start_offset: 0 } : {};
+  if (!row?.fields.repeat_period || (due && due === row.fields.due_date)) return { due_date: due, ...clearStart };
+  return due ? { due_date: due, repeat_start_at: due } : { due_date: 0, repeat_period: "", repeat_start_at: 0, ...clearStart };
+}
+// start_offset for a start (ms) before a due: 0 for none or a start equal to the due; a start
+// after the due is refused.
+function periodOffset(due, start) {
+  if (!start || start === due) return 0;
+  if (start > due) throw Error("INVALID_PERIOD");
+  return due - start;
+}
+// The period and alert fields a new task (quick add, a copy, a restore) may carry, checked.
+// An offset counts only with a due (without one it is dropped) and must leave the start after
+// 0; alerts are "on" or "off".
+function periodFields(raw) {
+  const out = {}, offset = raw.start_offset, due = raw.due_date;
+  if (offset != null && offset !== 0 && due) {
+    if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(due) || offset >= due) throw Error("INVALID_PERIOD");
+    out.start_offset = offset;
+  }
+  for (const key of ["alert_start", "alert_end"]) {
+    if (raw[key] == null) continue;
+    if (raw[key] !== "on" && raw[key] !== "off") throw Error("INVALID_ALERT");
+    out[key] = raw[key];
+  }
+  return out;
+}
 function findRow(view, type, id) {
   return view?.rows?.find((r) => r.entityType === type && r.entityId === id);
 }
@@ -251,6 +291,14 @@ function restoredSubtask(raw) {
   if (due) subtask.due_date = due;
   return subtask;
 }
+// A copy's period and alert overrides: only valid ones, and the period only with a due.
+function copiedPeriod(f) {
+  const out = {};
+  if (f.due_date && Number.isSafeInteger(f.start_offset) && f.start_offset > 0 && f.start_offset < f.due_date)
+    out.start_offset = f.start_offset;
+  for (const key of ["alert_start", "alert_end"]) if (f[key] === "on" || f[key] === "off") out[key] = f[key];
+  return out;
+}
 const ranked = (r) =>
   typeof r.fields.sort_rank === "string" && /^(0|[1-9][0-9]*)$/.test(r.fields.sort_rank);
 // Where a restored row goes: after the neighbour it had before, else before the one after it.
@@ -266,7 +314,7 @@ function expand(topic, args, view, now = Date.now(), context = {}) {
   const [a, b, c] = args;
   const rows = view.rows;
   switch (topic) {
-    // Copies title, memo, due, repeat, importance, categories and subtasks into a
+    // Copies title, memo, due, period, alerts, repeat, importance, categories and subtasks into a
     // new, not-done task. Subtasks keep their order and start not done.
     case "task/duplicateTask": {
       const source = findRow(view, "task", a);
@@ -288,6 +336,8 @@ function expand(topic, args, view, now = Date.now(), context = {}) {
         task.repeat_period = f.repeat_period;
         task.repeat_start_at = f.repeat_start_at || f.due_date;
       }
+      // The period and the task's own alert choices go with the copy (#109).
+      Object.assign(task, copiedPeriod(f));
       if (f.important === true) task.important = true;
       // The copies get no rank: increasing created_at keeps the shown order (#106).
       const subtasks = rows
@@ -337,6 +387,9 @@ function expand(topic, args, view, now = Date.now(), context = {}) {
         task.repeat_period = restoreText(a.repeat_period);
         task.repeat_start_at = restoreTime(a.repeat_start_at) || due;
       }
+      // The period and alert overrides (#109); addTask checks them.
+      if (due && restoreTime(a.start_offset)) task.start_offset = a.start_offset;
+      for (const key of ["alert_start", "alert_end"]) if (a[key] != null) task[key] = a[key];
       if (a.important === true) task.important = true;
       const anchor = restoreAnchor(
         (id) => typeof id === "string" && liveRow(findRow(view, "task", id)),

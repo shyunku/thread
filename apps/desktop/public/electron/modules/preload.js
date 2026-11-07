@@ -62,6 +62,8 @@ const REQUEST_TOPICS = Object.freeze([
   "task/deleteTaskCategory",
   "task/updateTaskRepeatPeriod",
   "task/updateTaskImportant",
+  "task/updateTaskPeriod",
+  "task/updateTaskAlert",
   "task/duplicateTask",
   "task/restoreTask",
   "task/restoreSubtask",

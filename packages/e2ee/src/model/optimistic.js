@@ -51,6 +51,8 @@ function optimistic(rows, m) {
   if (m.entityType === "subtask" && !live(task(m.parentId)))
     throw Error("PARENT_DELETED");
   const fields = { ...prior?.fields, ...m.changes, updated_at: now };
+  // The generation names the pending occurrence (its due). A period start (start_offset, #109)
+  // or an alert override does not change which occurrence is pending, so it does not bump it.
   if (m.entityType === "task" && m.operation === "patch" &&
       ["due_date", "repeat_period", "repeat_start_at"].some(k =>
         Object.hasOwn(m.changes || {}, k) && m.changes[k] !== prior?.fields[k])) {

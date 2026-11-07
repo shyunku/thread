@@ -5,6 +5,7 @@
 //   content; tasks changed elsewhere meanwhile are known again after the next unlock.
 // - Secret tasks are planned without a title, so they never show content.
 // - A click opens the window on that task (only while unlocked).
+// - Periods (#109): start alerts and the per-task overrides (planReminders { periods: true }).
 const { planReminders, reminderText } = require("@thread/e2ee/src/model/reminders");
 
 // The timer re-checks at least hourly (sleep, clock changes); a reminder found late after a
@@ -47,12 +48,19 @@ class RemindersService {
   settingsChanged() {
     if (this.lists) return this.replan();
     const s = this.settings();
-    // Locked: the plan cannot be rebuilt; it is kept only while the choice still allows it.
-    this.plan = !s?.enabled ? [] : this.plan.filter((item) => (item.kind === "before" ? s.before && item.minutes === s.minutes : s.due));
+    // Locked: the plan cannot be rebuilt; it is kept only while the choice still allows it. An
+    // alert a task turned on itself stays.
+    const keep = {
+      before: (item) => s.before && item.minutes === s.minutes,
+      due: () => s.due,
+      "start-before": (item) => s.startBefore && item.minutes === s.startMinutes,
+      start: () => s.startAt,
+    };
+    this.plan = this.plan.filter((item) => item.override === "on" || (!!s?.enabled && !!keep[item.kind]?.(item)));
     this.arm();
   }
   replan() {
-    this.plan = planReminders(this.lists, this.settings(), { now: this.now(), limit: LIMIT });
+    this.plan = planReminders(this.lists, this.settings(), { now: this.now(), limit: LIMIT, periods: true });
     this.arm();
   }
   arm() {
