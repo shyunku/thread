@@ -248,6 +248,12 @@
   .rp-bell.dis { color: #3c4453; cursor: default; }
   .rp-bell.dis:hover { background: none; color: #3c4453; }
   .rp-bell-slot { width: 26px; height: 26px; margin: -3px -6px -3px 0; flex: none; }
+  .rp-prog { min-height: 34px; padding-top: 6px; padding-bottom: 8px; }
+  .rp-prog .v { flex-wrap: nowrap; gap: 10px; }
+  .pbar.wide { flex: 1; width: auto; height: 4px; }
+  .pbar.over i { background: var(--danger); }
+  .rp-prog .pl { flex: none; font-size: 12px; color: var(--secondary); }
+  .rp-prog .pl.over { color: var(--danger); }
   .rp-alert .v { flex-direction: column; align-items: stretch; gap: 6px; }
   .al-it { display: flex; align-items: center; gap: 8px; min-height: 24px; }
   .al-it .al-k { width: 30px; color: var(--secondary); }
@@ -378,7 +384,7 @@
 
   /* ---------- Menus and pickers (pickers.scss) ---------- */
   .tp-pop { position: absolute; z-index: 40; background: var(--pop); box-shadow: 0 14px 36px #000a; color: var(--text); font-size: 13px; line-height: 1.5; }
-  .tp-pop p { margin: 0; }
+  .tp-pop :where(p) { margin: 0; }
   .tp-menu { width: 236px; padding: 6px; border-radius: 10px; }
   .tp-sub { position: absolute; left: calc(100% + 6px); top: -6px; width: 248px; padding: 6px; border-radius: 10px; }
   .tp-sub.flip { left: auto; right: calc(100% + 6px); }
@@ -401,6 +407,12 @@
   .tp-hd { padding: 8px 10px 2px; font-size: 11.5px; color: var(--muted); }
   .tp-sp { height: 1px; background: var(--line); margin: 4px 6px; }
   .tp-note { padding: 4px 10px 6px; font-size: 11.5px; line-height: 1.5; color: var(--muted); }
+  .tp-sub.wide { width: 272px; }
+  .tp-mi.two { height: auto; min-height: 42px; padding: 5px 10px !important; }
+  .tp-lb small, .bell-pop .tp-lb small { display: block; color: var(--muted); font-size: 11.5px; line-height: 1.4; }
+  .tp-mi.on .tp-lb small { color: #8fb0f0; }
+  .pk-cbx { width: 16px; height: 16px; border-radius: 4px; border: 2px solid #5a6475; display: grid; place-items: center; color: #fff; flex: none; }
+  .pk-cbx.on { background: var(--accent); border-color: var(--accent); }
   .bell-pop { width: 252px; padding: 6px; border-radius: 10px; }
   .bell-pop .pk-rd { width: 16px; height: 16px; border-radius: 50%; border: 2px solid #5a6475; flex: none; }
   .bell-pop .tp-mi.on .pk-rd { border-color: var(--accent); background: var(--accent); box-shadow: inset 0 0 0 3px var(--pop); }
@@ -413,8 +425,9 @@
   .dp-x:hover { background: var(--raise); color: var(--text); }
   .dp-quick { display: flex; flex-wrap: wrap; gap: 6px; }
   .dp-quick.days { flex-wrap: nowrap; }
-  .dp-chip { display: inline-flex !important; align-items: center; gap: 5px; height: 26px; padding: 0 8px !important; border-radius: 6px; background: var(--raise) !important; color: var(--secondary); font-size: 12px; white-space: nowrap; }
-  .dp-chip:hover { background: #2d3442 !important; color: var(--text); }
+  /* Unselected quick buttons: #2b3240 (the app's --raise #222731 hardly shows on the popup's #1e2430). */
+  .dp-chip { display: inline-flex !important; align-items: center; gap: 5px; height: 26px; padding: 0 8px !important; border-radius: 6px; background: #2b3240 !important; color: var(--secondary); font-size: 12px; white-space: nowrap; }
+  .dp-chip:hover { background: #363e4f !important; color: var(--text); }
   .dp-chip.on { background: var(--picked) !important; color: #fff; font-weight: 600; }
   .dp-in { flex: 1; min-width: 0; display: flex; align-items: center; height: 26px; padding: 0 8px; border-radius: 6px; background: var(--canvas); border: 1px solid #2b303b; cursor: text; }
   .dp-in:focus-within { border-color: var(--accent); }
@@ -461,6 +474,9 @@
   .dp-fd.on small { color: #8fb0f0; }
   .dp-fd b { display: block; font-size: 12.5px; font-weight: 600; line-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .dp-fd span { display: block; font-size: 11.5px; color: var(--secondary); line-height: 16px; white-space: nowrap; }
+  .dp-fd.empty { border: 1px dashed #3a4354 !important; background: transparent !important; }
+  .dp-fd.empty b { color: var(--muted); font-weight: 500; }
+  .dp-fd.empty.on { border: 1px dashed var(--accent) !important; background: #1b2741 !important; }
   .dp-fd .fx { position: absolute; top: 4px; right: 4px; width: 18px; height: 18px; display: grid; place-items: center; border-radius: 5px; color: var(--muted); }
   .dp-fd .fx:hover { background: #3a4252; color: var(--text); }
   .dp-arrow { align-self: center; color: var(--muted); font-size: 12px; }
@@ -621,12 +637,13 @@ const cat = id => CATS.find(c => c.id === id);
 const AL = () => ({ start: 'follow', end: 'follow' });
 const TASKS0 = [
   { id: 't1', t: '치과 예약 전화하기', cat: 'home', end: at(11, 9, 18, 0) },
+  { id: 'p7', t: '전시회 부스 철수', cat: 'work', start: day0(11, 5), end: at(11, 9, 12, 0) },
   { id: 'p3', t: '팀 워크숍', cat: 'work', start: at(11, 10, 14, 0), end: at(11, 10, 17, 0) },
   { id: 't2', t: '장보기 · 우유, 달걀', cat: 'home', end: at(11, 10, 20, 0) },
   { id: 't3', t: '영어 단어 30개', cat: 'study', rep: '매일', end: at(11, 10, 22, 0) },
   { id: 'p1', t: '신제품 발표 자료', cat: 'work', start: day0(11, 9), end: at(11, 12), imp: true, memo: '목요일 오후 리뷰 전에 초안 공유.\n데모 영상은 2분 안으로.',
     subs: [['시장 자료 모으기', 1], ['초안 쓰기', 1], ['디자인 검토 받기', 0], ['리허설', 0], ['최종본 공유', 0]] },
-  { id: 'p5', t: '주간 스프린트', cat: 'work', rep: '매주', start: at(11, 9, 9, 0), end: at(11, 13, 18, 0), al: { start: 'follow', end: 'off' } },
+  { id: 'p5', t: '주간 스프린트', cat: 'work', rep: '매주', start: at(11, 9, 9, 0), end: at(11, 13, 18, 0), al: { start: 'follow', end: 'off' }, als: { 'end:at': 'off' } },
   { id: 't4', t: '세금 납부', cat: 'home', end: at(11, 13) },
   { id: 't5', t: '도서관 책 반납', cat: 'study', end: at(11, 17, 18, 0) },
   { id: 'p2', t: '이사 준비', cat: 'home', start: day0(10, 26), end: at(11, 20), memo: '짐 목록은 메모 앱에.' },
@@ -637,40 +654,38 @@ const TASKS0 = [
   { id: 'p6', t: '분기 보고서 작성', cat: 'work', start: day0(11, 3), end: at(11, 6, 18, 0), done: true, doneAt: at(11, 6, 16, 0) },
   { id: 't7', t: '은행 서류 제출', cat: 'work', end: at(11, 5, 18, 0), done: true, doneAt: at(11, 5, 11, 0) },
 ];
-const fresh = () => TASKS0.map(x => ({ start: null, ...x, al: x.al ? { ...x.al } : AL(), subs: x.subs ? x.subs.map(([t, d]) => ({ t, done: !!d })) : null }));
+const fresh = () => TASKS0.map(x => ({ start: null, ...x, al: x.al ? { ...x.al } : AL(), als: x.als ? { ...x.als } : {}, subs: x.subs ? x.subs.map(([t, d]) => ({ t, done: !!d })) : null }));
 
 // ---------- State ----------
-// Defaults on open = the recommended candidates.
+// Confirmed (round 1): bars in the month, 진행 중이면 오늘, "11/9 ~ 11/12" in rows, timeline blocks + band,
+// 시작 추가 in the picker, 알림 ▸ submenu, bells in the detail, a 시작 알림 group in the settings, and
+// no date reading in the quick-add title (only the picker's 직접 입력 reads periods).
+// Open: how a side with several alerts (10분 전 and 정각) shows per task (multi).
 const s = {
-  cal: 'bar', place: 'today', row: 'text', tl: 'mixed', pick: 'add', menuAl: 'sub', detAl: 'bell', set: 'group', qaP: 'chip',
+  cal: 'bar', tl: 'mixed', multi: 'group',
   view: 'list', menuSel: 'all', sel: null, tabHold: null, picked: TODAY, calMonth: { y: 2026, m: 10 }, miniMonth: { y: 2026, m: 10 },
   tasks: fresh(), shut: new Set(), menu: null, picker: null, bell: null, settings: false, setPage: 'GENERAL', setScroll: null,
   qa: { text: '', start: null, end: null, touched: false },
-  glob: { endBefore: true, endMin: 10, endAt: false, startBefore: true, startMin: 10, startAt: false, startLine: true, startLineMin: 0 },
+  // 끝: 10분 전 and 정각 both on (the case the open item is about); 시작: 10분 전 only.
+  glob: { endBefore: true, endMin: 10, endAt: true, startBefore: true, startMin: 10, startAt: false },
   lines: 3,
 };
 const task = id => s.tasks.find(x => x.id === id);
 
-// ---------- Rules the decisions change ----------
+// ---------- Rules ----------
 const inProg = t => isPeriod(t) && !t.done && t.start <= NOW && t.end >= NOW;
 const startedByToday = t => isPeriod(t) && !t.done && ds(t.start) <= TODAY && t.end >= NOW;
-// Item 2: which date group a task goes to.
+// A started period stays in 오늘 until it ends.
 function groupOf(t) {
   if (t.end == null) return 'none';
   const dd = dayDiff(t.end, NOW);
   if (dd < 0) return 'over';
-  if (s.place === 'top' && inProg(t)) return 'prog';
-  if (s.place === 'today' && startedByToday(t)) return 'today';
+  if (startedByToday(t)) return 'today';
   if (dd === 0) return 'today'; if (dd === 1) return 'tomorrow'; if (dd <= 4) return 'week'; if (dd <= 11) return 'next';
   return 'later';
 }
-// The group it had before (to mark what moved).
-const movedByRule = t => isPeriod(t) && !t.done && s.place !== 'old' && dayDiff(t.end, NOW) > 0 && (s.place === 'today' ? startedByToday(t) : inProg(t));
-function inToday(t) {
-  if (t.end == null) return false;
-  if (dayDiff(t.end, NOW) <= 0) return true;
-  return s.place === 'today' ? startedByToday(t) : s.place === 'top' ? inProg(t) : false;
-}
+const movedByRule = t => dayDiff(t.end, NOW) > 0 && startedByToday(t);
+const inToday = t => t.end != null && (dayDiff(t.end, NOW) <= 0 || startedByToday(t));
 const MENUS = { all: '모든 할 일', today: '오늘', week: '다음 7일', imp: '중요' };
 function menuFilter(t) {
   const m = s.menuSel;
@@ -680,19 +695,23 @@ function menuFilter(t) {
   if (m === 'imp') return !!t.imp;
   return t.cat === m;
 }
-// Alerts: effective state per kind; the global settings by item 8.
-const globalOn = kind => kind === 'end' ? (s.glob.endBefore || s.glob.endAt)
-  : s.set === 'none' ? false : s.set === 'line' ? s.glob.startLine : (s.glob.startBefore || s.glob.startAt);
-function globalDesc(kind) {
-  const g = s.glob;
-  if (kind === 'end') { const a = [g.endBefore && `${g.endMin === 60 ? '1시간' : g.endMin + '분'} 전`, g.endAt && '정각'].filter(Boolean); return a.length ? a.join(' · ') : '꺼짐'; }
-  if (s.set === 'none') return '꺼짐';
-  if (s.set === 'line') return g.startLine ? (g.startLineMin ? `${g.startLineMin}분 전` : '정각') : '꺼짐';
-  const a = [g.startBefore && `${g.startMin === 60 ? '1시간' : g.startMin + '분'} 전`, g.startAt && '정각'].filter(Boolean); return a.length ? a.join(' · ') : '꺼짐';
-}
+// Alerts. Each side (start, end) has the settings' alerts: N분 전 (before) and 정각 (at).
+// Per task: t.al[side] follow | on | off (one switch per side), or t.als['side:slot'] (one per alert).
+const SLOTS = ['before', 'at'];
+const minTxt = m => m === 60 ? '1시간' : m + '분';
+const globalSlot = (kind, slot) => s.glob[kind + (slot === 'before' ? 'Before' : 'At')];
+const slotName = (kind, slot) => slot === 'before' ? `${minTxt(s.glob[kind + 'Min'])} 전` : '정각';
+const globalOn = kind => SLOTS.some(x => globalSlot(kind, x));
+function globalDesc(kind) { const a = SLOTS.filter(x => globalSlot(kind, x)).map(x => slotName(kind, x)); return a.length ? a.join(' · ') : '꺼짐'; }
+// What a side rings once turned on: the settings' alerts, or N분 전 when the settings have none on.
+const onDesc = kind => globalOn(kind) ? globalDesc(kind) : slotName(kind, 'before');
 const alertable = (t, kind) => kind === 'end' ? t.end != null && hasT(t.end) : t.start != null && hasST(t.start);
-const alertOn = (t, kind) => t.al[kind] === 'on' ? true : t.al[kind] === 'off' ? false : globalOn(kind);
+const slotState = (t, kind, slot) => t.als[kind + ':' + slot] || 'follow';
+const slotOn = (t, kind, slot) => { const v = slotState(t, kind, slot); return v === 'on' ? true : v === 'off' ? false : globalSlot(kind, slot); };
+const alertOn = (t, kind) => s.multi === 'each' ? SLOTS.some(x => slotOn(t, kind, x)) : t.al[kind] === 'on' ? true : t.al[kind] === 'off' ? false : globalOn(kind);
+const alertDirect = (t, kind) => s.multi === 'each' ? SLOTS.some(x => slotState(t, kind, x) !== 'follow') : t.al[kind] !== 'follow';
 const alertKinds = t => t.end == null ? [] : t.start != null ? ['start', 'end'] : ['end'];
+const resetAlerts = (t, kind) => { for (const k of kind ? [kind] : ['start', 'end']) { t.al[k] = 'follow'; for (const x of SLOTS) delete t.als[k + ':' + x]; } };
 const KN = { start: '시작', end: '끝' };
 
 // ---------- Main window pieces ----------
@@ -722,22 +741,15 @@ const navBtns = k => `<span class="tc-nav"><span class="tc-ghost" data-act="${k}
 function rcol(t) {
   if (t.end == null) return '<div class="rcol"></div>';
   const over = !t.done && t.end < NOW;
-  if (!isPeriod(t) || s.row === 'old') {
+  if (!isPeriod(t)) {
     return `<div class="rcol"><span class="when ${over ? 'over' : ''}">${dueGroupTxt(t.end)}</span>${t.done ? '' : `<span class="left ${over ? 'over' : ''}">${remainTxt(t.end - NOW)}</span>`}</div>`;
   }
+  // Periods: 뒤 시작 before the start, 뒤 종료 while running, 지남 (from the end) after it.
   let left = '';
   if (!t.done) {
-    if (t.start > NOW) left = `<span class="left soon">${spanTxt(t.start - NOW)} 뒤 시작</span>`;
-    else if (over) left = `<span class="left over">${remainTxt(t.end - NOW)}</span>`;
-    else if (s.row === 'text') left = `<span class="left">${remainTxt(t.end - NOW)}</span>`;
-    else {
-      const one = dayDiff(t.end, t.start) === 0;
-      const total = one ? Math.round((t.end - t.start) / 36e5) : dayDiff(t.end, t.start) + 1;
-      const nth = one ? Math.floor((NOW - t.start) / 36e5) + 1 : dayDiff(NOW, t.start) + 1;
-      const unit = one ? '시간' : '일';
-      if (s.row === 'bar') left = `<span class="left"><span class="pbar"><i style="width:${Math.round(Math.min(1, (NOW - t.start) / (t.end - t.start)) * 100)}%"></i></span>${nth}/${total}${unit}</span>`;
-      else left = `<span class="left">${total}${unit} 중 ${nth}${unit}째</span>`;
-    }
+    if (over) left = `<span class="left over">${spanTxt(t.end - NOW)} 지남</span>`;
+    else if (t.start > NOW) left = `<span class="left soon">${spanTxt(t.start - NOW)} 뒤 시작</span>`;
+    else left = `<span class="left">${spanTxt(t.end - NOW)} 뒤 종료</span>`;
   }
   return `<div class="rcol is-new in"><span class="when ${over ? 'over' : ''}">${periodTxt(t)}</span>${left}</div>`;
 }
@@ -816,36 +828,30 @@ function findPeriod(text, whole) {
   if (eMs < sMs) return null;
   return { title: text.slice(0, m.index).trim(), start: sMs, end: eMs, sOn: a.min != null, eOn: b.min != null };
 }
-function qaDetected() { return s.qaP === 'none' ? null : findPeriod(s.qa.text, false); }
 function qaDefaultEnd() {
   if (s.view !== 'list') return s.picked + DAY - 1000;
   return s.menuSel === 'today' || s.menuSel === 'week' ? TODAY + DAY - 1000 : null;
 }
+// The title is taken as typed; a period comes from the date chip's picker and shows as one chip.
 function qaChips() {
-  const found = qaDetected();
-  const start = found ? found.start : s.qa.touched ? s.qa.start : null;
-  const end = found ? found.end : s.qa.touched ? s.qa.end : qaDefaultEnd();
+  const start = s.qa.touched ? s.qa.start : null;
+  const end = s.qa.touched ? s.qa.end : qaDefaultEnd();
   const chipTxt = ms => hasT(ms) ? `${mdK(ms)} ${clockS(ms)}` : mdK(ms);
-  let date;
   const x = `<span class="qa-x" data-act="qax" data-tip="날짜 빼기">${I.close(12)}</span>`;
+  let date;
   if (end == null) date = `<span class="qa-chip" data-act="qadate">${I.cal()}<span>날짜</span></span>`;
   else if (start == null) date = `<span class="qa-chip on" data-act="qadate">${I.cal()}<span>${chipTxt(end)}</span>${x}</span>`;
   else {
     const sT = hasST(start) ? `${md(start)} ${clockS(start)}` : md(start), eT = hasT(end) ? `${dayDiff(end, start) === 0 ? '' : md(end) + ' '}${clockS(end)}` : md(end);
-    const cls = `qa-chip on ${found ? 'found' : ''} is-new`;
-    date = s.qaP === 'two'
-      ? `<span class="${cls}" data-act="qadate">${I.cal()}<span class="qa-k">시작</span><span>${sT}</span></span><span class="${cls}" data-act="qadate"><span class="qa-k">끝</span><span>${eT}</span>${x}</span>`
-      : `<span class="${cls}" data-act="qadate" ${found ? 'data-tip="적은 글에서 찾은 기간"' : ''}>${I.cal()}<span>${sT} ~ ${eT}</span>${x}</span>`;
+    date = `<span class="qa-chip on is-new" data-act="qadate">${I.cal()}<span>${sT} ~ ${eT}</span>${x}</span>`;
   }
   return `<div class="qa-chips">${date}<span class="qa-chip">${I.repeat}<span>반복</span></span><span class="qa-chip"><span class="qa-dot" style="background:var(--muted)"></span><span>카테고리</span></span><span class="qa-chip">${I.star(false, 13)}<span>중요</span></span></div>`;
 }
 const quickAdd = () => `<div class="tc-quick"><div class="qa-in"><span class="qa-plus" data-act="qaadd" data-tip="할 일 추가">${I.plus()}</span><input data-fk="qa" placeholder="할 일 추가" spellcheck="false" autocomplete="off" value="${esc(s.qa.text)}"><kbd>Ctrl N</kbd></div>${qaChips()}</div>`;
 function qaAdd() {
   const text = s.qa.text.trim(); if (!text) return;
-  const found = qaDetected();
-  const t = { id: 'q' + Date.now(), t: found ? (found.title || text) : text, cat: null, start: null, end: qaDefaultEnd(), al: AL() };
-  if (found) { t.start = found.start; t.end = found.end; }
-  else if (s.qa.touched) { t.start = s.qa.start; t.end = s.qa.end; }
+  const t = { id: 'q' + Date.now(), t: text, cat: null, start: null, end: qaDefaultEnd(), al: AL(), als: {} };
+  if (s.qa.touched) { t.start = s.qa.start; t.end = s.qa.end; }
   s.tasks.push(t);
   s.qa = { text: '', start: null, end: null, touched: false };
   render();
@@ -1048,39 +1054,39 @@ function calendarTab() {
   return `<div class="rp-box">${miniMonth({ ...s.miniMonth, picked: [s.picked], act: 'data-act="day" data-day', nav: 'data-act="mmnav" data-d', marks })}</div>${dayList()}`;
 }
 function bellBtn(t, kind) {
-  if (s.detAl !== 'bell') return '';
   if (!alertable(t, kind)) return `<span class="rp-bell dis is-new" data-tip="${KN[kind]}에 시각을 정하면 알림을 받을 수 있어요" data-bk="${kind}">${I.bellOff(15)}</span>`;
-  const v = t.al[kind], on = alertOn(t, kind);
-  const tip = v === 'follow' ? `${KN[kind]} 알림: 전체 설정 따름 (${on ? globalDesc(kind) : '꺼짐'})` : `${KN[kind]} 알림: 이 할 일만 ${on ? '켬' : '끔'} (직접 설정)`;
-  return `<button class="rp-bell ${v === 'on' ? 'on-dir' : v === 'off' ? 'off-dir' : ''} is-new" data-act="bell" data-k="${kind}" data-bk="${kind}" data-tip="${tip}">${on ? I.bell(15) : I.bellOff(15)}${v !== 'follow' ? '<i class="dir"></i>' : ''}</button>`;
+  const on = alertOn(t, kind), dir = alertDirect(t, kind);
+  const tip = dir ? `${KN[kind]} 알림: 이 할 일만 직접 설정` : `${KN[kind]} 알림: 전체 설정 따름 (${on ? globalDesc(kind) : '꺼짐'})`;
+  return `<button class="rp-bell ${dir ? (on ? 'on-dir' : 'off-dir') : ''} is-new" data-act="bell" data-k="${kind}" data-bk="${kind}" data-tip="${tip}">${on ? I.bell(15) : I.bellOff(15)}${dir ? '<i class="dir"></i>' : ''}</button>`;
+}
+// How far a period has gone, under its 시작 · 끝 (moved here from the list row).
+function progRow(t) {
+  let frac, label, over = false;
+  const one = dayDiff(t.end, t.start) === 0;
+  if (t.done) { frac = 1; label = '완료'; }
+  else if (t.start > NOW) { frac = 0; label = `${spanTxt(t.start - NOW)} 뒤 시작`; }
+  else if (t.end < NOW) { frac = 1; over = true; label = `${spanTxt(t.end - NOW)} 지남`; }
+  else {
+    frac = (NOW - t.start) / (t.end - t.start);
+    label = one ? `${Math.round(frac * 100)}% · ${spanTxt(t.end - NOW)} 뒤 종료` : `${dayDiff(t.end, t.start) + 1}일 중 ${dayDiff(NOW, t.start) + 1}일째`;
+  }
+  return `<div class="rp-prop static rp-prog is-new"><span class="k">진행</span><span class="v"><span class="pbar wide ${over ? 'over' : ''}"><i style="width:${Math.round(frac * 100)}%"></i></span><span class="pl ${over ? 'over' : ''}">${label}</span></span></div>`;
 }
 function dateRows(t) {
   const over = !t.done && t.end != null && t.end < NOW;
   const open = k => s.picker && s.picker.target === t.id && s.picker.from === k ? 'open' : '';
-  const slot = s.detAl === 'none' ? '<span class="rp-bell-slot"></span>' : '';
-  if (s.pick !== 'none' && isPeriod(t)) {
-    return `<div class="rp-prop date is-new ${open('start')}" data-act="prop" data-k="start" data-tip="시작 정하기"><span class="k">시작</span><span class="v">${startDetail(t.start)}</span>${bellBtn(t, 'start')}${slot}</div>
-      <div class="rp-prop date ${open('end')}" data-act="prop" data-k="end" data-tip="끝 정하기"><span class="k">끝</span><span class="v ${over ? 'over' : ''}">${endDetail(t.end)}</span>${bellBtn(t, 'end')}</div>`;
+  if (isPeriod(t)) {
+    return `<div class="rp-prop date is-new ${open('start')}" data-act="prop" data-k="start" data-tip="시작 정하기"><span class="k">시작</span><span class="v">${startDetail(t.start)}</span>${bellBtn(t, 'start')}</div>
+      <div class="rp-prop date ${open('end')}" data-act="prop" data-k="end" data-tip="끝 정하기"><span class="k">끝</span><span class="v ${over ? 'over' : ''}">${endDetail(t.end)}</span>${bellBtn(t, 'end')}</div>${progRow(t)}`;
   }
-  const add = s.pick === 'add' && t.end != null ? `<button class="rp-addst is-new" data-act="addst" data-tip="시작을 정해 기간으로">${I.plus(12)}시작</button>` : '';
-  return `<div class="rp-prop date ${open('end')}" data-act="prop" data-k="end" data-tip="기한 정하기"><span class="k">기한</span><span class="v ${over ? 'over' : ''}">${t.end == null ? '<span class="sub">없음</span>' : endDetail(t.end)}</span>${add}${t.end != null ? bellBtn(t, 'end') : ''}${slot}</div>`;
-}
-function alertRow(t) {
-  if (s.detAl !== 'row') return '';
-  const kinds = alertKinds(t);
-  if (!kinds.length) return `<div class="rp-prop static rp-alert is-new"><span class="k">알림</span><span class="v"><span class="sub">기한을 정하면 알림을 받을 수 있어요</span></span></div>`;
-  const any = kinds.some(k => t.al[k] !== 'follow');
-  return `<div class="rp-prop static rp-alert is-new"><span class="k">알림</span><span class="v">${kinds.map(k => {
-    if (!alertable(t, k)) return `<span class="al-it"><span class="al-k">${KN[k]}</span><span class="al-s">시각이 없어 알림 없음</span><span class="sw dis"><i></i></span></span>`;
-    const v = t.al[k];
-    return `<span class="al-it"><span class="al-k">${KN[k]}</span><span class="al-s">${v === 'follow' ? `전체 설정 · ${alertOn(t, k) ? globalDesc(k) : '꺼짐'}` : ''}</span>${v !== 'follow' ? '<em>직접</em>' : ''}<button class="sw ${alertOn(t, k) ? 'on' : ''}" data-act="alsw" data-k="${k}" data-tip="${KN[k]} 알림 ${alertOn(t, k) ? '끄기' : '켜기'}"><i></i></button></span>`;
-  }).join('')}${any ? '<button class="al-reset" data-act="alreset">전체 설정 따르기로 되돌리기</button>' : ''}</span></div>`;
+  const add = t.end != null ? `<button class="rp-addst is-new" data-act="addst" data-tip="시작을 정해 기간으로">${I.plus(12)}시작</button>` : '';
+  return `<div class="rp-prop date ${open('end')}" data-act="prop" data-k="end" data-tip="기한 정하기"><span class="k">기한</span><span class="v ${over ? 'over' : ''}">${t.end == null ? '<span class="sub">없음</span>' : endDetail(t.end)}</span>${add}${t.end != null ? bellBtn(t, 'end') : ''}</div>`;
 }
 function detail(t) {
   const subs = t.subs || [];
   const rep = t.rep ? (t.rep === '매주' && isPeriod(t) ? `매주 · ${WD[new Date(t.start).getDay()]} ~ ${WD[new Date(t.end).getDay()]}` : t.rep) : '';
   return `<div class="rp-dt-title"><button class="ck ${t.done ? 'done' : ''}" data-act="ck" data-tid="${t.id}">${I.check}</button><div class="rp-title ${t.done ? 'done' : ''}">${esc(t.t)}</div><button class="st ${t.imp ? 'on' : ''}" data-act="star" data-tid="${t.id}">${I.star(t.imp, 20)}</button></div>
-    <div class="rp-box">${dateRows(t)}${alertRow(t)}
+    <div class="rp-box">${dateRows(t)}
       <div class="rp-prop" data-tip="반복 정하기"><span class="k">반복</span><span class="v">${rep || '<span class="sub">안 함</span>'}</span></div>
       <div class="rp-prop" data-tip="카테고리 고르기"><span class="k">카테고리</span><span class="v">${t.cat ? `<span class="rp-chip"><span class="rp-dot" style="background:${cat(t.cat).color}"></span>${cat(t.cat).title}</span>` : ''}<span class="rp-chip">${I.plus(14)}</span></span></div>
     </div>
@@ -1101,19 +1107,29 @@ function panel() {
     <div class="rp-body">${body}</div></div>`;
 }
 
-// ---------- Task menu (item 6) ----------
-function alertMenuRows(t, flat) {
-  const kinds = alertKinds(t);
-  const rows = kinds.map(k => {
-    if (!alertable(t, k)) return `<div class="tp-mi dis" data-tip="${KN[k]}에 시각을 정하면 켤 수 있어요"><span class="tp-mic">${I.bellOff(14)}</span><span class="tp-lb">${KN[k]} 알림</span><span class="tp-kb">시각 없음</span></div>`;
-    const v = t.al[k], on = alertOn(t, k);
-    return `<button class="tp-mi ${on ? 'on' : ''}" data-act="mi" data-mi="al:${k}"><span class="tp-mic">${on ? I.bell(14) : I.bellOff(14)}</span><span class="tp-lb">${KN[k]} 알림</span><span class="tp-kb ${v !== 'follow' ? 'dir' : ''}">${v === 'follow' ? '전체 설정' : '직접'}</span><span class="tp-ok ${on ? '' : 'ph'}">${I.tick(14)}</span></button>`;
-  }).join('');
-  const any = kinds.some(k => t.al[k] !== 'follow');
+// ---------- Task menu: 알림 ▸ (open: how a side with several alerts shows) ----------
+const bellIc = on => on ? I.bell(14) : I.bellOff(14);
+const atOf = (t, kind) => kind === 'start' ? t.start : t.end;
+const slotAt = (t, kind, slot) => atOf(t, kind) - (slot === 'before' ? s.glob[kind + 'Min'] * 6e4 : 0);
+function alertMenuRows(t) {
+  const kinds = alertKinds(t), m = s.multi;
+  const anyDir = kinds.some(k => alertDirect(t, k));
+  let rows = '';
+  for (const k of kinds) {
+    if (!alertable(t, k)) { rows += `<div class="tp-mi dis" data-tip="${KN[k]}에 시각을 정하면 켤 수 있어요"><span class="tp-mic">${I.bellOff(14)}</span><span class="tp-lb">${KN[k]} 알림</span><span class="tp-kb">시각 없음</span></div>`; continue; }
+    if (m === 'each') {
+      rows += `<div class="tp-hd">${KN[k]} · ${clockS(atOf(t, k))}</div>` + SLOTS.map(x => {
+        const on = slotOn(t, k, x), v = slotState(t, k, x);
+        return `<button class="tp-mi ${on ? 'on' : ''}" data-act="mi" data-mi="sl:${k}:${x}"><span class="tp-mic">${bellIc(on)}</span><span class="tp-lb">${KN[k]} ${slotName(k, x)}</span><span class="tp-kb ${v !== 'follow' ? 'dir' : ''}">${v === 'follow' ? '전체 설정' : '직접'}</span><span class="tp-ok ${on ? '' : 'ph'}">${I.tick(14)}</span></button>`;
+      }).join('');
+    } else {
+      const on = alertOn(t, k), dir = alertDirect(t, k);
+      if (m === 'group') rows += `<button class="tp-mi two ${on ? 'on' : ''}" data-act="mi" data-mi="al:${k}"><span class="tp-mic">${bellIc(on)}</span><span class="tp-lb">${KN[k]} 알림<small>${on ? onDesc(k) : '꺼짐'}</small></span><span class="tp-kb ${dir ? 'dir' : ''}">${dir ? '직접' : '전체 설정'}</span><span class="tp-ok ${on ? '' : 'ph'}">${I.tick(14)}</span></button>`;
+      else rows += `<button class="tp-mi ${on ? 'on' : ''}" data-act="mi" data-mi="al:${k}"><span class="tp-mic">${bellIc(on)}</span><span class="tp-lb">${KN[k]} 알림</span><span class="tp-kb ${dir ? 'dir' : ''}">${dir ? '직접' : '전체 설정'}</span><span class="tp-ok ${on ? '' : 'ph'}">${I.tick(14)}</span></button>`;
+    }
+  }
   const noTime = kinds.some(k => !alertable(t, k));
-  if (flat) return `<div class="tp-sp"></div><div class="tp-hd">알림</div>${rows}${any ? `<button class="tp-mi" data-act="mi" data-mi="al:follow"><span class="tp-mic">${I.undo}</span><span class="tp-lb">전체 설정 따르기</span></button>` : ''}`;
-  return `<button class="tp-mi ${!any ? 'on' : ''}" data-act="mi" data-mi="al:follow"><span class="tp-mic">${I.gear}</span><span class="tp-lb">전체 설정 따르기</span><span class="tp-ok ${any ? 'ph' : ''}">${I.tick(14)}</span></button>
-    <div class="tp-note">시작 ${t.start != null ? globalDesc('start') : '-'} · 끝 ${globalDesc('end')}</div><div class="tp-sp"></div>${rows}
+  return `<button class="tp-mi ${anyDir ? '' : 'on'}" data-act="mi" data-mi="al:follow"><span class="tp-mic">${I.gear}</span><span class="tp-lb">전체 설정 따르기</span><span class="tp-ok ${anyDir ? 'ph' : ''}">${I.tick(14)}</span></button><div class="tp-sp"></div>${rows}
     ${noTime ? '<div class="tp-note">날짜만 정한 시작 · 끝은 알림이 없어요. 시각을 정하면 켤 수 있어요.</div>' : '<div class="tp-note">직접 켜고 끈 알림은 설정 &gt; 알림을 바꿔도 그대로예요.</div>'}`;
 }
 function ctxMenu() {
@@ -1121,111 +1137,107 @@ function ctxMenu() {
   const t = task(m.tid); if (!t) return '';
   const has = t.end != null;
   const it = (k, ic, l, extra = '') => `<button class="tp-mi" data-act="mi" data-mi="${k}"><span class="tp-mic">${ic}</span><span class="tp-lb">${l}</span>${extra}</button>`;
-  const alertItem = s.menuAl === 'sub'
-    ? (has ? `<div class="tp-mi has-sub ${m.sub === 'al' ? 'open' : ''} is-new in" data-sub="al"><span class="tp-mic">${I.bell(15)}</span><span class="tp-lb">알림</span><span class="tp-kb tp-chev">${I.next(14)}</span>${m.sub === 'al' ? `<div class="tp-pop tp-sub alert" data-subpop>${alertMenuRows(t, false)}</div>` : ''}</div>`
-      : `<div class="tp-mi dis is-new in" data-sub="none" data-tip="기한을 정하면 알림을 받을 수 있어요"><span class="tp-mic">${I.bell(15)}</span><span class="tp-lb">알림</span><span class="tp-kb">기한 없음</span></div>`)
-    : '';
-  const flat = s.menuAl === 'flat' && has ? `<div class="is-new in">${alertMenuRows(t, true)}</div>` : '';
+  const alertItem = has
+    ? `<div class="tp-mi has-sub ${m.sub === 'al' ? 'open' : ''} is-new in" data-sub="al"><span class="tp-mic">${I.bell(15)}</span><span class="tp-lb">알림</span><span class="tp-kb tp-chev">${I.next(14)}</span>${m.sub === 'al' ? `<div class="tp-pop tp-sub alert ${s.multi === 'none' ? '' : 'wide'}" data-subpop>${alertMenuRows(t)}</div>` : ''}</div>`
+    : `<div class="tp-mi dis is-new in" data-sub="none" data-tip="기한을 정하면 알림을 받을 수 있어요"><span class="tp-mic">${I.bell(15)}</span><span class="tp-lb">알림</span><span class="tp-kb">기한 없음</span></div>`;
   return `<div class="tp-pop tp-menu ctx" style="left:${m.x}px;top:${m.y}px">
     ${it('open', I.open, '열기', '<span class="tp-kb">Enter</span>')}<div class="tp-sp"></div><div class="tp-hd">기한</div>
     ${it('today', I.sun(15), '오늘')}${it('tomorrow', I.week(15), '내일')}${has ? it('plus1', I.dayLater, '하루 미루기') + it('plus7', I.weekLater, '일주일 미루기') : ''}
-    ${it('pick', I.cal(15), s.pick === 'none' ? '날짜 · 시간 정하기…' : '날짜 · 기간 정하기…')}${has ? it('clear', I.clear, '기한 없애기') : ''}${alertItem}${flat}
+    ${it('pick', I.cal(15), '날짜 · 기간 정하기…')}${has ? it('clear', I.clear, '기한 없애기') : ''}${alertItem}
     <div class="tp-sp"></div>${it('imp', I.star(t.imp, 15), t.imp ? '중요 해제' : '중요로 표시')}
     <div class="tp-mi has-sub ${m.sub === 'cat' ? 'open' : ''}" data-sub="cat"><span class="tp-mic">${I.tag}</span><span class="tp-lb">카테고리</span><span class="tp-kb tp-chev">${I.next(14)}</span>${m.sub === 'cat' ? `<div class="tp-pop tp-sub" data-subpop>${CATS.map(c => `<div class="tp-mi ${t.cat === c.id ? 'on' : ''}"><span class="tp-mic">${c.secret ? `<span style="color:${c.color}">${I.shield(14)}</span>` : `<span class="tp-dot" style="background:${c.color}"></span>`}</span><span class="tp-lb">${c.title}</span>${t.cat === c.id ? `<span class="tp-ok">${I.tick(14)}</span>` : ''}</div>`).join('')}</div>` : ''}</div>
     ${it('dup', I.copy, '복제')}<div class="tp-sp"></div><button class="tp-mi danger" data-act="mi" data-mi="del"><span class="tp-mic">${I.trash()}</span><span class="tp-lb">삭제</span><span class="tp-kb">Del</span></button>
   </div>`;
 }
+// The bell's popover in the detail (open item: one switch per side, or one per alert).
 function bellPop() {
   const b = s.bell; if (!b || !s.sel) return '';
-  const t = task(s.sel), k = b.kind, v = t.al[k];
+  const t = task(s.sel), k = b.kind, m = s.multi;
+  const head = `<div class="tp-hd">${KN[k]} 알림 · ${clockS(atOf(t, k))}</div>`;
+  if (m === 'each') {
+    const rows = SLOTS.map(x => {
+      const on = slotOn(t, k, x), v = slotState(t, k, x);
+      return `<button class="tp-mi ${on ? 'on' : ''}" data-act="bslot" data-x="${x}"><span class="pk-cbx ${on ? 'on' : ''}">${on ? I.tick(10) : ''}</span><span class="tp-lb" style="white-space:normal">${slotName(k, x)}<small>${clockS(slotAt(t, k, x))}에 알림</small></span><span class="tp-kb ${v !== 'follow' ? 'dir' : ''}">${v === 'follow' ? '전체 설정' : '직접'}</span></button>`;
+    }).join('');
+    return `<div class="tp-pop bell-pop is-new" data-bellpop>${head}${rows}<div class="tp-sp"></div>
+      ${alertDirect(t, k) ? '<button class="tp-mi" data-act="bellset" data-v="follow"><span class="tp-mic">' + I.undo + '</span><span class="tp-lb">전체 설정 따르기로 되돌리기</span></button>' : ''}
+      <div class="tp-note">바꾼 알림만 직접 설정이 되고, 나머지는 설정 &gt; 알림을 따라요.</div></div>`;
+  }
+  const v = t.al[k], grp = m === 'group';
   const row = (val, l, sub) => `<button class="tp-mi ${v === val ? 'on' : ''}" data-act="bellset" data-v="${val}"><span class="pk-rd"></span><span class="tp-lb" style="white-space:normal">${l}${sub ? `<small>${sub}</small>` : ''}</span></button>`;
-  return `<div class="tp-pop bell-pop is-new" data-bellpop><div class="tp-hd">${KN[k]} 알림 · ${k === 'start' ? clockS(t.start) : clockS(t.end)}</div>
-    ${row('follow', '전체 설정 따르기', `지금 ${globalOn(k) ? globalDesc(k) : '꺼짐'} · 설정 &gt; 알림을 바꾸면 같이 바뀌어요`)}
-    ${row('on', '이 할 일만 켜기', `${KN[k]} ${globalDesc(k) === '꺼짐' ? '10분 전' : globalDesc(k)}에 알려요 · 설정을 바꿔도 그대로`)}
-    ${row('off', '이 할 일만 끄기', '설정을 바꿔도 그대로')}</div>`;
+  return `<div class="tp-pop bell-pop is-new" data-bellpop>${head}
+    ${row('follow', '전체 설정 따르기', grp ? `지금 ${globalDesc(k)} · 설정 &gt; 알림을 바꾸면 같이 바뀌어요` : '설정 &gt; 알림을 바꾸면 같이 바뀌어요')}
+    ${row('on', '이 할 일만 켜기', grp ? `${onDesc(k)}에 알려요 · 설정을 바꿔도 그대로` : '설정을 바꿔도 그대로')}
+    ${row('off', '이 할 일만 끄기', grp ? `${KN[k]} 알림을 모두 꺼요 · 설정을 바꿔도 그대로` : '설정을 바꿔도 그대로')}</div>`;
 }
 
 // ---------- Period picker (item 5) ----------
-const fieldOf = ms => ({ day: ds(ms), on: false, min: 0 });
+// Opens with the 끝 field active; a task without a start shows the 시작 field empty
+// (+ 시작 in the detail opens it with that empty field active).
 function openPicker(target, from, opts = {}) {
   const src = target === 'qa' ? { start: s.qa.touched ? s.qa.start : null, end: s.qa.touched ? s.qa.end : qaDefaultEnd() } : task(target);
   const endMs = src.end ?? (s.view !== 'list' ? s.picked + DAY - 1000 : TODAY + DAY - 1000);
   const end = { day: ds(endMs), on: src.end != null && hasT(src.end), min: src.end != null && hasT(src.end) ? new Date(src.end).getHours() * 60 + new Date(src.end).getMinutes() : 1439 };
-  let start = null;
-  if (s.pick !== 'none' && src.start != null) start = { day: ds(src.start), on: hasST(src.start), min: hasST(src.start) ? new Date(src.start).getHours() * 60 + new Date(src.start).getMinutes() : 0 };
-  if (opts.addStart && !start) start = { day: end.day, on: false, min: 0 };
-  const active = start && (from === 'start' || opts.addStart) ? 'start' : 'end';
-  const vd = new Date((active === 'start' ? start : end).day);
-  s.picker = { target, from, start, end, active, text: '', parsed: null, clicks: start ? 2 : 1, view: { y: vd.getFullYear(), m: vd.getMonth() }, anchor: opts.anchor || null, orig: { start, end: { ...end } } };
+  const start = src.start != null ? { day: ds(src.start), on: hasST(src.start), min: hasST(src.start) ? new Date(src.start).getHours() * 60 + new Date(src.start).getMinutes() : 0 } : null;
+  const active = opts.addStart || (from === 'start' && start) ? 'start' : 'end';
+  const vd = new Date((active === 'start' && start ? start : end).day);
+  s.picker = { target, from, start, end, active, text: '', parsed: null, view: { y: vd.getFullYear(), m: vd.getMonth() }, anchor: opts.anchor || null };
 }
 const msOf = (f, isStart) => f.on ? f.day + f.min * 6e4 : isStart ? f.day : f.day + DAY - 1000;
 function pickerHtml() {
   const p = s.picker; if (!p) return '';
-  const v = s.pick, period = !!p.start;
-  const act = period ? p[p.active] : p.end;
-  const actKey = period ? p.active : 'end';
+  const period = !!p.start;
+  const act = p[p.active]; // null while the empty 시작 field is active
   const head = `<div class="dp-h"><span>${period ? '기간 정하기' : '기한 정하기'}</span><button class="dp-x" data-pa="x" data-tip="닫기">${I.close()}</button></div>`;
-  let top = '';
-  if (v === 'mode') top = `<div class="dp-mode is-new"><button class="${period ? '' : 'on'}" data-pa="mode:one">하루</button><button class="${period ? 'on' : ''}" data-pa="mode:range">기간</button></div>`;
-  if (v === 'add' && !period) top = `<button class="dp-addst is-new" data-pa="addst">${I.plus(14)}시작 추가</button>`;
-  if (v === 'range') top = `<p class="dp-hint is-new">${p.clicks === 1 && !period ? '다른 날을 한 번 더 누르면 그날까지 기간이 돼요' : '날을 누르면 기한, 이어서 다른 날을 누르면 기간'}</p>`;
-  const fd = (k) => { const f = p[k]; return `<button class="dp-fd ${p.active === k ? 'on' : ''}" data-pa="fd:${k}"><small>${KN[k]}</small><b>${dayLbl(f.day)}</b><span>${f.on ? clockL(f.day + f.min * 6e4) : k === 'start' ? '하루 시작' : '하루 끝'}</span>${k === 'start' && v === 'add' ? `<span class="fx" data-pa="rmst" data-tip="시작 빼기">${I.close(12)}</span>` : ''}</button>`; };
-  const fields = period && v !== 'range' ? `<div class="dp-fields is-new">${fd('start')}<span class="dp-arrow">~</span>${fd('end')}</div>` : '';
-  const qd = [[TODAY, '오늘'], [addDays(TODAY, 1), '내일']].map(([ms, l]) => `<button class="dp-chip ${act.day === ms && !(v === 'range' && period) ? 'on' : ''}" data-pa="qd:${ms}" data-tip="${dayLbl(ms)}">${l}</button>`).join('');
-  const ph = v === 'none' ? '직접 입력 · 예: 금요일 3시' : '직접 입력 · 예: 11/20~23';
+  const fd = k => {
+    const f = p[k], on = p.active === k ? 'on' : '';
+    if (!f) return `<button class="dp-fd empty ${on}" data-pa="fd:start"><small>시작</small><b>없음</b><span>${on ? '달력에서 골라요' : '눌러서 추가'}</span></button>`;
+    return `<button class="dp-fd ${on}" data-pa="fd:${k}"><small>${KN[k]}</small><b>${dayLbl(f.day)}</b><span>${f.on ? clockL(f.day + f.min * 6e4) : k === 'start' ? '하루 시작' : '하루 끝'}</span>${k === 'start' ? `<span class="fx" data-pa="rmst" data-tip="시작 빼기">${I.close(12)}</span>` : ''}</button>`;
+  };
+  const fields = `<div class="dp-fields is-new">${fd('start')}<span class="dp-arrow">~</span>${fd('end')}</div>`;
+  const qd = [[TODAY, '오늘'], [addDays(TODAY, 1), '내일']].map(([ms, l]) => `<button class="dp-chip ${act && act.day === ms ? 'on' : ''}" data-pa="qd:${ms}" data-tip="${dayLbl(ms)}">${l}</button>`).join('');
   let line;
   if (p.parsed === false) line = '<p class="dp-line bad"><span>알아듣지 못했어요 · 예: 내일 3시, 11/20, 11/20~11/23</span></p>';
   else if (p.parsed) line = `<p class="dp-line got">${I.tick(12)}<span>${p.parsed}</span></p>`;
-  else line = `<p class="dp-line"><span>${v === 'none' ? '날짜나 시간을 적으면 바로 골라져요' : '날짜나 기간(~, 부터 · 까지)을 적으면 바로 골라져요'}</span></p>`;
-  const range = period ? [p.start.day, p.end.day] : null;
-  const picked = period ? (v === 'range' ? [p.start.day, p.end.day] : [act.day]) : [p.end.day];
-  const cal = `<div class="dp-cal">${miniMonth({ ...p.view, picked, range, act: 'data-pa="day" data-day', nav: 'data-pa="mon" data-d', minWeeks: 6 })}</div>`;
-  const timeBlock = (k, label, mini) => {
+  else line = '<p class="dp-line"><span>날짜나 기간(~, 부터 · 까지)을 적으면 바로 골라져요</span></p>';
+  const range = period ? [p.start.day, p.end.day] : [p.end.day, p.end.day];
+  const cal = `<div class="dp-cal">${miniMonth({ ...p.view, picked: act ? [act.day] : [], range, act: 'data-pa="day" data-day', nav: 'data-pa="mon" data-d', minWeeks: 6 })}</div>`;
+  const timeBlock = (k, label) => {
     const f = p[k], h = Math.floor(f.min / 60), mi = f.min % 60, pm = h >= 12;
     const presets = k === 'start' ? [[540, '오전 9시'], [720, '오후 12시'], [840, '오후 2시'], [1080, '오후 6시']] : [[540, '오전 9시'], [720, '오후 12시'], [1080, '오후 6시'], [1260, '오후 9시'], [1439, '하루 끝']];
     const body = f.on ? `<div class="dp-field"><span class="dp-seg"><button class="${pm ? '' : 'on'}" data-pa="half:${k}:am">오전</button><button class="${pm ? 'on' : ''}" data-pa="half:${k}:pm">오후</button></span>
         <input class="dp-num" data-pin="h:${k}" data-fk="pin:h:${k}" value="${h % 12 || 12}" inputmode="numeric"><span class="dp-colon">:</span><input class="dp-num" data-pin="m:${k}" data-fk="pin:m:${k}" value="${pad(mi)}" inputmode="numeric"></div>
-        ${mini ? '' : `<div class="dp-quick">${presets.map(([val, l]) => `<button class="dp-chip ${f.min === val ? 'on' : ''}" data-pa="pre:${k}:${val}">${l}</button>`).join('')}</div>`}`
-      : (mini ? '' : `<p class="dp-note">${k === 'start' ? '시간 없이 그날 시작(오전 12:00)부터예요.' : '시간 없이 그날 끝(오후 11:59)까지예요.'}<br>켜면 시각을 바꿀 수 있어요.</p>`);
-    return `<div class="dp-time ${mini ? 'mini' : ''}"><div class="dp-row"><span>${label}${mini && !f.on ? ` <span style="color:var(--muted);font-size:12px">· ${k === 'start' ? '하루 시작' : '하루 끝'}</span>` : ''}</span><button class="dp-sw ${f.on ? 'on' : ''}" data-pa="sw:${k}" data-tip="시간 정하기"><i></i></button></div>${body}</div>`;
+        <div class="dp-quick">${presets.map(([val, l]) => `<button class="dp-chip ${f.min === val ? 'on' : ''}" data-pa="pre:${k}:${val}">${val === 1439 ? l : minClock(val)}</button>`).join('')}</div>`
+      : `<p class="dp-note">${k === 'start' ? '시간 없이 그날 시작(오전 12:00)부터예요.' : '시간 없이 그날 끝(오후 11:59)까지예요.'}<br>켜면 시각을 바꿀 수 있어요.</p>`;
+    return `<div class="dp-time"><div class="dp-row"><span>${label}</span><button class="dp-sw ${f.on ? 'on' : ''}" data-pa="sw:${k}" data-tip="시간 정하기"><i></i></button></div>${body}</div>`;
   };
-  let times;
-  if (period && v === 'range') times = timeBlock('start', '시작 시간', true) + timeBlock('end', '끝 시간', true);
-  else if (period) times = timeBlock(actKey, `${KN[actKey]} 시간`, false);
-  else times = timeBlock('end', '시간', false);
+  const times = act ? timeBlock(p.active, period ? `${KN[p.active]} 시간` : '시간') : '<div class="dp-time"><p class="dp-note" style="margin:0">시작 날을 고르면 시작 시간도 정할 수 있어요.</p></div>';
   const sMs = period ? msOf(p.start, true) : null, eMs = msOf(p.end, false);
   const bad = period && sMs > eMs;
   const fmt = f => `${md(f.day)} (${WD[new Date(f.day).getDay()]})${f.on ? ' ' + clockS(f.day + f.min * 6e4) : ''}`;
   const sum = period ? `${fmt(p.start)} ~ ${p.start.day === p.end.day ? (p.end.on ? clockS(eMs) : '하루 끝') : fmt(p.end)}` : `${dayLbl(p.end.day)}${p.end.on ? ' ' + clockL(eMs) : ' · 하루 끝까지'}`;
-  return `<div class="tp-pop dp" data-picker>${head}${top}${fields}<div class="dp-quick days">${qd}<label class="dp-in"><input data-fk="ptext" placeholder="${ph}" spellcheck="false" autocomplete="off" value="${esc(p.text)}"></label></div>${line}${cal}${times}
+  return `<div class="tp-pop dp" data-picker>${head}${fields}<div class="dp-quick days">${qd}<label class="dp-in"><input data-fk="ptext" placeholder="직접 입력 · 예: 11/20~23" spellcheck="false" autocomplete="off" value="${esc(p.text)}"></label></div>${line}${cal}${times}
     ${bad ? '<p class="dp-warn">시작이 끝보다 늦어요. 시작이나 끝을 바꿔 주세요.</p>' : ''}
     <div class="dp-foot"><span class="dp-sum">${sum}</span><button class="dp-btn" data-pa="x">취소</button><button class="dp-btn pri" data-pa="ok" ${bad ? 'disabled' : ''}>정하기</button></div></div>`;
 }
 function pickerAct(a) {
   const p = s.picker, [k, x, y] = a.split(':');
-  const period = !!p.start;
-  const cur = () => period ? p[p.active] : p.end;
   const keepOrder = () => { if (!p.start) return; if (p.active === 'start' && p.start.day > p.end.day) p.end.day = p.start.day; if (p.active === 'end' && p.end.day < p.start.day) p.start.day = p.end.day; };
   if (k === 'x') { s.picker = null; }
   else if (k === 'ok') { applyPicker(); }
-  else if (k === 'addst') { p.start = { day: p.end.day, on: false, min: 0 }; p.active = 'start'; }
   else if (k === 'rmst') { p.start = null; p.active = 'end'; }
-  else if (k === 'fd') { p.active = x; const d = new Date(p[x].day); p.view = { y: d.getFullYear(), m: d.getMonth() }; }
-  else if (k === 'mode') { if (x === 'range' && !p.start) { p.start = { day: p.end.day, on: false, min: 0 }; p.active = 'start'; } if (x === 'one') { p.start = null; p.active = 'end'; } }
+  else if (k === 'fd') { p.active = x; if (p[x]) { const d = new Date(p[x].day); p.view = { y: d.getFullYear(), m: d.getMonth() }; } }
   else if (k === 'qd' || k === 'day') {
     const ms = +x; p.text = ''; p.parsed = null;
-    if (s.pick === 'range') {
-      if (p.clicks !== 1) { p.end.day = ms; p.start = null; p.clicks = 1; p.active = 'end'; }
-      else if (ms !== p.end.day) { const a0 = Math.min(ms, p.end.day), b0 = Math.max(ms, p.end.day); p.start = { day: a0, on: false, min: 0 }; p.end.day = b0; p.clicks = 2; }
-    } else {
-      cur().day = ms; keepOrder();
-      // After the start, the end is next.
-      if (period && p.active === 'start' && k === 'day') p.active = 'end';
-    }
+    if (p.active === 'start' && !p.start) p.start = { day: ms, on: false, min: 0 };
+    else p[p.active].day = ms;
+    keepOrder();
+    // After the start, the end is next.
+    if (p.active === 'start' && k === 'day') p.active = 'end';
     const d = new Date(ms); p.view = { y: d.getFullYear(), m: d.getMonth() };
   }
   else if (k === 'mon') { const d = new Date(p.view.y, p.view.m + +x, 1); p.view = { y: d.getFullYear(), m: d.getMonth() }; }
-  else if (k === 'sw') { const f = p[x]; f.on = !f.on; f.min = f.on ? (x === 'start' ? 540 : 1439) : (x === 'start' ? 0 : 1439); }
+  else if (k === 'sw') { const f = p[x]; if (f) { f.on = !f.on; f.min = f.on ? (x === 'start' ? 540 : 1439) : (x === 'start' ? 0 : 1439); } }
   else if (k === 'half') { const f = p[x], pm = f.min >= 720; if ((y === 'pm') !== pm) f.min += y === 'pm' ? 720 : -720; }
   else if (k === 'pre') { p[x].min = +y; }
   render();
@@ -1240,7 +1252,7 @@ function pickerText(v) {
   const p = s.picker; p.text = v;
   const t = v.trim();
   if (!t) { p.parsed = null; return; }
-  const r = s.pick !== 'none' ? findPeriod(t, true) : null;
+  const r = findPeriod(t, true);
   if (r) {
     p.start = { day: ds(r.start), on: r.sOn, min: r.sOn ? (r.start - ds(r.start)) / 6e4 : 0 };
     p.end = { day: ds(r.end), on: r.eOn, min: r.eOn ? (r.end - ds(r.end)) / 6e4 : 1439 };
@@ -1249,11 +1261,11 @@ function pickerText(v) {
   } else {
     const m = t.match(ONE_ALL), one = m && parseDT(m[1]);
     if (!one) { p.parsed = false; return; }
-    const f = p.start ? p[p.active] : p.end;
+    const f = p.active === 'start' ? (p.start || (p.start = { day: one.day, on: false, min: 0 })) : p.end;
     f.day = one.day; if (one.min != null) { f.on = true; f.min = one.min; }
     p.parsed = `${dayLbl(one.day)}${one.min != null ? ' ' + minClock(one.min, true) : ''}`;
   }
-  const d = new Date((p.start ? p[p.active] : p.end).day); p.view = { y: d.getFullYear(), m: d.getMonth() };
+  const d = new Date((p[p.active] || p.end).day); p.view = { y: d.getFullYear(), m: d.getMonth() };
 }
 
 // ---------- Settings (item 8) ----------
@@ -1263,15 +1275,14 @@ const srow = (label, desc, ctrl, cls = '') => `<div class="settings-row ${cls}">
 const MIN5 = [[5, '5분'], [10, '10분'], [15, '15분'], [30, '30분'], [60, '1시간']];
 function alertSettings() {
   const g = s.glob;
-  const endRows = srow('기한 전에 알림', '기한이 다가오면 미리 Windows 알림으로 알려 줘요.', seg('endMin', g.endMin, MIN5, !g.endBefore) + toggle('endBefore', g.endBefore))
-    + srow('기한 시각에 알림', '기한이 된 순간에 알려 줘요.', toggle('endAt', g.endAt));
-  const line = s.set === 'line' ? srow('시작할 때 알림', '기간의 시작 시각이 다가오면 알려 줘요.', seg('startLineMin', g.startLineMin, [[0, '정각'], [5, '5분 전'], [10, '10분 전'], [30, '30분 전']], !g.startLine) + toggle('startLine', g.startLine), 'is-new in') : '';
-  const note = '<p class="settings-note">비밀 카테고리의 할 일과 앱이 잠겨 있을 때는 제목 없이 &quot;할 일 1개의 기한이 10분 남았어요&quot;처럼 알려요. 창을 닫아도 트레이에서 알려 줘요.</p>';
-  const note2 = s.set === 'none' ? '' : '<p class="settings-note is-new">날짜만 정한 시작 · 기한은 알리지 않아요. 할 일에서 직접 켜고 끈 알림은 여기를 바꿔도 그대로예요.</p>';
-  const group = s.set === 'group' ? `<section class="settings-section is-new"><div class="settings-section__head"><h3>시작 알림</h3></div><div class="settings-card">
+  const note = '<p class="settings-note">비밀 카테고리의 할 일과 앱이 잠겨 있을 때는 제목 없이 &quot;할 일 1개의 기한이 10분 남았어요&quot;처럼 알려요. 창을 닫아도 트레이에서 알려 줘요.</p>'
+    + '<p class="settings-note is-new">날짜만 정한 시작 · 기한은 알리지 않아요. 할 일에서 직접 켜고 끈 알림은 여기를 바꿔도 그대로예요.</p>';
+  return `<div class="set-alert"><section class="settings-section" data-sec="alert"><div class="settings-section__head"><h3>알림</h3></div><div class="settings-card">
+      ${srow('기한 전에 알림', '기한이 다가오면 미리 Windows 알림으로 알려 줘요.', seg('endMin', g.endMin, MIN5, !g.endBefore) + toggle('endBefore', g.endBefore))}
+      ${srow('기한 시각에 알림', '기한이 된 순간에 알려 줘요.', toggle('endAt', g.endAt))}</div></section>
+    <section class="settings-section is-new"><div class="settings-section__head"><h3>시작 알림</h3></div><div class="settings-card">
       ${srow('시작 전에 알림', '기간의 시작이 다가오면 미리 알려 줘요.', seg('startMin', g.startMin, MIN5, !g.startBefore) + toggle('startBefore', g.startBefore))}
-      ${srow('시작 시각에 알림', '기간이 시작되는 순간에 알려 줘요.', toggle('startAt', g.startAt))}</div></section>` : '';
-  return `<div class="set-alert"><section class="settings-section" data-sec="alert"><div class="settings-section__head"><h3>알림</h3></div><div class="settings-card">${endRows}${line}</div>${s.set === 'group' ? '' : note + note2}</section>${group}${s.set === 'group' ? note + note2 : ''}</div>`;
+      ${srow('시작 시각에 알림', '기간이 시작되는 순간에 알려 줘요.', toggle('startAt', g.startAt))}</div></section>${note}</div>`;
 }
 function settingsHtml() {
   if (!s.settings) return '';
@@ -1355,9 +1366,10 @@ function shiftDue(t, fn) { const len = t.start != null ? t.end - t.start : null;
 const keepTime = (from, day) => { const d = new Date(from), x = new Date(day); x.setHours(d.getHours(), d.getMinutes(), d.getSeconds(), 0); return x.getTime(); };
 function menuAct(k) {
   const t = task(s.menu.tid);
+  if (k.startsWith('sl:')) { const [, kk, x] = k.split(':'); t.als[kk + ':' + x] = slotOn(t, kk, x) ? 'off' : 'on'; render(); return; }
   if (k.startsWith('al:')) {
     const x = k.slice(3);
-    if (x === 'follow') t.al = AL(); else t.al[x] = alertOn(t, x) ? 'off' : 'on';
+    if (x === 'follow') resetAlerts(t); else t.al[x] = alertOn(t, x) ? 'off' : 'on';
     render(); return;
   }
   const at0 = s.menu;
@@ -1410,7 +1422,8 @@ document.addEventListener('click', e => {
   else if (k === 'prop') { const kk = a.dataset.k; if (s.picker && s.picker.target === s.sel && s.picker.from === kk) s.picker = null; else openPicker(s.sel, kk); s.bell = null; }
   else if (k === 'addst') { e.stopPropagation(); openPicker(s.sel, 'end', { addStart: true }); }
   else if (k === 'bell') { e.stopPropagation(); const kk = a.dataset.k; s.bell = s.bell && s.bell.kind === kk ? null : { kind: kk }; s.picker = null; }
-  else if (k === 'bellset') { task(s.sel).al[s.bell.kind] = a.dataset.v; s.bell = null; }
+  else if (k === 'bellset') { const t = task(s.sel); if (a.dataset.v === 'follow') resetAlerts(t, s.bell.kind); else t.al[s.bell.kind] = a.dataset.v; if (s.multi !== 'each') s.bell = null; }
+  else if (k === 'bslot') { const t = task(s.sel), kk = s.bell.kind, x = a.dataset.x; t.als[kk + ':' + x] = slotOn(t, kk, x) ? 'off' : 'on'; }
   else if (k === 'alsw') { const t = task(s.sel), kk = a.dataset.k; t.al[kk] = alertOn(t, kk) ? 'off' : 'on'; }
   else if (k === 'alreset') { task(s.sel).al = AL(); }
   else if (k === 'sck') { const x = task(s.sel).subs[+a.dataset.i]; x.done = !x.done; }
@@ -1419,7 +1432,7 @@ document.addEventListener('click', e => {
   else if (k === 'setmenu') { s.setPage = a.dataset.p; }
   else if (k === 'gset') { gset(a.dataset.g, a.dataset.v); return; }
   else if (k === 'qadate') { if (e.target.closest('[data-act="qax"]')) return; if (s.picker && s.picker.target === 'qa') s.picker = null; else openPicker('qa', 'end'); }
-  else if (k === 'qax') { e.stopPropagation(); s.qa.start = null; s.qa.end = null; s.qa.touched = true; if (qaDetected()) s.qa.text = qaDetected().title + ' '; s.picker = null; }
+  else if (k === 'qax') { e.stopPropagation(); s.qa.start = null; s.qa.end = null; s.qa.touched = true; s.picker = null; }
   else if (k === 'qaadd') { qaAdd(); return; }
   else if (k === 'mi') { menuAct(a.dataset.mi); return; }
   render();
@@ -1440,7 +1453,7 @@ document.addEventListener('mouseover', e => {
   if (sub !== s.menu.sub) { s.menu.sub = sub; render(); }
 });
 function onType(t) {
-  if (t.matches('[data-fk="qa"]')) { s.qa.text = t.value; render(); }
+  if (t.matches('[data-fk="qa"]')) { s.qa.text = t.value; }
   else if (t.matches('[data-fk="ptext"]')) { pickerText(t.value); render(); }
   else if (t.matches('[data-pin]')) {
     const [w, k] = t.dataset.pin.split(':'), f = s.picker[k], n = parseInt(t.value.replace(/\D/g, ''), 10);
@@ -1494,47 +1507,22 @@ document.addEventListener('mouseover', e => {
 // at: where they sit; key: the state they set; items: [value, name, one-line description, 'old' | 'rec'].
 // show(): opens what the choice changes.
 const closePops = () => { s.menu = null; s.picker = null; s.bell = null; s.settings = false; };
+// Opens the task menu's 알림 ▸ on 팀 워크숍 (start and end both with a time) and its 끝 bell popover.
+function showAlerts() {
+  closePops();
+  if (s.view !== 'list') s.view = 'list';
+  s.sel = 'p3'; s.tabHold = null;
+  render();
+  const row = document.querySelector('.task-row[data-tid="p3"]'), W = document.querySelector('.win').getBoundingClientRect();
+  const r = row.getBoundingClientRect();
+  s.menu = { tid: 'p3', x: r.left - W.left + 150, y: r.top - W.top + 40, sub: 'al' };
+  s.bell = { kind: 'end' };
+}
 const OPTS = [
-  { at: '.cv-grid', key: 'cal', title: '캘린더(월 보기)의 기간', show: () => { closePops(); s.view = 'calendar'; s.calMonth = { y: 2026, m: 10 }; },
-    items: [['old', '끝 날에만', '지금처럼 끝 날짜 칸에 칩 하나', 'old'],
-      ['bar', '여러 날 걸친 막대', '시작부터 끝까지 이어진 막대. 주가 바뀌면 다음 줄에서 이어짐', 'rec'],
-      ['daily', '날마다 칩', '기간에 든 날마다 같은 칩을 하나씩'],
-      ['ends', '시작 · 끝 날에만 칩', '시작 날엔 ▸, 끝 날엔 ◂ 붙은 칩']] },
-  { at: '.tl-sec, .side-row[data-m="today"]', key: 'place', title: '진행 중인 기간을 둘 곳 (리스트 묶음 · 오늘 메뉴)', show: () => { closePops(); s.view = 'list'; s.shut.clear(); },
-    items: [['old', '끝 날짜 기준', '지금처럼 끝 날짜로 묶음을 정함. 오늘 메뉴엔 끝나는 날에만', 'old'],
-      ['today', '진행 중이면 오늘', '시작한 기간은 끝날 때까지 오늘 묶음 · 오늘 메뉴에', 'rec'],
-      ['top', '맨 위 "진행 중" 묶음', '시작한 기간만 맨 위에 따로 모음. 오늘 메뉴에도 같은 묶음']] },
-  { at: '.task-row.period .rcol', key: 'row', title: '리스트 행의 기간', show: () => { closePops(); s.view = 'list'; },
-    items: [['old', '끝만', '오른쪽에 끝 시각과 남은 시간', 'old'],
-      ['text', '"11/9 ~ 11/12" 글자', '위엔 기간, 아래엔 끝까지 남은 시간(시작 전이면 언제 시작하는지)', 'rec'],
-      ['bar', '글자 + 진행 막대', '아래 줄에 지난 만큼 찬 막대와 "2/4일"'],
-      ['phrase', '글자 + 진행 문구', '아래 줄에 "4일 중 2일째"']] },
-  { at: '.tv-cols', key: 'tl', title: '타임라인의 기간', show: () => { closePops(); s.view = 'timeline'; s.picked = TODAY; },
-    items: [['old', '끝 시각에만', '지금처럼 끝나는 시각 묶음에 한 줄', 'old'],
-      ['mixed', '하루 안은 시작~끝, 여러 날은 위 띠', '하루 안 기간은 시작 시각에 "오후 2시 ~ 5시" 묶음, 여러 날 기간은 날짜 아래 띠', 'rec'],
-      ['band', '모두 위 띠', '기간은 시간 묶음에 넣지 않고 날짜 아래 띠로만']] },
-  { at: '.rp-prop.date, [data-picker]', key: 'pick', title: '기간 정하기', show: () => { closePops(); if (s.view === 'calendar') s.view = 'list'; s.sel = 'p1'; s.tabHold = null; openPicker('p1', 'end'); },
-    items: [['none', '기능 없음', '지금처럼 기한 하나만', 'old'],
-      ['add', '"시작 추가" 버튼', '기한 옆 + 시작을 누르면 시작 칸이 열림. 시작 · 끝 칸을 눌러 바꿀 쪽을 고름', 'rec'],
-      ['mode', '하루 · 기간 전환', '고르기 창 맨 위에서 하루 / 기간을 바꿈'],
-      ['range', '달력에서 두 번 누르기', '첫날 · 끝날을 차례로 누르면 기간. 한 번만 누르면 지금처럼 기한']] },
-  { at: '.tp-menu.ctx [data-sub="al"], .tp-menu.ctx [data-sub="none"], .tp-menu.ctx .is-new, .tp-sub.alert, .tp-menu.ctx', key: 'menuAl', title: '할 일별 알림 – 오른쪽 클릭 메뉴',
-    show: () => { closePops(); if (s.view !== 'list') s.view = 'list'; const row = document.querySelector('.task-row[data-tid="p3"]'), W = document.querySelector('.win').getBoundingClientRect(); const r = row ? row.getBoundingClientRect() : { left: W.left + 520, top: W.top + 260 }; s.menu = { tid: 'p3', x: r.left - W.left + 180, y: r.top - W.top + 30, sub: s.menuAl === 'sub' ? 'al' : null }; },
-    items: [['none', '기능 없음', '지금 메뉴 그대로', 'old'],
-      ['sub', '"알림 ▸" 하위 메뉴', '시작 알림 · 끝 알림 체크와 "전체 설정 따르기"', 'rec'],
-      ['flat', '메뉴에 바로 체크', '기한 아래에 시작 알림 · 끝 알림 두 줄']] },
-  { at: '.rp-bell, .rp-bell-slot, .rp-alert', key: 'detAl', title: '할 일별 알림 – 상세', show: () => { closePops(); if (s.view === 'calendar') s.view = 'list'; s.sel = 'p5'; s.tabHold = null; },
-    items: [['none', '기능 없음', '상세에 알림 없음', 'old'],
-      ['bell', '시작 · 끝 칸 옆 종', '누르면 전체 설정 따르기 / 이 할 일만 켜기 · 끄기. 직접 정하면 파란 점', 'rec'],
-      ['row', '"알림" 줄에 스위치', '시작 · 끝 스위치. 직접 바꾸면 "직접" 표시와 되돌리기']] },
-  { at: '.set-alert', key: 'set', title: '설정 > 알림의 시작 알림', show: () => { closePops(); s.settings = true; s.setPage = 'GENERAL'; s.setScroll = true; },
-    items: [['none', '기능 없음', '지금처럼 기한 알림만', 'old'],
-      ['group', '"시작 알림" 묶음', '끝 알림과 같은 모양: 시작 전에 알림(N분 전) · 시작 시각에 알림', 'rec'],
-      ['line', '한 줄', '알림 묶음에 "시작할 때 알림" 한 줄과 분 선택']] },
-  { at: '.qa-chips', key: 'qaP', title: '할 일 추가 칸에 적은 기간', show: () => { closePops(); if (s.view !== 'list') s.view = 'list'; s.qa = { text: '보고서 11/20~11/23', start: null, end: null, touched: false }; },
-    items: [['none', '기능 없음', '적은 글은 제목 그대로', 'old'],
-      ['chip', '칩 하나', '날짜 칩이 "11/20 ~ 11/23"으로 바뀜', 'rec'],
-      ['two', '칩 두 개', '"시작 11/20" · "끝 11/23" 칩']] },
+  { at: '.tp-menu.ctx [data-sub="al"], .tp-sub.alert, [data-bellpop], .rp-bell', key: 'multi', title: '한쪽에 알림이 여러 개일 때 (알림 ▸ 메뉴 · 상세 종)', show: showAlerts,
+    items: [['none', '기능 없음', '"끝 알림" 하나로만 켜고 끔. 몇 분 전 · 정각인지는 안 보임', 'old'],
+      ['group', '묶어서 하나', '"끝 알림 · 10분 전 · 정각"처럼 보이고, 그쪽 알림을 한꺼번에 켜고 끔', 'rec'],
+      ['each', '하나씩 따로', '"끝 10분 전", "끝 정각"을 줄마다 따로 켜고 끔']] },
 ];
 const choose = (o, v) => { s[o.key] = v; o.show(); render(); };
 let shiftOn = false;
@@ -1595,7 +1583,7 @@ document.addEventListener('click', e => {
   if (f) { f.focus({ preventScroll: true }); f.setSelectionRange(f.value.length, f.value.length); }
 });
 function resultText() {
-  return '#109 PC 2.6.0 기간 시안 선택\n' + OPTS.map((o, i) => { const it = o.items.find(([v]) => v === s[o.key]); const c = (comments[i + ':' + it[0]] || '').trim(); return `${i + 1}. ${o.title}: ${it[1]}${c ? ` (의견: ${c})` : ''}`; }).join('\n');
+  return '#109 PC 2.6.0 기간 시안 선택 (2차)\n' + OPTS.map((o, i) => { const it = o.items.find(([v]) => v === s[o.key]); const c = (comments[i + ':' + it[0]] || '').trim(); return `${i + 1}. ${o.title}: ${it[1]}${c ? ` (의견: ${c})` : ''}`; }).join('\n');
 }
 document.addEventListener('click', e => {
   const copy = e.target.closest('[data-ncopy]');
