@@ -13,9 +13,12 @@ import MiniMonth from "molecules/pickers/MiniMonth";
 import Popover from "molecules/pickers/Popover";
 import Toast from "molecules/Toast";
 import { prefsSelector } from "store/prefsSlice";
+import { categoryColor } from "utils/categoryColors";
 import { isOverdue } from "utils/menuFilters";
-import { dueMs, formatClock, formatClockShort, hasDueTime } from "utils/timeDisplay";
-import { CategoryMark, JumpTitle, ViewHeader, ViewNav, WEEKDAYS, addDays, dayStart, markCategory, taskCategories, tasksByDay, useElementSize } from "./viewParts";
+import { clockRange, monthDay, periodText } from "utils/periodDisplay";
+import { isMultiDayPeriod, taskStart } from "utils/taskPeriod";
+import { dueMs, formatClock, formatClockShort, formatSpan, hasDueTime } from "utils/timeDisplay";
+import { CategoryMark, JumpTitle, ViewHeader, ViewNav, WEEKDAYS, addDays, barStyle, dayStart, markCategory, periodLanes, taskCategories, tasksByDay, useElementSize } from "./viewParts";
 
 // Day columns that fit the pane (#102 mock timelinePane): at least 240px each, 12px apart,
 // inside the 32px gutters; 1 to 5.
@@ -28,16 +31,26 @@ export function timelineColumns(paneWidth) {
 export const END_OF_DAY_HOUR = 24;
 const hourOf = (due) => (hasDueTime(due) ? new Date(due).getHours() : END_OF_DAY_HOUR);
 
-// A column's tasks by due, in hour groups: [{ hour, tasks }]; only hours that have tasks.
+// A column's tasks by due, in hour groups: [{ hour, tasks, block }]; only hours that have tasks.
+// A period inside the day (#109) is a block of its own at its start's hour (block: true).
 export function hourGroups(tasks) {
   const groups = [];
-  for (const task of [...tasks].sort((a, b) => dueMs(a.dueDate) - dueMs(b.dueDate))) {
-    const hour = hourOf(dueMs(task.dueDate));
+  const key = (task) => taskStart(task) ?? dueMs(task.dueDate);
+  for (const task of [...tasks].sort((a, b) => key(a) - key(b))) {
+    const start = taskStart(task), block = start !== null;
+    const hour = block ? new Date(start).getHours() : hourOf(dueMs(task.dueDate));
     const last = groups[groups.length - 1];
-    if (last && last.hour === hour) last.tasks.push(task);
-    else groups.push({ hour, tasks: [task] });
+    if (last && !block && !last.block && last.hour === hour) last.tasks.push(task);
+    else groups.push({ hour, tasks: [task], block });
   }
   return groups;
+}
+
+// A block's time: "오후 2:00 ~ 5:00 · 3시간".
+export function blockTimeText(task, timeFormat = "12") {
+  const start = taskStart(task), end = dueMs(task.dueDate);
+  const range = hasDueTime(end) ? clockRange(start, end, timeFormat, true) : `${formatClock(new Date(start), timeFormat)} ~ 하루 끝`;
+  return `${range} · ${formatSpan(end - start)}`;
 }
 
 const hourLabel = (hour, timeFormat) => (hour === END_OF_DAY_HOUR ? "하루 끝" : formatClockShort(new Date(2000, 0, 1, hour), timeFormat));
@@ -93,13 +106,15 @@ export function DayJump({ anchor, first, today, weekStart, onPick, onClose }) {
 
 // A row like the list's (check, title, meta, read-only star; mock .tl-task). Click opens the
 // detail, right-click the task menu, Space completes.
-function TimelineRow({ task, cats, selected, timeFormat, now, doneStays, onOpen, onMenu, onToggleDone, onKeyDown }) {
+// A period inside the day (block) has its category's line on the left and its start ~ end.
+function TimelineRow({ task, cats, selected, timeFormat, now, doneStays, block = false, onOpen, onMenu, onToggleDone, onKeyDown }) {
   const ref = useRef(null);
   const [pop, setPop] = useState(false);
   const done = !!task.done;
   const due = dueMs(task.dueDate);
   const first = markCategory(cats);
-  const timeText = due !== null && hasDueTime(due) && new Date(due).getMinutes() ? formatClock(new Date(due), timeFormat) : "";
+  const timeText = block ? blockTimeText(task, timeFormat)
+    : due !== null && hasDueTime(due) && new Date(due).getMinutes() ? formatClock(new Date(due), timeFormat) : "";
   const overdue = isOverdue(task, now);
 
   useEffect(() => {
@@ -124,7 +139,8 @@ function TimelineRow({ task, cats, selected, timeFormat, now, doneStays, onOpen,
   return (
     <div
       ref={ref}
-      className={"task-row tv-task" + (done ? " done" : "") + (selected ? " sel" : "") + (first || timeText ? "" : " no-meta")}
+      className={"task-row tv-task" + (block ? " blk" : "") + (done ? " done" : "") + (selected ? " sel" : "") + (first || timeText ? "" : " no-meta")}
+      style={block ? { "--c": first ? categoryColor(first) : "#6294ff" } : undefined}
       data-task-id={task.id}
       tabIndex={0}
       role="option"
@@ -168,7 +184,7 @@ function TimelineRow({ task, cats, selected, timeFormat, now, doneStays, onOpen,
                 <b>{first.title}</b>
               </span>
             )}
-            {timeText && <span className={overdue ? "over" : ""}>{timeText}</span>}
+            {timeText && <span className={block ? "span" : overdue ? "over" : ""}>{timeText}</span>}
           </div>
         )}
       </div>
@@ -179,7 +195,8 @@ function TimelineRow({ task, cats, selected, timeFormat, now, doneStays, onOpen,
 
 // The timeline (#102 mock timelinePane): day columns from the picked day, as many as fit the
 // pane. Each has a header (date, weekday, 오늘, open count) and the hours that have tasks; today's
-// column has the 지금 line. ‹ › move a day (a week with Shift), the title jumps to a day, 오늘 goes
+// column has the 지금 line. A period inside a day is a block at its start (hourGroups); one over
+// several days is a bar in the band under the headers, across its columns (#109). ‹ › move a day (a week with Shift), the title jumps to a day, 오늘 goes
 // back to today (the picked day moves with
 // them, so the quick add and the panel follow). Columns scroll on their own, so the wheel does
 // not change days.
@@ -200,7 +217,12 @@ const TaskTimelineView = ({ filteredTaskMap, categories, catsOf, header, renderQ
   const count = timelineColumns(width);
   const columns = useMemo(() => Array.from({ length: count }, (_, i) => addDays(first, i)), [first, count]);
 
-  const days = useMemo(() => tasksByDay(filteredTaskMap, { hideDone: !!prefs.hideDone }), [filteredTaskMap, prefs.hideDone]);
+  const dated = useMemo(
+    () => Object.values(filteredTaskMap ?? {}).filter((t) => dueMs(t?.dueDate) !== null && !(prefs.hideDone && t.done)),
+    [filteredTaskMap, prefs.hideDone]
+  );
+  const days = useMemo(() => tasksByDay(dated.filter((t) => !isMultiDayPeriod(t))), [dated]);
+  const band = useMemo(() => periodLanes(dated, first, count), [dated, first, count]);
 
   // Completion like the list's (pop, fall); TodoContent's when given.
   const ownComplete = useTaskCompletion((task, done, onFailed) =>
@@ -285,10 +307,10 @@ const TaskTimelineView = ({ filteredTaskMap, categories, catsOf, header, renderQ
           let nowDrawn = !isToday;
           for (const group of groups) {
             if (!nowDrawn && group.hour > nowHour) { body.push(nowLine); nowDrawn = true; }
-            const label = hourLabel(group.hour, timeFormat);
+            const label = group.block ? periodText(group.tasks[0], timeFormat) : hourLabel(group.hour, timeFormat);
             body.push(
-              <div key={`h${group.hour}`} className="tv-group">
-                <div className="tv-hour">{label}</div>
+              <div key={group.block ? `b${group.tasks[0].id}` : `h${group.hour}`} className="tv-group">
+                <div className={"tv-hour" + (group.block ? " blkh" : "")}>{label}</div>
                 <div className="tv-box" role="listbox" aria-label={label}>
                   {group.tasks.map((task) => (
                     <TimelineRow
@@ -299,6 +321,7 @@ const TaskTimelineView = ({ filteredTaskMap, categories, catsOf, header, renderQ
                       timeFormat={timeFormat}
                       now={now}
                       doneStays={!prefs.hideDone}
+                      block={group.block}
                       onOpen={open}
                       onMenu={onTaskContextMenu}
                       onToggleDone={complete}
@@ -311,6 +334,8 @@ const TaskTimelineView = ({ filteredTaskMap, categories, catsOf, header, renderQ
           }
           if (!nowDrawn) body.push(nowLine);
           if (!tasks.length) body.push(<div key="empty" className="tv-empty">할 일 없음</div>);
+          const col = columns.indexOf(day);
+          const segs = band.segs.filter((g) => g.a <= col && col <= g.b);
           return (
             <section key={day} className={"tv-col" + (isToday ? " today" : "")} aria-label={`${date.getMonth() + 1}월 ${date.getDate()}일 ${WEEKDAYS[date.getDay()]}요일`}>
               <div className="tv-head">
@@ -319,6 +344,39 @@ const TaskTimelineView = ({ filteredTaskMap, categories, catsOf, header, renderQ
                 {isToday && <em>오늘</em>}
                 <span className="cnt" aria-label={`남은 할 일 ${tasks.filter((t) => !t.done).length}개`}>{tasks.filter((t) => !t.done).length}</span>
               </div>
+              {band.lanes > 0 && (
+                <div className="tv-band" style={{ height: band.lanes * 24 }}>
+                  {segs.map((g) => {
+                    const contL = col > g.a || dayStart(g.start) < first, contR = col < g.b || dayStart(g.end) > last;
+                    const mark = markCategory(taskCategories(g.task, categories, catsOf));
+                    const range = `~${monthDay(g.end)}${hasDueTime(g.end) ? ` ${formatClockShort(new Date(g.end), timeFormat)}` : ""}`;
+                    return (
+                      <div
+                        key={g.task.id}
+                        className={"tv-seg" + (contL ? " cl" : "") + (contR ? " cr" : "") + (col < g.b ? " br" : "") + (g.task.done ? " done" : "")}
+                        style={{ top: g.lane * 24, ...barStyle(mark, g.task.done) }}
+                        data-task-id={g.task.id}
+                        data-tip={`${g.task.title} · ${periodText(g.task, timeFormat)}`}
+                        role="button"
+                        tabIndex={col === g.a ? 0 : -1}
+                        aria-label={col === g.a ? `${g.task.title} ${periodText(g.task, timeFormat)}` : undefined}
+                        aria-hidden={col === g.a ? undefined : "true"}
+                        onClick={() => open(g.task.id)}
+                        onContextMenu={(event) => { if (!onTaskContextMenu) return; event.preventDefault(); onTaskContextMenu(event, g.task.id); }}
+                        onKeyDown={(event) => { if (event.key === "Enter" && event.target === event.currentTarget) { event.preventDefault(); open(g.task.id); } }}
+                      >
+                        {col === g.a && (
+                          <>
+                            {contL && <span className="gl">◂</span>}
+                            <b>{g.task.title}</b>
+                            <span className="rng">{range}</span>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
               <div className="tv-body">{body}</div>
               <ScrollFade />
             </section>

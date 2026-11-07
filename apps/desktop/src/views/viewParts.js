@@ -4,7 +4,8 @@ import ListHeader from "components/list/ListHeader";
 import { ChevIcon, NextIcon, PrevIcon, ShieldIcon } from "molecules/pickers/icons";
 import { categoryColor } from "utils/categoryColors";
 import { sortCategories } from "utils/categoryOrder";
-import { dueMs } from "utils/timeDisplay";
+import { isMultiDayPeriod, taskPeriod } from "utils/taskPeriod";
+import { dayDifference, dueMs } from "utils/timeDisplay";
 
 // Shared pieces of the calendar and timeline views (#102).
 
@@ -31,6 +32,37 @@ export function tasksByDay(taskMap, { hideDone = false } = {}) {
     days[key].push(task);
   }
   return days;
+}
+
+// Periods over more than one day (#109) across a run of `count` days from `first` (a week row of
+// the calendar, the timeline's columns), in lanes: { segs: [{ task, start, end, a, b, lane }],
+// lanes }. a and b are the first and last index covered; earlier starts first, then longer ones,
+// each in the first lane free from its first day.
+export function periodLanes(tasks, first, count) {
+  const last = addDays(first, count - 1);
+  const list = [];
+  for (const task of tasks) {
+    const p = taskPeriod(task);
+    if (p && isMultiDayPeriod(task) && dayStart(p.start) <= last && dayStart(p.end) >= first) list.push({ task, ...p });
+  }
+  list.sort((x, y) => dayStart(x.start) - dayStart(y.start) || (y.end - y.start) - (x.end - x.start));
+  const laneEnd = [], segs = [];
+  for (const item of list) {
+    const a = Math.max(0, dayDifference(item.start, first)), b = Math.min(count - 1, dayDifference(item.end, first));
+    let lane = laneEnd.findIndex((e) => e < a);
+    if (lane < 0) { lane = laneEnd.length; laneEnd.push(b); } else laneEnd[lane] = b;
+    segs.push({ ...item, a, b, lane });
+  }
+  return { segs, lanes: laneEnd.length };
+}
+
+// A period bar's colours (#109 mock barStyle): the category colour mixed into the background
+// under it (rgb), with a 3px line of it on the left; a done one is grey.
+export function barStyle(category, done, base = [26, 30, 37]) {
+  if (done) return { background: "#20252e", boxShadow: "inset 3px 0 0 #4d5666" };
+  const color = category ? categoryColor(category) : "#7f8a9c", n = parseInt(color.slice(1), 16);
+  const rgb = [n >> 16, (n >> 8) & 255, n & 255].map((v, i) => Math.round(v * 0.26 + base[i] * 0.74));
+  return { background: `rgb(${rgb.join(",")})`, boxShadow: `inset 3px 0 0 ${color}` };
 }
 
 // The task's categories to show, in sidebar order. `catsOf` (from TodoContent) already leaves out

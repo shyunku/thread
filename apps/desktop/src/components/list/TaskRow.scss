@@ -140,6 +140,8 @@ $accent-hover: #7aa5ff;
     .left { display: block; font-size: 12px; line-height: 18px; margin-top: 2px; color: var(--muted); }
     .when.over { color: var(--danger); }
     .left.over { color: #cf7a81; }
+    // A period not started yet (#109).
+    .left.soon { color: #a9c3ff; }
   }
   // Only the due line (done, or 남은 시간 보이기 off): centred on the row like the check and star.
   > .rcol.one { align-self: center; }

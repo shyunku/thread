@@ -993,3 +993,45 @@ test("the picked day follows today past midnight until another day is picked", (
   act(() => { jest.advanceTimersByTime(3000); });
   expect(dayProbe.pickedDay).toBe(new Date(2026, 9, 24).getTime());
 });
+
+test("a period: the row's text, 시작 · 끝 with bells, 진행, and the bell's popover (#109)", () => {
+  tasks.first.startOffset = at(0, 18).getTime() - at(-1, 9).getTime();
+  view();
+  expect(row("first").querySelector(".rcol .when")).toHaveTextContent("10/20 ~ 10/21");
+  expect(row("first").querySelector(".rcol .left")).toHaveTextContent("3시간 30분 뒤 종료");
+  select("first");
+  expect(inPanel().getByRole("button", { name: "시작: 2026.10.20 오전 9:00" })).toBeInTheDocument();
+  expect(inPanel().getByRole("button", { name: "끝: 2026.10.21 오후 6:00" })).toBeInTheDocument();
+  expect(panel().querySelector(".rp-prog")).toHaveTextContent("진행2일 중 2일째");
+  expect(inPanel().queryByRole("button", { name: /^기한:/ })).toBeNull();
+  fireEvent.click(inPanel().getByRole("button", { name: "끝 알림" }));
+  const pop = screen.getByRole("dialog", { name: "끝 알림" });
+  expect(pop).toHaveTextContent("끝 알림 · 오후 6시");
+  expect(pop.querySelector(".bp-now")).toHaveTextContent(/^10분 전$/);
+  expect(within(pop).getByRole("radio", { name: /전체 설정 따르기/ })).toHaveAttribute("aria-checked", "true");
+  expect(screen.queryByRole("dialog", { name: /정하기/ })).toBeNull(); // the row's picker stays shut
+  fireEvent.click(within(pop).getByRole("radio", { name: /이 할 일만 끄기/ }));
+  expect(IpcSender.req.task.updateTaskAlert).toHaveBeenCalledWith("first", "end", "off", expect.any(Function));
+  expect(screen.queryByRole("dialog", { name: "끝 알림" })).toBeNull();
+});
+
+test("+ 시작 opens the picker on an empty start; 정하기 sends the period (#109)", () => {
+  view();
+  select("first");
+  fireEvent.click(inPanel().getByRole("button", { name: "시작" }));
+  const picker = screen.getByRole("dialog", { name: "기한 정하기" });
+  expect(picker.querySelector(".dp-fd.empty")).toHaveClass("on");
+  fireEvent.click(picker.querySelector('[data-day="2026-10-19"]'));
+  fireEvent.click(within(screen.getByRole("dialog", { name: "기간 정하기" })).getByRole("button", { name: "정하기" }));
+  expect(IpcSender.req.task.updateTaskPeriod).toHaveBeenCalledWith("first", at(0, 18).getTime(), new Date(2026, 9, 19).getTime(), expect.any(Function));
+  expect(IpcSender.req.task.updateTaskDueDate).not.toHaveBeenCalled();
+});
+
+test("a date-only end has a dimmed bell that explains (#109)", () => {
+  tasks.first.dueDate = new Date(2026, 9, 21, 23, 59, 59);
+  view();
+  select("first");
+  const bell = panel().querySelector(".rp-bell");
+  expect(bell).toHaveClass("dis");
+  expect(bell).toHaveAttribute("data-tip", "끝에 시각을 정하면 알림을 받을 수 있어요");
+});

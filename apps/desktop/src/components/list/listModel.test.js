@@ -70,3 +70,17 @@ test("matches are split case-insensitively and memo snippets centre on the match
   expect(highlightParts("plain", "")).toEqual([{ text: "plain", hit: false }]);
   expect(memoSnippet("앞부분이 아주 길게 이어지는 메모에서 리뷰 받은 내용을 정리", "리뷰", 6)).toBe("… 메모에서 리뷰 받은 내용…");
 });
+
+test("a period that has started stays in 오늘 until it ends (#109)", () => {
+  const span = (title, startDays, endDays, extra = {}) => {
+    const due = on(WED, endDays, 23, 59);
+    return task(title, due, { startOffset: due.getTime() - on(WED, startDays, 0, 0).getTime(), ...extra });
+  };
+  const tasks = [
+    span("running", -1, 2), span("long", -15, 10), span("later", 2, 4), span("starts today", 0, 9),
+    span("ended", -5, -1), task("due", on(WED, 2)),
+  ];
+  expect(ids(listSections(tasks, { now: WED, weekStart: 0 }))).toEqual([
+    ["over", ["ended"]], ["today", ["running", "starts today", "long"]], ["week", ["due"]], ["next", ["later"]],
+  ]);
+});

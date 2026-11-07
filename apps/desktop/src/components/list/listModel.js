@@ -1,6 +1,7 @@
 // The list's sections (#102 mock listBody / groupsNow): date groups or one 해야 할 일 box, then
 // 완료됨, and the search sections. Pure functions; tasks are renderer Task objects.
 import { DATE_GROUPS, dateGroupOf } from "utils/dateGroups";
+import { periodStartedBy } from "utils/taskPeriod";
 import { dueMs } from "utils/timeDisplay";
 
 const DONE = DATE_GROUPS.find((g) => g.id === "done");
@@ -39,7 +40,7 @@ export function taskSorter(sort = "due", noneTop = false) {
 const doneSorter = (a, b) => time(b.doneAt) - time(a.doneAt);
 
 // [{ id, name, tasks, over }] in display order. Empty groups are left out; 완료됨 holds every done
-// task (left out with hideDone).
+// task (left out with hideDone). A period that has started stays in 오늘 until it ends (#109).
 export function listSections(tasks, { now = Date.now(), weekStart = 0, group = "date", noneTop = false, sort = "due", hideDone = false } = {}) {
   const open = tasks.filter((t) => !t.done);
   const done = tasks.filter((t) => t.done);
@@ -50,7 +51,7 @@ export function listSections(tasks, { now = Date.now(), weekStart = 0, group = "
   } else {
     const byGroup = {};
     for (const t of open) {
-      const id = dateGroupOf(dueMs(t.dueDate), now, weekStart);
+      const id = periodStartedBy(t, now) ? "today" : dateGroupOf(dueMs(t.dueDate), now, weekStart);
       (byGroup[id] = byGroup[id] || []).push(t);
     }
     const order = noneTop ? [OPEN_GROUPS[OPEN_GROUPS.length - 1], ...OPEN_GROUPS.slice(0, -1)] : OPEN_GROUPS;

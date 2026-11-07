@@ -66,6 +66,39 @@
     padding: 4px 0 80px;
   }
   .tv-hour { margin: 12px 0 6px; font-size: 12px; line-height: 18px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .tv-hour.blkh { color: #a9c3ff; }
+  // Periods over several days (#109 mock .tv-band): bars under the headers, across the columns
+  // (.br reaches over the 12px gap to the next column).
+  .tv-band { position: relative; flex: none; margin-top: 8px; }
+  .tv-seg {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 8px;
+    box-sizing: border-box;
+    border-radius: 6px;
+    font-size: 11.5px;
+    line-height: 16px;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    cursor: pointer;
+    outline: none;
+    z-index: 2;
+    b { font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; position: relative; top: 1px; }
+    .rng { flex: none; color: var(--muted); font-size: 11px; position: relative; top: 1px; }
+    .gl { flex: none; color: #8fb0f0; font-size: 10px; }
+    &.cl { border-top-left-radius: 0; border-bottom-left-radius: 0; box-shadow: none !important; }
+    &.cr { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+    &.br { right: -12px; }
+    &.done { color: var(--muted); text-decoration: line-through; }
+    &:hover { filter: brightness(1.15); }
+    &:focus-visible { box-shadow: inset 0 0 0 2px #6294ff80 !important; }
+  }
   .tv-box { border-radius: 10px; background: var(--surface); overflow: hidden; }
   .tv-now {
     display: flex;
@@ -91,4 +124,7 @@
   .t { font-size: 13px; }
   .meta .over { color: var(--danger); }
   > .st { pointer-events: none; }
+  // A period inside the day (#109 mock .blk): its category's line on the left.
+  &.blk { box-shadow: inset 3px 0 0 var(--c); min-height: 76px; }
+  &.blk .meta .span { color: #a9c3ff; }
 }

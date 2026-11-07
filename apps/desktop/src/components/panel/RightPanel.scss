@@ -193,6 +193,59 @@ $picked: #3d6fe6;
   }
   .rp-prop.click:hover .rp-chip, .rp-prop.open .rp-chip { background: #2a303c; }
 
+  // Periods (#109 mock .rp-addst, .rp-bell, .rp-prog): "+ 시작" after a due, a bell per side
+  // (tinted with a dot when set on the task itself), and the 진행 row.
+  .rp-addst {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 24px;
+    margin: -4px -4px -4px 0;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 6px;
+    background: none;
+    color: var(--accent);
+    font: inherit;
+    font-size: 12px;
+    white-space: nowrap;
+    flex: none;
+    cursor: pointer;
+    &:hover { background: #6294ff1f; }
+  }
+  .rp-bell {
+    position: relative;
+    width: 26px;
+    height: 26px;
+    margin: -3px -6px -3px 0;
+    padding: 0;
+    border: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 7px;
+    background: none;
+    color: var(--muted);
+    flex: none;
+    cursor: pointer;
+    &:hover, &.open { background: #2a303c; color: var(--text); }
+    &.on-dir { color: var(--accent); }
+    &.off-dir { color: var(--secondary); }
+    .dir { position: absolute; top: 3px; right: 3px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--surface); }
+    &.dis, &.dis:hover { color: #3c4453; background: none; cursor: default; }
+  }
+  .rp-prop.open .rp-bell .dir, .rp-prop.click:hover .rp-bell .dir { box-shadow: 0 0 0 2px var(--raise); }
+  .rp-prog {
+    min-height: 34px;
+    padding-top: 6px;
+    padding-bottom: 8px;
+    .v { flex-wrap: nowrap; gap: 10px; }
+    .pbar { flex: 1; height: 4px; border-radius: 2px; background: #2c3341; overflow: hidden; }
+    .pbar i { display: block; height: 100%; background: var(--accent); border-radius: 2px; }
+    .pbar.over i { background: var(--danger); }
+    .pl { flex: none; font-size: 12px; color: var(--secondary); }
+    .pl.over { color: var(--danger); }
+  }
+
   // Subtasks.
   .rp-bar {
     height: 3px;
@@ -391,6 +444,7 @@ $picked: #3d6fe6;
     }
     .rp-tm { width: 64px; flex: none; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
     .rp-tm.over { color: var(--danger); }
+    .rp-tm.span { color: #8fb0f0; }
     .rp-nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .rp-ai.done .rp-nm { color: var(--muted); text-decoration: line-through; }
     .rp-ai.done .rp-tm { color: var(--faint); }

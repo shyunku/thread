@@ -4,6 +4,8 @@ import MiniMonth from "molecules/pickers/MiniMonth";
 import { ShieldIcon } from "molecules/pickers/icons";
 import { categoryColor } from "utils/categoryColors";
 import { isOverdue } from "utils/menuFilters";
+import { monthDay } from "utils/periodDisplay";
+import { periodCoversDay, taskStart } from "utils/taskPeriod";
 import { dueMs, formatClockShort, hasDueTime } from "utils/timeDisplay";
 import { markCategory } from "views/viewParts";
 import { startOfDay, usePickedDay } from "./pickedDay";
@@ -16,33 +18,35 @@ export function sortByDue(tasks) {
   return [...tasks].sort((a, b) => (dueMs(a.dueDate) ?? Infinity) - (dueMs(b.dueDate) ?? Infinity));
 }
 
-// The tasks due on `day` among the shown ones (done ones too, unless 완료한 할 일 숨기기): open
-// ones first, each part by due (as the calendar cells).
+// The tasks due on `day` among the shown ones, and the periods covering it (#109; done ones too,
+// unless 완료한 할 일 숨기기): open ones first, each part by the time they have on the day (the
+// due, or a period's start when it ends later).
 export function dayTasks(tasks, day, { hideDone = false } = {}) {
   const start = startOfDay(day);
-  const list = Object.values(tasks ?? {}).filter((task) => {
-    const due = dueMs(task.dueDate);
-    return due !== null && startOfDay(due) === start && !(hideDone && task.done);
-  });
-  return sortByDue(list).sort((a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0));
+  const list = Object.values(tasks ?? {}).filter((task) => dueMs(task.dueDate) !== null && periodCoversDay(task, start) && !(hideDone && task.done));
+  const key = (task) => { const due = dueMs(task.dueDate); return startOfDay(due) === start ? due : taskStart(task) ?? due; };
+  return [...list].sort((a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0) || key(a) - key(b));
 }
 
-// Day marks of the mini calendar: a dot under days with open tasks, red when one is overdue.
+// Day marks of the mini calendar: a dot under days with open tasks (every day of a period), red
+// when one is overdue.
 export function dayMarks(tasks, now) {
   const marks = new Map();
   for (const task of Object.values(tasks ?? {})) {
     const due = dueMs(task.dueDate);
     if (due === null || task.done) continue;
-    const key = startOfDay(due);
-    if (isOverdue(task, now)) marks.set(key, "over");
-    else if (!marks.has(key)) marks.set(key, "open");
+    const over = isOverdue(task, now);
+    for (let key = startOfDay(taskStart(task) ?? due), last = startOfDay(due); key <= last; key = startOfDay(new Date(key).setDate(new Date(key).getDate() + 1))) {
+      if (over) marks.set(key, "over");
+      else if (!marks.has(key)) marks.set(key, "open");
+    }
   }
   return marks;
 }
 
 // The picked day's list (#102 mock dayList): the header with the open count, then each task with
-// its clock time (하루 끝 without a chosen time) and category (the shield when any of its
-// categories is secret). Clicking opens its detail; right-click opens the task menu.
+// its clock time (하루 끝 without a chosen time; "~11/12" for a period that ends on a later day,
+// #109) and category (the shield when any of its categories is secret). Clicking opens its detail; right-click opens the task menu.
 export function DayList({ tasks, catsOf, prefs, onOpen, onMenu }) {
   const { pickedDay } = usePickedDay();
   const tf = prefs?.timeFormat === "24" ? "24" : "12";
@@ -62,6 +66,7 @@ export function DayList({ tasks, catsOf, prefs, onOpen, onMenu }) {
           const first = markCategory(catsOf?.(task) ?? []);
           const due = dueMs(task.dueDate);
           const over = isOverdue(task, minute * 60000);
+          const endsHere = startOfDay(due) === startOfDay(pickedDay);
           return (
             <div
               key={task.id}
@@ -78,7 +83,9 @@ export function DayList({ tasks, catsOf, prefs, onOpen, onMenu }) {
                 onOpen?.(task.id);
               }}
             >
-              <span className={"rp-tm" + (over ? " over" : "")}>{hasDueTime(due) ? formatClockShort(new Date(due), tf) : "하루 끝"}</span>
+              <span className={"rp-tm" + (over ? " over" : "") + (endsHere ? "" : " span")}>
+                {!endsHere ? `~${monthDay(due)}` : hasDueTime(due) ? formatClockShort(new Date(due), tf) : "하루 끝"}
+              </span>
               {first?.secret ? (
                 <span className="rp-shield" style={{ color: categoryColor(first) }} role="img" aria-label="비밀 카테고리"><ShieldIcon size={11} /></span>
               ) : (

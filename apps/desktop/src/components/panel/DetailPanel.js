@@ -3,9 +3,13 @@ import useClock from "hooks/UseClock";
 import Toast from "molecules/Toast";
 import { CategoryPicker, DatePicker, RepeatPicker } from "molecules/pickers";
 import { CheckIcon, PlusIcon, ShieldIcon, StarIcon } from "molecules/pickers/icons";
+import { AlertBell, AlertPopover } from "molecules/pickers/TaskAlerts";
+import { useAlertSettings } from "utils/alertSettings";
 import { categoryColor } from "utils/categoryColors";
 import { isOverdue } from "utils/menuFilters";
-import { endOfDay, normalRepeat, repeatName } from "utils/repeatRule";
+import { periodProgress, periodRepeatName, startDetailText } from "utils/periodDisplay";
+import { endOfDay, normalRepeat } from "utils/repeatRule";
+import { taskAlerts, taskStart } from "utils/taskPeriod";
 import { dueMs, formatClock, formatDueDetail, hasDueTime } from "utils/timeDisplay";
 import { useTaskSelection } from "../list/taskSelection";
 import { startOfDay } from "./pickedDay";
@@ -139,14 +143,42 @@ function MemoField({ task }) {
   );
 }
 
+// 진행 (#109 mock progRow): a thin bar and how far the period has gone.
+function ProgressRow({ task }) {
+  const text = useClock((now) => {
+    const p = periodProgress(task, Math.floor(now / 60000) * 60000, !!task.done);
+    return p ? `${Math.round(p.progress * 100)}|${p.over ? 1 : ""}|${p.label}` : "";
+  });
+  if (!text) return null;
+  const [pct, over, label] = text.split("|");
+  return (
+    <div className="rp-prop static rp-prog mid">
+      <span className="k">진행</span>
+      <span className="v">
+        <span className={"pbar" + (over ? " over" : "")} role="progressbar" aria-label="진행" aria-valuenow={Number(pct)} aria-valuemin={0} aria-valuemax={100}>
+          <i style={{ width: `${pct}%` }} />
+        </span>
+        <span className={"pl" + (over ? " over" : "")}>{label}</span>
+      </span>
+    </div>
+  );
+}
+
 // 할 일 상세 (#102 mock detailBody): title with the check and the star, 기한 / 반복 / 카테고리
 // rows that open their pickers below the row, 하위 할 일, 메모 and the stamp line. No remaining
 // time here (decided). canStar false leaves the star out (before the sync status comes).
+// A period (#109) has 시작 and 끝 rows and 진행 instead of 기한; a due alone has "+ 시작", which
+// opens the picker on an empty start. Each side with a time has a bell for its own alert.
 export default function DetailPanel({ task, catsOf, prefs, canStar = true }) {
   const { actions, pickable, complete } = useTaskSelection();
   const tf = prefs?.timeFormat === "24" ? "24" : "12";
-  const [open, setOpen] = useState(null); // { kind: "due" | "repeat" | "cat", el }
+  // { kind: "due" | "start" | "end" | "addStart" | "repeat" | "cat" | "bell", el, side }
+  const [open, setOpen] = useState(null);
   const due = dueMs(task.dueDate);
+  const start = due === null ? null : taskStart(task);
+  const alertSettings = useAlertSettings();
+  const alerts = taskAlerts(task, alertSettings);
+  const alertOf = (side) => alerts.find((a) => a.side === side);
   const repeat = due === null ? null : normalRepeat(task.repeatPeriod);
   const anchorAt = dueMs(task.repeatStartAt) ?? due;
   const over = useClock((now) => isOverdue(task, Math.floor(now / 60000) * 60000));
@@ -155,9 +187,10 @@ export default function DetailPanel({ task, catsOf, prefs, canStar = true }) {
   const categoryIds = Object.keys(task.categories ?? {}).filter((id) => task.categories[id]);
 
   const toggle = (kind) => (event) => {
-    const el = event.currentTarget;
+    const el = event.currentTarget.closest(".rp-prop") ?? event.currentTarget;
     setOpen((current) => (current?.kind === kind ? null : { kind, el }));
   };
+  const openBell = (side) => (el) => setOpen((current) => (current?.kind === "bell" && current.side === side ? null : { kind: "bell", side, el }));
   const close = () => setOpen(null);
   const pickerProps = open && { anchor: open.el, placement: "bottom-start", gap: 6, ignoreOutside: [open.el], returnFocus: open.el };
 
@@ -187,17 +220,18 @@ export default function DetailPanel({ task, catsOf, prefs, canStar = true }) {
     else actions.addCategory(task.id, cid);
   };
   const rowKey = (kind) => (event) => {
-    if (event.key !== "Enter" && event.key !== " ") return;
+    if (event.target !== event.currentTarget || (event.key !== "Enter" && event.key !== " ")) return;
     event.preventDefault();
     toggle(kind)(event);
   };
+  const isOpen = (kind) => open?.kind === kind || (kind === "due" && open?.kind === "addStart");
   const row = (kind, tip, cls) => ({
     role: "button",
     tabIndex: 0,
-    className: `rp-prop click ${cls}` + (open?.kind === kind ? " open" : ""),
+    className: `rp-prop click ${cls}` + (isOpen(kind) ? " open" : ""),
     "data-tip": tip,
     "aria-haspopup": "dialog",
-    "aria-expanded": open?.kind === kind,
+    "aria-expanded": isOpen(kind),
     onClick: toggle(kind),
     onKeyDown: rowKey(kind),
   });
@@ -234,13 +268,41 @@ export default function DetailPanel({ task, catsOf, prefs, canStar = true }) {
       </div>
 
       <div className="rp-box">
-        <div {...row("due", "기한 정하기", "first")} aria-label={`기한: ${due === null ? "없음" : dueDetailText(due, tf)}`}>
-          <span className="k">기한</span>
-          <span className={"v" + (over ? " over" : "")}>{due === null ? <span className="sub">없음</span> : dueDetailText(due, tf)}</span>
-        </div>
-        <div {...row("repeat", "반복 정하기", "mid")} aria-label={`반복: ${repeatName(repeat, anchorAt)}`}>
+        {start !== null ? (
+          <>
+            <div {...row("start", "시작 정하기", "first")} aria-label={`시작: ${startDetailText(start, tf)}`}>
+              <span className="k">시작</span>
+              <span className="v">{startDetailText(start, tf)}</span>
+              <AlertBell alert={alertOf("start")} open={open?.kind === "bell" && open.side === "start"} onOpen={openBell("start")} />
+            </div>
+            <div {...row("end", "끝 정하기", "mid")} aria-label={`끝: ${dueDetailText(due, tf)}`}>
+              <span className="k">끝</span>
+              <span className={"v" + (over ? " over" : "")}>{dueDetailText(due, tf)}</span>
+              <AlertBell alert={alertOf("end")} open={open?.kind === "bell" && open.side === "end"} onOpen={openBell("end")} />
+            </div>
+            <ProgressRow task={task} />
+          </>
+        ) : (
+          <div {...row("due", "기한 정하기", "first")} aria-label={`기한: ${due === null ? "없음" : dueDetailText(due, tf)}`}>
+            <span className="k">기한</span>
+            <span className={"v" + (over ? " over" : "")}>{due === null ? <span className="sub">없음</span> : dueDetailText(due, tf)}</span>
+            {due !== null && (
+              <button
+                type="button"
+                className="rp-addst"
+                data-tip="시작을 정해 기간으로"
+                onClick={(event) => { event.stopPropagation(); toggle("addStart")(event); }}
+                onKeyDown={(event) => event.stopPropagation()}
+              >
+                <PlusIcon size={12} />시작
+              </button>
+            )}
+            {due !== null && <AlertBell alert={alertOf("end")} open={open?.kind === "bell" && open.side === "end"} onOpen={openBell("end")} />}
+          </div>
+        )}
+        <div {...row("repeat", "반복 정하기", "mid")} aria-label={`반복: ${periodRepeatName(repeat, task, anchorAt)}`}>
           <span className="k">반복</span>
-          <span className="v">{repeat ? repeatName(repeat, anchorAt) : <span className="sub">안 함</span>}</span>
+          <span className="v">{repeat ? periodRepeatName(repeat, task, anchorAt) : <span className="sub">안 함</span>}</span>
         </div>
         <div {...row("cat", "카테고리 고르기", "last")} aria-label={`카테고리: ${cats.map((c) => c.title).join(", ") || "없음"}`}>
           <span className="k">카테고리</span>
@@ -268,14 +330,29 @@ export default function DetailPanel({ task, catsOf, prefs, canStar = true }) {
         <div className="rp-stamp">만든 날 {created}{updated ? ` · 마지막 수정 ${updated}` : ""}</div>
       )}
 
-      {open?.kind === "due" && (
+      {["due", "start", "end", "addStart"].includes(open?.kind) && (
         <DatePicker
           {...pickerProps}
           value={due}
+          start={start}
+          focus={open.kind === "start" ? "start" : open.kind === "addStart" ? "addStart" : "end"}
           timeFormat={tf}
           weekStart={prefs?.weekStart}
-          onChange={(ms) => { actions.setDue(task.id, ms); close(); }}
+          onChange={(ms, from) => {
+            if (from === undefined) actions.setDue(task.id, ms);
+            else actions.setPeriod(task.id, ms, from);
+            close();
+          }}
           onCancel={close}
+        />
+      )}
+      {open?.kind === "bell" && alertOf(open.side) && (
+        <AlertPopover
+          alert={alertOf(open.side)}
+          anchor={open.el}
+          timeFormat={tf}
+          onSet={(value) => actions.setAlert?.(task.id, open.side, value)}
+          onClose={close}
         />
       )}
       {open?.kind === "repeat" && (

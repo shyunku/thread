@@ -1,3 +1,4 @@
+import { periodStartedBy } from "./taskPeriod";
 import { dayDifference, dueMs } from "./timeDisplay";
 
 // Sidebar menus (#102). The values are ids used across the list code and tests, so the
@@ -37,14 +38,15 @@ export function isSecretTask(task, categories) {
 }
 
 // Whether the task belongs to a built-in menu (no secret check). 오늘 = due today or
-// overdue; 다음 7일 = due within 7 days, overdue included.
+// overdue, or a period that has started and not ended (#109); 다음 7일 = due within 7 days,
+// overdue included.
 export function inMenu(menuType, task, now = Date.now()) {
   switch (menuType) {
     case TODO_MENU_TYPE.ALL:
       return true;
     case TODO_MENU_TYPE.TODAY: {
       const due = dueOf(task);
-      return due != null && dayDifference(due, now) <= 0;
+      return due != null && (dayDifference(due, now) <= 0 || periodStartedBy(task, now));
     }
     case TODO_MENU_TYPE.NEXT_7_DAYS: {
       const due = dueOf(task);

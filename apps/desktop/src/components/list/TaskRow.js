@@ -3,8 +3,10 @@ import { memo, useEffect, useRef, useState } from "react";
 import useClock from "hooks/UseClock";
 import { CheckIcon, MemoIcon, RepeatIcon, ShieldIcon, StarIcon, SubtaskIcon } from "molecules/pickers/icons";
 import { categoryColor } from "utils/categoryColors";
+import { periodLeft, periodText } from "utils/periodDisplay";
 import { normalRepeat, repeatShortName } from "utils/repeatRule";
-import { dueMs, formatTaskTimes } from "utils/timeDisplay";
+import { taskStart } from "utils/taskPeriod";
+import { dueMs, formatTaskTimes, timeDisplayOptions } from "utils/timeDisplay";
 import { highlightParts } from "./listModel";
 import { restoreRow, takeRolled } from "./useTaskCompletion";
 
@@ -22,16 +24,22 @@ export function Highlighted({ text, query }) {
 // The right column (#102 mock rightCol): due on top in 설정 > 시간 표시's format, the remaining time
 // below (muted; left out when 남은 시간 보이기 is off or the task is done). Red when overdue.
 // Re-renders only when its text changes (shared clock).
-function TimeColumn({ due, done, options }) {
+// A period (#109) shows "11/9 ~ 11/12" on top and "N 뒤 시작" / "N 뒤 종료" / "N 지남" below.
+function TimeColumn({ due, done, options, task, start }) {
   const text = useClock((now) => {
+    if (start !== null) {
+      const o = timeDisplayOptions(options);
+      const left = !done && o.showRemain ? periodLeft(task, now, o.remainFormat) : null;
+      return [periodText(task, o.timeFormat), left?.text ?? "", !done && due < now ? "1" : "", left?.tone ?? ""].join(SEP);
+    }
     const t = formatTaskTimes(due, now, options);
-    return [t.due, done ? "" : t.remain ?? "", !done && t.overdue ? "1" : "", due - now < 0 ? "1" : ""].join(SEP);
+    return [t.due, done ? "" : t.remain ?? "", !done && t.overdue ? "1" : "", due - now < 0 ? "over" : ""].join(SEP);
   });
-  const [when, remain, overdue, past] = text.split(SEP);
+  const [when, remain, overdue, tone] = text.split(SEP);
   return (
     <div className={"rcol" + (remain ? "" : " one")}>
       <span className={"when" + (overdue ? " over" : "")}>{when}</span>
-      {remain && <span className={"left" + (past ? " over" : "")}>{remain}</span>}
+      {remain && <span className={"left" + (tone ? ` ${tone}` : "")}>{remain}</span>}
     </div>
   );
 }
@@ -191,7 +199,7 @@ function TaskRow({
           </div>
         )}
       </div>
-      {due !== null ? <TimeColumn due={due} done={done} options={timeOptions} /> : <div className="rcol" />}
+      {due !== null ? <TimeColumn due={due} done={done} options={timeOptions} task={task} start={taskStart(task)} /> : <div className="rcol" />}
       <button
         type="button"
         className={"st" + (task.important ? " on" : "")}

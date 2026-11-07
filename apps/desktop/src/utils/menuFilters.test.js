@@ -54,3 +54,12 @@ test("palette helpers: next unused colour, hex and HSV, contrast", () => {
   expect(isLowContrast("#202020")).toBe(true);
   expect(isLowContrast("#6294ff")).toBe(false);
 });
+
+test("오늘 also takes a period that has started and not ended (#109)", () => {
+  const period = (startDays, endDays) => { const due = day(endDays, 18); return t(due, { startOffset: due.getTime() - day(startDays, 9).getTime() }); };
+  expect(inMenu(TODO_MENU_TYPE.TODAY, period(-1, 3), NOW)).toBe(true);
+  expect(inMenu(TODO_MENU_TYPE.TODAY, period(1, 3), NOW)).toBe(false);
+  expect(inMenu(TODO_MENU_TYPE.TODAY, period(0, 3), NOW)).toBe(true); // starts later today
+  expect(inMenu(TODO_MENU_TYPE.TODAY, period(-1, 3), day(4).getTime())).toBe(true); // over: overdue anyway
+  expect(sidebarCounts({ a: period(-1, 3), b: period(1, 3) }, {}, { now: NOW }).counts[TODO_MENU_TYPE.TODAY]).toBe(1);
+});
