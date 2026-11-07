@@ -17,6 +17,11 @@ class Task extends Mutatable {
       repeat_period: "repeatPeriod",
       repeat_start_at: "repeatStartAt",
       important: "important",
+      // Periods (#109): the start is start_offset ms before the due (startDate below); the
+      // per-task alerts are "on", "off" or null (follow the settings).
+      start_offset: "startOffset",
+      alert_start: "alertStart",
+      alert_end: "alertEnd",
     });
 
     this.id = v4();
@@ -33,6 +38,10 @@ class Task extends Mutatable {
     this.repeatStartAt = dueDate;
     // Starred ("중요", #97); a row without the field is not starred.
     this.important = false;
+    this.startOffset = 0;
+    this.startDate = null;
+    this.alertStart = null;
+    this.alertEnd = null;
 
     this.next = null;
     this.prev = null;
@@ -109,6 +118,11 @@ class Task extends Mutatable {
       ctx.repeatPeriod = null;
     }
     ctx.important = ctx.important === true;
+    // The period start as ms, or null (no due, no offset, or one that does not fit, #109).
+    const due = Number(entity?.due_date) || 0, offset = entity?.start_offset;
+    ctx.startOffset = Number.isSafeInteger(offset) && offset > 0 && offset < due ? offset : 0;
+    ctx.startDate = ctx.startOffset ? due - ctx.startOffset : null;
+    for (const key of ["alertStart", "alertEnd"]) if (ctx[key] !== "on" && ctx[key] !== "off") ctx[key] = null;
     // 마지막 수정 in the detail panel (#102). Only E2EE rows carry it; kept out of the entityMap
     // so it is never sent back.
     ctx.updatedAt = entity?.updated_at > 0 ? new Date(entity.updated_at) : null;

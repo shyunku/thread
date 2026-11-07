@@ -316,6 +316,17 @@ const IpcSender = {
       updateTaskImportant: (taskId, important, callback) => {
         sender("task/updateTaskImportant", callback, taskId, important);
       },
+      // Periods (#109): the due (end) and the start in one change. due and start are ms (or Date); start
+      // 0 (or equal to the due) means no period; a due of 0 clears both. A start after the due
+      // is refused (INVALID_PERIOD).
+      updateTaskPeriod: (taskId, due, start, callback) => {
+        sender("task/updateTaskPeriod", callback, taskId, { due: Number(due) || 0, start: Number(start) || 0 });
+      },
+      // A task's own alert for one side: side "start" | "end", value "on" | "off" | null
+      // (null follows the settings again).
+      updateTaskAlert: (taskId, side, value, callback) => {
+        sender("task/updateTaskAlert", callback, taskId, side, value ?? null);
+      },
       // New not-done copy with title, memo, due, repeat, importance, categories and
       // subtasks, queued as one change. newTaskId is optional.
       duplicateTask: (taskId, newTaskId, callback) => {
