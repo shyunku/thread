@@ -20,6 +20,8 @@ import { CategoryPicker, TaskContextMenu, openPopupCount } from "molecules/picke
 import { moveFocus } from "molecules/pickers/focusNav";
 import { categoryColor } from "utils/categoryColors";
 import { sortCategories, sortSubtasks } from "utils/categoryOrder";
+import { useAlertSettings } from "utils/alertSettings";
+import { taskAlerts, taskStart } from "utils/taskPeriod";
 import { dueMs } from "utils/timeDisplay";
 import { PanelHost, useHomeLayout } from "layouts/homeLayoutContext";
 import ListHeader from "./list/ListHeader";
@@ -403,6 +405,11 @@ const TodoContent = ({ children }) => {
     // null clears the due; on a repeating task the model clears the repeat with it.
     // callback({ success }) answers it (the panel sends a repeat only after the due it needs).
     setDue: (tid, dueDate, callback) => IpcSender.req.task.updateTaskDueDate(tid, dueDate == null ? null : moment(dueDate).valueOf(), callback ?? failed("기한을 바꾸지 못했어요.")),
+    // The picker's period (#109): the end and the start as chosen (start null: no period). Moves
+    // that keep the end's time (오늘, 미루기) go through setDue, which keeps the period's length.
+    setPeriod: (tid, due, start, callback) => IpcSender.req.task.updateTaskPeriod(tid, due ?? 0, start ?? 0, callback ?? failed("기간을 바꾸지 못했어요.")),
+    // A side's own alert (#109): "on", "off" or null (follow 설정 > 알림).
+    setAlert: (tid, side, value) => IpcSender.req.task.updateTaskAlert(tid, side, value, failed("알림을 바꾸지 못했어요.")),
     setMemo: (tid, memo) => IpcSender.req.task.updateTaskMemo(tid, memo, failed("메모를 저장하지 못했어요.")),
     // callback({ success }) answers the change (the list restores a refused completion).
     setDone: (tid, done, callback) => {
@@ -739,6 +746,7 @@ const TodoContent = ({ children }) => {
   // Not drawn for a task off the screen even before the effect above closes them.
   const onScreen = (id) => (visibleIds.has(id) ? taskMap[id] : null);
   const menuTask = menu ? onScreen(menu.taskId) : null;
+  const alertSettings = useAlertSettings();
   const newCategoryTask = newCategoryFor ? onScreen(newCategoryFor.taskId) : null;
 
   return (
@@ -807,6 +815,8 @@ const TodoContent = ({ children }) => {
           key={menu.taskId}
           point={menu.point}
           due={menuTask.dueDate}
+          start={taskStart(menuTask)}
+          alerts={taskAlerts(menuTask, alertSettings)}
           important={!!menuTask.important}
           categoryIds={Object.keys(menuTask.categories ?? {})}
           categories={pickable}
@@ -814,6 +824,8 @@ const TodoContent = ({ children }) => {
           weekStart={prefs.weekStart}
           onOpen={() => openTask(menuTask.id)}
           onSetDue={(ms) => actions.setDue(menuTask.id, ms)}
+          onSetPeriod={(due, start) => actions.setPeriod(menuTask.id, due, start)}
+          onSetAlert={(side, value) => actions.setAlert(menuTask.id, side, value)}
           onToggleImportant={() => actions.setImportant(menuTask.id, !menuTask.important)}
           onToggleCategory={(cid) => toggleCategory(menuTask, cid)}
           onNewCategory={() => setNewCategoryFor({ taskId: menuTask.id, point: menu.point })}

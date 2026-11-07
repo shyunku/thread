@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
+import { noteAlertSettings } from "../../utils/alertSettings";
 import IpcSender from "../../utils/IpcSender";
 import { Badge, SettingsButton, SettingsCard, SettingsPage, SettingsRow, Skeleton, Toggle } from "./SettingsUI";
 
-const PREVIEW = { autoStart: true, closeToTray: true, hardwareAcceleration: true, betaUpdates: false, showPatchNotes: true, reminders: { enabled: true, before: true, minutes: 10, due: false }, restartRequired: false };
+const PREVIEW = { autoStart: true, closeToTray: true, hardwareAcceleration: true, betaUpdates: false, showPatchNotes: true, reminders: { enabled: true, before: true, minutes: 10, due: false, startBefore: true, startMinutes: 10, startAt: false }, restartRequired: false };
 
 // App-level preferences stored by main (app-settings.json).
 export function useAppSettings(preview = false) {
@@ -19,7 +20,7 @@ export function useAppSettings(preview = false) {
     if (preview) { setSettings((old) => ({ ...old, ...patch, restartRequired: "hardwareAcceleration" in patch ? patch.hardwareAcceleration !== PREVIEW.hardwareAcceleration : old.restartRequired })); return; }
     setSettings((old) => ({ ...old, ...patch })); // optimistic
     IpcSender.appSettings.set(patch, ({ success, data }) => {
-      if (success) setSettings(data);
+      if (success) { setSettings(data); noteAlertSettings(data?.reminders); }
       else { setError(true); IpcSender.appSettings.get(({ success: ok, data: fresh }) => ok && setSettings(fresh)); }
     });
   };

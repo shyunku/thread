@@ -84,6 +84,15 @@ export const EyeOffIcon = (p) => (
     <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
   </Svg>
 );
+// Task alerts (#109 mock I.bell / I.bellOff).
+export const BellIcon = (p) => (
+  <Svg size={15} {...p}><path d="M6 9a6 6 0 0 1 12 0c0 6 2.5 7.5 2.5 7.5h-17S6 15 6 9" /><path d="M10 20a2.2 2.2 0 0 0 4 0" /></Svg>
+);
+export const BellOffIcon = (p) => (
+  <Svg size={15} {...p}>
+    <path d="M8.6 3.9A6 6 0 0 1 18 9c0 2.6.5 4.3 1.1 5.4M17 16.5H3.5S6 15 6 9c0-.7.1-1.3.3-1.9" /><path d="M10 20a2.2 2.2 0 0 0 4 0" /><path d="M3 3l18 18" />
+  </Svg>
+);
 // Group fold arrow: down when open, right when folded.
 export const ChevIcon = ({ open = true, style, ...p }) => (
   <Svg size={14} style={{ transform: `rotate(${open ? 0 : -90}deg)`, ...style }} {...p}><path d="M6 9l6 6 6-6" /></Svg>

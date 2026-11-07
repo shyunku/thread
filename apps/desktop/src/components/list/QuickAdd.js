@@ -5,20 +5,23 @@ import { CategoryPicker, DatePicker, RepeatPicker, openPopupCount } from "molecu
 import { CalendarIcon, CloseIcon, PlusIcon, RepeatIcon, ShieldIcon, StarIcon } from "molecules/pickers/icons";
 import { categoryColor } from "utils/categoryColors";
 import { TODO_MENU_TYPE } from "utils/menuFilters";
+import { periodChipText } from "utils/periodDisplay";
 import { endOfDay, normalRepeat, repeatName } from "utils/repeatRule";
+import { periodOffset } from "utils/taskPeriod";
 import { dueMs, formatDueChip } from "utils/timeDisplay";
 import { useTimeFormat } from "utils/timeFormat";
 
 // What the chips start with, from the screen (#102): 오늘 and 다음 7일 → today; calendar /
 // timeline → the picked day (`day`); a category screen → that category (a secret one only while
 // unlocked); 중요 → starred, unless the star cannot be stored yet (canStar false: no sync
-// status yet). A day means its end (no time).
+// status yet). A day means its end (no time). No period to start with (start, #109).
 export function quickAddDefaults({ menuType, category, secretUnlocked = false, day = null, now = Date.now(), canStar = true } = {}) {
   const picked = day !== null && day !== undefined ? endOfDay(day) : null;
   const own = category && category.default === false && category.id != null && (!category.secret || secretUnlocked);
   const todayMenu = menuType === TODO_MENU_TYPE.TODAY || menuType === TODO_MENU_TYPE.NEXT_7_DAYS;
   return {
     due: picked ?? (todayMenu ? endOfDay(now) : null),
+    start: null,
     repeat: null,
     categoryIds: own ? [category.id] : [],
     important: canStar && menuType === TODO_MENU_TYPE.IMPORTANT,
@@ -26,10 +29,15 @@ export function quickAddDefaults({ menuType, category, secretUnlocked = false, d
 }
 
 // The new task. Everything goes in the one addTask entity (task/addTask takes the due, the repeat
-// with its anchor, the categories and the star together); a repeat needs a due.
+// with its anchor, the period's start (#109), the categories and the star together); a repeat
+// and a start need a due.
 export function buildQuickTask(title, draft) {
   const due = dueMs(draft.due);
   const task = new Task(title, due === null ? null : new Date(due));
+  const start = due === null ? null : dueMs(draft.start);
+  const offset = start === null ? 0 : periodOffset(start, due) ?? 0;
+  task.startOffset = offset;
+  task.startDate = offset ? due - offset : null;
   task.repeatPeriod = due === null ? null : normalRepeat(draft.repeat);
   for (const cid of draft.categoryIds ?? []) task.categories[cid] = true;
   task.important = !!draft.important;
@@ -58,7 +66,8 @@ const reconcile = (state, screenKey, defaults) => {
 
 // The quick-add bar at the bottom of a view (#102 mock quickAdd): "+", the title field (Enter
 // adds; Ctrl+N focuses it) and the chips 날짜 / 반복 / 카테고리 / 중요, whose pickers open above
-// the bar. A set date or category chip has a × on hover that takes it out (the date also over
+// the bar. The title is taken as typed (no dates read from it); a period picked in the date
+// picker shows as one chip, "11/20 ~ 11/23" (#109). A set date or category chip has a × on hover that takes it out (the date also over
 // the screen's default). After adding, the chips go back to `defaults` (see quickAddDefaults).
 // contextKey: the screen (menu, category); a new one starts the chips over. When only the
 // defaults move (today's date at midnight, another picked day), untouched chips follow them and
@@ -105,7 +114,9 @@ export default function QuickAdd({ defaults, contextKey, categories = [], onAdd,
   const byId = useMemo(() => Object.fromEntries(categories.map((c) => [c.id, c])), [categories]);
   const chosen = (draft.categoryIds ?? []).map((id) => byId[id]).filter(Boolean);
   const due = dueMs(draft.due);
+  const start = due === null ? null : dueMs(draft.start);
   const repeat = due === null ? null : normalRepeat(draft.repeat);
+  const dateText = due === null ? "" : start !== null ? periodChipText(start, due, tf) : formatDueChip(due, tf);
 
   const add = () => {
     const text = title.trim();
@@ -133,7 +144,7 @@ export default function QuickAdd({ defaults, contextKey, categories = [], onAdd,
   // ×: the date chip goes to no date (and no repeat, which needs one); a category chip leaves.
   const clearDue = () => {
     close();
-    setDraft((d) => ({ ...d, due: null, repeat: null }));
+    setDraft((d) => ({ ...d, due: null, start: null, repeat: null }));
     inputRef.current?.focus();
   };
   const dropCategory = (id) => {
@@ -185,8 +196,8 @@ export default function QuickAdd({ defaults, contextKey, categories = [], onAdd,
       <div className="qa-chips">
         {due !== null ? (
           <span className="qa-chip on has-x">
-            <button type="button" className="qa-hit" aria-label={`기한 ${formatDueChip(due, tf)}`} onClick={toggle("date")}>
-              <CalendarIcon /><span>{formatDueChip(due, tf)}</span>
+            <button type="button" className="qa-hit" aria-label={`${start !== null ? "기간" : "기한"} ${dateText}`} onClick={toggle("date")}>
+              <CalendarIcon /><span>{dateText}</span>
             </button>
             <button type="button" className="qa-x" aria-label="날짜 빼기" data-tip="날짜 빼기" onClick={clearDue}><CloseIcon /></button>
           </span>
@@ -223,8 +234,9 @@ export default function QuickAdd({ defaults, contextKey, categories = [], onAdd,
         <DatePicker
           {...pickerProps}
           value={due}
+          start={start}
           timeFormat={tf}
-          onChange={(ms) => { setDraft((d) => ({ ...d, due: ms })); close(); }}
+          onChange={(ms, from) => { setDraft((d) => ({ ...d, due: ms, start: from ?? null })); close(); }}
           onCancel={close}
         />
       )}

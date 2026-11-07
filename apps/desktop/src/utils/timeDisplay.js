@@ -19,8 +19,9 @@ const WEEKDAYS = "일월화수목금토";
 
 const pad = (n) => String(n).padStart(2, "0");
 
-// From the largest non-zero unit, take `layers` units, then leave out the zero ones.
-export function formatRemain(ms, format = "normal") {
+// From the largest non-zero unit, take `layers` units, then leave out the zero ones: "3시간 30분"
+// (periods, #109, add their own word after it).
+export function formatSpan(ms, format = "normal") {
   const layers = REMAIN_LAYERS[format] ?? REMAIN_LAYERS.normal;
   let rest = Math.abs(ms);
   const parts = [];
@@ -32,7 +33,12 @@ export function formatRemain(ms, format = "normal") {
     if (parts.length >= layers) break;
   }
   const shown = parts.filter(([value]) => value > 0).map(([value, unit]) => value + unit);
-  return `${shown.length ? shown.join(" ") : "0초"} ${ms < 0 ? "지남" : "남음"}`;
+  return shown.length ? shown.join(" ") : "0초";
+}
+
+// "3시간 30분 남음" / "2일 지남".
+export function formatRemain(ms, format = "normal") {
+  return `${formatSpan(ms, format)} ${ms < 0 ? "지남" : "남음"}`;
 }
 
 // Short "오후 2:45" / "14:45"; long "오후 3시 20분" / "15시 20분" (minute left out when 0).

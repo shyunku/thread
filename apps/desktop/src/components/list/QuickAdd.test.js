@@ -24,7 +24,7 @@ const type = (input, value) => { fireEvent.change(input, { target: { value } });
 test("defaults follow the screen", () => {
   const work = { id: "work", default: false, secret: false };
   const diary = { id: "diary", default: false, secret: true };
-  expect(quickAddDefaults({ menuType: TODO_MENU_TYPE.ALL, now: NOW })).toEqual({ due: null, repeat: null, categoryIds: [], important: false });
+  expect(quickAddDefaults({ menuType: TODO_MENU_TYPE.ALL, now: NOW })).toEqual({ due: null, start: null, repeat: null, categoryIds: [], important: false });
   expect(quickAddDefaults({ menuType: TODO_MENU_TYPE.TODAY, now: NOW }).due).toBe(endOf(NOW));
   expect(quickAddDefaults({ menuType: TODO_MENU_TYPE.IMPORTANT, now: NOW }).important).toBe(true);
   // 다음 7일 starts at today too; no star where it cannot be stored.
@@ -179,4 +179,24 @@ test("중요 is left out where the star cannot be stored", () => {
   expect(screen.queryByRole("button", { name: "중요" })).toBeNull();
   type(input, "별 없음");
   expect(onAdd.mock.calls[0][0].toEntity().important).toBe(false);
+});
+
+test("a period from the picker is one chip and goes in the new task; the title reads no dates (#109)", () => {
+  const { onAdd, input } = setup(quickAddDefaults({ menuType: TODO_MENU_TYPE.ALL }));
+  fireEvent.click(screen.getByRole("button", { name: "기한 정하기" }));
+  const text = screen.getByRole("textbox", { name: "날짜 직접 입력" });
+  fireEvent.change(text, { target: { value: "11/20~11/23" } });
+  fireEvent.keyDown(text, { key: "Enter" });
+  expect(chipOf("기간 11/20 ~ 11/23")).toHaveClass("on");
+  type(input, "워크숍 내일부터 금요일까지");
+  const entity = onAdd.mock.calls[0][0].toEntity();
+  const due = new Date(2026, 10, 23, 23, 59, 59).getTime();
+  expect(entity).toMatchObject({ title: "워크숍 내일부터 금요일까지", due_date: due, start_offset: due - new Date(2026, 10, 20).getTime() });
+  // ×: no date and no period.
+  fireEvent.click(screen.getByRole("button", { name: "기한 정하기" }));
+  fireEvent.change(screen.getByRole("textbox", { name: "날짜 직접 입력" }), { target: { value: "내일~모레" } });
+  fireEvent.keyDown(screen.getByRole("textbox", { name: "날짜 직접 입력" }), { key: "Enter" });
+  fireEvent.click(screen.getByRole("button", { name: "날짜 빼기" }));
+  expect(screen.getByRole("button", { name: "기한 정하기" })).toBeInTheDocument();
+  expect(buildQuickTask("x", { due: null, start: 123 }).toEntity()).toMatchObject({ due_date: null, start_offset: 0 });
 });

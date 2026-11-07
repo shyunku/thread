@@ -23,7 +23,7 @@ const item = (name) => screen.getByRole("menuitem", { name: new RegExp(`^${name}
 
 test("items depend on the task: no due date, not important", () => {
   setup();
-  expect(labels()).toEqual(["열기", "오늘", "내일", "날짜 · 시간 정하기…", "중요로 표시", "카테고리", "복제", "삭제"]);
+  expect(labels()).toEqual(["열기", "오늘", "내일", "날짜 · 기간 정하기…", "알림", "중요로 표시", "카테고리", "복제", "삭제"]);
   expect(item("열기")).toHaveTextContent("Enter");
   expect(item("삭제")).toHaveTextContent("Del");
   expect(item("삭제")).toHaveClass("danger");
@@ -31,7 +31,7 @@ test("items depend on the task: no due date, not important", () => {
 
 test("with a due date and starred", () => {
   setup({ due: at(10, 25, 14, 30), important: true });
-  expect(labels()).toEqual(["열기", "오늘", "내일", "하루 미루기", "일주일 미루기", "날짜 · 시간 정하기…", "기한 없애기", "중요 해제", "카테고리", "복제", "삭제"]);
+  expect(labels()).toEqual(["열기", "오늘", "내일", "하루 미루기", "일주일 미루기", "날짜 · 기간 정하기…", "기한 없애기", "알림", "중요 해제", "카테고리", "복제", "삭제"]);
 });
 
 test("오늘 / 내일 keep the time of day; no due means the end of the day", () => {
@@ -122,9 +122,9 @@ test("keyboard: arrows, the submenu with → / ← / Esc, Del", () => {
   expect(onDelete).toHaveBeenCalledTimes(1);
 });
 
-test("날짜 · 시간 정하기… swaps in the date picker; 정하기 sets the due", () => {
+test("날짜 · 기간 정하기… swaps in the date picker; 정하기 sets the due", () => {
   const { onSetDue, onClose } = setup({ due: at(10, 25, 14, 30) });
-  fireEvent.click(item("날짜 · 시간 정하기…"));
+  fireEvent.click(item("날짜 · 기간 정하기…"));
   expect(screen.queryByRole("menu", { name: "할 일 메뉴" })).toBeNull();
   expect(screen.getByRole("dialog", { name: "기한 정하기" })).toBeInTheDocument();
   fireEvent.click(document.querySelector('[data-day="2026-10-30"]'));
@@ -178,4 +178,67 @@ test("the secret shield in the category submenu is labelled", () => {
   setup();
   fireEvent.mouseEnter(item("카테고리"));
   expect(screen.getByRole("img", { name: "비밀 카테고리" })).toBeInTheDocument();
+});
+
+describe("알림 ▸ (#109)", () => {
+  const { taskAlerts } = require("utils/taskPeriod");
+  const SETTINGS = { enabled: true, before: true, minutes: 10, due: true, startBefore: true, startMinutes: 10, startAt: false };
+  const period = (start, due, extra = {}) => taskAlerts({ dueDate: due, startOffset: due - start, ...extra }, SETTINGS);
+  const openAlerts = (alerts, props = {}) => {
+    const onSetAlert = jest.fn();
+    const utils = setup({ due: at(10, 25, 17), alerts, onSetAlert, ...props });
+    fireEvent.mouseEnter(item("알림"));
+    return { onSetAlert, ...utils, sub: screen.getByRole("menu", { name: "알림" }) };
+  };
+  const rows = () => [...screen.getByRole("menu", { name: "알림" }).querySelectorAll(".tp-mi")].map((el) => [el.querySelector(".tp-lb").textContent, el.querySelector(".tp-kb")?.textContent ?? "", el.className.includes("on")]);
+
+  test("without a due the item is dimmed and says why", () => {
+    setup();
+    const el = [...document.querySelectorAll(".tp-menu-in > .tp-mi")].find((x) => x.textContent.startsWith("알림"));
+    expect(el).toHaveClass("dis");
+    expect(el).toHaveTextContent("기한 없음");
+    expect(el).toHaveAttribute("data-tip", "기한을 정하면 알림을 받을 수 있어요");
+  });
+
+  test("both sides follow: 전체 설정 따르기 checked, each side with what rings", () => {
+    openAlerts(period(at(10, 25, 14), at(10, 25, 17)));
+    expect(rows()).toEqual([
+      ["전체 설정 따르기", "", true],
+      ["시작 알림10분 전", "전체 설정", true],
+      ["끝 알림10분 전 · 정각", "전체 설정", true],
+    ]);
+    expect(screen.getByText("직접 켜고 끈 알림은 설정 > 알림을 바꿔도 그대로예요.")).toBeInTheDocument();
+  });
+
+  test("a row turns that side off or on for this task and keeps the menu open; 전체 설정 따르기 resets", () => {
+    const { onSetAlert, onClose } = openAlerts(period(at(10, 25, 14), at(10, 25, 17), { alertEnd: "off" }));
+    expect(rows()[0][2]).toBe(false);
+    expect(rows()[2]).toEqual(["끝 알림꺼짐", "직접", false]);
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /^시작 알림/ }));
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /^끝 알림/ }));
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: "전체 설정 따르기" }));
+    expect(onSetAlert.mock.calls).toEqual([["start", "off"], ["end", "on"], ["end", null]]);
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  test("a due only shows 끝; a side without a time is dimmed with the note", () => {
+    const { unmount } = openAlerts(taskAlerts({ dueDate: at(10, 25, 17) }, SETTINGS));
+    expect(rows().map((r) => r[0])).toEqual(["전체 설정 따르기", "끝 알림10분 전 · 정각"]);
+    unmount();
+    openAlerts(period(at(10, 22, 0), at(10, 25, 17)));
+    const dim = [...screen.getByRole("menu", { name: "알림" }).querySelectorAll(".tp-mi.dis")];
+    expect(dim.map((el) => el.textContent)).toEqual(["시작 알림시각 없음"]);
+    expect(screen.getByText("날짜만 정한 시작 · 끝은 알림이 없어요. 시각을 정하면 켤 수 있어요.")).toBeInTheDocument();
+  });
+});
+
+test("날짜 · 기간 정하기… on a period gives the end and the start to onSetPeriod (#109)", () => {
+  const onSetPeriod = jest.fn();
+  const { onSetDue } = setup({ due: at(10, 25, 23, 59, 59), start: at(10, 22, 0), onSetPeriod });
+  fireEvent.click(item("날짜 · 기간 정하기…"));
+  expect(screen.getByRole("dialog", { name: "기간 정하기" })).toBeInTheDocument();
+  fireEvent.click(document.querySelector('[data-day="2026-10-28"]'));
+  fireEvent.click(screen.getByRole("button", { name: "정하기" }));
+  expect(onSetPeriod).toHaveBeenCalledWith(at(10, 28, 23, 59, 59), at(10, 22, 0));
+  expect(onSetDue).not.toHaveBeenCalled();
 });

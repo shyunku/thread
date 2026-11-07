@@ -3,10 +3,11 @@ import { categoryColor } from "utils/categoryColors";
 import { dueMs } from "utils/timeDisplay";
 import DatePicker from "./DatePicker";
 import {
-  CalendarIcon, ClearIcon, CopyIcon, DayLaterIcon, NextIcon, OpenIcon, PlusIcon, ShieldIcon,
+  BellIcon, CalendarIcon, ClearIcon, CopyIcon, DayLaterIcon, NextIcon, OpenIcon, PlusIcon, ShieldIcon,
   StarIcon, SunIcon, TagIcon, TickIcon, TrashIcon, WeekIcon, WeekLaterIcon,
 } from "./icons";
 import Popover from "./Popover";
+import { AlertMenuItems } from "./TaskAlerts";
 
 // The due a 기한 item gives. 오늘 / 내일 keep the time of day of the current due (no due: the
 // end of the day); 하루 미루기 / 일주일 미루기 move the due by calendar days, keeping the time.
@@ -46,23 +47,33 @@ const Item = ({ icon, label, hint, danger, onClick, itemRef, onEnter, ...rest })
 
 // Right-click menu of a task (#102 mock contextMenu), opened at the pointer (point {x, y}).
 // No IPC inside: every action is a callback, and the menu closes after it (onClose), except the
-// category ticks, which keep the submenu open. 날짜 · 시간 정하기… swaps the menu for the date
-// picker at the same place; 정하기 there calls onSetDue(ms).
-// due: ms or null; important: boolean; categoryIds: the task's categories;
-// categories: [{ id, title, color, secret }] in display order.
-// Callbacks: onOpen, onSetDue(ms | null), onToggleImportant, onToggleCategory(id),
-// onNewCategory, onDuplicate, onDelete (the caller confirms), onClose.
+// category ticks and the alert rows, which keep their submenu open. 날짜 · 기간 정하기… swaps the
+// menu for the date picker at the same place; 정하기 there calls onSetDue(ms), or
+// onSetPeriod(due, start) when the task had a period or gets one (#109). The 오늘 / 내일 / 미루기
+// items move the due only (a period's start moves with it). 알림 ▸ (#109) turns each side's
+// alert on or off for this task.
+// due: ms or null; start: the period's start (ms) or null; important: boolean; categoryIds:
+// the task's categories; categories: [{ id, title, color, secret }] in display order; alerts:
+// taskAlerts(task, settings).
+// Callbacks: onOpen, onSetDue(ms | null), onSetPeriod(due, start | null), onSetAlert(side, value),
+// onToggleImportant, onToggleCategory(id), onNewCategory, onDuplicate, onDelete (the caller
+// confirms), onClose.
 export default function TaskContextMenu({
-  point, due = null, important = false, categoryIds = [], categories = [],
+  point, due = null, start = null, important = false, categoryIds = [], categories = [], alerts = [],
   now, timeFormat, weekStart,
-  onOpen, onSetDue, onToggleImportant, onToggleCategory, onNewCategory, onDuplicate, onDelete, onClose,
+  onOpen, onSetDue, onSetPeriod, onSetAlert, onToggleImportant, onToggleCategory, onNewCategory, onDuplicate, onDelete, onClose,
 }) {
   const [mode, setMode] = useState("menu");
-  const [sub, setSub] = useState(null); // null | "hover" | "keyboard"
+  // The open submenu: null | { which: "cat" | "alert", how: "hover" | "keyboard" }.
+  const [sub, setSub] = useState(null);
   const [opener] = useState(() => document.activeElement);
   const menuRef = useRef(null);
-  const subItemRef = useRef(null);
+  const catItemRef = useRef(null);
+  const alertItemRef = useRef(null);
   const subRef = useRef(null);
+  const subItemRef = sub?.which === "alert" ? alertItemRef : catItemRef;
+  // Hover keeps a submenu that is open; a press or a key opens it for the keyboard.
+  const openSub = (which, how) => setSub((s) => (s?.which === which ? s : { which, how }));
   const dueAt = dueMs(due);
   const hasDue = dueAt !== null;
   const assigned = new Set(categoryIds);
@@ -71,8 +82,9 @@ export default function TaskContextMenu({
   const act = (fn) => () => { fn?.(); close(); };
   const setDue = (kind) => act(() => onSetDue?.(menuDue(kind, due, now ?? Date.now())));
   const others = { onEnter: () => setSub(null) };
+  const subKey = (which) => (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSub({ which, how: "keyboard" }); } };
 
-  const items = () => [...(menuRef.current?.querySelectorAll(":scope > .tp-mi") || [])];
+  const items = () => [...(menuRef.current?.querySelectorAll(":scope > .tp-mi:not(.dis)") || [])];
   const onMenuKey = (event) => {
     const list = items();
     const index = list.indexOf(document.activeElement);
@@ -85,9 +97,9 @@ export default function TaskContextMenu({
     } else if (event.key === "Home" || event.key === "End") {
       event.preventDefault();
       list[event.key === "Home" ? 0 : list.length - 1]?.focus();
-    } else if (event.key === "ArrowRight" && document.activeElement === subItemRef.current) {
+    } else if (event.key === "ArrowRight" && (document.activeElement === catItemRef.current || document.activeElement === alertItemRef.current)) {
       event.preventDefault();
-      setSub("keyboard");
+      setSub({ which: document.activeElement === alertItemRef.current ? "alert" : "cat", how: "keyboard" });
     } else if (event.key === "Delete" && onDelete) {
       event.preventDefault();
       act(onDelete)();
@@ -98,7 +110,7 @@ export default function TaskContextMenu({
     }
   };
   const onSubKey = (event) => {
-    const list = [...(subRef.current?.querySelectorAll(".tp-mi") || [])];
+    const list = [...(subRef.current?.querySelectorAll(".tp-mi:not(.dis)") || [])];
     const index = list.indexOf(document.activeElement);
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
@@ -106,8 +118,9 @@ export default function TaskContextMenu({
       list[index < 0 ? (step > 0 ? 0 : list.length - 1) : (index + step + list.length) % list.length]?.focus();
     } else if (event.key === "ArrowLeft") {
       event.preventDefault();
+      const back = subItemRef.current;
       setSub(null);
-      subItemRef.current?.focus();
+      back?.focus();
     }
   };
 
@@ -115,6 +128,7 @@ export default function TaskContextMenu({
     return (
       <DatePicker
         value={dueAt}
+        start={hasDue ? start : null}
         now={now}
         timeFormat={timeFormat}
         weekStart={weekStart}
@@ -122,7 +136,11 @@ export default function TaskContextMenu({
         placement="point"
         offset={{ y: -40 }}
         returnFocus={opener}
-        onChange={(ms) => { onSetDue?.(ms); close(); }}
+        onChange={(ms, from) => {
+          if (from === undefined || !onSetPeriod) onSetDue?.(ms);
+          else onSetPeriod(ms, from);
+          close();
+        }}
         onCancel={close}
       />
     );
@@ -148,21 +166,45 @@ export default function TaskContextMenu({
           <Item icon={<WeekIcon />} label="내일" onClick={setDue("tomorrow")} {...others} />
           {hasDue && <Item icon={<DayLaterIcon />} label="하루 미루기" onClick={setDue("plus1")} {...others} />}
           {hasDue && <Item icon={<WeekLaterIcon />} label="일주일 미루기" onClick={setDue("plus7")} {...others} />}
-          <Item icon={<CalendarIcon />} label="날짜 · 시간 정하기…" onClick={() => setMode("date")} {...others} />
+          <Item icon={<CalendarIcon />} label="날짜 · 기간 정하기…" onClick={() => setMode("date")} {...others} />
           {hasDue && <Item icon={<ClearIcon />} label="기한 없애기" onClick={act(() => onSetDue?.(null))} {...others} />}
+          {hasDue ? (
+            <button
+              ref={alertItemRef}
+              type="button"
+              role="menuitem"
+              tabIndex={-1}
+              aria-haspopup="menu"
+              aria-expanded={sub?.which === "alert"}
+              className={"tp-mi has-sub" + (sub?.which === "alert" ? " open" : "")}
+              onMouseEnter={() => openSub("alert", "hover")}
+              onClick={() => openSub("alert", "keyboard")}
+              onKeyDown={subKey("alert")}
+            >
+              <span className="tp-mic"><BellIcon /></span>
+              <span className="tp-lb">알림</span>
+              <span className="tp-kb tp-chev"><NextIcon /></span>
+            </button>
+          ) : (
+            <div role="menuitem" aria-disabled="true" tabIndex={-1} className="tp-mi dis" data-tip="기한을 정하면 알림을 받을 수 있어요" onMouseEnter={() => setSub(null)}>
+              <span className="tp-mic"><BellIcon /></span>
+              <span className="tp-lb">알림</span>
+              <span className="tp-kb">기한 없음</span>
+            </div>
+          )}
           <div className="tp-sp" />
           <Item icon={<StarIcon filled={important} size={15} />} label={important ? "중요 해제" : "중요로 표시"} onClick={act(onToggleImportant)} {...others} />
           <button
-            ref={subItemRef}
+            ref={catItemRef}
             type="button"
             role="menuitem"
             tabIndex={-1}
             aria-haspopup="menu"
-            aria-expanded={!!sub}
-            className={`tp-mi has-sub${sub ? " open" : ""}`}
-            onMouseEnter={() => setSub((s) => s || "hover")}
-            onClick={() => setSub((s) => s || "keyboard")}
-            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSub("keyboard"); } }}
+            aria-expanded={sub?.which === "cat"}
+            className={"tp-mi has-sub" + (sub?.which === "cat" ? " open" : "")}
+            onMouseEnter={() => openSub("cat", "hover")}
+            onClick={() => openSub("cat", "keyboard")}
+            onKeyDown={subKey("cat")}
           >
             <span className="tp-mic"><TagIcon /></span>
             <span className="tp-lb">카테고리</span>
@@ -173,17 +215,37 @@ export default function TaskContextMenu({
           <Item icon={<TrashIcon />} label="삭제" hint="Del" danger onClick={act(onDelete)} {...others} />
         </div>
       </Popover>
-      {sub && (
+      {sub?.which === "alert" && (
         <Popover
-          anchor={subItemRef}
+          key="alert"
+          anchor={alertItemRef}
+          placement="right-start"
+          offset={{ y: -6 }}
+          className="tp-menu tp-sub wide"
+          role="menu"
+          label="알림"
+          autoFocus={sub.how === "keyboard"}
+          initialFocus={{ get current() { return subRef.current?.querySelector(".tp-mi:not(.dis)"); } }}
+          onClose={(reason) => { setSub(null); if (reason === "escape") alertItemRef.current?.focus(); }}
+          onKeyDown={onSubKey}
+        >
+          <div ref={subRef}>
+            <AlertMenuItems alerts={alerts} onSet={onSetAlert} />
+          </div>
+        </Popover>
+      )}
+      {sub?.which === "cat" && (
+        <Popover
+          key="cat"
+          anchor={catItemRef}
           placement="right-start"
           offset={{ y: -6 }}
           className="tp-menu tp-sub"
           role="menu"
           label="카테고리"
-          autoFocus={sub === "keyboard"}
+          autoFocus={sub.how === "keyboard"}
           initialFocus={{ get current() { return subRef.current?.querySelector(".tp-mi"); } }}
-          onClose={(reason) => { setSub(null); if (reason === "escape") subItemRef.current?.focus(); }}
+          onClose={(reason) => { setSub(null); if (reason === "escape") catItemRef.current?.focus(); }}
           onKeyDown={onSubKey}
         >
           <div ref={subRef}>

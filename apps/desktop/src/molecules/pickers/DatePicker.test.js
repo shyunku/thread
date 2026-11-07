@@ -53,8 +53,8 @@ describe("text field", () => {
   test("sits on the quick day row; empty, the line gives a hint", () => {
     open();
     expect(field().closest(".dp-quick")).toBe(screen.getByRole("dialog").querySelector(".dp-quick"));
-    expect(field()).toHaveAttribute("placeholder", "직접 입력 · 예: 금요일 3시");
-    expect(line()).toHaveTextContent("날짜나 시간을 적으면 바로 골라져요");
+    expect(field()).toHaveAttribute("placeholder", "직접 입력 · 예: 11/20~23");
+    expect(line()).toHaveTextContent("날짜나 기간(~, 부터 · 까지)을 적으면 바로 골라져요");
     expect(line()).not.toHaveClass("got");
   });
 
@@ -121,7 +121,7 @@ describe("text field", () => {
     act(() => { jest.advanceTimersByTime(500); });
     expect(line()).not.toHaveTextContent("알아듣지 못했어요"); // each keystroke waits again
     act(() => { jest.advanceTimersByTime(300); });
-    expect(line()).toHaveTextContent("알아듣지 못했어요 · 예: 내일 3시, 11/20, 3일 뒤");
+    expect(line()).toHaveTextContent("알아듣지 못했어요 · 예: 내일 3시, 11/20, 11/20~11/23");
     type("내일 4시");
     expect(line()).toHaveTextContent("10월 22일 (목) 오전 4:00");
   });
@@ -150,7 +150,7 @@ describe("text field", () => {
     type("모레");
     fireEvent.click(screen.getByRole("button", { name: "오늘" }));
     expect(field()).toHaveValue("");
-    expect(line()).toHaveTextContent("날짜나 시간을 적으면 바로 골라져요");
+    expect(line()).toHaveTextContent("날짜나 기간(~, 부터 · 까지)을 적으면 바로 골라져요");
     type("모레");
     fireEvent.click(document.querySelector('[data-day="2026-10-30"]'));
     expect(field()).toHaveValue("");
@@ -163,7 +163,7 @@ describe("text field", () => {
     expect(summary()).toBe("10월 22일 (목) 오후 3:00");
     type("");
     expect(summary()).toBe("10월 25일 (일) 오전 9:30");
-    expect(line()).toHaveTextContent("날짜나 시간을 적으면 바로 골라져요");
+    expect(line()).toHaveTextContent("날짜나 기간(~, 부터 · 까지)을 적으면 바로 골라져요");
   });
 });
 
@@ -375,5 +375,102 @@ describe("unchanged values", () => {
   test("0 means no due: it starts on today with the time off", () => {
     open({ value: 0 });
     expect(summary()).toBe("10월 21일 (수) · 하루 끝까지");
+  });
+});
+
+describe("periods (#109)", () => {
+  const startField = () => document.querySelector(".dp-fields .dp-fd");
+  const endField = () => document.querySelectorAll(".dp-fields .dp-fd")[1];
+  const day = (key) => document.querySelector(`[data-day="${key}"]`);
+  const title = () => document.querySelector(".dp-h span").textContent;
+
+  test("without a start: an empty, dashed start and 끝 active; the title says 기한", () => {
+    open({ value: at(10, 25, 18) });
+    expect(startField()).toHaveClass("empty");
+    expect(startField()).toHaveTextContent("시작없음눌러서 추가");
+    expect(endField()).toHaveClass("on");
+    expect(endField()).toHaveTextContent("끝10월 25일 (일)오후 6:00");
+    expect(title()).toBe("기한 정하기");
+  });
+
+  test("a start day hands over to 끝; the calendar shows the band; 정하기 gives both", () => {
+    const { onChange } = open({ value: at(10, 25, 18) });
+    fireEvent.click(startField());
+    expect(startField()).toHaveClass("on");
+    expect(startField()).toHaveTextContent("달력에서 골라요");
+    expect(screen.getByText("시작 날을 고르면 시작 시간도 정할 수 있어요.")).toBeInTheDocument();
+    fireEvent.click(day("2026-10-22"));
+    expect(endField()).toHaveClass("on");
+    expect(title()).toBe("기간 정하기");
+    expect(day("2026-10-22")).toHaveClass("rs");
+    expect(day("2026-10-23")).toHaveClass("inr");
+    expect(day("2026-10-25")).toHaveClass("re", "picked");
+    expect(day("2026-10-25").querySelector(".band")).not.toBeNull();
+    expect(summary()).toBe("10/22 (목) ~ 10/25 (일) 오후 6시");
+    ok();
+    expect(onChange).toHaveBeenCalledWith(at(10, 25, 18), at(10, 22, 0));
+  });
+
+  test("addStart opens on the empty start; the start's time switch is its own", () => {
+    const { onChange } = open({ value: at(10, 25, 18), focus: "addStart" });
+    expect(startField()).toHaveClass("empty", "on");
+    fireEvent.click(screen.getByRole("button", { name: "오늘" }));
+    expect(startField()).toHaveClass("on");
+    expect(screen.getByText("시작 시간")).toBeInTheDocument();
+    expect(screen.getByText(/시간 없이 그날 시작\(오전 12:00\)부터예요/)).toBeInTheDocument();
+    fireEvent.click(timeSwitch());
+    expect(startField()).toHaveTextContent("오전 9:00");
+    fireEvent.click(screen.getByRole("button", { name: "오후 2:00" }));
+    fireEvent.click(endField());
+    expect(screen.getByText("끝 시간")).toBeInTheDocument();
+    expect(timeSwitch()).toHaveAttribute("aria-checked", "true");
+    ok();
+    expect(onChange).toHaveBeenCalledWith(at(10, 25, 18), at(10, 21, 14));
+  });
+
+  test("a period opens with both fields; × takes the start out (start null)", () => {
+    const { onChange } = open({ value: at(10, 25, 23, 59, 59), start: at(10, 22, 0) });
+    expect(startField()).toHaveTextContent("시작10월 22일 (목)하루 시작");
+    expect(endField()).toHaveTextContent("하루 끝");
+    fireEvent.click(screen.getByRole("button", { name: "시작 빼기" }));
+    expect(startField()).toHaveClass("empty");
+    ok();
+    expect(onChange).toHaveBeenCalledWith(at(10, 25, 23, 59, 59), null);
+  });
+
+  test("unchanged sides come back as they were; focus start opens the start", () => {
+    const start = at(10, 22, 9, 30), due = new Date(2026, 9, 25, 23, 59, 59, 999).getTime();
+    const { onChange } = open({ value: due, start, focus: "start" });
+    expect(startField()).toHaveClass("on");
+    ok();
+    expect(onChange).toHaveBeenCalledWith(due, start);
+  });
+
+  test("the start must be before the end: a warning and 정하기 off", () => {
+    const { onChange } = open({ value: at(10, 25, 9), start: at(10, 25, 8) });
+    fireEvent.click(startField());
+    fireEvent.click(screen.getByRole("button", { name: "오전 9:00" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("시작이 끝보다 늦어요");
+    expect(screen.getByRole("button", { name: "정하기" })).toBeDisabled();
+    ok();
+    expect(onChange).not.toHaveBeenCalled();
+    // A later start day moves the end along.
+    fireEvent.click(day("2026-10-28"));
+    expect(endField()).toHaveTextContent("10월 28일 (수)");
+  });
+
+  test("the text field reads a period, else a date for the active field", () => {
+    const { onChange } = open({ value: at(10, 25, 18) });
+    const field = screen.getByRole("textbox", { name: "날짜 직접 입력" });
+    fireEvent.change(field, { target: { value: "11/20~23" } });
+    expect(document.querySelector(".dp-line")).toHaveTextContent("11월 20일 (금) ~ 11월 23일 (월)");
+    expect(startField()).toHaveTextContent("11월 20일 (금)");
+    expect(endField()).toHaveTextContent("11월 23일 (월)하루 끝");
+    fireEvent.change(field, { target: { value: "모레" } });
+    expect(startField()).toHaveClass("empty");
+    expect(endField()).toHaveTextContent("10월 23일 (금)오후 6:00");
+    fireEvent.change(field, { target: { value: "내일부터 금요일까지" } });
+    fireEvent.keyDown(field, { key: "Enter" });
+    expect(onChange).toHaveBeenCalledWith(at(10, 23, 23, 59, 59), at(10, 22, 0));
   });
 });

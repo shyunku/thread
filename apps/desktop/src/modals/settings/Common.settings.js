@@ -6,27 +6,46 @@ import TimeDisplaySection from "./TimeDisplaySection";
 
 const MINUTES = [{ value: 5, label: "5분" }, { value: 10, label: "10분" }, { value: 15, label: "15분" }, { value: 30, label: "30분" }, { value: 60, label: "1시간" }];
 
-// Due reminders (#91, mock frame ①): this PC's choice, kept by main (app-settings.json).
+// Due reminders (#91, mock frame ①): this PC's choice, kept by main (app-settings.json). The
+// 시작 알림 group (#109) is for the start of a period.
 function ReminderSection({ settings, update }) {
   const r = settings?.reminders;
   const set = (patch) => update({ reminders: { ...r, enabled: true, ...patch } });
   return (
-    <SettingsSection title="알림">
-      <SettingsCard>
-        <SettingsRow label="기한 전에 알림" description="기한이 다가오면 미리 Windows 알림으로 알려 줘요.">
-          {r ? (
-            <>
-              <Segmented label="기한 전에 알림 시간" value={r.minutes} disabled={!r.before} onChange={(minutes) => set({ minutes })} options={MINUTES} />
-              <Toggle label="기한 전에 알림" checked={r.before} onChange={(before) => set({ before })} />
-            </>
-          ) : <Skeleton width={38} height={22} />}
-        </SettingsRow>
-        <SettingsRow label="기한 시각에 알림" description="기한이 된 순간에 알려 줘요.">
-          {r ? <Toggle label="기한 시각에 알림" checked={r.due} onChange={(due) => set({ due })} /> : <Skeleton width={38} height={22} />}
-        </SettingsRow>
-      </SettingsCard>
-      <p className="settings-note">비밀 카테고리의 할 일과 앱이 잠겨 있을 때는 제목 없이 &quot;할 일 1개의 기한이 10분 남았어요&quot;처럼 알려요. 창을 닫아도 트레이에서 알려 줘요.</p>
-    </SettingsSection>
+    <>
+      <SettingsSection title="알림">
+        <SettingsCard>
+          <SettingsRow label="기한 전에 알림" description="기한이 다가오면 미리 Windows 알림으로 알려 줘요.">
+            {r ? (
+              <>
+                <Segmented label="기한 전에 알림 시간" value={r.minutes} disabled={!r.before} onChange={(minutes) => set({ minutes })} options={MINUTES} />
+                <Toggle label="기한 전에 알림" checked={r.before} onChange={(before) => set({ before })} />
+              </>
+            ) : <Skeleton width={38} height={22} />}
+          </SettingsRow>
+          <SettingsRow label="기한 시각에 알림" description="기한이 된 순간에 알려 줘요.">
+            {r ? <Toggle label="기한 시각에 알림" checked={r.due} onChange={(due) => set({ due })} /> : <Skeleton width={38} height={22} />}
+          </SettingsRow>
+        </SettingsCard>
+      </SettingsSection>
+      <SettingsSection title="시작 알림">
+        <SettingsCard>
+          <SettingsRow label="시작 전에 알림" description="기간의 시작이 다가오면 미리 알려 줘요.">
+            {r ? (
+              <>
+                <Segmented label="시작 전에 알림 시간" value={r.startMinutes} disabled={!r.startBefore} onChange={(startMinutes) => set({ startMinutes })} options={MINUTES} />
+                <Toggle label="시작 전에 알림" checked={r.startBefore} onChange={(startBefore) => set({ startBefore })} />
+              </>
+            ) : <Skeleton width={38} height={22} />}
+          </SettingsRow>
+          <SettingsRow label="시작 시각에 알림" description="기간이 시작되는 순간에 알려 줘요.">
+            {r ? <Toggle label="시작 시각에 알림" checked={r.startAt} onChange={(startAt) => set({ startAt })} /> : <Skeleton width={38} height={22} />}
+          </SettingsRow>
+        </SettingsCard>
+        <p className="settings-note">비밀 카테고리의 할 일과 앱이 잠겨 있을 때는 제목 없이 &quot;할 일 1개의 기한이 10분 남았어요&quot;처럼 알려요. 창을 닫아도 트레이에서 알려 줘요.</p>
+        <p className="settings-note">날짜만 정한 시작 · 기한은 알리지 않아요. 할 일에서 직접 켜고 끈 알림은 여기를 바꿔도 그대로예요.</p>
+      </SettingsSection>
+    </>
   );
 }
 

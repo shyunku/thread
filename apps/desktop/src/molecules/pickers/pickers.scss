@@ -83,6 +83,7 @@ $ring: #5a6475;
   border-radius: 12px;
 }
 .tp-pop .dp-quick { display: flex; flex-wrap: wrap; gap: 6px; }
+// Unselected: #2b3240 (the --raise #222731 hardly shows on the popup's #1e2430, #109 mock).
 .tp-pop .dp-chip {
   display: inline-flex;
   align-items: center;
@@ -90,12 +91,12 @@ $ring: #5a6475;
   height: 26px;
   padding: 0 8px;
   border-radius: 6px;
-  background: var(--raise);
+  background: #2b3240;
   color: var(--secondary);
   font-size: 12px;
   white-space: nowrap;
   transition: background-color .12s, color .12s;
-  &:hover { background: #2d3442; color: var(--text); }
+  &:hover { background: #363e4f; color: var(--text); }
   &.on { background: $picked; color: #fff; font-weight: 600; }
   &.on:hover { background: $picked-hover; }
   @include press;
@@ -145,7 +146,48 @@ $ring: #5a6475;
   overflow: hidden;
   span { overflow: hidden; text-overflow: ellipsis; }
   &.got { color: #a9c3ff; svg { color: var(--accent); } }
+  &.bad { color: var(--warning); }
 }
+// 시작 · 끝 fields (#109 mock .dp-fields): the active one has the accent border; an empty start
+// is dashed.
+.tp-pop .dp-fields { display: flex; align-items: stretch; gap: 6px; margin-bottom: 10px; }
+.tp-pop .dp-fd {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  padding: 5px 10px 6px;
+  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid transparent;
+  cursor: pointer;
+  outline: none;
+  transition: border-color .12s, background-color .12s;
+  &:hover { border-color: #3a4354; }
+  &:focus-visible { box-shadow: 0 0 0 2px #6294ff80; }
+  &.on { border-color: var(--accent); background: #1b2741; }
+  small { display: block; font-size: 11px; color: var(--muted); line-height: 16px; }
+  &.on small { color: #8fb0f0; }
+  b { display: block; font-size: 12.5px; font-weight: 600; line-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  > span { display: block; font-size: 11.5px; color: var(--secondary); line-height: 16px; white-space: nowrap; }
+  &.empty { border: 1px dashed #3a4354; background: transparent; }
+  &.empty b { color: var(--muted); font-weight: 500; }
+  &.empty.on { border: 1px dashed var(--accent); background: #1b2741; }
+  .fx {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 18px;
+    height: 18px;
+    display: grid;
+    place-items: center;
+    border-radius: 5px;
+    color: var(--muted);
+    &:hover { background: #3a4252; color: var(--text); }
+  }
+}
+.tp-pop .dp-arrow { align-self: center; color: var(--muted); font-size: 12px; }
+.tp-pop .dp-note.only { margin: 0; }
+.tp-pop .dp-warn { margin: 8px 2px 0; font-size: 11.5px; color: var(--warning); }
 .tp-pop .dp-cal { margin-top: 10px; background: var(--surface); border-radius: 10px; }
 .tp-pop .dp-time { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: var(--surface); }
 .tp-pop .dp-row { display: flex; align-items: center; height: 24px; color: var(--secondary); }
@@ -284,6 +326,14 @@ $ring: #5a6475;
   .tp-mm-c.picked:hover b { background: $picked-hover; }
   .tp-mm-c:active b { transform: scale(.94); }
   @media (prefers-reduced-motion: reduce) { .tp-mm-c:active b { transform: none; } }
+  // A period (#109): a band behind its days, the start and end days filled.
+  .tp-mm-c .band { position: absolute; top: 2px; height: 24px; left: 0; right: 0; background: #243e6c; }
+  .tp-mm-c.rs .band { left: 50%; }
+  .tp-mm-c.re .band { right: 50%; }
+  .tp-mm-c.rs.re .band { display: none; }
+  .tp-mm-c.inr { color: #cfe0ff; }
+  .tp-mm-c.rs b, .tp-mm-c.re b { background: #2b4a8a; color: #fff; font-weight: 700; }
+  .tp-mm-c.rs.picked b, .tp-mm-c.re.picked b { background: $picked; }
 }
 
 // ---------- Repeat and category pickers ----------
@@ -445,6 +495,29 @@ $ring: #5a6475;
 .tp-pop .tp-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
 .tp-pop .tp-hd { padding: 8px 10px 2px; font-size: 11.5px; color: var(--muted); }
 .tp-pop .tp-sp { height: 1px; background: var(--line); margin: 4px 6px; }
+// A menu item that cannot be used now (#109: 알림 without a due, a side without a time).
+.tp-pop .tp-mi.dis, .tp-pop .tp-mi.dis:hover { background: none; color: var(--faint); cursor: default; }
+.tp-pop .tp-mi.dis .tp-mic { color: #3c4453; }
+.tp-pop .tp-ok.ph { visibility: hidden; }
+// The task menu's 알림 ▸ (#109 mock .tp-sub.wide, .tp-mi.two): two-line rows, 직접 in blue.
+.tp-pop.tp-sub.wide { width: 272px; }
+.tp-pop .tp-mi.two { height: auto; min-height: 42px; padding: 5px 10px; }
+.tp-pop .tp-lb small { display: block; color: var(--muted); font-size: 11.5px; line-height: 1.4; }
+.tp-pop .tp-mi.on .tp-lb small { color: #8fb0f0; }
+.tp-pop .tp-kb.dir { color: #8fb0f0; }
+.tp-pop .tp-note { padding: 4px 10px 6px; font-size: 11.5px; line-height: 1.5; color: var(--muted); white-space: normal; }
+// The detail bell's popover (#109 mock .bell-pop): what rings now, then three choices.
+.tp-pop.bell-pop {
+  width: 252px;
+  padding: 6px;
+  border-radius: 10px;
+  .bp-now { margin: -2px 10px 6px; font-size: 12px; color: #a9c3ff; }
+  .bp-now.off { color: var(--muted); }
+  .tp-mi { height: auto; min-height: 34px; padding: 5px 10px; }
+  .tp-lb { white-space: normal; }
+  .pk-rd { width: 16px; height: 16px; border-radius: 50%; border: 2px solid $ring; flex: none; }
+  .tp-mi.on .pk-rd { border-color: var(--accent); background: var(--accent); box-shadow: inset 0 0 0 3px $pop-bg; }
+}
 
 // ---------- Confirm dialog (the mock's .hello and confirmDialog()) ----------
 // Below the title bar, like the mock's .body scrim.

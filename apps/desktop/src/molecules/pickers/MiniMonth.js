@@ -22,13 +22,15 @@ export function monthCells(year, month, weekStart = 0, minWeeks = 0) {
 // Arrow keys move the pick (onPick) by a day or a week, PageUp/PageDown change the month.
 // marks(date) can return "open" or "over" for the 4px dot under a day (calendar tab).
 // arrowTips gives the month arrows a tooltip (the timeline's jump popup). minWeeks=6 keeps the
-// height the same in every month (the date picker, #106).
-export default function MiniMonth({ year, month, picked, today = new Date(), weekStart = 0, onPick, onMonth, marks, arrowTips = false, className = "", minWeeks = 0 }) {
+// height the same in every month (the date picker, #106). range [start, end] (Dates or ms) draws
+// a band behind the days of a period (the date picker, #109).
+export default function MiniMonth({ year, month, picked, today = new Date(), weekStart = 0, onPick, onMonth, marks, arrowTips = false, className = "", minWeeks = 0, range = null }) {
   const gridRef = useRef(null);
   const cells = monthCells(year, month, weekStart, minWeeks);
   const pickedInView = picked && cells.some((d) => sameDay(d, picked) && d.getMonth() === month);
   const focusKey = pickedInView ? dayKey(new Date(picked)) : dayKey(new Date(year, month, 1));
   const keyboard = useRef(false);
+  const [rs, re] = range ? range.map((v) => new Date(v).setHours(0, 0, 0, 0)) : [null, null];
 
   // After a keyboard move, keep focus on the picked day (it may be in another month now).
   useEffect(() => {
@@ -67,7 +69,9 @@ export default function MiniMonth({ year, month, picked, today = new Date(), wee
           const key = dayKey(d), wd = d.getDay();
           const isToday = sameDay(d, today), isPicked = sameDay(d, picked);
           const mark = marks?.(d);
-          const cls = ["tp-mm-c", d.getMonth() !== month && "out", isToday && "today", isPicked && "picked", wd === 0 ? "sun" : wd === 6 ? "sat" : ""].filter(Boolean).join(" ");
+          const ms = d.getTime(), inRange = range && rs <= ms && ms <= re;
+          const cls = ["tp-mm-c", d.getMonth() !== month && "out", isToday && "today", isPicked && "picked", wd === 0 ? "sun" : wd === 6 ? "sat" : "",
+            inRange && ms === rs && "rs", inRange && ms === re && "re", inRange && ms > rs && ms < re && "inr"].filter(Boolean).join(" ");
           return (
             <button
               key={key}
@@ -80,6 +84,7 @@ export default function MiniMonth({ year, month, picked, today = new Date(), wee
               tabIndex={key === focusKey ? 0 : -1}
               onClick={() => onPick?.(d)}
             >
+              {inRange && <span className="band" aria-hidden="true" />}
               <b>{d.getDate()}</b>
               {mark && <i className={mark === "over" ? "over" : ""} />}
             </button>
