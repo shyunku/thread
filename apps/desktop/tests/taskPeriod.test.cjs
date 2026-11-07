@@ -174,3 +174,16 @@ test("app settings keep the start group: defaults, a whole value, an older four-
  fs.writeFileSync(path.join(dir,"app-settings.json"),JSON.stringify({reminders:{enabled:true,before:false,minutes:15,due:true}}));
  assert.deepEqual(settings.loadSettings(app).reminders,{enabled:true,before:false,minutes:15,due:true,startBefore:true,startMinutes:10,startAt:false});
 });
+
+test("an offset left without a due (an older app cleared only due_date) does not come back with a new due",()=>{
+ const {command}=require("@thread/e2ee/src/model/entities");
+ const view=(fields)=>({rows:[{entityType:"task",entityId:"p",fields:{tid:"p",title:"P",...fields}}]});
+ // What PC 2.5.x / phone 2.1.0 leave: due 0, the offset still there.
+ const orphan=view({due_date:0,start_offset:3*DAY});
+ assert.deepEqual(command("task/updateTaskDueDate",["p",due],orphan).changes,{due_date:due,start_offset:0});
+ // The repeat a new due needs (DetailPanel sets the due first) clears it too.
+ assert.equal(command("task/updateTaskDueDate",["p",due],view({due_date:0,start_offset:DAY,repeat_period:"week"})).changes.start_offset,0);
+ // A period set on purpose still works; a due on a row with a due keeps its offset.
+ assert.equal(command("task/updateTaskPeriod",["p",{due,start}],orphan).changes.start_offset,3*DAY);
+ assert.equal(Object.hasOwn(command("task/updateTaskDueDate",["p",due+DAY],view({due_date:due,start_offset:DAY})).changes,"start_offset"),false);
+});

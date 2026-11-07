@@ -234,12 +234,15 @@ function command(topic, args, view) {
 // The patch a new due makes. A repeating task keeps its rule on the new day: the recurrence
 // anchor moves with the due date. Without a due date the repeat cannot stand, so it is cleared
 // in the same patch (prepareSchedule rejects a repeat with no due), and so is a period start.
+// A start_offset left on a row without a due (an older app cleared only due_date) is cleared
+// when a due is set again, so it does not come back as a period.
 // Saving the same due date leaves the anchor alone: after a completion the anchor and the due
 // date differ, and rewriting it would bump the recurrence generation.
 function dueChanges(row, due) {
-  const clearStart = !due && row?.fields.start_offset ? { start_offset: 0 } : {};
+  const orphan = !row?.fields.due_date;
+  const clearStart = (!due || orphan) && row?.fields.start_offset ? { start_offset: 0 } : {};
   if (!row?.fields.repeat_period || (due && due === row.fields.due_date)) return { due_date: due, ...clearStart };
-  return due ? { due_date: due, repeat_start_at: due } : { due_date: 0, repeat_period: "", repeat_start_at: 0, ...clearStart };
+  return due ? { due_date: due, repeat_start_at: due, ...clearStart } : { due_date: 0, repeat_period: "", repeat_start_at: 0, ...clearStart };
 }
 // start_offset for a start (ms) before a due: 0 for none or a start equal to the due; a start
 // after the due is refused.
