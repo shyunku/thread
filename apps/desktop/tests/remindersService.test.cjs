@@ -74,3 +74,23 @@ test("periods (#109): start alerts show at their time; locked, a settings change
  settings.enabled=false;svc.settingsChanged();
  assert.deepEqual(svc.plan.map(p=>p.id),["f:start-before"]);
 });
+
+test("periods (#109): locked, an alert a task turned on follows the new settings for its side",t=>{
+ const s={enabled:true,before:true,minutes:10,due:true,startBefore:true,startMinutes:10,startAt:false};
+ const {svc,settings}=setup(t,s);
+ svc.update({tasks:[{tid:"f",title:"강제",due_date:at(19),alert_end:"on"}],categories:[],relations:[]});
+ const plan=()=>svc.plan.map(p=>[p.id,p.at,p.title,p.override]);
+ assert.deepEqual(plan(),[["f:before",at(18,50),"강제","on"],["f:due",at(19),"강제","on"]]);
+ svc.lock();
+ // 정각 off: only 10분 전 rings.
+ settings.due=false;svc.settingsChanged();
+ assert.deepEqual(plan(),[["f:before",at(18,50),null,"on"]]);
+ // Another N분 전: at its new time.
+ settings.minutes=30;svc.settingsChanged();
+ assert.deepEqual(plan(),[["f:before",at(18,30),null,"on"]]);
+ // Nothing on for that side: still N분 전 (its minutes), and 정각 again once it is on.
+ settings.before=false;svc.settingsChanged();
+ assert.deepEqual(plan(),[["f:before",at(18,30),null,"on"]]);
+ settings.due=true;svc.settingsChanged();
+ assert.deepEqual(plan(),[["f:due",at(19),null,"on"]]);
+});

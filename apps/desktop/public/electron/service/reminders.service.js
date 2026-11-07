@@ -6,7 +6,7 @@
 // - Secret tasks are planned without a title, so they never show content.
 // - A click opens the window on that task (only while unlocked).
 // - Periods (#109): start alerts and the per-task overrides (planReminders { periods: true }).
-const { planReminders, reminderText } = require("@thread/e2ee/src/model/reminders");
+const { normalPeriodReminders, planReminders, reminderText, sideAlerts } = require("@thread/e2ee/src/model/reminders");
 
 // The timer re-checks at least hourly (sleep, clock changes); a reminder found late after a
 // sleep still shows within this window, older ones are skipped.
@@ -49,14 +49,28 @@ class RemindersService {
     if (this.lists) return this.replan();
     const s = this.settings();
     // Locked: the plan cannot be rebuilt; it is kept only while the choice still allows it. An
-    // alert a task turned on itself stays.
+    // alert a task turned on itself follows the new choice for that side (or rings N분 전 when
+    // nothing is on), built again from what the plan knows of it.
     const keep = {
       before: (item) => s.before && item.minutes === s.minutes,
       due: () => s.due,
       "start-before": (item) => s.startBefore && item.minutes === s.startMinutes,
       start: () => s.startAt,
     };
-    this.plan = this.plan.filter((item) => item.override === "on" || (!!s?.enabled && !!keep[item.kind]?.(item)));
+    const forced = new Map(), now = this.now();
+    for (const item of this.plan) {
+      const side = item.kind.startsWith("start") ? "start" : "end";
+      if (item.override === "on" && !forced.has(`${item.tid}:${side}`)) forced.set(`${item.tid}:${side}`, { side, item });
+    }
+    const plan = this.plan.filter((item) => item.override !== "on" && !!s?.enabled && !!keep[item.kind]?.(item));
+    for (const { side, item } of forced.values()) {
+      const base = side === "start" ? item.start : item.due;
+      for (const a of sideAlerts(side, normalPeriodReminders(s), "on")) {
+        const at = base - a.minutes * 60000;
+        if (at > now) plan.push({ ...item, id: `${item.tid}:${a.kind}`, kind: a.kind, minutes: a.minutes, at });
+      }
+    }
+    this.plan = plan.sort((a, b) => a.at - b.at || (a.id < b.id ? -1 : 1));
     this.arm();
   }
   replan() {
