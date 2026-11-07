@@ -63,3 +63,9 @@ test("오늘 also takes a period that has started and not ended (#109)", () => {
   expect(inMenu(TODO_MENU_TYPE.TODAY, period(-1, 3), day(4).getTime())).toBe(true); // over: overdue anyway
   expect(sidebarCounts({ a: period(-1, 3), b: period(1, 3) }, {}, { now: NOW }).counts[TODO_MENU_TYPE.TODAY]).toBe(1);
 });
+
+test("a running period completed early leaves 오늘 (#109 review)", () => {
+  const due = day(3, 18), done = t(due, { startOffset: due.getTime() - day(-1, 9).getTime(), done: true });
+  expect(inMenu(TODO_MENU_TYPE.TODAY, done, NOW)).toBe(false);
+  expect(inMenu(TODO_MENU_TYPE.TODAY, { ...done, done: false }, NOW)).toBe(true);
+});

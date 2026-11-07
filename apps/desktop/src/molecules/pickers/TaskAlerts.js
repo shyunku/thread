@@ -15,6 +15,15 @@ export function bellTip(alert) {
   return `${name} 알림: 전체 설정 따름 (${alert.on ? alertsLabel(alert.alerts, " · ") : "꺼짐"})`;
 }
 
+// The bell's name with its state: "끝 알림, 전체 설정 따름 (10분 전)", "끝 알림, 직접 끔".
+export function bellLabel(alert) {
+  const name = `${SIDE_NAME[alert.side]} 알림`;
+  const what = alert.on ? ` (${alertsLabel(alert.alerts)})` : "";
+  if (alert.mode === "off") return `${name}, 직접 끔`;
+  if (alert.mode === "on") return `${name}, 직접 켬${what}`;
+  return `${name}, 전체 설정 따름${alert.on ? what : " (꺼짐)"}`;
+}
+
 // What rings now, under the popover's header: "10분 전, 정각", "꺼짐" or "꺼짐 (설정에서 꺼짐)".
 export function alertNow(alert) {
   if (alert.on) return alertsLabel(alert.alerts);
@@ -33,7 +42,7 @@ export function AlertBell({ alert, open = false, onOpen }) {
     <button
       type="button"
       className={cls}
-      aria-label={`${name} 알림`}
+      aria-label={bellLabel(alert)}
       aria-haspopup="dialog"
       aria-expanded={open}
       data-tip={open ? undefined : bellTip(alert)}

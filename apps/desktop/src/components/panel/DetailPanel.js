@@ -188,7 +188,9 @@ export default function DetailPanel({ task, catsOf, prefs, canStar = true }) {
 
   const toggle = (kind) => (event) => {
     const el = event.currentTarget.closest(".rp-prop") ?? event.currentTarget;
-    setOpen((current) => (current?.kind === kind ? null : { kind, el }));
+    // The 기한 row closes its picker whether it opened from the row or from "+ 시작".
+    const same = (k) => k === kind || (kind === "due" && k === "addStart");
+    setOpen((current) => (same(current?.kind) ? null : { kind, el }));
   };
   const openBell = (side) => (el) => setOpen((current) => (current?.kind === "bell" && current.side === side ? null : { kind: "bell", side, el }));
   const close = () => setOpen(null);
@@ -290,6 +292,7 @@ export default function DetailPanel({ task, catsOf, prefs, canStar = true }) {
               <button
                 type="button"
                 className="rp-addst"
+                aria-label="시작 추가"
                 data-tip="시작을 정해 기간으로"
                 onClick={(event) => { event.stopPropagation(); toggle("addStart")(event); }}
                 onKeyDown={(event) => event.stopPropagation()}
@@ -332,6 +335,7 @@ export default function DetailPanel({ task, catsOf, prefs, canStar = true }) {
 
       {["due", "start", "end", "addStart"].includes(open?.kind) && (
         <DatePicker
+          key={open.kind}
           {...pickerProps}
           value={due}
           start={start}

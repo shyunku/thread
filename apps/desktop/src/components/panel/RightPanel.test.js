@@ -1004,7 +1004,8 @@ test("a period: the row's text, 시작 · 끝 with bells, 진행, and the bell's
   expect(inPanel().getByRole("button", { name: "끝: 2026.10.21 오후 6:00" })).toBeInTheDocument();
   expect(panel().querySelector(".rp-prog")).toHaveTextContent("진행2일 중 2일째");
   expect(inPanel().queryByRole("button", { name: /^기한:/ })).toBeNull();
-  fireEvent.click(inPanel().getByRole("button", { name: "끝 알림" }));
+  expect(inPanel().getByRole("button", { name: "시작 알림, 전체 설정 따름 (10분 전)" })).toBeInTheDocument();
+  fireEvent.click(inPanel().getByRole("button", { name: "끝 알림, 전체 설정 따름 (10분 전)" }));
   const pop = screen.getByRole("dialog", { name: "끝 알림" });
   expect(pop).toHaveTextContent("끝 알림 · 오후 6시");
   expect(pop.querySelector(".bp-now")).toHaveTextContent(/^10분 전$/);
@@ -1018,7 +1019,7 @@ test("a period: the row's text, 시작 · 끝 with bells, 진행, and the bell's
 test("+ 시작 opens the picker on an empty start; 정하기 sends the period (#109)", () => {
   view();
   select("first");
-  fireEvent.click(inPanel().getByRole("button", { name: "시작" }));
+  fireEvent.click(inPanel().getByRole("button", { name: "시작 추가" }));
   const picker = screen.getByRole("dialog", { name: "기한 정하기" });
   expect(picker.querySelector(".dp-fd.empty")).toHaveClass("on");
   fireEvent.click(picker.querySelector('[data-day="2026-10-19"]'));
@@ -1034,4 +1035,17 @@ test("a date-only end has a dimmed bell that explains (#109)", () => {
   const bell = panel().querySelector(".rp-bell");
   expect(bell).toHaveClass("dis");
   expect(bell).toHaveAttribute("data-tip", "끝에 시각을 정하면 알림을 받을 수 있어요");
+});
+
+test("+ 시작 with the 기한 picker open opens a fresh one on the start; the row closes it (#109 review)", () => {
+  view();
+  select("first");
+  const dueRow = inPanel().getByRole("button", { name: /^기한:/ });
+  fireEvent.click(dueRow);
+  expect(document.querySelector(".dp-fd.empty")).not.toHaveClass("on");
+  fireEvent.click(inPanel().getByRole("button", { name: "시작 추가" }));
+  expect(screen.getAllByRole("dialog", { name: "기한 정하기" })).toHaveLength(1);
+  expect(document.querySelector(".dp-fd.empty")).toHaveClass("on");
+  fireEvent.click(dueRow);
+  expect(screen.queryByRole("dialog", { name: "기한 정하기" })).toBeNull();
 });

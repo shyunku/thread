@@ -271,3 +271,22 @@ test("the day popup: arrows move the pick without closing, Enter takes it; 오�
   expect(document.activeElement).toBe(title);
   expect(picked).toBe(startOfDay(NOW));
 });
+
+test("periods (#109): a block splitting one hour's tasks, and the band; no duplicate keys", () => {
+  const errors = jest.spyOn(console, "error").mockImplementation(() => {});
+  const period = (id, title, start, due) => task(id, title, due, { startOffset: due.getTime() - start.getTime() });
+  const map = {
+    a: task("a", "15시 일", at(0, 15)),
+    b: period("b", "블록", at(0, 15, 10), at(0, 16)),
+    c: task("c", "15시 반", at(0, 15, 30)),
+    d: period("d", "여행", at(-1, 0), at(2, 23, 59)),
+  };
+  const { container } = setup({ filteredTaskMap: map });
+  expect(bodyText(column(container, 0))).toEqual(["지금 오후 2:30", "오후 3시", "15시 일", "오후 3:10 ~ 4시", "블록", "오후 3시", "15시 반"]);
+  expect(column(container, 0).querySelector(".tv-task.blk")).toHaveTextContent("오후 3:10 ~ 4:00 · 50분");
+  const seg = column(container, 0).querySelector(".tv-band .tv-seg");
+  expect(seg).toHaveTextContent("◂여행~10/23");
+  expect(seg).toHaveClass("cl", "br");
+  expect(errors.mock.calls.filter((c) => String(c[0]).includes("same key"))).toEqual([]);
+  errors.mockRestore();
+});

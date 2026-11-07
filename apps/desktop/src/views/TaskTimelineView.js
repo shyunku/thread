@@ -309,7 +309,7 @@ const TaskTimelineView = ({ filteredTaskMap, categories, catsOf, header, renderQ
             if (!nowDrawn && group.hour > nowHour) { body.push(nowLine); nowDrawn = true; }
             const label = group.block ? periodText(group.tasks[0], timeFormat) : hourLabel(group.hour, timeFormat);
             body.push(
-              <div key={group.block ? `b${group.tasks[0].id}` : `h${group.hour}`} className="tv-group">
+              <div key={`${group.block ? "b" : "h"}${group.hour}-${group.tasks[0].id}`} className="tv-group">
                 <div className={"tv-hour" + (group.block ? " blkh" : "")}>{label}</div>
                 <div className="tv-box" role="listbox" aria-label={label}>
                   {group.tasks.map((task) => (

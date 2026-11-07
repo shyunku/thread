@@ -38,7 +38,7 @@ export function isSecretTask(task, categories) {
 }
 
 // Whether the task belongs to a built-in menu (no secret check). 오늘 = due today or
-// overdue, or a period that has started and not ended (#109); 다음 7일 = due within 7 days,
+// overdue, or an open period that has started and not ended (#109; one done early leaves); 다음 7일 = due within 7 days,
 // overdue included.
 export function inMenu(menuType, task, now = Date.now()) {
   switch (menuType) {
@@ -46,7 +46,7 @@ export function inMenu(menuType, task, now = Date.now()) {
       return true;
     case TODO_MENU_TYPE.TODAY: {
       const due = dueOf(task);
-      return due != null && (dayDifference(due, now) <= 0 || periodStartedBy(task, now));
+      return due != null && (dayDifference(due, now) <= 0 || (!task?.done && periodStartedBy(task, now)));
     }
     case TODO_MENU_TYPE.NEXT_7_DAYS: {
       const due = dueOf(task);

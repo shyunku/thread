@@ -35,7 +35,8 @@ export function buildQuickTask(title, draft) {
   const due = dueMs(draft.due);
   const task = new Task(title, due === null ? null : new Date(due));
   const start = due === null ? null : dueMs(draft.start);
-  const offset = start === null ? 0 : periodOffset(start, due) ?? 0;
+  // A start not before the end cannot be a period: the end stays and the start is left out.
+  const offset = start === null || start >= due ? 0 : periodOffset(start, due);
   task.startOffset = offset;
   task.startDate = offset ? due - offset : null;
   task.repeatPeriod = due === null ? null : normalRepeat(draft.repeat);
@@ -48,10 +49,15 @@ const composing = (event) => event.nativeEvent?.isComposing || event.keyCode ===
 
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 // New defaults on the same screen: each chip still at the old default takes the new one; chips
-// the user changed stay (another picked day moves only an untouched date).
+// the user changed stay (another picked day moves only an untouched date). The date chip is the
+// due and the start together (#109): a period the user picked never follows by its end alone.
 const followDefaults = (draft, was, next) => {
   const out = { ...draft };
   for (const key of Object.keys(next)) if (same(draft[key], was?.[key])) out[key] = next[key];
+  if (!same(draft.due ?? null, was?.due ?? null) || !same(draft.start ?? null, was?.start ?? null)) {
+    out.due = draft.due;
+    out.start = draft.start;
+  }
   return out;
 };
 // The bar's state { title, draft, base (the defaults the draft follows), screenKey } brought up to

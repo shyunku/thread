@@ -200,3 +200,30 @@ test("a period from the picker is one chip and goes in the new task; the title r
   expect(screen.getByRole("button", { name: "기한 정하기" })).toBeInTheDocument();
   expect(buildQuickTask("x", { due: null, start: 123 }).toEntity()).toMatchObject({ due_date: null, start_offset: 0 });
 });
+
+test("a picked period does not follow another picked day by its end (#109 review)", () => {
+  const day = (d) => quickAddDefaults({ menuType: TODO_MENU_TYPE.ALL, day: d, now: NOW });
+  const store = configureStore({ reducer: { prefs: prefsReducer } });
+  const onAdd = jest.fn();
+  const ui = (defaults) => <Provider store={store}><QuickAdd defaults={defaults} contextKey="all|calendar" categories={cats} onAdd={onAdd} /></Provider>;
+  const { rerender } = render(ui(day(new Date(2026, 9, 25))));
+  fireEvent.click(screen.getByRole("button", { name: "기한 10월 25일" }));
+  fireEvent.click(document.querySelector(".dp-fields .dp-fd"));
+  fireEvent.click(document.querySelector('[data-day="2026-10-22"]'));
+  fireEvent.click(screen.getByRole("button", { name: "정하기" }));
+  rerender(ui(day(new Date(2026, 9, 29))));
+  rerender(ui(day(new Date(2026, 9, 20))));
+  expect(chipOf("기간 10/22 ~ 10/25")).toHaveClass("on");
+  type(screen.getByRole("textbox", { name: "새 할 일" }), "x");
+  const due = new Date(2026, 9, 25, 23, 59, 59).getTime();
+  expect(onAdd.mock.calls[0][0].toEntity()).toMatchObject({ due_date: due, start_offset: due - new Date(2026, 9, 22).getTime() });
+  // An untouched date still follows the picked day.
+  rerender(ui(day(new Date(2026, 9, 27))));
+  expect(chipOf("기한 10월 27일")).toHaveClass("on");
+});
+
+test("a start not before the end is left out, the end kept (#109 review)", () => {
+  const due = new Date(2026, 9, 25, 18).getTime();
+  expect(buildQuickTask("x", { due, start: due + 1000 }).toEntity()).toMatchObject({ due_date: due, start_offset: 0 });
+  expect(buildQuickTask("x", { due, start: due }).toEntity()).toMatchObject({ due_date: due, start_offset: 0 });
+});
