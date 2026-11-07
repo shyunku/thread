@@ -20,6 +20,9 @@ function at(days, hour, minute = 0) {
 }
 
 const inHours = (hours) => Date.now() + hours * 3600000;
+// A day's start (00:00) and end (23:59:59), `days` from today.
+const dayStartAt = (days) => at(days, 0);
+const dayEndAt = (days) => at(days, 23, 59) + 59000;
 
 // Filler tasks for count=<n> (#101 tick cost): due times spread from ~1 day ago to ~12 days ahead.
 function fillerTasks(count) {
@@ -35,7 +38,8 @@ function fillerTasks(count) {
 // its tasks stay out of the counts and lists until it is unlocked.
 // empty=1 keeps only the done tasks (the list's empty state).
 // notime=1 adds a task due today without a chosen time (23:59, "하루 끝").
-function previewView(long = false, count = 0, empty = false, noTime = false) {
+function previewView(long = false, count = 0, empty = false, noTime = false, period = false) {
+  if (period) return previewRows(periodPreviewView());
   const categories = [
     { cid: "work", title: "업무", color: "#6294ff", secret: false, locked: false, created_at: at(-30, 9) + 60000 },
     { cid: "study", title: "공부", color: "#b58cff", secret: false, locked: false, created_at: at(-30, 9) + 120000 },
@@ -66,23 +70,63 @@ function previewView(long = false, count = 0, empty = false, noTime = false) {
   ];
   tasks.push(...fillerTasks(count - tasks.length));
   if (empty) tasks.splice(0, tasks.length, ...tasks.filter((task) => task.done));
-  return {
-    categories,
-    tasks: tasks.map((task, index) => ({
-      tid: task.tid, title: task.title, memo: task.memo || "", due_date: task.due || 0,
-      done: !!task.done, done_at: task.done ? at(-1, 17) : null,
-      repeat_period: task.repeat || null, repeat_start_at: task.repeat ? task.due : null,
-      created_at: at(-7, 9), updated_at: at(0, 10) + 12 * 60000, next: tasks[index + 1]?.tid || null, important: !!task.important,
-    })),
-    subtasks: [
+  return previewRows({ categories, tasks, subtasks: [
       { sid: "s1", tid: "t1", title: "매출 지표 정리", done: true, done_at: at(0, 10), due_date: null, created_at: at(-2, 9) },
       { sid: "s2", tid: "t1", title: "팀 피드백 요약", done: true, done_at: at(0, 11), due_date: null, created_at: at(-2, 9) },
       { sid: "s3", tid: "t1", title: "다음 분기 목표 초안", done: false, done_at: null, due_date: at(1, 18), created_at: at(-2, 9) },
       { sid: "s4", tid: "t2", title: "온보딩 화면 문구", done: false, done_at: null, due_date: null, created_at: at(-1, 9) },
       { sid: "s5", tid: "t2", title: "아이콘 크기 통일", done: false, done_at: null, due_date: null, created_at: at(-1, 9) },
-    ].filter((subtask) => tasks.some((task) => task.tid === subtask.tid)),
+    ].filter((subtask) => tasks.some((task) => task.tid === subtask.tid)) });
+}
+
+// The stored rows of the preview's tasks (a period's start as start_offset, #109).
+function previewRows({ categories, tasks, subtasks }) {
+  return {
+    categories,
+    tasks: tasks.map((task, index) => ({
+      tid: task.tid, title: task.title, memo: task.memo || "", due_date: task.due || 0,
+      done: !!task.done, done_at: task.done ? task.doneAt ?? at(-1, 17) : null,
+      repeat_period: task.repeat || null, repeat_start_at: task.repeat ? task.due : null,
+      created_at: at(-7, 9), updated_at: at(0, 10) + 12 * 60000, next: tasks[index + 1]?.tid || null, important: !!task.important,
+      start_offset: task.start && task.due ? task.due - task.start : 0, alert_start: task.alertStart ?? null, alert_end: task.alertEnd ?? null,
+    })),
+    subtasks,
     relations: tasks.flatMap((task) => task.cats.map((cid) => ({ tid: task.tid, cid }))),
   };
+}
+
+// period=1 (#109): the tasks of docs/designs/pc-2.6.0-period-mock.html around today (the mock's
+// today is 11/10 13:20): periods before, during and after today, a repeating one, a done one, and
+// one with its end alert turned off.
+function periodPreviewView() {
+  const categories = [
+    { cid: "work", title: "업무", color: "#4fc3d9" },
+    { cid: "home", title: "개인", color: "#44c98b" },
+    { cid: "study", title: "공부", color: "#f2c14e" },
+    { cid: "diary", title: "일기", color: "#b58cff", secret: true, locked: true },
+    { cid: "gym", title: "운동", color: "#ff9f5a" },
+  ].map((c, i) => ({ secret: false, locked: false, ...c, created_at: at(-30, 9) + (i + 1) * 60000 }));
+  const tasks = [
+    { tid: "t1", title: "치과 예약 전화하기", due: at(-1, 18), cats: ["home"] },
+    { tid: "p7", title: "전시회 부스 철수", start: dayStartAt(-5), due: at(-1, 12), cats: ["work"] },
+    { tid: "p3", title: "팀 워크숍", start: at(0, 14), due: at(0, 17), cats: ["work"] },
+    { tid: "t2", title: "장보기 · 우유, 달걀", due: at(0, 20), cats: ["home"] },
+    { tid: "t3", title: "영어 단어 30개", due: at(0, 22), cats: ["study"], repeat: "day" },
+    { tid: "p1", title: "신제품 발표 자료", start: dayStartAt(-1), due: dayEndAt(2), cats: ["work"], important: true, memo: "목요일 오후 리뷰 전에 초안 공유.\n데모 영상은 2분 안으로." },
+    { tid: "p5", title: "주간 스프린트", start: at(-1, 9), due: at(3, 18), cats: ["work"], repeat: "week", alertEnd: "off" },
+    { tid: "t4", title: "세금 납부", due: dayEndAt(3), cats: ["home"] },
+    { tid: "t5", title: "도서관 책 반납", due: at(7, 18), cats: ["study"] },
+    { tid: "p2", title: "이사 준비", start: dayStartAt(-15), due: dayEndAt(10), cats: ["home"], memo: "짐 목록은 메모 앱에." },
+    { tid: "p4", title: "제주 여행", start: dayStartAt(9), due: dayEndAt(12), cats: ["home"], important: true },
+    { tid: "t6", title: "헬스장 3개월 등록", due: at(17, 19), cats: ["gym"] },
+    { tid: "n1", title: "읽을 책 목록 정리", due: null, cats: ["study"] },
+    { tid: "n2", title: "겨울옷 꺼내기", due: null, cats: ["home"] },
+    { tid: "p6", title: "분기 보고서 작성", start: dayStartAt(-7), due: at(-4, 18), cats: ["work"], done: true, doneAt: at(-4, 16) },
+    { tid: "t7", title: "은행 서류 제출", due: at(-5, 18), cats: ["work"], done: true, doneAt: at(-5, 11) },
+  ];
+  const subtasks = [["시장 자료 모으기", true], ["초안 쓰기", true], ["디자인 검토 받기", false], ["리허설", false], ["최종본 공유", false]]
+    .map(([title, done], i) => ({ sid: `ps${i}`, tid: "p1", title, done, done_at: done ? at(-1, 10 + i) : null, due_date: null, created_at: at(-2, 9) + i * 1000 }));
+  return { categories, tasks, subtasks };
 }
 
 // update=<status> (available, downloading, installing, failed, ready) shows a synthetic
@@ -97,6 +141,8 @@ export function installAppPreviewIpc(IpcSender, params = new URLSearchParams()) 
   const status = params.get("update");
   const update = status ? { version: "2.0.10", mandatory: params.get("mandatory") === "1", status, autoInstall: ["downloading", "installing"].includes(status) } : null;
   IpcSender.releaseAlerts = { get: ok(update), update: () => {}, cancel: () => {} };
+  // 설정 > 알림 as the period mock has it (#109): 끝 10분 전 and 정각, 시작 10분 전.
+  IpcSender.appSettings = { get: ok({ reminders: { enabled: true, before: true, minutes: 10, due: true, startBefore: true, startMinutes: 10, startAt: false } }), set: ok(null) };
   // Secret categories (#102): vault=password previews a password-only vault, otherwise OS auth.
   const passwordVault = params.get("vault") === "password";
   IpcSender.vault = {
@@ -130,7 +176,7 @@ function PreviewRoot() {
   const [states, syncStatus, undoKind, initialQuery] = useMemo(() => {
     const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
     return [
-      fromSyncV2View(previewView(params.get("long") === "1", Number(params.get("count")) || 0, params.get("empty") === "1", params.get("notime") === "1")),
+      fromSyncV2View(previewView(params.get("long") === "1", Number(params.get("count")) || 0, params.get("empty") === "1", params.get("notime") === "1", params.get("period") === "1")),
       previewSyncStatus(params.get("sync")),
       ["done", "del"].includes(params.get("undo")) ? params.get("undo") : null,
       params.get("q") || "",
