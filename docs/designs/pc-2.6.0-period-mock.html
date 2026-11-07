@@ -346,6 +346,7 @@
   .cv-bar .rng { flex: none; margin-left: auto; color: var(--muted); font-size: 10.5px; position: relative; top: 1px; }
   .cv-bar.cl { margin-left: 0; border-top-left-radius: 0; border-bottom-left-radius: 0; }
   .cv-bar.cr { margin-right: 0; border-top-right-radius: 0; border-bottom-right-radius: 0; }
+  .cv-join { z-index: 3; align-self: start; justify-self: start; width: 2px; margin-left: -1px; border-radius: 1px; pointer-events: none; }
   .cv-bar.cl, .tv-seg.cl { box-shadow: none !important; }
   .cv-bar.done { color: var(--muted); text-decoration: line-through; }
   .cv-bar:hover { filter: brightness(1.15); }
@@ -650,6 +651,7 @@ const TASKS0 = [
   { id: 't5', t: '도서관 책 반납', cat: 'study', end: at(11, 17, 18, 0) },
   { id: 'p2', t: '이사 준비', cat: 'home', start: day0(10, 26), end: at(11, 20), memo: '짐 목록은 메모 앱에.' },
   { id: 'p4', t: '제주 여행', cat: 'home', start: day0(11, 19), end: at(11, 22), imp: true },
+  { id: 't8', t: '대청소', cat: 'home', end: at(11, 21, 15, 0) },
   { id: 't6', t: '헬스장 3개월 등록', cat: 'gym', end: at(11, 27, 19, 0) },
   { id: 'n1', t: '읽을 책 목록 정리', cat: 'study', end: null },
   { id: 'n2', t: '겨울옷 꺼내기', cat: 'home', end: null },
@@ -665,7 +667,7 @@ const fresh = () => TASKS0.map(x => ({ start: null, ...x, al: x.al ? { ...x.al }
 // Round 2: a side with several alerts is one switch ("끝 알림 · 10분 전 · 정각"); the bell popover
 // lists the side's alerts under its header.
 const s = {
-  cal: 'bar', tl: 'mixed', multi: 'group',
+  cal: 'bar', tl: 'mixed', multi: 'group', fill: 'chips',
   view: 'list', menuSel: 'all', sel: null, tabHold: null, picked: TODAY, calMonth: { y: 2026, m: 10 }, miniMonth: { y: 2026, m: 10 },
   tasks: fresh(), shut: new Set(), menu: null, picker: null, bell: null, settings: false, setPage: 'GENERAL', setScroll: null,
   qa: { text: '', start: null, end: null, touched: false },
@@ -909,34 +911,54 @@ function calView() {
         segs.push({ t, a, b, lane });
       }
     }
-    const vis = [];
+    // Rows of each day (item "캘린더 빈 줄"): R rows when all fit, else R - 1 and "…외 N개" on the last.
+    // old: bars on their week lane, chips only under the lowest lane. chips: bars on their lane, chips
+    // fill any free row (a lane left empty after a bar ended). pack: bars and chips from the top
+    // each day, so a bar can step between rows.
+    const layoutDay = (bars, chips) => {
+      const fit = R => {
+        const barRow = new Map(), used = new Set(), placed = [];
+        let hidden = 0;
+        if (s.fill === 'pack') { let r = 0; for (const g of bars) { if (r < R) { barRow.set(g, r); used.add(r); r++; } else hidden++; } }
+        else for (const g of bars) { if (g.lane < R) { barRow.set(g, g.lane); used.add(g.lane); } else hidden++; }
+        let r = s.fill === 'old' ? Math.min(bars.length ? Math.max(...bars.map(g => g.lane)) + 1 : 0, R) : 0;
+        for (const c of chips) { while (r < R && used.has(r)) r++; if (r < R) { placed.push([r, c]); used.add(r); r++; } else hidden++; }
+        return { barRow, placed, used, hidden };
+      };
+      const all = fit(L);
+      if (!all.hidden) return { ...all, more: 0, R: L };
+      const cut = fit(Math.max(0, L - 1));
+      return { ...cut, more: cut.hidden, R: Math.max(0, L - 1) };
+    };
+    const days = [];
     for (let d = 0; d < 7; d++) {
       const ms = addDays(wStart, d);
-      const chips = dayChips(ms, s.cal === 'bar' ? 'bar' : s.cal);
-      const covering = segs.filter(g => g.a <= d && d <= g.b);
-      const lanesMax = covering.length ? Math.max(...covering.map(g => g.lane)) + 1 : 0;
-      let visL = lanesMax, shownChips = chips, more = 0;
-      if (s.cal === 'bar') {
-        if (lanesMax + chips.length > L) { const avail = Math.max(0, L - 1); visL = Math.min(lanesMax, avail); shownChips = chips.slice(0, Math.max(0, avail - visL)); more = covering.filter(g => g.lane >= visL).length + chips.length - shownChips.length; }
-      } else {
-        const fit = Math.min(4, L);
-        if (chips.length > Math.min(3, fit)) { shownChips = chips.slice(0, Math.max(0, Math.min(3, fit - 1))); more = chips.length - shownChips.length; }
-      }
-      vis.push(visL);
+      const chips = dayChips(ms, 'bar');
+      const lay = layoutDay(segs.filter(g => g.a <= d && d <= g.b), chips);
+      days.push(lay);
+      const rows = lay.used.size ? Math.max(...lay.used) + 1 : 0;
+      let body = '';
+      for (let r = 0; r < (lay.more ? lay.R : rows); r++) { const c = lay.placed.find(([q]) => q === r); body += c ? chipHtml(c[1]) : '<div class="cv-sp" style="height:24px"></div>'; }
+      if (lay.more) body += `<div class="cv-ev more"><b>${lay.used.size ? `…외 ${lay.more}개` : `할 일 ${lay.more}개`}</b></div>`;
       const dt = new Date(ms), wd = dt.getDay();
       const cls = ['cv-day', dt.getMonth() !== m && 'out', ms === TODAY && 'today', ms === s.picked && 'picked', wd === 0 ? 'sun' : wd === 6 ? 'sat' : ''].filter(Boolean).join(' ');
-      cells += `<div class="${cls}" style="grid-row:${w + 2};grid-column:${d + 1}" data-act="day" data-day="${ms}"><span class="cv-d">${dt.getDate()}</span>${visL ? `<div class="cv-sp" style="height:${visL * 24}px"></div>` : ''}${shownChips.map(chipHtml).join('')}${more ? `<div class="cv-ev more"><b>${shownChips.length || visL ? `…외 ${more}개` : `할 일 ${more}개`}</b></div>` : ''}</div>`;
+      cells += `<div class="${cls}" style="grid-row:${w + 2};grid-column:${d + 1}" data-act="day" data-day="${ms}"><span class="cv-d">${dt.getDate()}</span>${body}</div>`;
     }
-    // Each bar is drawn where its lane is visible, in runs.
+    // Each bar is drawn in runs of days on the same row; a step (pack) gets a short joint.
     for (const g of segs) {
-      let d = g.a;
+      let d = g.a, prev = null;
       while (d <= g.b) {
-        if (g.lane >= vis[d]) { d++; continue; }
-        let e = d; while (e + 1 <= g.b && g.lane < vis[e + 1]) e++;
+        const row = days[d].barRow.get(g);
+        if (row === undefined) { d++; prev = null; continue; }
+        let e = d; while (e + 1 <= g.b && days[e + 1].barRow.get(g) === row) e++;
         const t = g.t, contL = d > g.a || ds(t.start) < wStart, contR = e < g.b || ds(t.end) > wEnd;
-        const endsHere = !contR;
-        bars += `<div class="cv-bar ${contL ? 'cl' : ''} ${contR ? 'cr' : ''} ${t.done ? 'done' : ''} is-new" style="grid-row:${w + 2};grid-column:${d + 1}/${e + 2};margin-top:${34 + g.lane * 24}px;${barStyle(t, [16, 18, 22])}" data-act="bar" data-tid="${t.id}" data-tip="${esc(t.t)} · ${periodTxt(t)}">${contL ? '' : dot(t)}<b>${esc(t.t)}</b>${endsHere && e - d >= 1 && hasT(t.end) ? `<span class="rng">~${clockS(t.end)}</span>` : ''}</div>`;
-        d = e + 1;
+        const first = !(ds(t.start) < wStart) && d === g.a;
+        if (prev !== null && prev !== row) {
+          const c = t.cat ? cat(t.cat).color : '#7f8a9c';
+          bars += `<div class="cv-join is-new" style="grid-row:${w + 2};grid-column:${d + 1};margin-top:${34 + Math.min(prev, row) * 24 + 4}px;height:${Math.abs(prev - row) * 24 + 14}px;background:${c}"></div>`;
+        }
+        bars += `<div class="cv-bar ${contL ? 'cl' : ''} ${contR ? 'cr' : ''} ${t.done ? 'done' : ''} is-new" style="grid-row:${w + 2};grid-column:${d + 1}/${e + 2};margin-top:${34 + row * 24}px;${barStyle(t, [16, 18, 22])}" data-act="bar" data-tid="${t.id}" data-tip="${esc(t.t)} · ${periodTxt(t)}">${first ? dot(t) : ''}<b>${esc(t.t)}</b>${!contR && e - d >= 1 && hasT(t.end) ? `<span class="rng">~${clockS(t.end)}</span>` : ''}</div>`;
+        prev = row; d = e + 1;
       }
     }
   }
@@ -1303,7 +1325,7 @@ const mainWin = () => `<div class="win" style="width:${WIN.w}px;height:${WIN.h}p
 // ---------- Notes ----------
 function notes() {
   return `<aside class="notes">
-    <div class="n-top"><button class="n-copy" data-ncopy>결과 복사</button><p class="hint">정할 것은 모두 정했어요. 확정된 모습이에요.</p></div>
+    <div class="n-top"><button class="n-copy" data-ncopy>결과 복사</button><p class="hint"><kbd>Shift</kbd>+마우스로 파란 점선의 후보 보기</p></div>
     <div class="n-scroll">${OPTS.map((o, i) => `<section class="n-item"><h4>${i + 1}. ${o.title}</h4>${o.items.map(([v, nm, dsc, tag]) =>
       `<div class="n-row ${s[o.key] === v ? 'on' : ''}" role="button" tabindex="0" data-no="${i}" data-v="${v}"><span class="n-nm">${nm}${tag === 'old' ? '<span class="badge old">기존</span>' : tag === 'rec' ? '<span class="badge rec">추천</span>' : ''}</span><span class="n-ds">${dsc}</span>${s[o.key] === v ? `<textarea class="n-cm" rows="1" data-cm="${i}:${v}" data-fk="cm:${i}:${v}" placeholder="추가 의견 (선택)" spellcheck="false">${esc(comments[i + ':' + v] || '')}</textarea>` : ''}</div>`).join('')}</section>`).join('')}</div>
     <label class="n-new"><input type="checkbox" data-nnew ${document.body.classList.contains('show-new') ? 'checked' : ''}>새로 생기는 부분 표시</label>
@@ -1513,8 +1535,13 @@ function showAlerts() {
   s.menu = { tid: 'p3', x: r.left - W.left + 150, y: r.top - W.top + 40, sub: 'al' };
   s.bell = { kind: 'end' };
 }
-// Every decision of #109 is made; nothing left to pick.
-const OPTS = [];
+// Open: what goes into a lane a bar has left empty (month view).
+const OPTS = [
+  { at: '.cv-grid', key: 'fill', title: '캘린더 빈 줄', show: () => { closePops(); s.view = 'calendar'; s.calMonth = { y: 2026, m: 10 }; },
+    items: [['old', '기존', '막대가 끝난 줄은 그 주 끝까지 비워 둠', 'old'],
+      ['chips', '하루짜리로 채움', '막대는 같은 줄로 곧게 두고, 빈 줄에 그날 하루짜리 할 일을 채움', 'rec'],
+      ['pack', '막대도 끌어올림', '날마다 위부터 채움. 막대가 날에 따라 계단처럼 오르내림']] },
+];
 const choose = (o, v) => { s[o.key] = v; o.show(); render(); };
 let shiftOn = false;
 function markHot() {
@@ -1574,7 +1601,7 @@ document.addEventListener('click', e => {
   if (f) { f.focus({ preventScroll: true }); f.setSelectionRange(f.value.length, f.value.length); }
 });
 function resultText() {
-  return '#109 PC 2.6.0 기간 시안 (확정)\n' + (OPTS.map((o, i) => { const it = o.items.find(([v]) => v === s[o.key]); const c = (comments[i + ':' + it[0]] || '').trim(); return `${i + 1}. ${o.title}: ${it[1]}${c ? ` (의견: ${c})` : ''}`; }).join('\n') || '남은 결정 없음');
+  return '#109 PC 2.6.0 기간 시안 선택 (4차)\n' + (OPTS.map((o, i) => { const it = o.items.find(([v]) => v === s[o.key]); const c = (comments[i + ':' + it[0]] || '').trim(); return `${i + 1}. ${o.title}: ${it[1]}${c ? ` (의견: ${c})` : ''}`; }).join('\n') || '남은 결정 없음');
 }
 document.addEventListener('click', e => {
   const copy = e.target.closest('[data-ncopy]');
