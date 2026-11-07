@@ -312,3 +312,25 @@ test("the month popup: arrow keys move between months, Esc and a press outside c
   expect(screen.queryByRole("dialog")).toBeNull();
   expect(screen.getByRole("heading", { name: "2026년 10월" })).toBeInTheDocument();
 });
+
+test("periods (#109): bars on their lane, a day's items in the free lines, the right-click menu on both", () => {
+  const span = (id, title, start, due) => task(id, title, due, { startOffset: due.getTime() - start.getTime() });
+  const map = {
+    long: span("long", "이사 준비", at(2026, 9, 12, 0, 0), new Date(2026, 9, 31, 23, 59, 59)),
+    short: span("short", "부스 철수", at(2026, 9, 18, 0, 0), at(2026, 9, 19, 12)),
+    week: span("week", "스프린트", at(2026, 9, 19, 9), at(2026, 9, 23, 18)),
+    tax: task("tax", "세금 납부", at(2026, 9, 22, 18)),
+  };
+  const onTaskContextMenu = jest.fn();
+  setup({ filteredTaskMap: map, onTaskContextMenu });
+  // 10/22: 이사 준비 (lane 0), 세금 납부 in lane 1 (부스 철수 ended), 스프린트 (lane 2).
+  const lines = [...cell(at(2026, 9, 22)).children].slice(1).map((el) => (el.classList.contains("cv-sp") ? "·" : el.textContent));
+  expect(lines).toEqual(["·", "세금 납부", "·"]);
+  expect(cell(at(2026, 9, 22))).toHaveAttribute("aria-label", "2026년 10월 22일 할 일 3개");
+  const bar = grid().querySelector('.cv-bar[data-task-id="week"]');
+  expect(bar.style.gridColumn).toBe("2 / 7");
+  expect(bar.style.marginTop).toBe(`${34 + 2 * 24}px`);
+  fireEvent.contextMenu(bar, { clientX: 5, clientY: 5 });
+  fireEvent.contextMenu(within(cell(at(2026, 9, 22))).getByText("세금 납부"));
+  expect(onTaskContextMenu.mock.calls.map((c) => c[1])).toEqual(["week", "tax"]);
+});

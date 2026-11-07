@@ -118,6 +118,7 @@ function periodPreviewView() {
     { tid: "t5", title: "도서관 책 반납", due: at(7, 18), cats: ["study"] },
     { tid: "p2", title: "이사 준비", start: dayStartAt(-15), due: dayEndAt(10), cats: ["home"], memo: "짐 목록은 메모 앱에." },
     { tid: "p4", title: "제주 여행", start: dayStartAt(9), due: dayEndAt(12), cats: ["home"], important: true },
+    { tid: "t8", title: "대청소", due: at(11, 15), cats: ["home"] },
     { tid: "t6", title: "헬스장 3개월 등록", due: at(17, 19), cats: ["gym"] },
     { tid: "n1", title: "읽을 책 목록 정리", due: null, cats: ["study"] },
     { tid: "n2", title: "겨울옷 꺼내기", due: null, cats: ["home"] },

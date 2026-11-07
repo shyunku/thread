@@ -39,15 +39,19 @@ export function cellItems(tasks, lines = Infinity) {
   return { shown, more: tasks.length - shown.length };
 }
 
-// One week row (#109 mock calView): periods over several days are bars in lanes across the
-// days they cover, the other tasks one-line items on their due day. A cell shows its lanes,
-// then its items, up to the cellItems rule (3, fewer when short; bars count as lines); what
-// does not fit is "…외 N개". A bar is drawn in runs over the days its lane shows.
+// One week row (#109 mock calView, "하루짜리로 채움"): periods over several days are bars that
+// keep one lane across the week, so they stay straight; the other tasks are one-line items on
+// their due day, filling that day's lines from the top wherever no bar is (an empty lane too).
+// A cell has up to the cellItems rule's lines (3, fewer when short); when something does not
+// fit, one line less and "…외 N개" (hidden bars and items). A bar is drawn in runs over the days
+// its lane shows.
 // tasks: those with a due; first: the row's first day (ms); lines: cellLines of the cells.
-// Returns { days: [{ day, lanes, items, more, count }], bars: [{ task, from, to, lane, contL,
-// contR, endTime }] }: lanes the lanes kept open, count every task on the day; from/to the
-// columns of a run, contL/contR whether the period goes on past its left or right end, endTime
-// whether it ends there at a set time ("~오후 6시").
+// Returns { days: [{ day, rows, limit, more, count, shown }], bars: [{ task, from, to, lane,
+// contL, contR, endTime }] }: rows the cell's lines from the top, an item (task) or null (a
+// bar's lane or an empty one); limit the lines a bar may use; count every task on the day;
+// shown the lines in use ("할 일 N개" instead of "…외 N개" when none); from/to the columns of a
+// run, contL/contR whether the period goes on past its left or right end, endTime whether it
+// ends there at a set time ("~오후 6시").
 export function weekLayout(tasks, first, lines = Infinity) {
   const { segs } = periodLanes(tasks, first, 7);
   const fit = Math.min(MAX_ITEMS + 1, lines);
@@ -56,23 +60,31 @@ export function weekLayout(tasks, first, lines = Infinity) {
     const day = addDays(first, d);
     const items = daySort(tasks.filter((t) => !isMultiDayPeriod(t) && dayStart(dueMs(t.dueDate)) === day));
     const covering = segs.filter((g) => g.a <= d && d <= g.b);
-    const used = covering.length ? Math.max(...covering.map((g) => g.lane)) + 1 : 0;
-    let lanes = used, shown = items, more = 0;
-    if (used + items.length > Math.min(MAX_ITEMS, fit)) {
-      const room = Math.max(0, Math.min(MAX_ITEMS, fit - 1));
-      lanes = Math.min(used, room);
-      shown = items.slice(0, Math.max(0, room - lanes));
-      more = covering.filter((g) => g.lane >= lanes).length + items.length - shown.length;
-    }
-    days.push({ day, lanes, items: shown, more, count: covering.length + items.length });
+    // Bars on their lane, items in the free lines from the top, up to `limit` lines.
+    const place = (limit) => {
+      const used = new Set(), at = new Map();
+      let hidden = 0;
+      for (const g of covering) { if (g.lane < limit) used.add(g.lane); else hidden++; }
+      let r = 0;
+      for (const task of items) {
+        while (r < limit && used.has(r)) r++;
+        if (r < limit) { at.set(r, task); used.add(r); r++; } else hidden++;
+      }
+      return { limit, hidden, used, at };
+    };
+    let lay = place(Math.min(MAX_ITEMS, fit)), more = 0;
+    if (lay.hidden) { lay = place(Math.max(0, Math.min(MAX_ITEMS, fit - 1))); more = lay.hidden; }
+    const n = more ? lay.limit : lay.used.size ? Math.max(...lay.used) + 1 : 0;
+    const rows = Array.from({ length: n }, (_, i) => lay.at.get(i) ?? null);
+    days.push({ day, rows, limit: lay.limit, more, count: covering.length + items.length, shown: lay.used.size });
   }
   const bars = [];
   const last = addDays(first, 6);
   for (const g of segs) {
     for (let d = g.a; d <= g.b;) {
-      if (g.lane >= days[d].lanes) { d++; continue; }
+      if (g.lane >= days[d].limit) { d++; continue; }
       let e = d;
-      while (e + 1 <= g.b && g.lane < days[e + 1].lanes) e++;
+      while (e + 1 <= g.b && g.lane < days[e + 1].limit) e++;
       const contL = d > g.a || dayStart(g.start) < first, contR = e < g.b || dayStart(g.end) > last;
       bars.push({ task: g.task, from: d, to: e, lane: g.lane, contL, contR, endTime: !contR && e > d && hasDueTime(g.end) });
       d = e + 1;
@@ -229,7 +241,7 @@ const TaskCalendarView = ({ filteredTaskMap, categories, catsOf, header, renderQ
   // One day of the grid (w: its week row, d: its column).
   const dayCell = (date, w, d) => {
     const ms = date.getTime(), wd = date.getDay();
-    const { lanes, items: shown, more, count } = layout0[w].days[d];
+    const { rows, more, count, shown } = layout0[w].days[d];
     const isToday = ms === today, isPicked = ms === picked;
     const cls = ["cv-day", date.getMonth() !== month && "out", isToday && "today", isPicked && "picked", wd === 0 ? "sun" : wd === 6 ? "sat" : ""]
       .filter(Boolean).join(" ");
@@ -247,8 +259,8 @@ const TaskCalendarView = ({ filteredTaskMap, categories, catsOf, header, renderQ
         onClick={() => pick(ms)}
       >
         <span className="cv-d">{date.getDate()}</span>
-        {lanes > 0 && <div className="cv-sp" style={{ height: lanes * LINE }} />}
-        {shown.map((task) => {
+        {rows.map((task, r) => {
+          if (!task) return <div key={`sp${r}`} className="cv-sp" style={{ height: LINE }} />;
           const mark = markCategory(taskCategories(task, categories, catsOf));
           return (
             <div
@@ -262,7 +274,7 @@ const TaskCalendarView = ({ filteredTaskMap, categories, catsOf, header, renderQ
             </div>
           );
         })}
-        {more > 0 && <div className="cv-ev more"><b>{shown.length || lanes ? `…외 ${more}개` : `할 일 ${more}개`}</b></div>}
+        {more > 0 && <div className="cv-ev more"><b>{shown ? `…외 ${more}개` : `할 일 ${more}개`}</b></div>}
       </div>
     );
   };

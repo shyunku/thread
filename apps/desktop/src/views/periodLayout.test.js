@@ -31,52 +31,47 @@ describe("periodLanes", () => {
 });
 
 describe("calendar weekLayout", () => {
-  test("bars keep lanes open in the cells; one-day tasks are items; runs and continuation", () => {
-    const tasks = [
-      task("move", at(10, 26), end(11, 20)),
-      task("sprint", at(11, 9, 9), at(11, 13, 18)),
-      task("meet", at(11, 10, 14), at(11, 10, 17)),
-      task("tax", null, end(11, 13)),
-    ];
-    const { days, bars } = weekLayout(tasks, WEEK);
-    expect(days.map((d) => d.lanes)).toEqual([1, 2, 2, 2, 2, 2, 1]);
-    expect(days[2].items.map((t) => t.id)).toEqual(["meet"]);
-    expect(days[5].items.map((t) => t.id)).toEqual(["tax"]);
+  // The mock's week of 11/8 (#109 "하루짜리로 채움"): bars stay on their lane all week; a day's
+  // one-day items fill the lines no bar uses, an emptied lane too.
+  const week = () => [
+    task("move", at(10, 26), end(11, 20)),
+    task("booth", at(11, 5), at(11, 9, 12)),
+    task("sprint", at(11, 9, 9), at(11, 13, 18)),
+    task("launch", at(11, 9), end(11, 12)),
+    task("meet", at(11, 10, 14), at(11, 10, 17)),
+    task("shop", null, at(11, 10, 20)),
+    task("words", null, at(11, 10, 22)),
+    task("tax", null, end(11, 13)),
+  ];
+  const ids = (rows) => rows.map((t) => t && t.id);
+
+  test("items fill the free lines; bars stay straight; …외 N개 counts hidden bars and items", () => {
+    const { days, bars } = weekLayout(week(), WEEK, 3);
+    // 11/10: 이사 준비 / 팀 워크숍 / …외 4개 (two bars and two items hidden).
+    expect(days[2]).toMatchObject({ more: 4, count: 6, shown: 2, limit: 2 });
+    expect(ids(days[2].rows)).toEqual([null, "meet"]);
+    // 11/13: 이사 준비 / 세금 납부 (in the lane 전시회 left) / 주간 스프린트.
+    expect(days[5]).toMatchObject({ more: 0, count: 3, limit: 3 });
+    expect(ids(days[5].rows)).toEqual([null, "tax", null]);
     expect(bars.map((b) => [b.task.id, b.from, b.to, b.lane, b.contL, b.contR, b.endTime])).toEqual([
       ["move", 0, 6, 0, true, true, false],
-      ["sprint", 1, 5, 1, false, false, true],
+      ["booth", 0, 1, 1, true, false, true],
+      ["sprint", 5, 5, 2, true, false, false],
     ]);
   });
 
-  test("short cells: lanes, then items, then …외 N개 (a hidden lane counts)", () => {
-    const tasks = [
-      task("a", at(11, 8), end(11, 14)),
-      task("b", at(11, 9), end(11, 11)),
-      task("x", null, at(11, 10, 9)),
-      task("y", null, at(11, 10, 10)),
-    ];
-    // Two lines: one for a bar, one for "…외 N개".
-    const { days, bars } = weekLayout(tasks, WEEK, 2);
-    expect(days[2]).toMatchObject({ lanes: 1, more: 3, count: 4 });
-    expect(days[2].items).toEqual([]);
-    expect(days[0]).toMatchObject({ lanes: 1, more: 0 });
-    // The lane-1 bar is left out where its lane is not kept.
-    expect(bars.map((b) => [b.task.id, b.from, b.to])).toEqual([["a", 0, 6], ["b", 1, 1], ["b", 3, 3]]);
-    // Room for three: two lanes and one item, then the rest.
-    const roomy = weekLayout(tasks, WEEK, 4).days[2];
-    expect(roomy).toMatchObject({ lanes: 2, more: 1 });
-    expect(roomy.items.map((t) => t.id)).toEqual(["x"]);
+  test("roomy cells keep three lines; one line shows 할 일 N개 only", () => {
+    const roomy = weekLayout(week(), WEEK).days[2];
+    expect(roomy).toMatchObject({ more: 3, limit: 3 });
+    expect(ids(roomy.rows)).toEqual([null, "meet", null]);
+    const tiny = weekLayout(week(), WEEK, 1).days[2];
+    expect(tiny).toMatchObject({ rows: [], more: 6, shown: 0 });
   });
 
-  test("a bar hidden on some days is drawn in runs", () => {
-    const tasks = [
-      task("a", at(11, 8), end(11, 14)),
-      task("b", at(11, 8), end(11, 12)),
-      task("x", null, at(11, 10, 9)),
-      task("y", null, at(11, 10, 10)),
-    ];
-    const { bars } = weekLayout(tasks, WEEK, 2);
-    expect(bars.filter((b) => b.task.id === "b").map((b) => [b.from, b.to, b.contL, b.contR])).toEqual([[0, 1, false, true], [3, 4, true, false]]);
+  test("a day without bars lists its items from the top; an empty day has no lines", () => {
+    const { days } = weekLayout([task("x", null, at(11, 10, 9)), task("y", null, at(11, 10, 10))], WEEK);
+    expect(ids(days[2].rows)).toEqual(["x", "y"]);
+    expect(days[3]).toMatchObject({ rows: [], more: 0, count: 0 });
   });
 
   test("bar colours: the category mixed in, grey when done", () => {
