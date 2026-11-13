@@ -1,0 +1,662 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thread PC 2.6.1 타임라인 시안</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet">
+<style>
+  @font-face { font-family: 'Oxanium'; font-style: normal; font-weight: 300 700; font-display: swap;
+    ascent-override: 95%; descent-override: 5%; line-gap-override: 0%;
+    src: url(https://fonts.gstatic.com/s/oxanium/v21/RrQQboN_4yJ0JmiMe2LE0Q.woff2) format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+
+  :root {
+    --page: #0b0d10;
+    /* apps/desktop/src/styles/index.scss with the main-screen values; --main-x from TodoContent.scss. */
+    --canvas: #101216; --panel: #14171d; --surface: #1a1e25; --hover: #1d2129; --border: #2b303b;
+    --text: #edf1f7; --secondary: #a3acbb; --muted: #7f8a9c; --accent: #6294ff; --selected: #253858;
+    --success: #70d5a0; --danger: #f0838b;
+    --raise: #222731; --line: #232831; --faint: #5f697a; --accent-soft: #1b2741; --star: #f2c14e;
+    --side-x: 20px; --main-x: 40px; --ck: 20px; --ck-gap: 12px; --panel-x: 20px; --in: 12px;
+    --picked: #3d6fe6;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; overflow: hidden; background: var(--page); color: var(--text); font: 14px/1.5 Pretendard, "Malgun Gothic", "Segoe UI", sans-serif; word-break: keep-all; }
+  button, input, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  svg { display: block; flex: none; }
+
+  /* One screen: the main window at real size (1440 × 960, its height follows the grip or a short
+     browser), notes on the right at full height. */
+  .stage { display: flex; gap: 20px; align-items: flex-start; height: 100%; padding: 16px; }
+  .pieces { display: flex; flex-direction: column; flex: none; }
+  .win-grip { display: flex; align-items: center; justify-content: center; gap: 8px; height: 22px; color: #6b7587; font-size: 11.5px; cursor: ns-resize; user-select: none; }
+  .win-grip i { width: 48px; height: 4px; border-radius: 2px; background: #2f3542; }
+  .win-grip:hover i, body.resizing .win-grip i { background: #4a5468; }
+  body.resizing { cursor: ns-resize; user-select: none; }
+
+  .notes { display: flex; flex-direction: column; width: 380px; height: 100%; min-height: 0; flex: none; padding: 14px 0 0; border: 1px solid #2b303b; border-radius: 12px; background: #12151b; color: #a0aaba; font-size: 13px; }
+  .notes .n-top { display: flex; align-items: center; gap: 10px; padding: 0 16px 10px; border-bottom: 1px solid #242a35; }
+  .notes .n-copy { flex: none; padding: 6px 12px; border: 0; border-radius: 8px; background: #3d6fe0; color: #fff; font-size: 12.5px; font-weight: 600; }
+  .notes .n-copy.done { background: #2f9e6a; }
+  .notes .hint { margin: 0; color: #8b95a7; font-size: 12px; line-height: 1.45; }
+  .notes kbd { padding: 0 4px; border: 1px solid #3a4252; border-radius: 4px; font: inherit; font-size: 11px; color: #cfd6e2; }
+  .notes .n-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 0 10px; scrollbar-width: thin; scrollbar-color: #2b303b transparent; }
+  .notes .n-item { padding: 12px 0 10px; }
+  .notes .n-item + .n-item { border-top: 1px solid #2a303c; }
+  .notes h4 { margin: 2px 6px 4px; font-size: 13px; color: #edf1f7; font-weight: 600; }
+  .notes .n-row { display: grid; gap: 2px; width: 100%; cursor: pointer; margin: 2px 0; padding: 7px 8px; border-radius: 8px; color: #cfd6e2; font-size: 12.5px; }
+  .notes .n-row:hover { background: #1c222c; }
+  .notes .n-row.on { background: #22324f; color: #fff; }
+  .notes .n-nm { font-weight: 600; }
+  .notes .n-ds { color: #8b95a7; font-size: 12px; }
+  .notes .n-row.on .n-ds { color: #b9c6dc; }
+  .notes .n-cm { display: block; margin-top: 6px; width: 100%; min-height: 30px; padding: 5px 8px; border: 1px solid #3a4a66; border-radius: 6px; background: #151b26; color: #edf1f7; font-size: 12.5px; line-height: 1.5; outline: none; resize: none; overflow: hidden; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .notes .n-cm:focus { border-color: #6fa0ff; }
+  .badge { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 9px; font-size: 10.5px; font-weight: 600; line-height: 17px; vertical-align: 1px; }
+  .badge.old { background: #2c323d; color: #aab4c4; }
+  .badge.rec { background: #1d4a35; color: #7fe0ae; }
+  .notes .n-new { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-top: 1px solid #242a35; cursor: pointer; user-select: none; }
+  .notes .n-new input { accent-color: #3ddc84; }
+  body.show-new .pieces .is-new { outline: 2px solid #3ddc84; outline-offset: -2px; }
+
+  /* Shift + hover pickers. */
+  body.shift-on .pieces .hot { outline: 1px dashed #9aa4b699; outline-offset: -1px; }
+  body.shift-on .pieces [data-opts] { outline: 2px dashed #6fa0ff; outline-offset: -2px; }
+  .opt-pop { position: fixed; z-index: 500; display: none; min-width: 180px; max-width: 420px; padding: 8px; border: 1px solid #3a5486; border-radius: 10px; background: #161b24f5; box-shadow: 0 12px 32px #000b; font-size: 12.5px; color: #cfd6e2; }
+  .opt-pop.on { display: block; }
+  .opt-pop b { display: block; margin: 0 4px 6px; font-size: 11.5px; color: #8b95a7; font-weight: 600; }
+  .opt-pop button { display: block; width: 100%; margin: 2px 0; padding: 6px 10px; border: 0; border-radius: 7px; background: transparent; color: inherit; font: inherit; text-align: left; }
+  .opt-pop button:hover { background: #232a37; }
+  .opt-pop button.on { background: #253858; color: #fff; }
+  .thread-tooltip { position: fixed; z-index: 400; padding: 6px 9px; border: 1px solid #46536a; border-radius: 6px; background: #101720; color: #edf1f7; font: 12px/1.4 "Oxanium", "Noto Sans KR", sans-serif; white-space: nowrap; pointer-events: none; display: none; }
+  .thread-tooltip.on { display: block; }
+
+  /* ---------- Window ---------- */
+  .win, .win button, .win input { font-family: "Oxanium", "Noto Sans KR", sans-serif; }
+  .win { position: relative; display: flex; flex-direction: column; width: 1440px; border: 1px solid #2b303b; border-radius: 10px; overflow: hidden; background: var(--canvas); color: var(--text); font-size: 14px; line-height: 1.5; }
+  :where(.win) :where(button) { appearance: none; margin: 0; padding: 0; border: 0; background: none; text-align: left; }
+  .top { height: 42px; flex: none; display: flex; align-items: center; background: #13161b; border-bottom: 1px solid var(--border); position: relative; }
+  .top .brand { display: flex; align-items: center; gap: 9px; padding: 0 12px; }
+  .top .brand img { width: 26px; height: 26px; }
+  .top .ver { font-size: 12px; font-weight: 500; color: var(--muted); }
+  .top .search { position: absolute; left: 50%; transform: translateX(-50%); width: 470px; height: 28px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); display: flex; align-items: center; gap: 10px; padding: 0 12px; color: var(--secondary); font-size: 12px; }
+  .top .search .ph { flex: 1; color: var(--muted); }
+  .top kbd { font: inherit; font-size: 11px; color: var(--muted); border: 1px solid var(--border); border-radius: 4px; padding: 3px 5px; line-height: 1; }
+  .top .wc { display: flex; align-self: stretch; margin-left: auto; }
+  .top .wc span { width: 44px; display: grid; place-items: center; color: var(--secondary); }
+  .body { flex: 1; min-height: 0; display: flex; }
+
+  .side { width: 232px; flex: none; display: flex; flex-direction: column; background: var(--panel); padding: 12px calc(var(--side-x) - 10px) 10px; overflow: hidden; }
+  .side-clock { flex: none; margin: 0 0 14px; padding: 12px 14px 9px; border-radius: 10px; background: var(--surface); }
+  .side-clock .cd { display: block; font-size: 12px; line-height: 18px; color: var(--muted); }
+  .side-clock b { display: block; margin-top: 6px; font-size: 24px; line-height: 30px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .side-clock b small { font-size: 16px; font-weight: 500; color: var(--muted); }
+  .side-scroll { flex: 1; min-height: 0; }
+  .grp { display: flex; align-items: center; height: 28px; margin-top: 16px; padding: 0 10px; font-size: 12px; color: var(--muted); }
+  .side-row { display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 10px; border-radius: 8px; color: var(--secondary); font-size: 13.5px; white-space: nowrap; }
+  .side-row.on { background: var(--raise); color: var(--text); }
+  .side-row .ic { width: 18px; height: 18px; display: grid; place-items: center; color: var(--muted); }
+  .side-row.on .ic { color: var(--text); }
+  .side-row .lbl { flex: 1; }
+  .side-row .n { font-size: 12px; color: var(--muted); }
+  .side-row .n.due { color: var(--danger); }
+  .side-row .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .side .foot { flex: none; margin: 0 calc(10px - var(--side-x)) -10px; display: flex; align-items: center; gap: 10px; height: 60px; padding: 0 var(--side-x); border-top: 1px solid var(--line); background: #0e1014; }
+  .side .foot .av { width: 32px; height: 32px; border-radius: 50%; background: #2a3242; display: grid; place-items: center; font-size: 13px; color: var(--secondary); }
+  .side .foot .who { flex: 1; font-size: 12.5px; line-height: 1.3; }
+  .side .foot .who b { display: block; font-size: 13px; }
+  .side .foot .who small { color: var(--muted); font-size: 11.5px; }
+
+  /* Pane head (ListHeader, viewParts.scss). */
+  .tc { position: relative; display: flex; flex-direction: column; flex: 1; min-width: 0; overflow: hidden; }
+  .tc-head { flex: none; padding: var(--main-x) var(--main-x) 0; }
+  .tc-row1 { display: flex; align-items: center; gap: 8px; height: 32px; }
+  .tc-jump { display: flex; align-items: center; gap: 4px; height: 32px; margin-left: -8px; padding: 0 6px 0 8px; border-radius: 8px; font-size: 22px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+  .tc-jump:hover { background: var(--raise); }
+  .tc-jump .c { color: var(--muted); }
+  .tc-nav { display: flex; align-items: center; gap: 8px; margin-left: 8px; }
+  .tc-finding { margin: 2px 0 0; font-size: 13px; line-height: 20px; color: var(--secondary); white-space: nowrap; }
+  .tc-finding b { color: var(--danger); font-weight: 600; }
+  .tc-push { margin-left: auto; }
+  .tc-seg { display: flex; gap: 2px; height: 32px; padding: 2px; border-radius: 8px; background: var(--surface); }
+  .tc-seg span { display: grid; place-items: center; width: 32px; border-radius: 6px; color: var(--secondary); }
+  .tc-seg span.on { background: var(--raise); color: var(--text); }
+  .tc-ghost { display: grid; place-items: center; min-width: 32px; height: 32px; border-radius: 8px; color: var(--secondary); cursor: pointer; font-size: 13px; }
+  .tc-ghost.txt { padding: 0 10px; }
+  .tc-ghost:hover { background: var(--hover); }
+  .tc-row1 > .tc-ghost:last-child { margin-right: -8px; }
+
+  /* ---------- Timeline (TaskTimelineView.scss) ---------- */
+  .tv-cols { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 16px var(--main-x) 0; overflow: hidden; }
+  .tv-grid { flex: 1; min-height: 0; display: grid; column-gap: 12px; row-gap: 16px; }
+  .tv-col { position: relative; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+  .tv-head { display: flex; align-items: center; gap: 6px; height: 36px; flex: none; color: var(--secondary); font-size: 12.5px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  .tv-head b { font-size: 18px; color: var(--text); font-variant-numeric: tabular-nums; }
+  .tv-head em { font-style: normal; font-size: 11.5px; font-weight: 600; line-height: 18px; color: #fff; background: var(--accent); padding: 0 6px; border-radius: 5px; }
+  .tv-head .cnt { margin-left: auto; min-width: 22px; height: 20px; padding: 0 7px; display: grid; place-items: center; border-radius: 10px; background: var(--raise); color: var(--secondary); font-size: 11.5px; font-weight: 600; }
+  .tv-col.today .tv-head { border-bottom-color: var(--accent); }
+  .tv-band { position: relative; flex: none; margin-top: 8px; }
+  .tv-seg { position: absolute; left: 0; right: 0; height: 22px; display: flex; align-items: center; gap: 6px; padding: 0 8px; border-radius: 6px; font-size: 11.5px; line-height: 16px; color: var(--text); white-space: nowrap; overflow: hidden; cursor: pointer; z-index: 2; }
+  .tv-seg b { font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; position: relative; top: 1px; }
+  .tv-seg .rng { flex: none; color: var(--muted); font-size: 11px; position: relative; top: 1px; }
+  .tv-seg .gl { flex: none; color: #8fb0f0; font-size: 10px; }
+  .tv-seg.cl { border-top-left-radius: 0; border-bottom-left-radius: 0; box-shadow: none !important; }
+  .tv-seg.cr { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+  .tv-seg.br { right: -12px; }
+  .tv-seg:hover { filter: brightness(1.15); }
+  /* New: one band strip for every shown day, above the rows. */
+  .tv-topband { position: relative; flex: none; margin-bottom: 12px; padding: 22px 0 0; }
+  .tv-topband .ticks { position: absolute; left: 0; right: 0; top: 0; display: flex; }
+  .tv-topband .ticks span { flex: 1; font-size: 11px; line-height: 18px; color: var(--muted); padding-left: 2px; border-left: 1px solid var(--line); }
+  .tv-topband .ticks span.today { color: #a9c3ff; }
+  .tv-topband .lanes { position: relative; }
+  .tv-topband .tv-seg { right: auto; }
+  .tv-body { position: relative; flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; scrollbar-color: #2b303b transparent; padding: 4px 0 24px; }
+  .tv-fade { position: absolute; left: 0; right: 0; bottom: 0; height: 40px; background: linear-gradient(#10121600, var(--canvas)); pointer-events: none; opacity: 0; transition: opacity .15s; }
+  .tv-col.more .tv-fade { opacity: 1; }
+  .tv-hour { margin: 12px 0 6px; font-size: 12px; line-height: 18px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .tv-hour.blkh { color: #a9c3ff; }
+  .tv-box { border-radius: 10px; background: var(--surface); overflow: hidden; }
+  .tv-now { display: flex; align-items: center; gap: 8px; margin: 16px 0 4px; color: var(--danger); font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+  .tv-now::after { content: ""; flex: 1; height: 1px; background: var(--danger); opacity: .7; }
+  .tv-empty { margin-top: 16px; color: var(--faint); font-size: 12.5px; }
+  .task-row { display: flex; gap: var(--ck-gap); padding: 12px; align-items: center; cursor: pointer; position: relative; }
+  .task-row:hover { background: var(--raise); }
+  .task-row.sel { background: var(--accent-soft); }
+  .task-row + .task-row::before { content: ""; position: absolute; left: calc(12px + var(--ck) + var(--ck-gap)); right: 12px; top: 0; height: 1px; background: var(--line); }
+  .task-row:hover::before, .task-row.sel::before, .task-row:hover + .task-row::before, .task-row.sel + .task-row::before { display: none; }
+  .ck { width: var(--ck); height: var(--ck); flex: none; display: grid; place-items: center; border-radius: 50%; border: 2px solid #5a6475 !important; color: #fff; cursor: pointer; }
+  .ck svg { opacity: 0; }
+  .ck:not(.done):hover { border-color: var(--accent) !important; background: #6294ff1f !important; }
+  .ck.done { background: var(--accent) !important; border-color: var(--accent) !important; }
+  .ck.done svg { opacity: 1; }
+  .task-row .tx { flex: 1; min-width: 0; }
+  .task-row .t { font-size: 13px; line-height: 20px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .task-row.done .t { color: var(--muted); text-decoration: line-through; }
+  .task-row .meta { display: flex; align-items: center; gap: 12px; margin-top: 2px; height: 18px; font-size: 12px; line-height: 18px; color: var(--muted); white-space: nowrap; overflow: hidden; }
+  .task-row .meta > span { display: inline-flex; align-items: center; gap: 5px; }
+  .task-row .meta .dot { width: 7px; height: 7px; border-radius: 50%; }
+  .task-row .meta b { font-weight: 400; }
+  .task-row .meta .span { color: #a9c3ff; }
+  .task-row .meta .over { color: var(--danger); }
+  .task-row.blk { box-shadow: inset 3px 0 0 var(--c); }
+  .task-row .st { color: var(--star); display: grid; place-items: center; }
+
+  /* Quick add (QuickAdd.scss). */
+  .tc-quick { flex: none; margin: 12px var(--main-x) var(--main-x); padding: 0 22px; border-radius: 10px; background: var(--surface); }
+  .qa-in { display: flex; align-items: center; gap: var(--ck-gap); height: 44px; color: var(--muted); font-size: 13.5px; }
+  .qa-plus { width: var(--ck); display: grid; place-items: center; color: var(--accent); }
+  .qa-in input { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; outline: none; background: none; color: var(--text); font-size: 13.5px; }
+  .qa-in input::placeholder { color: var(--muted); }
+  .qa-in kbd { font: inherit; font-size: 11px; line-height: 1; color: var(--muted); border: 1px solid #2b303b; border-radius: 4px; padding: 3px 5px; }
+  .qa-chips { display: flex; gap: 6px; padding: 0 0 12px calc(var(--ck) + var(--ck-gap)); }
+  .qa-chip { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 8px; border-radius: 6px; background: var(--raise); color: var(--secondary); font-size: 12px; white-space: nowrap; }
+  .qa-chip.on { color: var(--text); }
+  .qa-dot { width: 7px; height: 7px; border-radius: 50%; }
+
+  /* Right panel. */
+  .splitter { width: 1px; flex: none; background: var(--line); }
+  .home-panel { flex: none; width: 360px; display: flex; flex-direction: column; background: var(--panel); }
+  .rp-tabs { display: flex; align-items: center; gap: 4px; height: 32px; margin: 20px 0 12px; padding: 0 calc(var(--panel-x) - 8px); }
+  .rp-tab { height: 32px; display: grid; place-items: center; padding: 0 10px; border-radius: 7px; font-size: 12.5px; color: var(--secondary); cursor: pointer; }
+  .rp-tab.on { background: var(--raise); color: var(--text); font-weight: 600; }
+  .rp-tab.off { color: var(--faint); cursor: default; }
+  .rp-x { margin-left: auto; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 7px; color: var(--muted); cursor: pointer; }
+  .rp-body { flex: 1; min-height: 0; overflow-y: auto; padding: 6px var(--panel-x) 20px; scrollbar-width: thin; scrollbar-color: #2b303b transparent; }
+  .rp-box { border-radius: 10px; background: var(--surface); }
+  .rp-block-h { display: flex; align-items: center; height: 20px; margin: 20px 0 8px; font-size: 12.5px; color: var(--secondary); font-weight: 600; }
+  .rp-block-h span { margin-left: auto; color: var(--muted); font-weight: 400; }
+  .rp-dt-title { display: flex; gap: var(--ck-gap); align-items: flex-start; margin: 0 0 16px; padding: 0 var(--in); }
+  .rp-dt-title > .ck { margin-top: 3px; }
+  .rp-title { flex: 1; font-size: 18px; line-height: 26px; font-weight: 700; }
+  .rp-prop { display: flex; align-items: center; gap: 12px; min-height: 40px; padding: 8px var(--in); font-size: 13px; }
+  .rp-prop + .rp-prop { border-top: 1px solid var(--line); }
+  .rp-prop .k { width: 60px; flex: none; color: var(--muted); font-size: 12.5px; }
+  .rp-prop .v .sub { color: var(--muted); font-size: 12px; }
+  .rp-ai { display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 0 var(--in); font-size: 13px; cursor: pointer; }
+  .rp-ai + .rp-ai { border-top: 1px solid var(--line); }
+  .rp-ai:hover { background: var(--raise); }
+  .rp-tm { width: 64px; flex: none; font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .rp-tm.span { color: #8fb0f0; }
+  .rp-ai .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+  .rp-nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tp-mm { padding: 8px 8px 6px; user-select: none; }
+  .tp-mm-h { display: flex; align-items: center; height: 28px; font-size: 13px; font-weight: 600; padding: 0 4px; }
+  .tp-mm-g { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: 12px; }
+  .tp-mm-w { color: var(--muted); font-size: 11px; line-height: 24px; }
+  .tp-mm-c { position: relative; height: 34px; display: grid; place-items: start center; padding-top: 2px; color: var(--secondary); }
+  .tp-mm-c b { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 7px; font-weight: inherit; }
+  .tp-mm-c i { position: absolute; bottom: 1px; left: 50%; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: var(--muted); }
+  .tp-mm-w.sun, .tp-mm-c.sun { color: #f0838b; } .tp-mm-w.sat, .tp-mm-c.sat { color: #7aa5ff; }
+  .tp-mm-c.out { color: #4d5666; }
+  .tp-mm-c.today b { color: #a9c3ff; font-weight: 700; box-shadow: inset 0 0 0 1.5px var(--accent); }
+  .tp-mm-c.shown b { background: #22345a; color: #cfe0ff; }
+</style>
+</head>
+<body>
+<div class="stage" id="stage"></div>
+<div class="opt-pop" id="optpop"></div>
+<div class="thread-tooltip" id="tip"></div>
+<script>
+const ICON = 'data:image/png;base64,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';
+const sv = (d, z = 16, w = 1.8) => `<svg width="${z}" height="${z}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+const I = {
+  close: (z = 16) => `<svg width="${z}" height="${z}" viewBox="0 0 16 16" fill="currentColor"><path d="M8 8.707l3.646 3.647.708-.707L8.707 8l3.647-3.646-.707-.708L8 7.293 4.354 3.646l-.707.708L7.293 8l-3.646 3.646.707.708L8 8.707z"/></svg>`,
+  check: sv('<path d="M5 12l5 5 9-10"/>', 12, 3.2),
+  plus: (z = 16) => sv('<path d="M12 5v14M5 12h14"/>', z, 2.2),
+  search: sv('<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>', 14),
+  shield: sv('<path d="M12 3l7 3v5.5c0 4.3-3 8-7 9.5-4-1.5-7-5.2-7-9.5V6z"/><path d="M9.2 12.2l2 2 3.8-4"/>'),
+  sun: sv('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'),
+  week: sv('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'),
+  cal: sv('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>', 13),
+  star: (on, z = 16) => `<svg width="${z}" height="${z}" viewBox="0 0 24 24" fill="${on ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3.3l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.6l-5.2 2.7 1-5.8L3.6 9.4l5.8-.8z"/></svg>`,
+  all: sv('<path d="M4 6h16M4 12h16M4 18h10"/>'),
+  gear: sv('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'),
+  repeat: sv('<path d="M17 2l3 3-3 3"/><path d="M4 11V9a4 4 0 0 1 4-4h12M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 0 1-4 4H4"/>', 12),
+  sliders: sv('<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>', 15),
+  vList: sv('<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/>'),
+  vCal: sv('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'),
+  vTime: sv('<rect x="3" y="4" width="5" height="16" rx="1.5"/><rect x="10" y="4" width="5" height="16" rx="1.5"/><rect x="17" y="4" width="4" height="16" rx="1.5"/>'),
+  chev: sv('<path d="M6 9l6 6 6-6"/>', 14),
+  prev: sv('<path d="M15 6l-6 6 6 6"/>'),
+  next: sv('<path d="M9 6l6 6-6 6"/>'),
+  min: '<svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor"/></svg>',
+  max: '<svg width="10" height="10" viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" fill="none" stroke="currentColor"/></svg>',
+  x10: '<svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0l10 10M10 0 0 10" stroke="currentColor"/></svg>',
+};
+const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// ---------- Time (the mock's "now": 2026-11-13 Fri 13:20) ----------
+const NOW = new Date(2026, 10, 13, 13, 20).getTime();
+const DAY = 864e5;
+const ds = v => new Date(v).setHours(0, 0, 0, 0);
+const addDays = (v, n) => { const d = new Date(ds(v)); d.setDate(d.getDate() + n); return d.getTime(); };
+const TODAY = ds(NOW);
+const WD = '일월화수목금토';
+const pad = n => String(n).padStart(2, '0');
+const at = (m, d, h = 23, mi = 59) => new Date(2026, m - 1, d, h, mi, h === 23 && mi === 59 ? 59 : 0).getTime();
+const day0 = (m, d) => new Date(2026, m - 1, d).getTime();
+const hasT = ms => { const d = new Date(ms); return !(d.getHours() === 23 && d.getMinutes() === 59); };
+const dayDiff = (a, b) => Math.round((ds(a) - ds(b)) / DAY);
+const clockL = ms => { const d = new Date(ms), h = d.getHours(); return `${h < 12 ? '오전' : '오후'} ${h % 12 || 12}:${pad(d.getMinutes())}`; };
+const clockS = ms => { const d = new Date(ms), h = d.getHours(), m = d.getMinutes(); return `${h < 12 ? '오전' : '오후'} ${h % 12 || 12}${m ? ':' + pad(m) : '시'}`; };
+const md = ms => { const d = new Date(ms); return `${d.getMonth() + 1}/${d.getDate()}`; };
+const mdK = ms => { const d = new Date(ms); return `${d.getMonth() + 1}월 ${d.getDate()}일`; };
+
+// ---------- Data (synthetic) ----------
+const CATS = { work: { title: '업무', color: '#4fc3d9' }, home: { title: '개인', color: '#44c98b' }, study: { title: '공부', color: '#f2c14e' }, gym: { title: '운동', color: '#ff9f5a' } };
+const TASKS = [
+  { id: 'o1', t: '치과 예약 전화하기', cat: 'home', end: at(11, 12, 18, 0) },
+  // Periods over several days (the band): one over every shown day, one from the first row into
+  // the second, one only in the second.
+  { id: 'p1', t: '이사 준비', cat: 'home', start: day0(10, 26), end: at(11, 20) },
+  { id: 'p2', t: '학회 참석', cat: 'study', start: day0(11, 14), end: at(11, 17) },
+  { id: 'p3', t: '주간 스프린트', cat: 'work', start: at(11, 16, 9, 0), end: at(11, 20, 18, 0) },
+  { id: 'p4', t: '제주 여행', cat: 'home', start: day0(11, 21), end: at(11, 24) },
+  // 11/13 (today)
+  { id: 'a1', t: '팀 워크숍', cat: 'work', start: at(11, 13, 14, 0), end: at(11, 13, 17, 0) },
+  { id: 'a2', t: '장보기 · 우유, 달걀', cat: 'home', end: at(11, 13, 20, 0) },
+  { id: 'a3', t: '영어 단어 30개', cat: 'study', end: at(11, 13, 22, 0) },
+  { id: 'a4', t: '세금 납부', cat: 'home', end: at(11, 13) },
+  { id: 'a0', t: '아침 스트레칭', cat: 'gym', end: at(11, 13, 8, 0), done: true },
+  // 11/14
+  { id: 'b1', t: '대청소', cat: 'home', end: at(11, 14, 15, 0) },
+  { id: 'b2', t: '부모님 댁 저녁', cat: 'home', end: at(11, 14, 18, 0), imp: true },
+  // 11/15
+  { id: 'c1', t: '주간 계획 세우기', cat: 'work', end: at(11, 15, 21, 0) },
+  // 11/16: a busy Monday, its cell scrolls.
+  { id: 'd1', t: '주간 회의', cat: 'work', end: at(11, 16, 9, 30) },
+  { id: 'd2', t: '보고서 초안 공유', cat: 'work', end: at(11, 16, 10, 30), imp: true },
+  { id: 'd3', t: '고객사 메일 회신', cat: 'work', end: at(11, 16, 11, 0) },
+  { id: 'd4', t: '점심 약속 · 민지', cat: 'home', end: at(11, 16, 12, 30) },
+  { id: 'd5', t: '디자인 리뷰', cat: 'work', start: at(11, 16, 14, 0), end: at(11, 16, 15, 0) },
+  { id: 'd6', t: '예산안 검토', cat: 'work', end: at(11, 16, 16, 0) },
+  { id: 'd7', t: '1:1 미팅', cat: 'work', end: at(11, 16, 17, 0) },
+  { id: 'd8', t: '헬스 PT', cat: 'gym', end: at(11, 16, 19, 0) },
+  { id: 'd9', t: '독서 30분', cat: 'study', end: at(11, 16, 21, 0) },
+  { id: 'd10', t: '택배 반품 접수', cat: 'home', end: at(11, 16) },
+  // 11/17
+  { id: 'e1', t: '치과 진료', cat: 'home', end: at(11, 17, 15, 30) },
+  { id: 'e2', t: '도서관 책 반납', cat: 'study', end: at(11, 17, 18, 0) },
+  // 11/18
+  { id: 'f1', t: '발표 리허설', cat: 'work', start: at(11, 18, 10, 0), end: at(11, 18, 11, 30) },
+  { id: 'f2', t: '헬스장 3개월 등록', cat: 'gym', end: at(11, 18, 19, 0) },
+  // later
+  { id: 'g1', t: '분리수거', cat: 'home', end: at(11, 19, 20, 0) },
+  { id: 'g2', t: '월간 결산', cat: 'work', end: at(11, 20, 17, 0) },
+];
+const isPeriod = t => t.start != null;
+const multiDay = t => isPeriod(t) && dayDiff(t.end, t.start) >= 1;
+
+// ---------- State ----------
+// Defaults = the recommended candidates. winH: the window's height (1440 × 960 like the app).
+const s = { rows: 'auto', rule: 'cell', band: 'row', step: 'shown', first: TODAY, sel: null, winH: 960, paneH: 0, showNew: false };
+const ROW_MIN = 260; // 칸 높이 기준: a row of days at least this tall (head, band and about three rows)
+const COLS = 3; // timelineColumns(847): the pane next to the panel in a 1440 window
+
+// Rows of days: item 1 (how many) and item 2 (when two).
+function rowCount() {
+  if (s.rows === 'one') return 1;
+  if (s.rows === 'two') return 2;
+  if (s.rule === 'none') return 1;
+  if (s.rule === 'win') return s.winH >= 900 ? 2 : 1;
+  const rowH = (s.paneH - 16) / 2;
+  if (s.rule === 'cell') return rowH >= ROW_MIN ? 2 : 1;
+  const colW = (847 - 80 - 12 * (COLS - 1)) / COLS; // 'square': a cell as tall as it is wide
+  return rowH >= colW ? 2 : 1;
+}
+const stepDays = () => s.step === 'one' ? 1 : s.step === 'row' ? COLS : COLS * rowCount();
+
+// ---------- Main window ----------
+const topBar = () => `<div class="top"><div class="brand"><img src="${ICON}" alt=""><span class="ver">Thread 2.6.1</span></div>
+  <div class="search">${I.search}<span class="ph">할 일, 메모, 카테고리 검색…</span><kbd>Ctrl K</kbd></div>
+  <div class="wc"><span>${I.min}</span><span>${I.max}</span><span>${I.x10}</span></div></div>`;
+function sidebar() {
+  const open = TASKS.filter(t => !t.done), today = open.filter(t => dayDiff(t.end, NOW) <= 0 || (isPeriod(t) && ds(t.start) <= TODAY && t.end >= NOW));
+  const rows = [['모든 할 일', I.all, open.length], ['오늘', I.sun, today.length, 'due'], ['다음 7일', I.week, open.filter(t => dayDiff(t.end, NOW) < 7).length], ['중요', I.star(false), open.filter(t => t.imp).length]];
+  return `<aside class="side"><div class="side-clock"><span class="cd">2026년 11월 13일 금요일</span><b>오후 1:20<small>:00</small></b></div>
+    <div class="side-scroll">${rows.map(([l, ic, n, due], i) => `<div class="side-row ${i === 0 ? 'on' : ''}"><span class="ic">${ic}</span><span class="lbl">${l}</span><span class="n ${due ? 'due' : ''}">${n}</span></div>`).join('')}
+      <div class="grp">카테고리</div>${Object.entries(CATS).map(([id, c]) => `<div class="side-row"><span class="ic"><span class="dot" style="background:${c.color}"></span></span><span class="lbl">${c.title}</span><span class="n">${open.filter(t => t.cat === id).length}</span></div>`).join('')}</div>
+    <div class="foot"><span class="av">김</span><span class="who"><b>김하늘</b><small>haneul@example.com</small></span><span style="color:var(--muted)">${I.gear}</span></div></aside>`;
+}
+function rangeTitle(a, b) {
+  const x = new Date(a), y = new Date(b);
+  return `${x.getMonth() + 1}월 ${x.getDate()}일 – ${x.getMonth() === y.getMonth() ? '' : `${y.getMonth() + 1}월 `}${y.getDate()}일`;
+}
+const blend = (hex, a = .26, base = [26, 30, 37]) => { const n = parseInt(hex.slice(1), 16), c = [n >> 16, n >> 8 & 255, n & 255]; return `rgb(${c.map((v, i) => Math.round(v * a + base[i] * (1 - a))).join(',')})`; };
+const barStyle = t => `background:${blend(CATS[t.cat].color)};box-shadow:inset 3px 0 0 ${CATS[t.cat].color}`;
+// Lanes of the periods over several days among `n` days from `first` (viewParts periodLanes).
+function lanes(first, n) {
+  const last = addDays(first, n - 1);
+  const list = TASKS.filter(t => multiDay(t) && ds(t.start) <= last && ds(t.end) >= first)
+    .sort((x, y) => ds(x.start) - ds(y.start) || (y.end - y.start) - (x.end - x.start));
+  const laneEnd = [], segs = [];
+  for (const t of list) {
+    const a = Math.max(0, dayDiff(t.start, first)), b = Math.min(n - 1, dayDiff(t.end, first));
+    let lane = laneEnd.findIndex(e => e < a); if (lane < 0) { lane = laneEnd.length; laneEnd.push(b); } else laneEnd[lane] = b;
+    segs.push({ t, a, b, lane });
+  }
+  return { segs, n: laneEnd.length, first, last };
+}
+const rangeTxt = t => `~${md(t.end)}${hasT(t.end) ? ' ' + clockS(t.end) : ''}`;
+function bandHtml(L, col) {
+  if (!L.n) return '';
+  return `<div class="tv-band ${s.rows !== 'one' ? 'is-new' : ''}" style="height:${L.n * 24}px">${L.segs.filter(g => g.a <= col && col <= g.b).map(g => {
+    const t = g.t, contL = col > g.a || ds(t.start) < L.first, contR = col < g.b || ds(t.end) > L.last;
+    return `<div class="tv-seg ${contL ? 'cl' : ''} ${contR ? 'cr' : ''} ${col < g.b ? 'br' : ''}" style="top:${g.lane * 24}px;${barStyle(t)}" data-act="sel" data-tid="${t.id}" data-tip="${esc(t.t)} · ${md(t.start)} ~ ${md(t.end)}">${col === g.a ? `${contL ? '<span class="gl">◂</span>' : ''}<b>${esc(t.t)}</b><span class="rng">${rangeTxt(t)}</span>` : ''}</div>`;
+  }).join('')}</div>`;
+}
+// One band for every shown day, above the rows: the days laid out in one line.
+function topBandHtml(first, n) {
+  const L = lanes(first, n);
+  const ticks = Array.from({ length: n }, (_, i) => { const d = addDays(first, i); return `<span class="${d === TODAY ? 'today' : ''}">${new Date(d).getDate()} ${WD[new Date(d).getDay()]}</span>`; }).join('');
+  return `<div class="tv-topband is-new"><div class="ticks">${ticks}</div><div class="lanes" style="height:${Math.max(1, L.n) * 24}px">${L.segs.map(g => {
+    const t = g.t, contL = ds(t.start) < L.first, contR = ds(t.end) > L.last;
+    return `<div class="tv-seg ${contL ? 'cl' : ''} ${contR ? 'cr' : ''}" style="top:${g.lane * 24}px;left:${g.a / n * 100}%;width:${(g.b - g.a + 1) / n * 100}%;${barStyle(t)}" data-act="sel" data-tid="${t.id}" data-tip="${esc(t.t)} · ${md(t.start)} ~ ${md(t.end)}">${contL ? '<span class="gl">◂</span>' : ''}<b>${esc(t.t)}</b><span class="rng">${rangeTxt(t)}</span></div>`;
+  }).join('')}</div></div>`;
+}
+function row(t, blk) {
+  const c = CATS[t.cat], over = !t.done && t.end < NOW;
+  let time = '';
+  if (blk) { const a = clockL(t.start), b = clockL(t.end); time = `<span class="span">${a} ~ ${a.slice(0, 2) === b.slice(0, 2) ? b.slice(3) : b} · ${Math.round((t.end - t.start) / 6e4 / 60 * 10) / 10}시간</span>`; }
+  else if (hasT(t.end) && new Date(t.end).getMinutes()) time = `<span class="${over ? 'over' : ''}">${clockL(t.end)}</span>`;
+  return `<div class="task-row ${blk ? 'blk' : ''} ${t.done ? 'done' : ''} ${s.sel === t.id ? 'sel' : ''}" style="--c:${c.color}" data-act="sel" data-tid="${t.id}"><button class="ck ${t.done ? 'done' : ''}" data-act="ck" data-tid="${t.id}">${I.check}</button>
+    <div class="tx"><div class="t">${esc(t.t)}</div><div class="meta"><span><span class="dot" style="background:${c.color}"></span><b>${c.title}</b></span>${time}</div></div>${t.imp ? `<span class="st">${I.star(true, 17)}</span>` : ''}</div>`;
+}
+function dayCell(day, L, col, r) {
+  const date = new Date(day), isToday = day === TODAY;
+  const items = TASKS.filter(t => !multiDay(t) && ds(t.end) === day);
+  const blk = t => isPeriod(t);
+  const key = t => blk(t) ? t.start : t.end;
+  const hour = t => blk(t) ? new Date(t.start).getHours() : hasT(t.end) ? new Date(t.end).getHours() : 24;
+  const groups = [];
+  for (const t of [...items].sort((a, b) => key(a) - key(b))) { const h = hour(t), g = groups[groups.length - 1]; if (g && g.h === h && !blk(t) && !g.blk) g.ts.push(t); else groups.push({ h, ts: [t], blk: blk(t) }); }
+  let body = '', nowDrawn = !isToday;
+  const nowH = new Date(NOW).getHours(), nowLine = `<div class="tv-now">지금 ${clockS(NOW)}</div>`;
+  for (const g of groups) {
+    if (!nowDrawn && g.h > nowH) { body += nowLine; nowDrawn = true; }
+    const label = g.h === 24 ? '하루 끝' : g.blk ? (() => { const a = clockS(g.ts[0].start), b = clockS(g.ts[0].end); return `${a} ~ ${a.slice(0, 2) === b.slice(0, 2) ? b.slice(3) : b}`; })() : clockS(new Date(2026, 0, 1, g.h).getTime());
+    body += `<div class="tv-group"><div class="tv-hour ${g.blk ? 'blkh' : ''}">${label}</div><div class="tv-box">${g.ts.map(t => row(t, g.blk)).join('')}</div></div>`;
+  }
+  if (!nowDrawn) body += nowLine;
+  if (!items.length) body += '<div class="tv-empty">할 일 없음</div>';
+  return `<section class="tv-col ${isToday ? 'today' : ''} ${r ? 'r2 is-new' : ''}" style="grid-row:${r + 1};grid-column:${col + 1}"><div class="tv-head"><b>${date.getDate()}</b><span>${WD[date.getDay()]}요일</span>${isToday ? '<em>오늘</em>' : ''}<span class="cnt">${items.filter(t => !t.done).length}</span></div>
+    ${L ? bandHtml(L, col) : ''}<div class="tv-body">${body}</div><i class="tv-fade"></i></section>`;
+}
+function timeline() {
+  const R = rowCount(), n = COLS * R, first = s.first, last = addDays(first, n - 1);
+  let openN = 0, overN = 0;
+  for (const t of TASKS) { if (t.done) continue; if (t.end < NOW) overN++; if (t.end >= first && t.end < addDays(last, 1)) openN++; }
+  const step = stepDays();
+  const stepName = step === 1 ? '하루' : `${step}일`;
+  let cells = '';
+  for (let r = 0; r < R; r++) {
+    const rowFirst = addDays(first, r * COLS);
+    // Bands: each row its own (row), only one row = as today; none in two rows for 기능 없음.
+    const L = R === 1 || s.band === 'row' ? lanes(rowFirst, COLS) : null;
+    for (let c = 0; c < COLS; c++) cells += dayCell(addDays(rowFirst, c), L, c, r);
+  }
+  return `<div class="tc">
+    <div class="tc-head"><div class="tc-row1"><span class="tc-jump" data-tip="날짜로 가기">${rangeTitle(first, last)}<span class="c">${I.chev}</span></span>
+      <span class="tc-nav"><span class="tc-ghost" data-act="nav" data-d="-1" data-tip="${stepName} 전 · Shift 한 주 전">${I.prev}</span><span class="tc-ghost txt" data-act="nav" data-d="0">오늘</span><span class="tc-ghost" data-act="nav" data-d="1" data-tip="${stepName} 뒤 · Shift 한 주 뒤">${I.next}</span></span>
+      <span class="tc-push"></span><div class="tc-seg"><span data-tip="목록">${I.vList}</span><span data-tip="캘린더">${I.vCal}</span><span class="on" data-tip="타임라인">${I.vTime}</span></div><span class="tc-ghost" data-tip="보기 옵션">${I.sliders}</span></div>
+      <p class="tc-finding">${n}일 · ${openN ? `남은 할 일 ${openN}개` : '남은 할 일이 없어요'}${overN ? ` · <b>기한 지난 할 일 ${overN}개</b>는 목록에서 볼 수 있어요` : ''}</p></div>
+    <div class="tv-cols">${R === 2 && s.band === 'top' ? topBandHtml(first, n) : ''}<div class="tv-grid" style="grid-template-columns:repeat(${COLS}, minmax(0, 1fr));grid-template-rows:repeat(${R}, minmax(0, 1fr))">${cells}</div></div>
+    <div class="tc-quick"><div class="qa-in"><span class="qa-plus">${I.plus()}</span><input placeholder="할 일 추가" spellcheck="false" autocomplete="off"><kbd>Ctrl N</kbd></div>
+      <div class="qa-chips"><span class="qa-chip on">${I.cal}<span>${mdK(first)}</span></span><span class="qa-chip">${I.repeat}<span>반복</span></span><span class="qa-chip"><span class="qa-dot" style="background:var(--muted)"></span><span>카테고리</span></span><span class="qa-chip">${I.star(false, 13)}<span>중요</span></span></div></div>
+  </div>`;
+}
+function panel() {
+  const t = s.sel && TASKS.find(x => x.id === s.sel);
+  let body;
+  if (t) {
+    const c = CATS[t.cat];
+    const rows = isPeriod(t) ? `<div class="rp-prop"><span class="k">시작</span><span class="v">${mdK(t.start)} ${hasT(t.start) && new Date(t.start).getHours() ? clockL(t.start) : '· 하루 시작'}</span></div><div class="rp-prop"><span class="k">끝</span><span class="v">${mdK(t.end)} ${hasT(t.end) ? clockL(t.end) : '· 하루 끝'}</span></div>`
+      : `<div class="rp-prop"><span class="k">기한</span><span class="v">${mdK(t.end)} ${hasT(t.end) ? clockL(t.end) : '· 하루 끝'}</span></div>`;
+    body = `<div class="rp-dt-title"><button class="ck ${t.done ? 'done' : ''}">${I.check}</button><div class="rp-title">${esc(t.t)}</div></div>
+      <div class="rp-box">${rows}<div class="rp-prop"><span class="k">반복</span><span class="v"><span class="sub">안 함</span></span></div><div class="rp-prop"><span class="k">카테고리</span><span class="v"><span class="dot" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${c.color}"></span> ${c.title}</span></div></div>`;
+  } else {
+    // 캘린더 tab: the month with the shown days tinted, then the picked day.
+    const n = COLS * rowCount(), last = addDays(s.first, n - 1);
+    const gs = addDays(day0(11, 1), -new Date(2026, 10, 1).getDay());
+    let cells = [...WD].map((w, i) => `<span class="tp-mm-w ${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}">${w}</span>`).join('');
+    for (let i = 0; i < 35; i++) {
+      const d = addDays(gs, i), dt = new Date(d);
+      const has = TASKS.some(t => !t.done && ds(t.end) === d);
+      cells += `<span class="tp-mm-c ${dt.getMonth() !== 10 ? 'out' : ''} ${dt.getDay() === 0 ? 'sun' : dt.getDay() === 6 ? 'sat' : ''} ${d === TODAY ? 'today' : ''} ${d >= s.first && d <= last ? 'shown' : ''}"><b>${dt.getDate()}</b>${has ? '<i></i>' : ''}</span>`;
+    }
+    const list = TASKS.filter(t => ds(t.end) === s.first || (multiDay(t) && ds(t.start) <= s.first && s.first <= ds(t.end))).sort((a, b) => a.end - b.end);
+    body = `<div class="rp-box"><div class="tp-mm"><div class="tp-mm-h">2026년 11월</div><div class="tp-mm-g">${cells}</div></div></div>
+      <div class="rp-block-h">${mdK(s.first)} (${WD[new Date(s.first).getDay()]})${s.first === TODAY ? ' · 오늘' : ''}<span>${list.filter(t => !t.done).length}개 남음</span></div>
+      <div class="rp-box">${list.map(t => `<div class="rp-ai" data-act="sel" data-tid="${t.id}"><span class="rp-tm ${ds(t.end) !== s.first ? 'span' : ''}">${ds(t.end) !== s.first ? '~' + md(t.end) : hasT(t.end) ? clockS(t.end) : '하루 끝'}</span><span class="dot" style="background:${CATS[t.cat].color}"></span><span class="rp-nm">${esc(t.t)}</span></div>`).join('')}</div>`;
+  }
+  return `<div class="home-panel"><div class="rp-tabs"><span class="rp-tab ${t ? 'on' : 'off'}">할 일 상세</span><span class="rp-tab ${t ? '' : 'on'}" data-act="unsel">캘린더</span>${t ? `<span class="rp-x" data-act="unsel" data-tip="상세 닫기">${I.close(18)}</span>` : ''}</div><div class="rp-body">${body}</div></div>`;
+}
+const mainWin = () => `<div class="win" style="height:${s.winH}px">${topBar()}<div class="body">${sidebar()}${timeline()}<div class="splitter"></div>${panel()}</div></div>
+  <div class="win-grip" data-grip title="끌어서 창 높이 바꾸기"><i></i><span>창 높이 ${s.winH}px · 끌어서 바꾸기</span></div>`;
+
+// ---------- Notes ----------
+const OPTS = [
+  { at: '.tv-grid', key: 'rows', title: '줄 수', show: () => {},
+    items: [['one', '한 줄', '지금처럼 날짜 칸 한 줄', 'old'],
+      ['auto', '높이가 충분하면 두 줄', '창이 높으면 아래에 다음 날들을 한 줄 더', 'rec'],
+      ['two', '항상 두 줄', '창이 낮아도 두 줄. 칸이 작으면 안에서 스크롤']] },
+  { at: '.win-grip', key: 'rule', title: '두 줄로 바뀌는 기준 (아래 손잡이로 창 높이를 바꿔 보기)', show: () => { if (s.rows !== 'auto') s.rows = 'auto'; },
+    items: [['none', '기능 없음', '바뀌지 않고 한 줄 그대로', 'old'],
+      ['cell', `칸 높이 ${ROW_MIN}px 이상`, `두 줄로 나눠도 줄마다 ${ROW_MIN}px(할 일 3개쯤) 넘게 나올 때`, 'rec'],
+      ['win', '창 높이 900px 이상', '창 높이만 봄. 패널 · 추가 칸 크기와 상관없음'],
+      ['square', '칸이 정사각형 넘게 길 때', '줄마다 칸 높이가 칸 너비보다 클 때. 창이 넓어 칸이 넓으면 더 높아야 함']] },
+  { at: '.tv-band, .tv-topband, .tv-head', key: 'band', title: '두 줄일 때 여러 날 기간 띠', show: () => { if (s.rows === 'one') s.rows = 'auto'; },
+    items: [['none', '기능 없음', '두 줄일 때는 띠를 그리지 않음', 'old'],
+      ['row', '줄마다 그 줄 날짜에 맞춰', '줄 끝에서 끊기고 다음 줄 첫 칸에서 ◂로 이어짐', 'rec'],
+      ['top', '맨 위에 한 번만', '보이는 날 전부를 한 줄로 펼친 띠를 두 줄 위에']] },
+  { at: '.tc-nav, .tc-finding', key: 'step', title: '‹ › 한 번에 옮기는 날 수', show: () => {},
+    items: [['one', '하루씩', '지금처럼 하루', 'old'],
+      ['shown', '보이는 날 수만큼', '두 줄이면 6일, 한 줄이면 3일. 다음 화면이 겹치지 않음', 'rec'],
+      ['row', '한 줄(3일)씩', '아래 줄이 위로 올라오고 새 줄이 아래에']] },
+];
+const comments = {};
+function notes() {
+  return `<aside class="notes">
+    <div class="n-top"><button class="n-copy" data-ncopy>결과 복사</button><p class="hint"><kbd>Shift</kbd>+마우스로 파란 점선의 후보 보기</p></div>
+    <div class="n-scroll">${OPTS.map((o, i) => `<section class="n-item"><h4>${i + 1}. ${o.title}</h4>${o.items.map(([v, nm, dsc, tag]) =>
+      `<div class="n-row ${s[o.key] === v ? 'on' : ''}" role="button" tabindex="0" data-no="${i}" data-v="${v}"><span class="n-nm">${nm}${tag === 'old' ? '<span class="badge old">기존</span>' : tag === 'rec' ? '<span class="badge rec">추천</span>' : ''}</span><span class="n-ds">${dsc}</span>${s[o.key] === v ? `<textarea class="n-cm" rows="1" data-cm="${i}:${v}" data-fk="cm:${i}:${v}" placeholder="추가 의견 (선택)" spellcheck="false">${esc(comments[i + ':' + v] || '')}</textarea>` : ''}</div>`).join('')}</section>`).join('')}</div>
+    <label class="n-new"><input type="checkbox" data-nnew ${s.showNew ? 'checked' : ''}>새로 생기는 부분 표시</label>
+  </aside>`;
+}
+const grow = el => { const box = el.closest('.n-scroll'), top = box ? box.scrollTop : 0; el.style.height = 'auto'; el.style.height = el.scrollHeight + (el.offsetHeight - el.clientHeight) + 'px'; if (box) box.scrollTop = top; };
+
+// ---------- Render ----------
+// The window keeps the app's 1440 × 960 unless the browser is shorter (or the grip moves it).
+const maxWinH = () => Math.max(600, innerHeight - 32 - 22);
+function render() {
+  const a = document.activeElement, fk = a && a.dataset && a.dataset.fk ? [a.dataset.fk, a.selectionStart, a.selectionEnd] : null;
+  const keep = ['.n-scroll'].map(q => [q, document.querySelector(q)?.scrollTop ?? 0]);
+  const bodies = [...document.querySelectorAll('.tv-body')].map(b => b.scrollTop);
+  const sameDays = render.lastKey === `${s.first}:${rowCount()}`;
+  s.winH = Math.min(s.winH, maxWinH());
+  document.getElementById('stage').innerHTML = `<div class="pieces">${mainWin()}</div>${notes()}`;
+  for (const [q, v] of keep) { const el = document.querySelector(q); if (el) el.scrollTop = v; }
+  document.querySelectorAll('.n-cm').forEach(grow);
+  // The pane height decides the rows; draw again when it changes them.
+  const pane = document.querySelector('.tv-cols');
+  const before = rowCount();
+  s.paneH = pane ? pane.getBoundingClientRect().height - 16 : 0;
+  if (rowCount() !== before) return render();
+  // Columns keep their scroll; a new set of days starts today's at the 지금 line (as the app).
+  document.querySelectorAll('.tv-body').forEach((b, i) => {
+    if (sameDays && bodies[i] != null) b.scrollTop = bodies[i];
+    else { const line = b.querySelector('.tv-now'); if (line && b.closest('.today')) b.scrollTop = Math.max(0, line.offsetTop - 48); }
+    const fade = () => b.closest('.tv-col').classList.toggle('more', b.scrollTop + b.clientHeight < b.scrollHeight - 2);
+    fade(); b.addEventListener('scroll', fade);
+  });
+  render.lastKey = `${s.first}:${rowCount()}`;
+  document.body.classList.toggle('show-new', s.showNew);
+  markHot();
+  if (fk) { const el = document.querySelector(`[data-fk="${fk[0]}"]`); if (el) { el.focus({ preventScroll: true }); try { el.setSelectionRange(fk[1], fk[2]); } catch (e) {} } }
+}
+
+// ---------- Events ----------
+document.addEventListener('click', e => {
+  if (e.target.closest('.opt-pop') || document.body.classList.contains('shift-on')) return;
+  const a = e.target.closest('.win [data-act]');
+  if (!a) return;
+  const k = a.dataset.act;
+  if (k === 'nav') { const d = +a.dataset.d; s.first = d === 0 ? TODAY : addDays(s.first, d * (e.shiftKey ? 7 : stepDays())); }
+  else if (k === 'sel') s.sel = a.dataset.tid;
+  else if (k === 'unsel') s.sel = null;
+  else if (k === 'ck') { e.stopPropagation(); const t = TASKS.find(x => x.id === a.dataset.tid); t.done = !t.done; }
+  render();
+});
+// The grip under the window changes its height (600 to what the browser has).
+document.addEventListener('pointerdown', e => {
+  const g = e.target.closest('[data-grip]'); if (!g) return;
+  e.preventDefault();
+  const y0 = e.clientY, h0 = s.winH;
+  document.body.classList.add('resizing');
+  const move = ev => { const h = Math.round(Math.max(600, Math.min(maxWinH(), h0 + ev.clientY - y0))); if (h !== s.winH) { s.winH = h; render(); } };
+  const up = () => { document.body.classList.remove('resizing'); removeEventListener('pointermove', move); removeEventListener('pointerup', up); };
+  addEventListener('pointermove', move); addEventListener('pointerup', up);
+});
+addEventListener('resize', () => { s.winH = Math.min(960, maxWinH()); render(); });
+
+// App tooltips ([data-tip]).
+const tipEl = document.getElementById('tip');
+let tipTimer = 0, tipAt = null;
+const hideTip = () => { clearTimeout(tipTimer); tipEl.classList.remove('on'); tipAt = null; };
+document.addEventListener('mouseover', e => {
+  const el = e.target.closest('.win [data-tip]');
+  if (el === tipAt) return;
+  hideTip();
+  if (!el || document.body.classList.contains('shift-on')) return;
+  tipAt = el;
+  tipTimer = setTimeout(() => {
+    if (!el.isConnected) return;
+    tipEl.textContent = el.dataset.tip; tipEl.classList.add('on');
+    const r = el.getBoundingClientRect(), w = tipEl.offsetWidth;
+    tipEl.style.left = Math.max(4, Math.min(innerWidth - w - 4, r.left + r.width / 2 - w / 2)) + 'px';
+    tipEl.style.top = (r.bottom + 6) + 'px';
+  }, 350);
+});
+
+// ---------- Shift + hover pickers and the notes ----------
+const choose = (o, v) => { s[o.key] = v; o.show(); render(); };
+let shiftOn = false;
+function markHot() {
+  document.querySelectorAll('.pieces .hot').forEach(el => el.classList.remove('hot'));
+  document.querySelectorAll('.pieces [data-opts]').forEach(el => delete el.dataset.opts);
+  OPTS.forEach((o, i) => document.querySelectorAll(o.at).forEach(el => { if (!el.dataset.opts && el.closest('.pieces')) el.dataset.opts = i; }));
+  if (!shiftOn) return;
+  document.querySelectorAll('.win *').forEach(el => {
+    if (el.dataset.opts) return;
+    const cs = getComputedStyle(el);
+    if (el.matches('input, button') || cs.cursor === 'pointer' && getComputedStyle(el.parentElement).cursor !== 'pointer') el.classList.add('hot');
+  });
+}
+// Shift + hover opens the candidates where the mouse is; it stays open when the mouse moves onto
+// it or Shift is released; a click elsewhere, Esc or another area closes it.
+const optPop = document.getElementById('optpop');
+let optAt = null;
+const hideOpt = () => { optPop.classList.remove('on'); optAt = null; };
+function showOpt(el, x, y) {
+  const i = +el.dataset.opts, o = OPTS[i]; optAt = el;
+  optPop.innerHTML = '<b>' + o.title + '</b>' + o.items.map(([v, nm, , tag]) => '<button class="' + (s[o.key] === v ? 'on' : '') + '" data-v="' + v + '">' + nm + (tag === 'old' ? '<span class="badge old">기존</span>' : tag === 'rec' ? '<span class="badge rec">추천</span>' : '') + '</button>').join('');
+  optPop.dataset.o = i; optPop.classList.add('on');
+  const w = optPop.offsetWidth, h = optPop.offsetHeight;
+  optPop.style.left = Math.max(8, Math.min(innerWidth - w - 8, x - 12)) + 'px';
+  optPop.style.top = Math.max(8, Math.min(innerHeight - h - 8, y - 12)) + 'px';
+}
+(() => {
+  const setShift = on => { if (shiftOn === on) return; shiftOn = on; document.body.classList.toggle('shift-on', on); if (on) hideTip(); markHot(); };
+  document.addEventListener('keydown', e => { if (e.key === 'Shift') setShift(true); if (e.key === 'Escape') hideOpt(); });
+  document.addEventListener('keyup', e => { if (e.key === 'Shift') setShift(false); });
+  window.addEventListener('blur', () => setShift(false));
+  document.addEventListener('mousemove', e => {
+    if (!e.shiftKey || optPop.contains(e.target) || document.body.classList.contains('resizing')) return;
+    if (!shiftOn) setShift(true);
+    const el = e.target.closest('.pieces [data-opts]');
+    if (el && el !== optAt) showOpt(el, e.clientX, e.clientY);
+  });
+  document.addEventListener('pointerdown', e => { if (optAt && !optPop.contains(e.target)) hideOpt(); }, true);
+  optPop.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    e.stopPropagation();
+    const i = +optPop.dataset.o, x = parseFloat(optPop.style.left) + 12, y = parseFloat(optPop.style.top) + 12;
+    choose(OPTS[i], b.dataset.v);
+    const el = document.querySelector('.pieces [data-opts="' + i + '"]');
+    if (el) showOpt(el, x, y); else hideOpt();
+  });
+})();
+document.addEventListener('input', e => { if (e.target.matches('.n-cm')) { comments[e.target.dataset.cm] = e.target.value; grow(e.target); } });
+document.addEventListener('click', e => {
+  if (e.target.closest('.n-cm')) return;
+  const row = e.target.closest('.n-row');
+  if (!row) return;
+  const o = OPTS[+row.dataset.no];
+  if (row.classList.contains('on')) { o.show(); render(); } else choose(o, row.dataset.v);
+  const f = document.querySelector(`.n-cm[data-cm="${row.dataset.no}:${row.dataset.v}"]`);
+  if (f) { f.focus({ preventScroll: true }); f.setSelectionRange(f.value.length, f.value.length); }
+});
+function resultText() {
+  return 'PC 2.6.1 타임라인 시안 선택\n' + OPTS.map((o, i) => { const it = o.items.find(([v]) => v === s[o.key]); const c = (comments[i + ':' + it[0]] || '').trim(); return `${i + 1}. ${o.title.replace(/ \(.*\)$/, '')}: ${it[1]}${c ? ` (의견: ${c})` : ''}`; }).join('\n');
+}
+document.addEventListener('click', e => {
+  const copy = e.target.closest('[data-ncopy]');
+  if (!copy) return;
+  const text = resultText();
+  const done = () => { copy.textContent = '복사됨'; copy.classList.add('done'); setTimeout(() => { copy.textContent = '결과 복사'; copy.classList.remove('done'); }, 1400); };
+  const fallback = () => { const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); done(); };
+  if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
+});
+document.addEventListener('change', e => { if (e.target.matches('[data-nnew]')) { s.showNew = e.target.checked; render(); } });
+render();
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => render());
+</script>
+</body>
+</html>
