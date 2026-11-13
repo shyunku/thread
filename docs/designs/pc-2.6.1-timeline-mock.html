@@ -336,22 +336,12 @@ const multiDay = t => isPeriod(t) && dayDiff(t.end, t.start) >= 1;
 
 // ---------- State ----------
 // Defaults = the recommended candidates. winH: the window's height (1440 × 960 like the app).
-const s = { rows: 'auto', rule: 'cell', band: 'row', step: 'shown', first: TODAY, sel: null, winH: 960, paneH: 0, showNew: false };
-const ROW_MIN = 260; // 칸 높이 기준: a row of days at least this tall (head, band and about three rows)
+const s = { first: TODAY, sel: null, winH: 960, paneH: 0, showNew: false };
 const COLS = 3; // timelineColumns(847): the pane next to the panel in a 1440 window
 
-// Rows of days: item 1 (how many) and item 2 (when two).
-function rowCount() {
-  if (s.rows === 'one') return 1;
-  if (s.rows === 'two') return 2;
-  if (s.rule === 'none') return 1;
-  if (s.rule === 'win') return s.winH >= 900 ? 2 : 1;
-  const rowH = (s.paneH - 16) / 2;
-  if (s.rule === 'cell') return rowH >= ROW_MIN ? 2 : 1;
-  const colW = (847 - 80 - 12 * (COLS - 1)) / COLS; // 'square': a cell as tall as it is wide
-  return rowH >= colW ? 2 : 1;
-}
-const stepDays = () => s.step === 'one' ? 1 : s.step === 'row' ? COLS : COLS * rowCount();
+// Two rows of days when the window is 900px or taller; ‹ › move one row (3 days).
+const rowCount = () => s.winH >= 900 ? 2 : 1;
+const stepDays = () => COLS;
 
 // ---------- Main window ----------
 const topBar = () => `<div class="top"><div class="brand"><img src="${ICON}" alt=""><span class="ver">Thread 2.6.1</span></div>
@@ -387,19 +377,10 @@ function lanes(first, n) {
 const rangeTxt = t => `~${md(t.end)}${hasT(t.end) ? ' ' + clockS(t.end) : ''}`;
 function bandHtml(L, col) {
   if (!L.n) return '';
-  return `<div class="tv-band ${s.rows !== 'one' ? 'is-new' : ''}" style="height:${L.n * 24}px">${L.segs.filter(g => g.a <= col && col <= g.b).map(g => {
+  return `<div class="tv-band" style="height:${L.n * 24}px">${L.segs.filter(g => g.a <= col && col <= g.b).map(g => {
     const t = g.t, contL = col > g.a || ds(t.start) < L.first, contR = col < g.b || ds(t.end) > L.last;
     return `<div class="tv-seg ${contL ? 'cl' : ''} ${contR ? 'cr' : ''} ${col < g.b ? 'br' : ''}" style="top:${g.lane * 24}px;${barStyle(t)}" data-act="sel" data-tid="${t.id}" data-tip="${esc(t.t)} · ${md(t.start)} ~ ${md(t.end)}">${col === g.a ? `${contL ? '<span class="gl">◂</span>' : ''}<b>${esc(t.t)}</b><span class="rng">${rangeTxt(t)}</span>` : ''}</div>`;
   }).join('')}</div>`;
-}
-// One band for every shown day, above the rows: the days laid out in one line.
-function topBandHtml(first, n) {
-  const L = lanes(first, n);
-  const ticks = Array.from({ length: n }, (_, i) => { const d = addDays(first, i); return `<span class="${d === TODAY ? 'today' : ''}">${new Date(d).getDate()} ${WD[new Date(d).getDay()]}</span>`; }).join('');
-  return `<div class="tv-topband is-new"><div class="ticks">${ticks}</div><div class="lanes" style="height:${Math.max(1, L.n) * 24}px">${L.segs.map(g => {
-    const t = g.t, contL = ds(t.start) < L.first, contR = ds(t.end) > L.last;
-    return `<div class="tv-seg ${contL ? 'cl' : ''} ${contR ? 'cr' : ''}" style="top:${g.lane * 24}px;left:${g.a / n * 100}%;width:${(g.b - g.a + 1) / n * 100}%;${barStyle(t)}" data-act="sel" data-tid="${t.id}" data-tip="${esc(t.t)} · ${md(t.start)} ~ ${md(t.end)}">${contL ? '<span class="gl">◂</span>' : ''}<b>${esc(t.t)}</b><span class="rng">${rangeTxt(t)}</span></div>`;
-  }).join('')}</div></div>`;
 }
 function row(t, blk) {
   const c = CATS[t.cat], over = !t.done && t.end < NOW;
@@ -438,8 +419,8 @@ function timeline() {
   let cells = '';
   for (let r = 0; r < R; r++) {
     const rowFirst = addDays(first, r * COLS);
-    // Bands: each row its own (row), only one row = as today; none in two rows for 기능 없음.
-    const L = R === 1 || s.band === 'row' ? lanes(rowFirst, COLS) : null;
+    // Each row has its own band for its days; a period over both rows goes on with ◂.
+    const L = lanes(rowFirst, COLS);
     for (let c = 0; c < COLS; c++) cells += dayCell(addDays(rowFirst, c), L, c, r);
   }
   return `<div class="tc">
@@ -447,7 +428,7 @@ function timeline() {
       <span class="tc-nav"><span class="tc-ghost" data-act="nav" data-d="-1" data-tip="${stepName} 전 · Shift 한 주 전">${I.prev}</span><span class="tc-ghost txt" data-act="nav" data-d="0">오늘</span><span class="tc-ghost" data-act="nav" data-d="1" data-tip="${stepName} 뒤 · Shift 한 주 뒤">${I.next}</span></span>
       <span class="tc-push"></span><div class="tc-seg"><span data-tip="목록">${I.vList}</span><span data-tip="캘린더">${I.vCal}</span><span class="on" data-tip="타임라인">${I.vTime}</span></div><span class="tc-ghost" data-tip="보기 옵션">${I.sliders}</span></div>
       <p class="tc-finding">${n}일 · ${openN ? `남은 할 일 ${openN}개` : '남은 할 일이 없어요'}${overN ? ` · <b>기한 지난 할 일 ${overN}개</b>는 목록에서 볼 수 있어요` : ''}</p></div>
-    <div class="tv-cols">${R === 2 && s.band === 'top' ? topBandHtml(first, n) : ''}<div class="tv-grid" style="grid-template-columns:repeat(${COLS}, minmax(0, 1fr));grid-template-rows:repeat(${R}, minmax(0, 1fr))">${cells}</div></div>
+    <div class="tv-cols"><div class="tv-grid" style="grid-template-columns:repeat(${COLS}, minmax(0, 1fr));grid-template-rows:repeat(${R}, minmax(0, 1fr))">${cells}</div></div>
     <div class="tc-quick"><div class="qa-in"><span class="qa-plus">${I.plus()}</span><input placeholder="할 일 추가" spellcheck="false" autocomplete="off"><kbd>Ctrl N</kbd></div>
       <div class="qa-chips"><span class="qa-chip on">${I.cal}<span>${mdK(first)}</span></span><span class="qa-chip">${I.repeat}<span>반복</span></span><span class="qa-chip"><span class="qa-dot" style="background:var(--muted)"></span><span>카테고리</span></span><span class="qa-chip">${I.star(false, 13)}<span>중요</span></span></div></div>
   </div>`;
@@ -482,29 +463,12 @@ const mainWin = () => `<div class="win" style="height:${s.winH}px">${topBar()}<d
   <div class="win-grip" data-grip title="끌어서 창 높이 바꾸기"><i></i><span>창 높이 ${s.winH}px · 끌어서 바꾸기</span></div>`;
 
 // ---------- Notes ----------
-const OPTS = [
-  { at: '.tv-grid', key: 'rows', title: '줄 수', show: () => {},
-    items: [['one', '한 줄', '지금처럼 날짜 칸 한 줄', 'old'],
-      ['auto', '높이가 충분하면 두 줄', '창이 높으면 아래에 다음 날들을 한 줄 더', 'rec'],
-      ['two', '항상 두 줄', '창이 낮아도 두 줄. 칸이 작으면 안에서 스크롤']] },
-  { at: '.win-grip', key: 'rule', title: '두 줄로 바뀌는 기준 (아래 손잡이로 창 높이를 바꿔 보기)', show: () => { if (s.rows !== 'auto') s.rows = 'auto'; },
-    items: [['none', '기능 없음', '바뀌지 않고 한 줄 그대로', 'old'],
-      ['cell', `칸 높이 ${ROW_MIN}px 이상`, `두 줄로 나눠도 줄마다 ${ROW_MIN}px(할 일 3개쯤) 넘게 나올 때`, 'rec'],
-      ['win', '창 높이 900px 이상', '창 높이만 봄. 패널 · 추가 칸 크기와 상관없음'],
-      ['square', '칸이 정사각형 넘게 길 때', '줄마다 칸 높이가 칸 너비보다 클 때. 창이 넓어 칸이 넓으면 더 높아야 함']] },
-  { at: '.tv-band, .tv-topband, .tv-head', key: 'band', title: '두 줄일 때 여러 날 기간 띠', show: () => { if (s.rows === 'one') s.rows = 'auto'; },
-    items: [['none', '기능 없음', '두 줄일 때는 띠를 그리지 않음', 'old'],
-      ['row', '줄마다 그 줄 날짜에 맞춰', '줄 끝에서 끊기고 다음 줄 첫 칸에서 ◂로 이어짐', 'rec'],
-      ['top', '맨 위에 한 번만', '보이는 날 전부를 한 줄로 펼친 띠를 두 줄 위에']] },
-  { at: '.tc-nav, .tc-finding', key: 'step', title: '‹ › 한 번에 옮기는 날 수', show: () => {},
-    items: [['one', '하루씩', '지금처럼 하루', 'old'],
-      ['shown', '보이는 날 수만큼', '두 줄이면 6일, 한 줄이면 3일. 다음 화면이 겹치지 않음', 'rec'],
-      ['row', '한 줄(3일)씩', '아래 줄이 위로 올라오고 새 줄이 아래에']] },
-];
+// Every decision is made; nothing left to pick.
+const OPTS = [];
 const comments = {};
 function notes() {
   return `<aside class="notes">
-    <div class="n-top"><button class="n-copy" data-ncopy>결과 복사</button><p class="hint"><kbd>Shift</kbd>+마우스로 파란 점선의 후보 보기</p></div>
+    <div class="n-top"><button class="n-copy" data-ncopy>결과 복사</button><p class="hint">정할 것은 모두 정했어요. 확정된 모습이에요.</p></div>
     <div class="n-scroll">${OPTS.map((o, i) => `<section class="n-item"><h4>${i + 1}. ${o.title}</h4>${o.items.map(([v, nm, dsc, tag]) =>
       `<div class="n-row ${s[o.key] === v ? 'on' : ''}" role="button" tabindex="0" data-no="${i}" data-v="${v}"><span class="n-nm">${nm}${tag === 'old' ? '<span class="badge old">기존</span>' : tag === 'rec' ? '<span class="badge rec">추천</span>' : ''}</span><span class="n-ds">${dsc}</span>${s[o.key] === v ? `<textarea class="n-cm" rows="1" data-cm="${i}:${v}" data-fk="cm:${i}:${v}" placeholder="추가 의견 (선택)" spellcheck="false">${esc(comments[i + ':' + v] || '')}</textarea>` : ''}</div>`).join('')}</section>`).join('')}</div>
     <label class="n-new"><input type="checkbox" data-nnew ${s.showNew ? 'checked' : ''}>새로 생기는 부분 표시</label>
@@ -644,7 +608,7 @@ document.addEventListener('click', e => {
   if (f) { f.focus({ preventScroll: true }); f.setSelectionRange(f.value.length, f.value.length); }
 });
 function resultText() {
-  return 'PC 2.6.1 타임라인 시안 선택\n' + OPTS.map((o, i) => { const it = o.items.find(([v]) => v === s[o.key]); const c = (comments[i + ':' + it[0]] || '').trim(); return `${i + 1}. ${o.title.replace(/ \(.*\)$/, '')}: ${it[1]}${c ? ` (의견: ${c})` : ''}`; }).join('\n');
+  return 'PC 2.6.1 타임라인 시안 (확정)\n' + (OPTS.map((o, i) => { const it = o.items.find(([v]) => v === s[o.key]); const c = (comments[i + ':' + it[0]] || '').trim(); return `${i + 1}. ${o.title.replace(/ \(.*\)$/, '')}: ${it[1]}${c ? ` (의견: ${c})` : ''}`; }).join('\n') || '남은 결정 없음');
 }
 document.addEventListener('click', e => {
   const copy = e.target.closest('[data-ncopy]');
