@@ -18,7 +18,7 @@ import { useTheme } from '@/ui/theme';
 
 const ACK = '모든 기기의 데이터가 지워지는 것을 이해했어요';
 
-// 계정 삭제 (#92, docs/designs/pc-2.4.1-account-delete-mock.html frame ⑤), a full-screen step like
+// 계정 삭제 (#92, docs/designs/previous/pc-2.4.1-account-delete-mock.html frame ⑤), a full-screen step like
 // 기기 해제: what goes, a backup hint (the PC app exports), "이해했어요", then the phone's
 // unlock (biometrics/PIN; the vault password when that does not work) and the deletion.
 // When it is done the account listener signs out and the login screen says so.
