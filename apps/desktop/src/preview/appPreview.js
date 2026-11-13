@@ -97,7 +97,8 @@ function previewRows({ categories, tasks, subtasks }) {
 
 // period=1 (#109): the tasks of docs/designs/pc-2.6.0-period-mock.html around today (the mock's
 // today is 11/10 13:20): periods before, during and after today, a repeating one, a done one, and
-// one with its end alert turned off.
+// one with its end alert turned off. For the two-row timeline (#110): a period going on into the
+// second row and a crowded day three days on, whose cell scrolls.
 function periodPreviewView() {
   const categories = [
     { cid: "work", title: "업무", color: "#4fc3d9" },
@@ -119,6 +120,17 @@ function periodPreviewView() {
     { tid: "p2", title: "이사 준비", start: dayStartAt(-15), due: dayEndAt(10), cats: ["home"], memo: "짐 목록은 메모 앱에." },
     { tid: "p4", title: "제주 여행", start: dayStartAt(9), due: dayEndAt(12), cats: ["home"], important: true },
     { tid: "t8", title: "대청소", due: at(11, 15), cats: ["home"] },
+    { tid: "p8", title: "학회 참석", start: dayStartAt(1), due: dayEndAt(4), cats: ["study"] },
+    { tid: "d1", title: "주간 회의", due: at(3, 9, 30), cats: ["work"] },
+    { tid: "d2", title: "보고서 초안 공유", due: at(3, 10, 30), cats: ["work"], important: true },
+    { tid: "d3", title: "고객사 메일 회신", due: at(3, 11), cats: ["work"] },
+    { tid: "d4", title: "점심 약속 · 민지", due: at(3, 12, 30), cats: ["home"] },
+    { tid: "d5", title: "디자인 리뷰", start: at(3, 14), due: at(3, 15), cats: ["work"] },
+    { tid: "d6", title: "예산안 검토", due: at(3, 16), cats: ["work"] },
+    { tid: "d7", title: "1:1 미팅", due: at(3, 17), cats: ["work"] },
+    { tid: "d8", title: "헬스 PT", due: at(3, 19), cats: ["gym"] },
+    { tid: "d9", title: "독서 30분", due: at(3, 21), cats: ["study"] },
+    { tid: "d10", title: "택배 반품 접수", due: dayEndAt(3), cats: ["home"] },
     { tid: "t6", title: "헬스장 3개월 등록", due: at(17, 19), cats: ["gym"] },
     { tid: "n1", title: "읽을 책 목록 정리", due: null, cats: ["study"] },
     { tid: "n2", title: "겨울옷 꺼내기", due: null, cats: ["home"] },

@@ -5,7 +5,8 @@ import { Provider } from "react-redux";
 import { PickedDayContext, startOfDay } from "components/panel/pickedDay";
 import { TaskSelectionContext } from "components/list/taskSelection";
 import prefsReducer, { setPrefs } from "store/prefsSlice";
-import TaskTimelineView, { END_OF_DAY_HOUR, hourGroups, timelineColumns } from "./TaskTimelineView";
+import MiniMonth from "molecules/pickers/MiniMonth";
+import TaskTimelineView, { END_OF_DAY_HOUR, hourGroups, stepName, timelineColumns, timelineRows } from "./TaskTimelineView";
 
 const NOW = new Date(2026, 9, 21, 14, 30); // Wednesday
 const at = (days, h, m = 0) => { const d = new Date(NOW); d.setDate(d.getDate() + days); d.setHours(h, m, 0, 0); return d; };
@@ -24,12 +25,13 @@ afterAll(() => { Element.prototype.getBoundingClientRect = realRect; });
 
 let picked;
 const setDone = jest.fn();
+const setShownDays = jest.fn();
 function Harness({ initialDay = NOW, selectedTaskId = null, ...props }) {
   const [day, setDay] = useState(() => startOfDay(initialDay));
   picked = day;
   return (
     <TaskSelectionContext.Provider value={{ selectedTaskId, setSelectedTaskId: () => {}, openTask: jest.fn(), actions: { setDone } }}>
-      <PickedDayContext.Provider value={{ pickedDay: day, setPickedDay: (d) => setDay(startOfDay(d)) }}>
+      <PickedDayContext.Provider value={{ pickedDay: day, setPickedDay: (d) => setDay(startOfDay(d)), setShownDays }}>
         <TaskTimelineView filteredTaskMap={{}} categories={{}} {...props} />
       </PickedDayContext.Provider>
     </TaskSelectionContext.Provider>
@@ -289,4 +291,100 @@ test("periods (#109): a block splitting one hour's tasks, and the band; no dupli
   expect(seg).toHaveClass("cl", "br");
   expect(errors.mock.calls.filter((c) => String(c[0]).includes("same key"))).toEqual([]);
   errors.mockRestore();
+});
+
+describe("two rows (#110)", () => {
+  const realHeight = window.innerHeight;
+  const tall = (h) => { window.innerHeight = h; act(() => { window.dispatchEvent(new Event("resize")); }); };
+  afterEach(() => { window.innerHeight = realHeight; });
+
+  test("the rule: two rows from a 900px window; the step names a row of days", () => {
+    expect([timelineRows(768), timelineRows(899), timelineRows(900), timelineRows(1200)]).toEqual([1, 1, 2, 2]);
+    expect([stepName(1), stepName(3), stepName(5)]).toEqual(["하루", "3일", "5일"]);
+  });
+
+  test("a tall window shows columns × 2 days in a grid; it follows resizes; the panel learns the count", () => {
+    paneWidth = 1047;
+    const { container } = setup();
+    expect(columns(container)).toHaveLength(3);
+    expect(setShownDays).toHaveBeenLastCalledWith(3);
+    tall(960);
+    expect(columns(container)).toHaveLength(6);
+    expect(setShownDays).toHaveBeenLastCalledWith(6);
+    const grid = container.querySelector(".tv-grid");
+    expect(grid.style.gridTemplateColumns).toBe("repeat(3, minmax(0, 1fr))");
+    expect(grid.style.gridTemplateRows).toBe("repeat(2, minmax(0, 1fr))");
+    expect(columns(container).map((c) => `${c.style.gridRow}/${c.style.gridColumn}`)).toEqual(["1/1", "1/2", "1/3", "2/1", "2/2", "2/3"]);
+    expect(screen.getByRole("heading", { name: "10월 21일 – 26일" })).toBeInTheDocument();
+    expect(document.querySelector(".tc-finding")).toHaveTextContent(/^6일 · /);
+    // Each cell scrolls inside itself, with the fade after its body.
+    for (const c of columns(container)) expect(c.querySelector(".tv-body").nextElementSibling).toHaveClass("scroll-fade");
+    tall(800);
+    expect(columns(container)).toHaveLength(3);
+  });
+
+  test("‹ › move one row of days (Shift a week); the tooltips say so", () => {
+    paneWidth = 1047;
+    tall(960);
+    setup();
+    const next = screen.getByRole("button", { name: "3일 뒤" }), prev = screen.getByRole("button", { name: "3일 전" });
+    expect(next).toHaveAttribute("data-tip", "3일 뒤 · Shift 한 주 뒤");
+    expect(prev).toHaveAttribute("data-tip", "3일 전 · Shift 한 주 전");
+    fireEvent.click(next);
+    expect(picked).toBe(startOfDay(at(3, 0)));
+    fireEvent.click(next, { shiftKey: true });
+    expect(picked).toBe(startOfDay(at(10, 0)));
+    fireEvent.click(prev);
+    expect(picked).toBe(startOfDay(at(7, 0)));
+  });
+
+  test("bands per row: a period going on into the second row starts there with ◂", () => {
+    paneWidth = 1047;
+    tall(960);
+    const period = (id, title, start, due) => task(id, title, due, { startOffset: due.getTime() - start.getTime() });
+    const { container } = setup({ filteredTaskMap: { m: period("m", "학회", at(1, 0), at(4, 23, 59)) } });
+    const segs = (i) => [...column(container, i).querySelectorAll(".tv-band .tv-seg")];
+    expect(segs(0)).toHaveLength(0);
+    expect(segs(1)[0]).toHaveTextContent("학회~10/25");
+    expect(segs(1)[0]).not.toHaveClass("cl");
+    expect(segs(2)[0]).toHaveClass("cl", "cr");
+    expect(segs(2)[0]).not.toHaveClass("br");
+    expect(segs(3)[0]).toHaveTextContent("◂학회~10/25");
+    expect(segs(3)[0]).toHaveClass("cl", "br");
+    expect(segs(4)[0]).not.toHaveClass("cr");
+    expect(column(container, 5).querySelector(".tv-seg")).toBeNull();
+    // Every cell of a row with bars keeps the strip, so its rows line up.
+    expect(column(container, 0).querySelector(".tv-band")).not.toBeNull();
+  });
+
+  test("arrow keys: ←/→ to the next cell across the rows, ↓ past a cell's end into the row below", () => {
+    paneWidth = 1047;
+    tall(960);
+    const map = { a: task("a", "A1", at(2, 9)), b: task("b", "B1", at(3, 9)), c: task("c", "C1", at(5, 9)), d: task("d", "A2", at(2, 10)) };
+    setup({ filteredTaskMap: map });
+    const row = (name) => screen.getByRole("option", { name });
+    row("A2").focus();
+    fireEvent.keyDown(row("A2"), { key: "ArrowRight" });
+    expect(document.activeElement).toBe(row("B1"));
+    fireEvent.keyDown(row("B1"), { key: "ArrowRight" });
+    expect(document.activeElement).toBe(row("C1"));
+    fireEvent.keyDown(row("C1"), { key: "ArrowUp" });
+    expect(document.activeElement).toBe(row("A2"));
+    fireEvent.keyDown(row("A2"), { key: "ArrowDown" });
+    expect(document.activeElement).toBe(row("C1"));
+    fireEvent.keyDown(row("C1"), { key: "ArrowLeft" });
+    expect(document.activeElement).toBe(row("B1"));
+    // Nothing above (an empty cell): round inside the cell as before.
+    fireEvent.keyDown(row("B1"), { key: "ArrowUp" });
+    expect(document.activeElement).toBe(row("B1"));
+    row("A2").focus();
+    fireEvent.keyDown(row("A2"), { key: "ArrowUp" });
+    expect(document.activeElement).toBe(row("A1"));
+  });
+
+  test("the panel's month tints the shown days", () => {
+    render(<MiniMonth year={2026} month={9} picked={at(0, 0)} today={NOW} shownRange={[at(0, 0), at(5, 0)]} />);
+    const shown = [...document.querySelectorAll(".tp-mm-c.shown")].map((el) => el.dataset.day);
+    expect(shown).toEqual(["2026-10-21", "2026-10-22", "2026-10-23", "2026-10-24", "2026-10-25", "2026-10-26"]);
+  });
 });

@@ -12,11 +12,13 @@
     flex: 1;
     min-height: 0;
     display: flex;
-    gap: 12px;
+    flex-direction: column;
     padding: 16px var(--main-x) 0;
     overflow: hidden;
   }
-  .tv-col { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  // Day cells in one or two rows (#110 mock .tv-grid); a cell scrolls inside itself.
+  .tv-grid { flex: 1; min-height: 0; display: grid; column-gap: 12px; row-gap: 16px; }
+  .tv-col { position: relative; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
   .tv-head {
     box-sizing: border-box; // 36px with its bottom rule, as in the mock
     display: flex;
@@ -65,6 +67,8 @@
     scrollbar-color: #2b303b transparent;
     padding: 4px 0 80px;
   }
+  // Two rows: a short cell keeps little room below its last task (#110 mock .tv-body).
+  .tv-cols.two .tv-body { padding-bottom: 24px; }
   .tv-hour { margin: 12px 0 6px; font-size: 12px; line-height: 18px; color: var(--muted); font-variant-numeric: tabular-nums; }
   .tv-hour.blkh { color: #a9c3ff; }
   // Periods over several days (#109 mock .tv-band): bars under the headers, across the columns

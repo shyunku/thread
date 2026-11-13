@@ -23,14 +23,16 @@ export function monthCells(year, month, weekStart = 0, minWeeks = 0) {
 // marks(date) can return "open" or "over" for the 4px dot under a day (calendar tab).
 // arrowTips gives the month arrows a tooltip (the timeline's jump popup). minWeeks=6 keeps the
 // height the same in every month (the date picker, #106). range [start, end] (Dates or ms) draws
-// a band behind the days of a period (the date picker, #109).
-export default function MiniMonth({ year, month, picked, today = new Date(), weekStart = 0, onPick, onMonth, marks, arrowTips = false, className = "", minWeeks = 0, range = null }) {
+// a band behind the days of a period (the date picker, #109). shownRange [first, last] tints the
+// days the timeline shows (the panel's calendar tab, #110).
+export default function MiniMonth({ year, month, picked, today = new Date(), weekStart = 0, onPick, onMonth, marks, arrowTips = false, className = "", minWeeks = 0, range = null, shownRange = null }) {
   const gridRef = useRef(null);
   const cells = monthCells(year, month, weekStart, minWeeks);
   const pickedInView = picked && cells.some((d) => sameDay(d, picked) && d.getMonth() === month);
   const focusKey = pickedInView ? dayKey(new Date(picked)) : dayKey(new Date(year, month, 1));
   const keyboard = useRef(false);
   const [rs, re] = range ? range.map((v) => new Date(v).setHours(0, 0, 0, 0)) : [null, null];
+  const [ss, se] = shownRange ? shownRange.map((v) => new Date(v).setHours(0, 0, 0, 0)) : [null, null];
 
   // After a keyboard move, keep focus on the picked day (it may be in another month now).
   useEffect(() => {
@@ -71,7 +73,8 @@ export default function MiniMonth({ year, month, picked, today = new Date(), wee
           const mark = marks?.(d);
           const ms = d.getTime(), inRange = range && rs <= ms && ms <= re;
           const cls = ["tp-mm-c", d.getMonth() !== month && "out", isToday && "today", isPicked && "picked", wd === 0 ? "sun" : wd === 6 ? "sat" : "",
-            inRange && ms === rs && "rs", inRange && ms === re && "re", inRange && ms > rs && ms < re && "inr"].filter(Boolean).join(" ");
+            inRange && ms === rs && "rs", inRange && ms === re && "re", inRange && ms > rs && ms < re && "inr",
+            shownRange && ss <= ms && ms <= se && "shown"].filter(Boolean).join(" ");
           return (
             <button
               key={key}

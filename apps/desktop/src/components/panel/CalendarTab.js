@@ -101,11 +101,13 @@ export function DayList({ tasks, catsOf, prefs, onOpen, onMenu }) {
 }
 
 // 캘린더 tab (#102 mock calendarBody): the mini month (today ring, picked day filled, dots for
-// days with open tasks) above the picked day's list. The picked day is shared with the calendar
+// days with open tasks, the other days the timeline shows tinted, #110) above the picked day's
+// list. The picked day is shared with the calendar
 // view (usePickedDay).
 export default function CalendarTab(props) {
   const { tasks, prefs } = props;
-  const { pickedDay, setPickedDay } = usePickedDay();
+  const { pickedDay, setPickedDay, shownDays = 0 } = usePickedDay();
+  const shownRange = shownDays > 1 ? [pickedDay, new Date(pickedDay).setDate(new Date(pickedDay).getDate() + shownDays - 1)] : null;
   const [month, setMonth] = useState(() => ({ year: new Date(pickedDay).getFullYear(), month: new Date(pickedDay).getMonth() }));
   // A day picked elsewhere (the calendar view, 오늘) brings its month.
   useEffect(() => {
@@ -131,6 +133,7 @@ export default function CalendarTab(props) {
           onPick={(date) => setPickedDay(date)}
           onMonth={moveMonth}
           marks={(date) => marks.get(startOfDay(date)) ?? null}
+          shownRange={shownRange}
         />
       </div>
       <DayList {...props} />

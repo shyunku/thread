@@ -18,7 +18,7 @@ import { isOverdue } from "utils/menuFilters";
 import { clockRange, monthDay, periodText } from "utils/periodDisplay";
 import { isMultiDayPeriod, taskStart } from "utils/taskPeriod";
 import { dueMs, formatClock, formatClockShort, formatSpan, hasDueTime } from "utils/timeDisplay";
-import { CategoryMark, JumpTitle, ViewHeader, ViewNav, WEEKDAYS, addDays, barStyle, dayStart, markCategory, periodLanes, taskCategories, tasksByDay, useElementSize } from "./viewParts";
+import { CategoryMark, JumpTitle, ViewHeader, ViewNav, WEEKDAYS, addDays, barStyle, dayStart, markCategory, periodLanes, taskCategories, tasksByDay, useElementSize, useWindowHeight } from "./viewParts";
 
 // Day columns that fit the pane (#102 mock timelinePane): at least 240px each, 12px apart,
 // inside the 32px gutters; 1 to 5.
@@ -26,6 +26,13 @@ export const MAX_COLUMNS = 5;
 export function timelineColumns(paneWidth) {
   return Math.max(1, Math.min(MAX_COLUMNS, Math.floor((paneWidth - 64 + 12) / 252)));
 }
+
+// Rows of day cells (#110 mock): two when the app window is at least 900px tall, else one.
+export const TWO_ROWS_HEIGHT = 900;
+export const timelineRows = (windowHeight) => (windowHeight >= TWO_ROWS_HEIGHT ? 2 : 1);
+
+// The ‹ › step is one row of days: "하루" for one column, else "3일".
+export const stepName = (days) => (days === 1 ? "하루" : `${days}일`);
 
 // A due without a chosen time (23:59) goes under 하루 끝, after the hours.
 export const END_OF_DAY_HOUR = 24;
@@ -193,13 +200,15 @@ function TimelineRow({ task, cats, selected, timeFormat, now, doneStays, block =
   );
 }
 
-// The timeline (#102 mock timelinePane): day columns from the picked day, as many as fit the
-// pane. Each has a header (date, weekday, 오늘, open count) and the hours that have tasks; today's
-// column has the 지금 line. A period inside a day is a block at its start (hourGroups); one over
-// several days is a bar in the band under the headers, across its columns (#109). ‹ › move a day (a week with Shift), the title jumps to a day, 오늘 goes
-// back to today (the picked day moves with
-// them, so the quick add and the panel follow). Columns scroll on their own, so the wheel does
-// not change days.
+// The timeline (#102 mock timelinePane): day cells from the picked day, as many columns as fit
+// the pane and, in a window 900px or taller, two rows of them (#110). Each cell has a header
+// (date, weekday, 오늘, open count) and the hours that have tasks, scrolling inside it; today's
+// has the 지금 line. A period inside a day is a block at its start (hourGroups); one over several
+// days is a bar in its row's band under the headers, across its cells, and one going on from the
+// row above starts with ◂ (#109). ‹ › move one row of days (a week with Shift), the title jumps
+// to a day, 오늘 goes back to today (the picked day moves with them, so the quick add and the
+// panel follow). Arrow keys move between the tasks of a cell, ←/→ to the next cell (across the
+// rows) and ↑/↓ past a cell's ends into the row above or below.
 // Props from TodoContent: filteredTaskMap, categories, catsOf?, header?, renderQuickAdd(day)?,
 // onTaskContextMenu(event, taskId)?, onOpenTask(taskId)?, onToggleDone(task, row, done, stays)?,
 // searchNote? (in search: "검색 결과 N개", put before the summary).
@@ -215,14 +224,24 @@ const TaskTimelineView = ({ filteredTaskMap, categories, catsOf, header, renderQ
   const paneRef = useRef(null);
   const { width } = useElementSize(paneRef);
   const count = timelineColumns(width);
-  const columns = useMemo(() => Array.from({ length: count }, (_, i) => addDays(first, i)), [first, count]);
+  const rows = timelineRows(useWindowHeight());
+  const shown = count * rows;
+  const columns = useMemo(() => Array.from({ length: shown }, (_, i) => addDays(first, i)), [first, shown]);
+  // The right panel's month marks the shown days.
+  const { setShownDays } = usePickedDay();
+  useEffect(() => { setShownDays?.(shown); }, [setShownDays, shown]);
+  useEffect(() => () => setShownDays?.(0), [setShownDays]);
 
   const dated = useMemo(
     () => Object.values(filteredTaskMap ?? {}).filter((t) => dueMs(t?.dueDate) !== null && !(prefs.hideDone && t.done)),
     [filteredTaskMap, prefs.hideDone]
   );
   const days = useMemo(() => tasksByDay(dated.filter((t) => !isMultiDayPeriod(t))), [dated]);
-  const band = useMemo(() => periodLanes(dated, first, count), [dated, first, count]);
+  // Each row's band, from its own first day.
+  const bands = useMemo(
+    () => Array.from({ length: rows }, (_, r) => ({ first: addDays(first, r * count), ...periodLanes(dated, addDays(first, r * count), count) })),
+    [dated, first, count, rows]
+  );
 
   // Completion like the list's (pop, fall); TodoContent's when given.
   const ownComplete = useTaskCompletion((task, done, onFailed) =>
@@ -244,7 +263,7 @@ const TaskTimelineView = ({ filteredTaskMap, categories, catsOf, header, renderQ
   }
   const summary = (
     <>
-      {searchNote && `${searchNote} · `}{count}일 · {openCount ? `남은 할 일 ${openCount}개` : "남은 할 일이 없어요"}
+      {searchNote && `${searchNote} · `}{shown}일 · {openCount ? `남은 할 일 ${openCount}개` : "남은 할 일이 없어요"}
       {overCount > 0 && <> · <b>기한 지난 할 일 {overCount}개</b>는 목록에서 볼 수 있어요</>}
     </>
   );
@@ -255,10 +274,34 @@ const TaskTimelineView = ({ filteredTaskMap, categories, catsOf, header, renderQ
     const line = colsRef.current?.querySelector(".tv-col.today .tv-now");
     const body = line?.closest(".tv-body");
     if (body) body.scrollTop = Math.max(0, line.offsetTop - body.offsetTop - 48);
-  }, [first, count]);
+  }, [first, shown]);
 
+  // ↑/↓ inside a cell (round), past its ends into the cell above or below when there is a row
+  // there; ←/→ to the cell before or after (in day order, so across the rows), at the same place.
   const onRowKey = (event, row) => {
-    if (event.target === row) moveFocus(event, row.closest(".tv-body"), ".tv-task");
+    if (event.target !== row) return;
+    const cells = [...(colsRef.current?.querySelectorAll(".tv-col") ?? [])];
+    const cell = row.closest(".tv-col"), i = cells.indexOf(cell);
+    const tasksIn = (el) => [...el.querySelectorAll(".tv-task")];
+    const mine = tasksIn(cell), at = mine.indexOf(row);
+    const go = (target, pick) => {
+      const list = target ? tasksIn(target) : [];
+      if (!list.length) return false;
+      event.preventDefault();
+      list[pick(list)].focus();
+      return true;
+    };
+    if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+      const dir = event.key === "ArrowRight" ? 1 : -1;
+      event.preventDefault();
+      for (let j = i + dir; j >= 0 && j < cells.length; j += dir) if (go(cells[j], (list) => Math.min(at, list.length - 1))) return;
+      return;
+    }
+    const down = event.key === "ArrowDown", up = event.key === "ArrowUp";
+    if ((down && at === mine.length - 1) || (up && at === 0)) {
+      if (go(cells[i + (down ? count : -count)], (list) => (down ? 0 : list.length - 1))) return;
+    }
+    moveFocus(event, row.closest(".tv-body"), ".tv-task");
   };
 
   return (
@@ -285,103 +328,111 @@ const TaskTimelineView = ({ filteredTaskMap, categories, catsOf, header, renderQ
         )}
         nav={(
           <ViewNav
-            prevLabel="하루 전"
-            nextLabel="하루 뒤"
-            prevTip="하루 전 · Shift 한 주 전"
-            nextTip="하루 뒤 · Shift 한 주 뒤"
-            onPrev={(event) => setPickedDay(addDays(first, event?.shiftKey ? -7 : -1))}
-            onNext={(event) => setPickedDay(addDays(first, event?.shiftKey ? 7 : 1))}
+            prevLabel={`${stepName(count)} 전`}
+            nextLabel={`${stepName(count)} 뒤`}
+            prevTip={`${stepName(count)} 전 · Shift 한 주 전`}
+            nextTip={`${stepName(count)} 뒤 · Shift 한 주 뒤`}
+            onPrev={(event) => setPickedDay(addDays(first, event?.shiftKey ? -7 : -count))}
+            onNext={(event) => setPickedDay(addDays(first, event?.shiftKey ? 7 : count))}
             onToday={() => setPickedDay(today)}
           />
         )}
       />
-      <div className="tv-cols" ref={colsRef}>
-        {columns.map((day) => {
-          const date = new Date(day);
-          const tasks = days[day] ?? [];
-          const groups = hourGroups(tasks);
-          const isToday = day === today;
-          const nowHour = new Date(now).getHours();
-          const nowLine = <div key="now" className="tv-now"><span>지금 {formatClockShort(new Date(now), timeFormat)}</span></div>;
-          const body = [];
-          let nowDrawn = !isToday;
-          for (const group of groups) {
-            if (!nowDrawn && group.hour > nowHour) { body.push(nowLine); nowDrawn = true; }
-            const label = group.block ? periodText(group.tasks[0], timeFormat) : hourLabel(group.hour, timeFormat);
-            body.push(
-              <div key={`${group.block ? "b" : "h"}${group.hour}-${group.tasks[0].id}`} className="tv-group">
-                <div className={"tv-hour" + (group.block ? " blkh" : "")}>{label}</div>
-                <div className="tv-box" role="listbox" aria-label={label}>
-                  {group.tasks.map((task) => (
-                    <TimelineRow
-                      key={task.id}
-                      task={task}
-                      cats={taskCategories(task, categories, catsOf)}
-                      selected={task.id === selectedTaskId}
-                      timeFormat={timeFormat}
-                      now={now}
-                      doneStays={!prefs.hideDone}
-                      block={group.block}
-                      onOpen={open}
-                      onMenu={onTaskContextMenu}
-                      onToggleDone={complete}
-                      onKeyDown={onRowKey}
-                    />
-                  ))}
+      <div className={"tv-cols" + (rows > 1 ? " two" : "")} ref={colsRef}>
+        <div className="tv-grid" style={{ gridTemplateColumns: `repeat(${count}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))` }}>
+          {columns.map((day, index) => {
+            const date = new Date(day);
+            const tasks = days[day] ?? [];
+            const groups = hourGroups(tasks);
+            const isToday = day === today;
+            const nowHour = new Date(now).getHours();
+            const nowLine = <div key="now" className="tv-now"><span>지금 {formatClockShort(new Date(now), timeFormat)}</span></div>;
+            const body = [];
+            let nowDrawn = !isToday;
+            for (const group of groups) {
+              if (!nowDrawn && group.hour > nowHour) { body.push(nowLine); nowDrawn = true; }
+              const label = group.block ? periodText(group.tasks[0], timeFormat) : hourLabel(group.hour, timeFormat);
+              body.push(
+                <div key={`${group.block ? "b" : "h"}${group.hour}-${group.tasks[0].id}`} className="tv-group">
+                  <div className={"tv-hour" + (group.block ? " blkh" : "")}>{label}</div>
+                  <div className="tv-box" role="listbox" aria-label={label}>
+                    {group.tasks.map((task) => (
+                      <TimelineRow
+                        key={task.id}
+                        task={task}
+                        cats={taskCategories(task, categories, catsOf)}
+                        selected={task.id === selectedTaskId}
+                        timeFormat={timeFormat}
+                        now={now}
+                        doneStays={!prefs.hideDone}
+                        block={group.block}
+                        onOpen={open}
+                        onMenu={onTaskContextMenu}
+                        onToggleDone={complete}
+                        onKeyDown={onRowKey}
+                      />
+                    ))}
+                  </div>
                 </div>
-              </div>
+              );
+            }
+            if (!nowDrawn) body.push(nowLine);
+            if (!tasks.length) body.push(<div key="empty" className="tv-empty">할 일 없음</div>);
+            const r = Math.floor(index / count), col = index % count, band = bands[r];
+            const rowLast = addDays(band.first, count - 1);
+            const segs = band.segs.filter((g) => g.a <= col && col <= g.b);
+            return (
+              <section
+                key={day}
+                className={"tv-col" + (isToday ? " today" : "")}
+                style={{ gridRow: r + 1, gridColumn: col + 1 }}
+                aria-label={`${date.getMonth() + 1}월 ${date.getDate()}일 ${WEEKDAYS[date.getDay()]}요일`}
+              >
+                <div className="tv-head">
+                  <b>{date.getDate()}</b>
+                  <span>{WEEKDAYS[date.getDay()]}요일</span>
+                  {isToday && <em>오늘</em>}
+                  <span className="cnt" aria-label={`남은 할 일 ${tasks.filter((t) => !t.done).length}개`}>{tasks.filter((t) => !t.done).length}</span>
+                </div>
+                {band.lanes > 0 && (
+                  <div className="tv-band" style={{ height: band.lanes * 24 }}>
+                    {segs.map((g) => {
+                      const contL = col > g.a || dayStart(g.start) < band.first, contR = col < g.b || dayStart(g.end) > rowLast;
+                      const mark = markCategory(taskCategories(g.task, categories, catsOf));
+                      const range = `~${monthDay(g.end)}${hasDueTime(g.end) ? ` ${formatClockShort(new Date(g.end), timeFormat)}` : ""}`;
+                      return (
+                        <div
+                          key={g.task.id}
+                          className={"tv-seg" + (contL ? " cl" : "") + (contR ? " cr" : "") + (col < g.b ? " br" : "") + (g.task.done ? " done" : "")}
+                          style={{ top: g.lane * 24, ...barStyle(mark, g.task.done) }}
+                          data-task-id={g.task.id}
+                          data-tip={`${g.task.title} · ${periodText(g.task, timeFormat)}`}
+                          role="button"
+                          tabIndex={col === g.a ? 0 : -1}
+                          aria-label={col === g.a ? `${g.task.title} ${periodText(g.task, timeFormat)}` : undefined}
+                          aria-hidden={col === g.a ? undefined : "true"}
+                          onClick={() => open(g.task.id)}
+                          onContextMenu={(event) => { if (!onTaskContextMenu) return; event.preventDefault(); onTaskContextMenu(event, g.task.id); }}
+                          onKeyDown={(event) => { if (event.key === "Enter" && event.target === event.currentTarget) { event.preventDefault(); open(g.task.id); } }}
+                        >
+                          {col === g.a && (
+                            <>
+                              {contL && <span className="gl">◂</span>}
+                              <b>{g.task.title}</b>
+                              <span className="rng">{range}</span>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                <div className="tv-body">{body}</div>
+                <ScrollFade />
+              </section>
             );
-          }
-          if (!nowDrawn) body.push(nowLine);
-          if (!tasks.length) body.push(<div key="empty" className="tv-empty">할 일 없음</div>);
-          const col = columns.indexOf(day);
-          const segs = band.segs.filter((g) => g.a <= col && col <= g.b);
-          return (
-            <section key={day} className={"tv-col" + (isToday ? " today" : "")} aria-label={`${date.getMonth() + 1}월 ${date.getDate()}일 ${WEEKDAYS[date.getDay()]}요일`}>
-              <div className="tv-head">
-                <b>{date.getDate()}</b>
-                <span>{WEEKDAYS[date.getDay()]}요일</span>
-                {isToday && <em>오늘</em>}
-                <span className="cnt" aria-label={`남은 할 일 ${tasks.filter((t) => !t.done).length}개`}>{tasks.filter((t) => !t.done).length}</span>
-              </div>
-              {band.lanes > 0 && (
-                <div className="tv-band" style={{ height: band.lanes * 24 }}>
-                  {segs.map((g) => {
-                    const contL = col > g.a || dayStart(g.start) < first, contR = col < g.b || dayStart(g.end) > last;
-                    const mark = markCategory(taskCategories(g.task, categories, catsOf));
-                    const range = `~${monthDay(g.end)}${hasDueTime(g.end) ? ` ${formatClockShort(new Date(g.end), timeFormat)}` : ""}`;
-                    return (
-                      <div
-                        key={g.task.id}
-                        className={"tv-seg" + (contL ? " cl" : "") + (contR ? " cr" : "") + (col < g.b ? " br" : "") + (g.task.done ? " done" : "")}
-                        style={{ top: g.lane * 24, ...barStyle(mark, g.task.done) }}
-                        data-task-id={g.task.id}
-                        data-tip={`${g.task.title} · ${periodText(g.task, timeFormat)}`}
-                        role="button"
-                        tabIndex={col === g.a ? 0 : -1}
-                        aria-label={col === g.a ? `${g.task.title} ${periodText(g.task, timeFormat)}` : undefined}
-                        aria-hidden={col === g.a ? undefined : "true"}
-                        onClick={() => open(g.task.id)}
-                        onContextMenu={(event) => { if (!onTaskContextMenu) return; event.preventDefault(); onTaskContextMenu(event, g.task.id); }}
-                        onKeyDown={(event) => { if (event.key === "Enter" && event.target === event.currentTarget) { event.preventDefault(); open(g.task.id); } }}
-                      >
-                        {col === g.a && (
-                          <>
-                            {contL && <span className="gl">◂</span>}
-                            <b>{g.task.title}</b>
-                            <span className="rng">{range}</span>
-                          </>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-              <div className="tv-body">{body}</div>
-              <ScrollFade />
-            </section>
-          );
-        })}
+          })}
+        </div>
       </div>
       {renderQuickAdd?.(first)}
     </div>

@@ -1,5 +1,5 @@
 import "./viewParts.scss";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import ListHeader from "components/list/ListHeader";
 import { ChevIcon, NextIcon, PrevIcon, ShieldIcon } from "molecules/pickers/icons";
 import { categoryColor } from "utils/categoryColors";
@@ -110,6 +110,18 @@ export function useElementSize(ref) {
     return () => window.removeEventListener("resize", measure);
   }, [ref]);
   return size;
+}
+
+// The app window's inner height, following its resizes (the timeline's rows, #110).
+export function useWindowHeight() {
+  const [height, setHeight] = useState(() => window.innerHeight);
+  useEffect(() => {
+    const onResize = () => setHeight(window.innerHeight);
+    window.addEventListener("resize", onResize);
+    onResize();
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  return height;
 }
 
 // ‹ 오늘 › after the title (mock headNav). The arrows get the click event, so a view can take a

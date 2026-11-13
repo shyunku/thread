@@ -103,7 +103,9 @@ const TodoContent = ({ children }) => {
     const ms = startOfDay(day);
     setUserPick(ms === startOfDay(Date.now()) ? null : ms);
   }, []);
-  const pickedDayValue = useMemo(() => ({ pickedDay, setPickedDay }), [pickedDay, setPickedDay]);
+  // The days the timeline shows from the picked day (#110), for the panel's month.
+  const [shownDays, setShownDays] = useState(0);
+  const pickedDayValue = useMemo(() => ({ pickedDay, setPickedDay, shownDays, setShownDays }), [pickedDay, setPickedDay, shownDays]);
 
   /* ------------------------------ Filters ------------------------------ */
   const secretSession = useSecretSession();

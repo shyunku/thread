@@ -334,6 +334,8 @@ $ring: #5a6475;
   .tp-mm-c.inr { color: #cfe0ff; }
   .tp-mm-c.rs b, .tp-mm-c.re b { background: #2b4a8a; color: #fff; font-weight: 700; }
   .tp-mm-c.rs.picked b, .tp-mm-c.re.picked b { background: $picked; }
+  // The days the timeline shows (#110 mock .shown).
+  .tp-mm-c.shown:not(.picked) b { background: #22345a; color: #cfe0ff; }
 }
 
 // ---------- Repeat and category pickers ----------
