@@ -125,6 +125,6 @@
   .meta .over { color: var(--danger); }
   > .st { pointer-events: none; }
   // A period inside the day (#109 mock .blk): its category's line on the left.
-  &.blk { box-shadow: inset 3px 0 0 var(--c); min-height: 76px; }
+  &.blk { box-shadow: inset 3px 0 0 var(--c); }
   &.blk .meta .span { color: #a9c3ff; }
 }

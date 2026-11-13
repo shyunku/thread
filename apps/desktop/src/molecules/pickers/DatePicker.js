@@ -183,12 +183,16 @@ export default function DatePicker({
     }
     show(d);
   };
+  // Choosing a field starts a new text for it: text typed for the other field must not
+  // keep applying to that field (it would switch back to it on the next key).
   const choose = (k) => {
+    if (k !== active) clearText();
     setActive(k);
     const f = k === "start" ? start : end;
     if (f) show(f.day);
   };
   const removeStart = () => {
+    clearText();
     setStart(null);
     setActive("end");
     show(end.day);

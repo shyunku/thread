@@ -473,4 +473,21 @@ describe("periods (#109)", () => {
     fireEvent.keyDown(field, { key: "Enter" });
     expect(onChange).toHaveBeenCalledWith(at(10, 23, 23, 59, 59), at(10, 22, 0));
   });
+
+  test("text typed after choosing 시작 stays on 시작, even after typing for 끝 first", () => {
+    const { onChange } = open({ value: at(10, 25, 18) });
+    const field = screen.getByRole("textbox", { name: "날짜 직접 입력" });
+    fireEvent.change(field, { target: { value: "10/30" } });
+    expect(endField()).toHaveTextContent("10월 30일 (금)");
+    fireEvent.click(startField());
+    expect(field).toHaveValue("");
+    for (const value of ["1", "10", "10/", "10/2", "10/26"]) {
+      fireEvent.change(field, { target: { value } });
+      expect(startField()).toHaveClass("on");
+    }
+    expect(startField()).toHaveTextContent("10월 26일 (월)");
+    expect(endField()).toHaveTextContent("10월 30일 (금)");
+    ok();
+    expect(onChange).toHaveBeenCalledWith(at(10, 30, 18), at(10, 26, 0));
+  });
 });
