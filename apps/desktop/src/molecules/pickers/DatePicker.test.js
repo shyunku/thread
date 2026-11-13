@@ -47,47 +47,53 @@ describe("quick days", () => {
 describe("text field", () => {
   const field = () => screen.getByRole("textbox", { name: "날짜 직접 입력" });
   const type = (value) => fireEvent.change(field(), { target: { value } });
+  const enter = () => fireEvent.keyDown(field(), { key: "Enter" });
+  const typeIn = (value) => { type(value); enter(); };
   const line = () => document.querySelector(".dp-line");
-  afterEach(() => jest.useRealTimers());
+  const HINT = "날짜나 기간(~, 부터 · 까지)을 적고 Enter를 누르세요";
 
   test("sits on the quick day row; empty, the line gives a hint", () => {
     open();
     expect(field().closest(".dp-quick")).toBe(screen.getByRole("dialog").querySelector(".dp-quick"));
     expect(field()).toHaveAttribute("placeholder", "직접 입력 · 예: 11/20~23");
-    expect(line()).toHaveTextContent("날짜나 기간(~, 부터 · 까지)을 적으면 바로 골라져요");
+    expect(line()).toHaveTextContent(HINT);
     expect(line()).not.toHaveClass("got");
   });
 
-  test("typing picks the day and time at once; 정하기 applies it", () => {
+  test("typing only previews on the line; Enter fills the fields and keeps the picker open", () => {
     const { onChange } = open();
     type("내일 3시");
     expect(line()).toHaveClass("got");
-    expect(line()).toHaveTextContent("10월 22일 (목) 오전 3:00");
+    expect(line()).toHaveTextContent("10월 22일 (목) 오전 3:00 · Enter");
     expect(line().querySelector("svg")).not.toBeNull();
+    expect(summary()).toBe("10월 21일 (수) · 하루 끝까지"); // nothing picked yet
+    expect(document.querySelector('[data-day="2026-10-22"]')).not.toHaveClass("picked");
+    enter();
+    expect(onChange).not.toHaveBeenCalled();
+    expect(field()).toHaveValue("");
+    expect(line()).toHaveTextContent(HINT);
     expect(document.querySelector('[data-day="2026-10-22"]')).toHaveClass("picked");
     expect(timeSwitch()).toHaveAttribute("aria-checked", "true");
     expect(screen.getByRole("textbox", { name: "시" })).toHaveValue("3");
     expect(screen.getByRole("button", { name: "오전" })).toHaveAttribute("aria-pressed", "true");
     expect(summary()).toBe("10월 22일 (목) 오전 3:00");
-    ok();
+    enter(); // an empty field: Enter applies like 정하기
     expect(parts(onChange.mock.calls[0][0])).toEqual([10, 22, 3, 0, 0]);
   });
 
-  test("the calendar moves to the typed month; 24h shows 24h", () => {
+  test("the calendar moves to the entered month; 24h shows 24h", () => {
     open({ timeFormat: "24" });
     type("26.12.24 15시");
+    expect(line()).toHaveTextContent("12월 24일 (목) 15:00");
+    expect(screen.queryByText("2026년 12월")).toBeNull();
+    enter();
     expect(screen.getByText("2026년 12월")).toBeInTheDocument();
     expect(document.querySelector('[data-day="2026-12-24"]')).toHaveClass("picked");
-    expect(line()).toHaveTextContent("12월 24일 (목) 15:00");
   });
 
-  test("a text without a time keeps the time setting the picker opened with", () => {
+  test("a text without a time keeps the time setting the field had", () => {
     const { onChange } = open({ value: at(10, 25, 9, 30) });
-    type("금요일");
-    expect(line()).toHaveTextContent("10월 23일 (금)");
-    expect(summary()).toBe("10월 23일 (금) 오전 9:30");
-    fireEvent.click(screen.getByRole("button", { name: "오후 6:00" }));
-    type("모레");
+    typeIn("금요일");
     expect(summary()).toBe("10월 23일 (금) 오전 9:30");
     ok();
     expect(parts(onChange.mock.calls[0][0])).toEqual([10, 23, 9, 30, 0]);
@@ -95,7 +101,7 @@ describe("text field", () => {
 
   test("without a time and with the time off, it stays off", () => {
     const { onChange } = open();
-    type("다음 주 수요일");
+    typeIn("다음 주 수요일");
     expect(timeSwitch()).toHaveAttribute("aria-checked", "false");
     expect(summary()).toBe("10월 28일 (수) · 하루 끝까지");
     ok();
@@ -104,44 +110,38 @@ describe("text field", () => {
 
   test("다음 주 follows the week start", () => {
     open({ now: at(10, 25, 10), weekStart: 1 });
-    type("다음 주");
+    typeIn("다음 주");
     expect(summary()).toBe("10월 26일 (월) · 하루 끝까지");
   });
 
-  test("not understood: the last pick stays and the hint shows after a pause", () => {
-    jest.useFakeTimers();
-    open();
-    type("내일 3시");
-    type("내일 3시 회");
-    expect(summary()).toBe("10월 22일 (목) 오전 3:00");
-    expect(line()).not.toHaveClass("got");
-    expect(line()).toHaveTextContent("10월 22일 (목) 오전 3:00");
-    act(() => { jest.advanceTimersByTime(500); });
+  test("not understood: no hint while typing; Enter shows it and keeps the text and the pick", () => {
+    const { onChange } = open();
     type("내일 3시 회의");
-    act(() => { jest.advanceTimersByTime(500); });
-    expect(line()).not.toHaveTextContent("알아듣지 못했어요"); // each keystroke waits again
-    act(() => { jest.advanceTimersByTime(300); });
+    expect(line()).not.toHaveClass("got");
+    expect(line()).toHaveTextContent(HINT);
+    enter();
+    expect(onChange).not.toHaveBeenCalled();
+    expect(line()).toHaveClass("bad");
     expect(line()).toHaveTextContent("알아듣지 못했어요 · 예: 내일 3시, 11/20, 11/20~11/23");
+    expect(field()).toHaveValue("내일 3시 회의");
+    expect(summary()).toBe("10월 21일 (수) · 하루 끝까지");
     type("내일 4시");
-    expect(line()).toHaveTextContent("10월 22일 (목) 오전 4:00");
+    expect(line()).toHaveTextContent("10월 22일 (목) 오전 4:00 · Enter");
   });
 
-  test("Enter applies like 정하기; when not understood it shows the hint at once", () => {
+  test("Enter while composing does nothing", () => {
     const { onChange } = open();
-    type("언젠가");
-    fireEvent.keyDown(field(), { key: "Enter" });
-    expect(onChange).not.toHaveBeenCalled();
-    expect(line()).toHaveTextContent("알아듣지 못했어요");
     type("11/20 오후 2시");
     fireEvent.keyDown(field(), { key: "Enter", isComposing: true });
+    expect(summary()).toBe("10월 21일 (수) · 하루 끝까지");
+    enter();
+    expect(summary()).toBe("11월 20일 (금) 오후 2:00");
     expect(onChange).not.toHaveBeenCalled();
-    fireEvent.keyDown(field(), { key: "Enter" });
-    expect(parts(onChange.mock.calls[0][0])).toEqual([11, 20, 14, 0, 0]);
   });
 
   test("Enter on an empty field applies the current pick", () => {
     const { onChange } = open();
-    fireEvent.keyDown(field(), { key: "Enter" });
+    enter();
     expect(parts(onChange.mock.calls[0][0])).toEqual([10, 21, 23, 59, 59]);
   });
 
@@ -150,20 +150,19 @@ describe("text field", () => {
     type("모레");
     fireEvent.click(screen.getByRole("button", { name: "오늘" }));
     expect(field()).toHaveValue("");
-    expect(line()).toHaveTextContent("날짜나 기간(~, 부터 · 까지)을 적으면 바로 골라져요");
+    expect(line()).toHaveTextContent(HINT);
     type("모레");
     fireEvent.click(document.querySelector('[data-day="2026-10-30"]'));
     expect(field()).toHaveValue("");
     expect(summary()).toBe("10월 30일 (금) · 하루 끝까지");
   });
 
-  test("clearing the text goes back to how the picker opened", () => {
+  test("clearing the text brings back the hint; the pick is unchanged", () => {
     open({ value: at(10, 25, 9, 30) });
     type("내일 15시");
-    expect(summary()).toBe("10월 22일 (목) 오후 3:00");
     type("");
+    expect(line()).toHaveTextContent(HINT);
     expect(summary()).toBe("10월 25일 (일) 오전 9:30");
-    expect(line()).toHaveTextContent("날짜나 기간(~, 부터 · 까지)을 적으면 바로 골라져요");
   });
 });
 
@@ -459,33 +458,42 @@ describe("periods (#109)", () => {
     expect(endField()).toHaveTextContent("10월 28일 (수)");
   });
 
-  test("the text field reads a period, else a date for the active field", () => {
+  test("the text field reads a period, else a date for the active field, on Enter", () => {
     const { onChange } = open({ value: at(10, 25, 18) });
     const field = screen.getByRole("textbox", { name: "날짜 직접 입력" });
     fireEvent.change(field, { target: { value: "11/20~23" } });
     expect(document.querySelector(".dp-line")).toHaveTextContent("11월 20일 (금) ~ 11월 23일 (월)");
+    expect(startField()).toHaveClass("empty"); // a preview only
+    fireEvent.keyDown(field, { key: "Enter" });
     expect(startField()).toHaveTextContent("11월 20일 (금)");
     expect(endField()).toHaveTextContent("11월 23일 (월)하루 끝");
-    fireEvent.change(field, { target: { value: "모레" } });
-    expect(startField()).toHaveClass("empty");
-    expect(endField()).toHaveTextContent("10월 23일 (금)오후 6:00");
+    expect(endField()).toHaveClass("on");
+    fireEvent.change(field, { target: { value: "11/25" } });
+    fireEvent.keyDown(field, { key: "Enter" });
+    expect(startField()).toHaveTextContent("11월 20일 (금)");
+    expect(endField()).toHaveTextContent("11월 25일 (수)하루 끝");
     fireEvent.change(field, { target: { value: "내일부터 금요일까지" } });
+    fireEvent.keyDown(field, { key: "Enter" });
+    expect(onChange).not.toHaveBeenCalled();
     fireEvent.keyDown(field, { key: "Enter" });
     expect(onChange).toHaveBeenCalledWith(at(10, 23, 23, 59, 59), at(10, 22, 0));
   });
 
-  test("text typed after choosing 시작 stays on 시작, even after typing for 끝 first", () => {
+  test("text entered after choosing 시작 goes to 시작, even after a text for 끝", () => {
     const { onChange } = open({ value: at(10, 25, 18) });
     const field = screen.getByRole("textbox", { name: "날짜 직접 입력" });
     fireEvent.change(field, { target: { value: "10/30" } });
-    expect(endField()).toHaveTextContent("10월 30일 (금)");
     fireEvent.click(startField());
     expect(field).toHaveValue("");
-    for (const value of ["1", "10", "10/", "10/2", "10/26"]) {
-      fireEvent.change(field, { target: { value } });
-      expect(startField()).toHaveClass("on");
-    }
+    expect(endField()).toHaveTextContent("10월 25일 (일)"); // 10/30 was never entered
+    fireEvent.change(field, { target: { value: "10/26" } });
+    expect(startField()).toHaveClass("on");
+    fireEvent.keyDown(field, { key: "Enter" });
+    expect(startField()).toHaveClass("on");
     expect(startField()).toHaveTextContent("10월 26일 (월)");
+    fireEvent.click(endField());
+    fireEvent.change(field, { target: { value: "10/30" } });
+    fireEvent.keyDown(field, { key: "Enter" });
     expect(endField()).toHaveTextContent("10월 30일 (금)");
     ok();
     expect(onChange).toHaveBeenCalledWith(at(10, 30, 18), at(10, 26, 0));

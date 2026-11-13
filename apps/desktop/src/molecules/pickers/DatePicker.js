@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { dayLabel, quickDays } from "utils/dateGroups";
 import { hasStartTime } from "utils/taskPeriod";
 import { dueMs, formatClock, formatMinuteOfDay, hasDueTime } from "utils/timeDisplay";
@@ -13,7 +13,6 @@ export const END_OF_DAY = 1439; // minutes; a due at 23:59 means "no time"
 const PRESETS = [540, 720, 1080, 1260];
 const START_PRESETS = [540, 720, 840, 1080];
 const START_ON = 540; // the start's time switch turns on at 오전 9시
-const BAD_DELAY = 700; // ms of no typing before "not understood" shows
 const pad = (n) => String(n).padStart(2, "0");
 const midnight = (value) => { const d = new Date(value); d.setHours(0, 0, 0, 0); return d; };
 const sameDay = (a, b) => midnight(a).getTime() === midnight(b).getTime();
@@ -114,9 +113,10 @@ const monthOf = (day) => ({ year: day.getFullYear(), month: day.getMonth() });
 // value: the due timestamp or null; start: the period's start or null; initialDay: the day to
 // start on when there is no due (e.g. the picked calendar day). timeFormat ("12" | "24") and
 // weekStart (0 | 1) default to the prefs. anchor/placement/offset/gap: see Popover.
-// The text field next to 오늘 · 내일 (#106.7) picks as it is typed: a period ("11/20~23",
-// parsePeriod) sets both fields, a date (parseDue) the active one. Picking a chip or a calendar
-// day clears it.
+// The text field next to 오늘 · 내일 (#106.7) is read on Enter (#110): a period ("11/20~23",
+// parsePeriod) fills both fields, a date (parseDue) the active one, and the picker stays open.
+// While typing, the line only previews what Enter would pick. Enter on an empty field applies
+// like 정하기. Picking a chip, a calendar day or another field clears the text.
 export default function DatePicker({
   value = null, start: startValue = null, focus = "end", initialDay, now, timeFormat, weekStart, onChange, onCancel,
   anchor, placement = "bottom-start", offset, gap, returnFocus, ignoreOutside,
@@ -137,13 +137,9 @@ export default function DatePicker({
   const [text, setText] = useState("");
   const [parsed, setParsed] = useState(null); // null | false | { day, minutes } | { start, end }
   const [showBad, setShowBad] = useState(false);
-  const badTimer = useRef(null);
-  const beforeText = useRef(null); // the fields when typing began; the text applies to them
   const byKey = useRef(false);
   const minuteRef = useRef(null);
   const timeLabel = useId();
-
-  useEffect(() => () => clearTimeout(badTimer.current), []);
 
   const period = !!start;
   const field = active === "start" ? start : end; // null while the empty start is active
@@ -162,11 +158,9 @@ export default function DatePicker({
 
   const show = (date) => setView(monthOf(midnight(date)));
   const clearText = () => {
-    clearTimeout(badTimer.current);
     setText("");
     setParsed(null);
     setShowBad(false);
-    beforeText.current = null;
   };
   // A day for the active field (an empty start is made); the other side moves along so the
   // start stays on or before the end. A start picked in the calendar hands over to 끝.
@@ -198,64 +192,57 @@ export default function DatePicker({
     show(end.day);
   };
 
+  // What a text reads as: null (empty), false (not understood), { start, end } fields for a
+  // period, or { day, minutes } for a date.
+  const read = (value) => {
+    const at = now ?? Date.now();
+    const p = parsePeriod(value, at, ws);
+    if (p === null) return null;
+    if (p) {
+      return {
+        start: { day: midnight(p.start), on: p.startMinutes !== null, minutes: p.startMinutes ?? 0 },
+        end: { day: midnight(p.end), on: p.endMinutes !== null, minutes: p.endMinutes ?? END_OF_DAY },
+      };
+    }
+    return parseDue(value, at, ws);
+  };
   const onText = (event) => {
     const next = event.target.value;
-    const base = beforeText.current ?? { end, start, active };
-    beforeText.current = base;
     setText(next);
-    clearTimeout(badTimer.current);
-    const at = now ?? Date.now();
-    const p = parsePeriod(next, at, ws);
-    if (p === null) {
-      // An empty field goes back to how the fields were before typing.
-      setParsed(null);
-      setShowBad(false);
-      setEnd(base.end);
-      setStart(base.start);
-      setActive(base.active);
-      show((base.active === "start" && base.start ? base.start : base.end).day);
-      beforeText.current = null;
-      return;
-    }
-    if (p) {
-      const s = { day: midnight(p.start), on: p.startMinutes !== null, minutes: p.startMinutes ?? 0 };
-      const e = { day: midnight(p.end), on: p.endMinutes !== null, minutes: p.endMinutes ?? END_OF_DAY };
-      setShowBad(false);
-      setParsed({ start: s, end: e });
-      setStart(s);
-      setEnd(e);
-      setActive("end");
-      show(e.day);
-      return;
-    }
-    const r = parseDue(next, at, ws);
-    setParsed(r);
-    if (r === false) {
-      // The last pick stays; the hint waits for a pause so it does not flash while typing.
-      if (!showBad) badTimer.current = setTimeout(() => setShowBad(true), BAD_DELAY);
-      return;
-    }
     setShowBad(false);
-    // A text without a time keeps the time setting the field had.
-    const side = base.active;
-    const was = side === "start" ? base.start ?? { day: r.day, on: false, minutes: 0 } : base.end;
-    const f = { day: midnight(r.day), on: r.minutes !== null ? true : was.on, minutes: r.minutes !== null ? r.minutes : was.minutes };
-    if (side === "start") {
-      setStart(f);
-      setEnd(f.day > base.end.day ? { ...base.end, day: f.day } : base.end);
+    setParsed(read(next));
+  };
+  // Enter: fill the fields from the text and keep the picker open.
+  const fillFromText = () => {
+    const r = read(text);
+    if (r === null) return apply();
+    if (r === false) return setShowBad(true);
+    if (r.start) {
+      setStart(r.start);
+      setEnd(r.end);
+      setActive("end");
+      show(r.end.day);
     } else {
-      setEnd(f);
-      setStart(base.start && f.day < base.start.day ? { ...base.start, day: f.day } : base.start);
+      // A text without a time keeps the time setting the field had.
+      const was = active === "start" ? start ?? { day: r.day, on: false, minutes: 0 } : end;
+      const f = { day: midnight(r.day), on: r.minutes !== null ? true : was.on, minutes: r.minutes !== null ? r.minutes : was.minutes };
+      if (active === "start") {
+        setStart(f);
+        if (f.day > end.day) setEnd({ ...end, day: f.day });
+      } else {
+        setEnd(f);
+        if (start && f.day < start.day) setStart({ ...start, day: f.day });
+      }
+      show(f.day);
     }
-    setActive(side);
-    show(f.day);
+    clearText();
+    return undefined;
   };
   const onTextKey = (event) => {
     if (event.nativeEvent.isComposing || event.keyCode === 229) return;
     if (event.key !== "Enter") return;
     event.preventDefault();
-    if (parsed !== false) apply();
-    else { clearTimeout(badTimer.current); setShowBad(true); }
+    fillFromText();
   };
   const moveMonth = (delta) => setView((v) => monthOf(new Date(v.year, v.month + delta, 1)));
 
@@ -286,10 +273,9 @@ export default function DatePicker({
   const fieldText = (f) => dayText(f.day, f.on ? f.minutes : null, true);
   const line = parsed === false && showBad
     ? <span>알아듣지 못했어요 · 예: 내일 3시, 11/20, 11/20~11/23</span>
-    : parsed?.start ? <><TickIcon size={12} /><span>{fieldText(parsed.start)} ~ {fieldText(parsed.end)}</span></>
-      : parsed ? <><TickIcon size={12} /><span>{dayText(parsed.day, parsed.minutes)}</span></>
-        : parsed === false ? <span>{field ? dayText(field.day, field.on ? field.minutes : null) : ""}</span>
-          : <span>날짜나 기간(~, 부터 · 까지)을 적으면 바로 골라져요</span>;
+    : parsed?.start ? <><TickIcon size={12} /><span>{fieldText(parsed.start)} ~ {fieldText(parsed.end)} · Enter</span></>
+      : parsed ? <><TickIcon size={12} /><span>{dayText(parsed.day, parsed.minutes)} · Enter</span></>
+        : <span>날짜나 기간(~, 부터 · 까지)을 적고 Enter를 누르세요</span>;
   const presets = active === "start"
     ? START_PRESETS.map((v) => [v, formatMinuteOfDay(v, tf)])
     : [...PRESETS.map((v) => [v, formatMinuteOfDay(v, tf)]), [END_OF_DAY, "하루 끝"]];

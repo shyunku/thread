@@ -186,7 +186,8 @@ test("a period from the picker is one chip and goes in the new task; the title r
   fireEvent.click(screen.getByRole("button", { name: "기한 정하기" }));
   const text = screen.getByRole("textbox", { name: "날짜 직접 입력" });
   fireEvent.change(text, { target: { value: "11/20~11/23" } });
-  fireEvent.keyDown(text, { key: "Enter" });
+  fireEvent.keyDown(text, { key: "Enter" }); // fills the fields
+  fireEvent.keyDown(text, { key: "Enter" }); // the empty field applies
   expect(chipOf("기간 11/20 ~ 11/23")).toHaveClass("on");
   type(input, "워크숍 내일부터 금요일까지");
   const entity = onAdd.mock.calls[0][0].toEntity();
@@ -195,6 +196,7 @@ test("a period from the picker is one chip and goes in the new task; the title r
   // ×: no date and no period.
   fireEvent.click(screen.getByRole("button", { name: "기한 정하기" }));
   fireEvent.change(screen.getByRole("textbox", { name: "날짜 직접 입력" }), { target: { value: "내일~모레" } });
+  fireEvent.keyDown(screen.getByRole("textbox", { name: "날짜 직접 입력" }), { key: "Enter" });
   fireEvent.keyDown(screen.getByRole("textbox", { name: "날짜 직접 입력" }), { key: "Enter" });
   fireEvent.click(screen.getByRole("button", { name: "날짜 빼기" }));
   expect(screen.getByRole("button", { name: "기한 정하기" })).toBeInTheDocument();
