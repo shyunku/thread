@@ -24,7 +24,10 @@ export default function LockScreen() {
       if (usePassword) await account.session.unlockWithPassword(password);
       else await account.session.unlock();
     } catch (e) {
-      setError(messageFor(e));
+      // Another open still running, or a lock won over this one: not an error to show.
+      const code = (e as any)?.message;
+      if (code !== 'UNLOCK_IN_PROGRESS' && code !== 'UNLOCK_CANCELLED')
+        setError(messageFor(e));
     } finally {
       setBusy(false);
       setPassword('');

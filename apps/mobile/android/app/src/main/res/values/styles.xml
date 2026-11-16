@@ -4,6 +4,8 @@
     <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
         <!-- Customize your theme here. -->
         <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
+        <!-- Start-up (#112): the same logo screen as the app's loading screen, no grey flash. -->
+        <item name="android:windowBackground">@drawable/splash_window</item>
     </style>
 
 </resources>

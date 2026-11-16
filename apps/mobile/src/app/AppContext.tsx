@@ -63,6 +63,9 @@ export type AppRuntime = {
 export type AppValue = {
   runtime: AppRuntime;
   ready: boolean;
+  // The start-up logo screen is up (#112): restoring the account, reopening the vault,
+  // or waiting for the first sync after an unlock.
+  loading: boolean;
   user: AccountUser | null;
   account: AccountRuntime | null;
   phase: VaultPhase | null;
@@ -85,6 +88,9 @@ export type AppValue = {
   clearNotice(): void;
 };
 
+// How long an unlock waits for its first sync before opening the stored data (#112).
+export const FIRST_SYNC_WAIT = 5000;
+
 // Exported for the dev-only store preview (src/preview/storePreview.tsx).
 export const AppContext = createContext<AppValue | null>(null);
 
@@ -100,6 +106,16 @@ export function AppProvider({
   const [phase, setPhase] = useState<VaultPhase | null>(null);
   const [setup, setSetup] = useState<SetupState | null>(null);
   const [sync, setSync] = useState<SyncStatus | null>(null);
+  // The silent resume (session.start) is running: no lock screen yet (#112, M1).
+  const [starting, setStarting] = useState(false);
+  // After an unlock: waiting for the first sync; expired after FIRST_SYNC_WAIT.
+  const [waiting, setWaiting] = useState(false);
+  const [waitExpired, setWaitExpired] = useState(false);
+  const gate = useRef<{
+    seen: boolean;
+    timer: ReturnType<typeof setTimeout>;
+  } | null>(null);
+  const beginWaitRef = useRef<(() => void) | null>(null);
   const [, setVersion] = useState(0);
   const [scope, setScope] = useState<Scope>({ kind: 'all' });
   const [prefs, setPrefsState] = useState<Prefs>(() => {
@@ -158,8 +174,26 @@ export function AppProvider({
       setPhase(null);
       setSetup(null);
       setSync(null);
+      setStarting(false);
+      setWaiting(false);
       return;
     }
+    // Each unlock waits for one finished sync run (or FIRST_SYNC_WAIT with stored data).
+    const endWait = () => {
+      if (gate.current) clearTimeout(gate.current.timer);
+      gate.current = null;
+      setWaiting(false);
+    };
+    const beginWait = () => {
+      if (gate.current) clearTimeout(gate.current.timer);
+      gate.current = {
+        seen: account.sync.status().syncing,
+        timer: setTimeout(() => setWaitExpired(true), FIRST_SYNC_WAIT),
+      };
+      setWaitExpired(false);
+      setWaiting(true);
+    };
+    beginWaitRef.current = beginWait;
     const readSetup = (current: VaultPhase) => {
       setPhase(current);
       setSetup(
@@ -171,10 +205,18 @@ export function AppProvider({
     };
     const offSession = account.session.subscribe(next => {
       readSetup(next);
-      if (next === 'UNLOCKED') account.sync.requestSync();
+      if (next === 'UNLOCKED') {
+        beginWait();
+        account.sync.requestSync();
+      } else endWait();
     });
     const offSync = account.sync.subscribe(status => {
       setSync(status);
+      // A run started and ended (synced, offline or failed): the wait is over.
+      if (gate.current) {
+        if (status.syncing) gate.current.seen = true;
+        else if (gate.current.seen) endWait();
+      }
       // New data after each successful sync.
       if (status.lastSyncedAt !== lastSync.current) {
         lastSync.current = status.lastSyncedAt;
@@ -182,13 +224,20 @@ export function AppProvider({
       }
     });
     readSetup(account.session.phase());
+    setStarting(true);
     account.session
       .start()
       .catch(() => false)
-      .then(() => readSetup(account.session.phase()));
+      .then(() => {
+        readSetup(account.session.phase());
+        setStarting(false);
+      });
     return () => {
       offSession();
       offSync();
+      if (gate.current) clearTimeout(gate.current.timer);
+      gate.current = null;
+      beginWaitRef.current = null;
     };
   }, [account, refresh]);
 
@@ -219,6 +268,18 @@ export function AppProvider({
     }
   }, [account, phase, modelKey]);
   const model = useMemo(() => (lists ? buildModel(lists) : null), [lists]);
+
+  // The logo screen (#112): until the account is restored and the vault reopened, then
+  // after each unlock until the first sync run ends. With stored data it opens after
+  // FIRST_SYNC_WAIT at the latest; a first connection without data waits for the sync.
+  const loading =
+    !ready ||
+    (!!user &&
+      (starting ||
+        !phase ||
+        (phase === 'UNLOCKED' &&
+          (!setup ||
+            (setup === 'READY' && waiting && (!waitExpired || !model))))));
 
   // Due reminders (#91) follow the lists and the settings. A locked vault keeps the ones already
   // set (the phone shows them on its own); signing out clears them.
@@ -261,6 +322,8 @@ export function AppProvider({
     if (!account) return;
     account.session.use(store => markReady(store));
     setSetup('READY');
+    // A new connection shows the logo screen until its first sync.
+    beginWaitRef.current?.();
     account.sync.requestSync();
     refresh();
   }, [account, refresh]);
@@ -268,6 +331,7 @@ export function AppProvider({
   const value: AppValue = {
     runtime,
     ready,
+    loading,
     user,
     account,
     phase,

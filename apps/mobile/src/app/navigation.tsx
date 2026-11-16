@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StatusBar, Text, View } from 'react-native';
+import { StatusBar, Text, View } from 'react-native';
 import { onReminderOpen } from '@/core/reminders';
 import {
   DarkTheme,
@@ -22,6 +22,7 @@ import LoginScreen from '@/screens/auth/LoginScreen';
 import SignupScreen from '@/screens/auth/SignupScreen';
 import GoogleLinkScreen from '@/screens/auth/GoogleLinkScreen';
 import LockMethodScreen from '@/screens/setup/LockMethodScreen';
+import LoadingScreen from '@/screens/setup/LoadingScreen';
 import LockScreen from '@/screens/setup/LockScreen';
 import SetupScreen from '@/screens/setup/SetupScreen';
 import VaultProblemScreen from '@/screens/setup/VaultProblemScreen';
@@ -159,23 +160,10 @@ function Tabs() {
 // One stack whose screens follow the account state: signed out -> vault setup ->
 // lock -> connect -> the app (React Navigation's conditional-screens pattern).
 function Root() {
-  const { ready, user, phase, setup } = useApp();
+  const { loading, user, phase, setup } = useApp();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  if (!ready || (user && (!phase || (phase === 'UNLOCKED' && !setup)))) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: theme.canvas,
-        }}
-      >
-        <ActivityIndicator color={theme.accent} />
-      </View>
-    );
-  }
+  if (loading) return <LoadingScreen />;
   const padded = {
     contentStyle: { backgroundColor: theme.canvas, paddingTop: insets.top },
   };

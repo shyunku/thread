@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Window background (#112): the canvas with the logo at 128dp in the middle, where the
+     JS loading screen (src/screens/setup/LoadingScreen.tsx) draws it. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/splash_background" />
+    <item
+        android:width="128dp"
+        android:height="128dp"
+        android:gravity="center"
+        android:drawable="@drawable/splash_logo" />
+</layer-list>

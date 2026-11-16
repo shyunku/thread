@@ -171,6 +171,7 @@ export function StorePreviewProvider({ children }: { children: ReactNode }) {
       reminders: { schedule: noop, askPermission: () => Promise.resolve(true) },
     } as any,
     ready: true,
+    loading: false,
     user: { uid: 'preview', username: 'Thread', authId: 'thread' } as any,
     account: null,
     phase: 'UNLOCKED',

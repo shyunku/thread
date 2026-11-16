@@ -29,6 +29,25 @@ export function createFakeRuntime({
   const accounts = new Map<string, any>();
   let deleteResult = 'ok';
   let deleteCalls = 0;
+  // The phone's boot (a reboot drops the same-boot resume) and the network (#112):
+  // `hold` keeps every server call waiting until release(); `offline` fails them.
+  const boot = { id: 'count:1' };
+  const net = { offline: false, hold: false, waiting: [] as (() => void)[] };
+  const netTransport = new Proxy(server.transport as any, {
+    get(target, key) {
+      const value = target[key];
+      if (typeof value !== 'function') return value;
+      return (...args: unknown[]) => {
+        if (!net.hold && !net.offline) return value.apply(target, args);
+        return (async () => {
+          if (net.hold)
+            await new Promise<void>(resolve => net.waiting.push(resolve));
+          if (net.offline) throw Error('NETWORK_UNAVAILABLE');
+          return value.apply(target, args);
+        })();
+      };
+    },
+  });
   // The account is gone (#92): close and destroy its vault, then report the sign-out.
   const gone = async (reason: 'deleted' | 'deletedElsewhere') => {
     const value = accounts.get(uid);
@@ -43,7 +62,11 @@ export function createFakeRuntime({
   };
   const runtime: AppRuntime = {
     account: {
-      restore: async () => user,
+      // Like AccountSession.restore: a stored sign-in is reported to the listener.
+      restore: async () => {
+        if (user) listener?.(user);
+        return user;
+      },
       onChange: next => (listener = next),
       async signIn(authId: string, password: string) {
         if (password !== 'secret pw')
@@ -79,13 +102,13 @@ export function createFakeRuntime({
         {
           openDatabase: dbs.openDatabase,
           keychain: keys.keychain,
-          bootId: () => 'count:1',
+          bootId: () => boot.id,
           removeDatabase: dbs.removeDatabase,
         },
       );
       const session = new VaultSession(vault);
       const activity = new VaultActivity();
-      const transport = () => server.transport;
+      const transport = () => netTransport;
       const workspace = new MobileWorkspace({
         session,
         transport,
@@ -134,6 +157,19 @@ export function createFakeRuntime({
     deleteCalls: () => deleteCalls,
     // A refresh answered ACCOUNT_DELETED (deleted on another device).
     deletedElsewhere: () => gone('deletedElsewhere'),
+    net,
+    // Lets the held server calls go on.
+    release() {
+      net.hold = false;
+      for (const resolve of net.waiting.splice(0)) resolve();
+    },
+    // The app process ends (unmount the app first) and starts again with the same signed-in
+    // account; after a reboot the same-boot resume no longer opens the vault.
+    restart({ reboot = false }: { reboot?: boolean } = {}) {
+      for (const value of accounts.values()) value.sync.close();
+      accounts.clear();
+      if (reboot) boot.id = 'count:2';
+    },
     cleanup() {
       for (const value of accounts.values()) {
         value.sync.close();
