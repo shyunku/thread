@@ -82,8 +82,8 @@ android {
         applicationId "kr.threadapp.mobile"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 21000
-        versionName "2.1.0"
+        versionCode 22000
+        versionName "2.2.0"
     }
     signingConfigs {
         debug {
