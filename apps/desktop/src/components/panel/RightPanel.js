@@ -1,7 +1,7 @@
 import "./RightPanel.scss";
 import { useEffect, useRef, useState } from "react";
 import { useHomeLayout } from "layouts/homeLayoutContext";
-import { CloseIcon } from "molecules/pickers/icons";
+import { CloseIcon, TrashIcon } from "molecules/pickers/icons";
 import { useTaskSelection } from "../list/taskSelection";
 import CalendarTab, { DayList } from "./CalendarTab";
 import DetailPanel from "./DetailPanel";
@@ -37,11 +37,13 @@ const tabId = (id) => `rp-tab-${id}`;
 // tasks: the screen's shown tasks by id (the day list and the marks); catsOf(task) the categories
 // to show for a task; onTaskContextMenu(event, taskId) the task menu.
 export default function RightPanel({ view, tasks, catsOf, prefs, canStar, onTaskContextMenu }) {
-  const { selectedTask, setSelectedTaskId, openTask, detailRequest } = useTaskSelection();
+  const { selectedTask, setSelectedTaskId, openTask, detailRequest, actions } = useTaskSelection();
   const { overlayPanel, setPanelOpen } = useHomeLayout();
   const selectedId = selectedTask?.id ?? null;
   const [hold, setHold] = useState(null); // { id, tab }
   const tablistRef = useRef(null);
+  const bodyRef = useRef(null);
+  const drafts = useRef({}); // the detail fields' texts as typed: { title, memo }
   // A new selection starts on its detail.
   useEffect(() => {
     setHold((h) => (h && h.id !== selectedId ? null : h));
@@ -61,6 +63,23 @@ export default function RightPanel({ view, tasks, catsOf, prefs, canStar, onTask
   const close = () => {
     if (overlayPanel) setPanelOpen(false);
     else setSelectedTaskId(null);
+  };
+
+  // 할 일 삭제 (#111): the delete with its undo notice (#107). A field being typed in is left first,
+  // so its text is saved to the task before it goes; the restore snapshot takes the typed texts
+  // too. In the drawer the panel closes, back to the list and its notice.
+  const remove = () => {
+    const task = selectedTask;
+    if (!task) return;
+    const active = document.activeElement;
+    if (active && bodyRef.current?.contains(active)) active.blur();
+    const title = drafts.current.title?.trim();
+    const typed = {};
+    if (title) typed.title = title;
+    if (typeof drafts.current.memo === "string") typed.memo = drafts.current.memo;
+    actions?.deleteTask(task.id, typed);
+    setSelectedTaskId(null);
+    if (overlayPanel) setPanelOpen(false);
   };
 
   const choose = (id) => {
@@ -109,6 +128,11 @@ export default function RightPanel({ view, tasks, catsOf, prefs, canStar, onTask
             </button>
           );
         })}
+        {tab === "detail" && selectedTask && (
+          <button type="button" className="rp-del" aria-label="할 일 삭제" data-tip="할 일 삭제" onClick={remove}>
+            <TrashIcon size={16} />
+          </button>
+        )}
         {canClose && (
           <button
             type="button"
@@ -122,9 +146,9 @@ export default function RightPanel({ view, tasks, catsOf, prefs, canStar, onTask
           </button>
         )}
       </div>
-      <div className="rp-body" role="tabpanel" id="rp-tabpanel" aria-labelledby={tabId(tab)}>
+      <div className="rp-body" ref={bodyRef} role="tabpanel" id="rp-tabpanel" aria-labelledby={tabId(tab)}>
         {tab === "detail" && selectedTask ? (
-          <DetailPanel key={selectedTask.id} task={selectedTask} catsOf={catsOf} prefs={prefs} canStar={canStar} />
+          <DetailPanel key={selectedTask.id} task={selectedTask} catsOf={catsOf} prefs={prefs} canStar={canStar} drafts={drafts} />
         ) : tab === "day" ? (
           <DayList {...dayProps} />
         ) : (

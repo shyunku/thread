@@ -51,11 +51,13 @@ const settled = (settle, message) => (reply = {}) => {
 const undoFailed = failed("되돌리지 못했어요.");
 
 // A deleted task as task/restoreTask takes it back: its fields, categories, subtasks in the shown
-// order and its neighbours in the stored order (`list`). It comes back with a new id.
-function restoreSnapshot(task, list) {
+// order and its neighbours in the stored order (`list`). It comes back with a new id. `typed`:
+// the detail's title and memo as typed, saved just before but not back from the store yet (#111).
+function restoreSnapshot(task, list, typed) {
   const i = list.indexOf(task);
   return {
     ...task.toEntity(),
+    ...typed,
     tid: v4(),
     categories: Object.keys(task.categories ?? {}),
     subtasks: sortSubtasks(Object.values(task.subtasks ?? {})).map((s) => s.toEntity()),
@@ -389,13 +391,13 @@ const TodoContent = ({ children }) => {
   // notice about that completion go.
   const actions = useMemo(() => ({
     addTask: onTaskAdd,
-    deleteTask: (tid) => {
+    deleteTask: (tid, typed) => {
       const { taskMap: map, ordered: list, selectedTaskId: selected } = current.current;
       const task = map[tid];
       if (!task) return IpcSender.req.task.deleteTask(tid, failed("할 일을 삭제하지 못했어요."));
-      const snapshot = restoreSnapshot(task, list);
+      const snapshot = restoreSnapshot(task, list, typed);
       const settle = showNotice({
-        kind: "del", name: task.title, target: { tid }, secret: secretOf(task),
+        kind: "del", name: typed?.title ?? task.title, target: { tid }, secret: secretOf(task),
         undo: canRestore() ? () => IpcSender.req.task.restoreTask(snapshot, (reply = {}) => {
           if (reply.success === false) undoFailed(reply);
           else if (selected === tid) setReselect(snapshot.tid);

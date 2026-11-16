@@ -38,13 +38,15 @@ export function dueDetailText(due, timeFormat = "12") {
   return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, "0")}.${String(date.getDate()).padStart(2, "0")} · 하루 끝`;
 }
 
-function TitleField({ task }) {
+// drafts (a ref from the panel head): the texts as typed, for the delete's restore snapshot (#111).
+function TitleField({ task, drafts }) {
   const { actions } = useTaskSelection();
   const ref = useRef(null);
   // One line (pasted breaks become spaces); a changed title is saved when the panel moves to
   // another task or the window closes, too.
   const edit = useInPlaceEdit(task.title, (title) => actions.setTitle(task.id, title), { singleLine: true, flushOnExit: true });
   useAutoHeight(ref, edit.value);
+  if (drafts) drafts.current.title = edit.value;
   return (
     <textarea
       ref={ref}
@@ -63,7 +65,7 @@ function TitleField({ task }) {
 // typing stops at the limit and a paste that goes over keeps what fits and says so until the
 // next edit. A longer memo (an older version, the phone) is never cut: it only takes deletions
 // (maxLength does that) until it is under.
-function MemoField({ task }) {
+function MemoField({ task, drafts }) {
   const { actions } = useTaskSelection();
   const ref = useRef(null);
   const [draft, setDraft] = useState(task.memo ?? "");
@@ -74,6 +76,7 @@ function MemoField({ task }) {
   const timer = useRef(null);
   const latest = useRef({ draft, id: task.id, setMemo: actions.setMemo });
   latest.current = { draft, id: task.id, setMemo: actions.setMemo };
+  if (drafts) drafts.current.memo = draft;
   useAutoHeight(ref, draft);
 
   const flush = () => {
@@ -169,7 +172,7 @@ function ProgressRow({ task }) {
 // time here (decided). canStar false leaves the star out (before the sync status comes).
 // A period (#109) has 시작 and 끝 rows and 진행 instead of 기한; a due alone has "+ 시작", which
 // opens the picker on an empty start. Each side with a time has a bell for its own alert.
-export default function DetailPanel({ task, catsOf, prefs, canStar = true }) {
+export default function DetailPanel({ task, catsOf, prefs, canStar = true, drafts }) {
   const { actions, pickable, complete } = useTaskSelection();
   const tf = prefs?.timeFormat === "24" ? "24" : "12";
   // { kind: "due" | "start" | "end" | "addStart" | "repeat" | "cat" | "bell", el, side }
@@ -254,7 +257,7 @@ export default function DetailPanel({ task, catsOf, prefs, canStar = true }) {
         >
           <CheckIcon />
         </button>
-        <TitleField task={task} />
+        <TitleField task={task} drafts={drafts} />
         {canStar && (
           <button
             type="button"
@@ -327,7 +330,7 @@ export default function DetailPanel({ task, catsOf, prefs, canStar = true }) {
       <SubtaskList task={task} canSort={canStar} />
 
       <div className="rp-block-h">메모</div>
-      <MemoField task={task} />
+      <MemoField task={task} drafts={drafts} />
 
       {created && (
         <div className="rp-stamp">만든 날 {created}{updated ? ` · 마지막 수정 ${updated}` : ""}</div>

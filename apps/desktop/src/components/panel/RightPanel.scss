@@ -61,6 +61,20 @@ $picked: #3d6fe6;
     &:hover { background: var(--hover); color: var(--text); }
     &:active { transform: scale(.94); }
   }
+  // 할 일 삭제, left of × on the detail (#111 mock .rp-ic.del).
+  .rp-del {
+    margin-left: auto;
+    width: 28px;
+    height: 28px;
+    display: grid;
+    place-items: center;
+    border-radius: 7px;
+    color: var(--muted);
+    transition: background-color .12s, color .12s, transform .08s;
+    &:hover { background: var(--hover); color: var(--danger); }
+    &:active { transform: scale(.94); }
+    & + .rp-x { margin-left: 0; }
+  }
   .rp-body {
     flex: 1;
     min-height: 0;
@@ -452,7 +466,7 @@ $picked: #3d6fe6;
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .ck:active, .st:active, .rp-x:active, .rp-ghost:active { transform: none; }
+    .ck:active, .st:active, .rp-x:active, .rp-del:active, .rp-ghost:active { transform: none; }
   }
 }
 
