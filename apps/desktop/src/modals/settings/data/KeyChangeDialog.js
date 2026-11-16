@@ -194,7 +194,7 @@ export default function KeyChangeDialog({ mode = "renew", device = null, osAvail
           {!reencryption ? <p>기존 데이터를 새 열쇠로 다시 보호할 준비를 하고 있어요…</p>
             : reencryption.phase === "DONE" ? <p>기존 데이터도 새 열쇠로 다시 보호했어요.</p>
             : reencryption.phase === "START_FAILED" || reencryption.phase === "PAUSED" ? (
-              <Callout>기존 데이터를 다시 보호하는 작업을 시작하지 못했어요. 데이터 탭에서 다시 시도할 수 있어요.</Callout>
+              <Callout>기존 데이터를 다시 보호하는 작업을 시작하지 못했어요. 설정 > 데이터 및 보안에서 다시 시도할 수 있어요.</Callout>
             ) : <p>기존 데이터를 새 열쇠로 다시 보호하고 있어요 · {reencryption.count ?? 0}개 처리. 앱을 계속 사용해도 돼요.</p>}
         </>
       )}

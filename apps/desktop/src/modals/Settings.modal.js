@@ -17,7 +17,7 @@ import SettingSystem from "./settings/System.settings";
 // Each page renders its own heading (SettingsPage) so it can add page actions.
 const SETTING_MENU = {
   GENERAL: { label: "일반", icon: <IoSettingsOutline />, page: (props) => <SettingCommon {...props} /> },
-  DATA: { label: "데이터", icon: <IoShieldOutline />, page: (props) => <SettingData {...props} /> },
+  DATA: { label: "데이터 및 보안", icon: <IoShieldOutline />, page: (props) => <SettingData {...props} /> },
   SYSTEM: { label: "시스템", icon: <IoDesktopOutline />, page: (props) => <SettingSystem {...props} /> },
   ACCOUNT: { label: "계정", icon: <IoPersonOutline />, page: (props) => <SettingAccount {...props} /> },
   ABOUT: { label: "정보", icon: <IoInformationCircleOutline />, page: (props) => <SettingInfo {...props} /> },
