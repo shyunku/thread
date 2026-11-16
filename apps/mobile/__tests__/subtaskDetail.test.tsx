@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { Keyboard } from 'react-native';
 import { buildModel } from '@/core/model/view';
-import { dropIndex, subtaskMoveAnchor } from '@/core/model/subtaskOrder';
+import { dropAnchor, dropIndex } from '@/core/model/subtaskOrder';
 import TaskDetailScreen, { UNDO_MS } from '@/screens/app/TaskDetailScreen';
 import { sanitize } from '@/core/prefs';
 
@@ -234,13 +234,131 @@ test('no lifting while a field has the keyboard', async () => {
   expect(list().props.onMoveShouldSetResponderCapture()).toBe(false);
 });
 
-test('drop index and anchors (same rule as the PC)', () => {
+test('drop index and anchors (same rule as the PC), read against the rows there are now', () => {
   expect(dropIndex([20, 60], 10)).toBe(0);
   expect(dropIndex([20, 60], 40)).toBe(1);
   expect(dropIndex([20, 60], 70)).toBe(2);
-  expect(subtaskMoveAnchor(['a', 'b', 'c'], 'a', 0)).toBeNull();
-  expect(subtaskMoveAnchor(['a', 'b', 'c'], 'a', 1)).toEqual({ anchorId: 'c', after: false });
-  expect(subtaskMoveAnchor(['a', 'b', 'c'], 'a', 2)).toEqual({ anchorId: 'c', after: true });
-  expect(subtaskMoveAnchor(['a', 'b', 'c'], 'c', 0)).toEqual({ anchorId: 'a', after: false });
-  expect(subtaskMoveAnchor(['a'], 'a', 0)).toBeNull();
+  const now = ['a', 'b', 'c'];
+  expect(dropAnchor(now, ['a', 'b', 'c'], 'a')).toBeNull();
+  expect(dropAnchor(now, ['b', 'a', 'c'], 'a')).toEqual({ anchorId: 'c', after: false });
+  expect(dropAnchor(now, ['b', 'c', 'a'], 'a')).toEqual({ anchorId: 'c', after: true });
+  expect(dropAnchor(now, ['c', 'a', 'b'], 'c')).toEqual({ anchorId: 'a', after: false });
+  // Deleted meanwhile: the anchor is never a row that is gone; a gone row is not moved.
+  expect(dropAnchor(['a', 'b'], ['b', 'a', 'c'], 'a')).toEqual({ anchorId: 'b', after: true });
+  expect(dropAnchor(['b', 'c'], ['b', 'c', 'a'], 'a')).toBeNull();
+  // Added meanwhile: stays at the end.
+  expect(dropAnchor(['a', 'b', 'c', 'd'], ['b', 'a', 'c'], 'a')).toEqual({ anchorId: 'c', after: false });
 });
+
+test('rows deleted on another device during a drag: the drop uses the rows left and never throws', async () => {
+  const view = await render(<TaskDetailScreen />);
+  await laidOut();
+  await fireEvent(screen.getByText('항공권 예매 확인'), 'longPress', {
+    nativeEvent: { pageY: 300 },
+  });
+  await fireEvent(list(), 'responderMove', { nativeEvent: { pageY: 390 } });
+  // The anchor it would have used (c) is deleted meanwhile.
+  mockApp.model = modelWith(SUBS.slice(0, 2));
+  await view.rerender(<TaskDetailScreen />);
+  await fireEvent(list(), 'responderRelease');
+  expect(calls('task/updateSubtaskOrder')).toEqual([
+    ['task/updateSubtaskOrder', ['t1', 'a', 'b', true]],
+  ]);
+
+  // The lifted row itself is deleted: nothing is sent.
+  mockApp.mutate.mockClear();
+  mockApp.model = modelWith(SUBS);
+  await view.rerender(<TaskDetailScreen />);
+  await laidOut();
+  await fireEvent(screen.getByText('짐 싸기'), 'longPress', {
+    nativeEvent: { pageY: 300 },
+  });
+  await fireEvent(list(), 'responderMove', { nativeEvent: { pageY: 200 } });
+  mockApp.model = modelWith(SUBS.slice(0, 2));
+  await view.rerender(<TaskDetailScreen />);
+  await fireEvent(list(), 'responderRelease');
+  expect(calls('task/updateSubtaskOrder')).toEqual([]);
+
+  // The model refuses the move (ANCHOR_DELETED): no crash.
+  mockApp.model = modelWith(SUBS);
+  await view.rerender(<TaskDetailScreen />);
+  await laidOut();
+  mockApp.mutate.mockImplementationOnce(() => {
+    throw Error('ANCHOR_DELETED');
+  });
+  await fireEvent(screen.getByText('항공권 예매 확인'), 'longPress', {
+    nativeEvent: { pageY: 300 },
+  });
+  await fireEvent(list(), 'responderMove', { nativeEvent: { pageY: 390 } });
+  await fireEvent(list(), 'responderRelease');
+  expect(list().props.onMoveShouldSetResponderCapture()).toBe(false);
+});
+
+test('the system taking the touch cancels the drag: the order goes back, nothing is saved', async () => {
+  await render(<TaskDetailScreen />);
+  await laidOut();
+  await fireEvent(screen.getByText('항공권 예매 확인'), 'longPress', {
+    nativeEvent: { pageY: 300 },
+  });
+  await fireEvent(list(), 'responderMove', { nativeEvent: { pageY: 390 } });
+  expect(order()).toEqual(['숙소 체크인 시간 문의', '짐 싸기', '항공권 예매 확인']);
+  await fireEvent(list(), 'responderTerminate');
+  expect(calls('task/updateSubtaskOrder')).toEqual([]);
+  expect(order()).toEqual(['항공권 예매 확인', '숙소 체크인 시간 문의', '짐 싸기']);
+  expect(list().props.onMoveShouldSetResponderCapture()).toBe(false);
+});
+
+// Lays out the rows shown (40 high each), holds the first one and reports whether it lifted.
+async function canDrag() {
+  const rows = screen.getAllByTestId(/^subtask-[a-z]$/);
+  for (const [i, row] of rows.entries())
+    await fireEvent(row, 'layout', {
+      nativeEvent: { layout: { x: 0, y: i * 40, width: 390, height: 40 } },
+    });
+  const first = screen.getByText('항공권 예매 확인');
+  await fireEvent(first, 'longPress', { nativeEvent: { pageY: 300 } });
+  const lifted = list().props.onMoveShouldSetResponderCapture();
+  await fireEvent(first, 'pressOut');
+  return lifted;
+}
+
+test('deleting the row being edited (here or elsewhere) ends the edit; lifting works again', async () => {
+  const view = await render(<TaskDetailScreen />);
+  await fireEvent.press(screen.getByText('짐 싸기'));
+  await fireEvent(screen.getByDisplayValue('짐 싸기'), 'focus');
+  await fireEvent.press(screen.getAllByLabelText('하위 할 일 삭제')[2]);
+  expect(await canDrag()).toBe(true);
+
+  // Another device deletes the row while it is edited.
+  await fireEvent.press(screen.getByText('숙소 체크인 시간 문의'));
+  await fireEvent(screen.getByDisplayValue('숙소 체크인 시간 문의'), 'focus');
+  expect(await canDrag()).toBe(false);
+  mockApp.model = modelWith([SUBS[0], SUBS[2]]);
+  await view.rerender(<TaskDetailScreen />);
+  expect(screen.queryByDisplayValue('숙소 체크인 시간 문의')).toBeNull();
+  expect(await canDrag()).toBe(true);
+});
+
+test.each(['title', 'memo', 'sub'])(
+  'the keyboard going away (Android back) ends the %s field; lifting works again',
+  async field => {
+    await render(<TaskDetailScreen />);
+    if (field === 'title')
+      await fireEvent(screen.getByDisplayValue('제주 여행 준비'), 'focus');
+    else if (field === 'memo')
+      await fireEvent(screen.getByPlaceholderText('메모할 내용을 적어주세요.'), 'focus');
+    else {
+      await fireEvent.press(screen.getByText('짐 싸기'));
+      await fireEvent(screen.getByDisplayValue('짐 싸기'), 'focus');
+    }
+    await act(async () => keyboard.keyboardDidShow());
+    expect(await canDrag()).toBe(false);
+    await act(async () => keyboard.keyboardDidHide());
+    if (field === 'sub') {
+      // The test renderer has no native blur: the edit ends on the blur event it sends.
+      const input = screen.queryByDisplayValue('짐 싸기');
+      if (input) await fireEvent(input, 'blur');
+    }
+    expect(await canDrag()).toBe(true);
+  },
+);

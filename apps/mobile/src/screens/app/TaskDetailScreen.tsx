@@ -26,7 +26,7 @@ import {
   remainingText,
   type SubtaskRow,
 } from '@/core/model/view';
-import { dropIndex, subtaskMoveAnchor } from '@/core/model/subtaskOrder';
+import { dropAnchor, dropIndex } from '@/core/model/subtaskOrder';
 import { DateTimeSheet } from '@/ui/DateTimeSheet';
 import { IconButton, Row, Sheet } from '@/ui/kit';
 import { useTheme } from '@/ui/theme';
@@ -92,6 +92,8 @@ export default function TaskDetailScreen() {
   const scrollRef = useRef<ScrollViewInstance>(null);
   const addInput = useRef<TextInputInstance>(null);
   const editInput = useRef<TextInputInstance>(null);
+  const titleInput = useRef<TextInputInstance>(null);
+  const memoInput = useRef<TextInputInstance>(null);
   // Layout in the scroll content, for showing the field in use above the keyboard.
   const boxes = useRef({
     scroll: 0,
@@ -186,14 +188,23 @@ export default function TaskDetailScreen() {
       setKeyboard(true);
       reveal();
     });
-    // Android's back gesture hides the keyboard but can leave the field focused.
+    // Android's back gesture hides the keyboard but can leave the field focused: the
+    // field is done (the add field adds, the others save on blur).
     const hide = Keyboard.addListener('keyboardDidHide', () => {
       setKeyboard(false);
       const field = focusRef.current;
-      if (field === 'add') {
-        handlers.current.commitAdd();
-        addInput.current?.blur();
-      } else if (field?.startsWith('sub:')) editInput.current?.blur();
+      if (!field) return;
+      if (field === 'add') handlers.current.commitAdd();
+      const input =
+        field === 'add'
+          ? addInput
+          : field === 'title'
+          ? titleInput
+          : field === 'memo'
+          ? memoInput
+          : editInput;
+      input.current?.blur();
+      setFocus(null);
     });
     return () => {
       show.remove();
@@ -201,6 +212,18 @@ export default function TaskDetailScreen() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // A row deleted while its name is edited (here or on another device) ends the edit.
+  const subtaskIds = task?.subtasks.map(s => s.sid).join() ?? '';
+  useEffect(() => {
+    const ids = live.current.task?.subtasks.map(s => s.sid) ?? [];
+    const edit = editRef.current;
+    if (edit && !ids.includes(edit.sid)) setEditing(null);
+    const field = focusRef.current;
+    if (field?.startsWith('sub:') && !ids.includes(field.slice(4)))
+      setFocus(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subtaskIds]);
 
   // Leaving the screen keeps what was typed in the subtask fields.
   useEffect(
@@ -289,6 +312,7 @@ export default function TaskDetailScreen() {
     if (sub.done && sub.doneAt) snapshot.done_at = sub.doneAt;
     if (sub.dueDate) snapshot.due_date = sub.dueDate;
     if (editRef.current?.sid === sub.sid) setEditing(null);
+    blurred(`sub:${sub.sid}`);
     mutate('task/deleteSubtask', [tid, sub.sid]);
     if (noticeTimer.current) clearTimeout(noticeTimer.current);
     setNotice({ n: ++noticeSeq.current, snapshot, near });
@@ -340,19 +364,29 @@ export default function TaskDetailScreen() {
     d.order = order;
     setDrag({ sid: d.sid, order });
   };
+  // Saves the dropped order against the rows there are now (another device may have
+  // deleted some meanwhile); a move the model refuses is dropped.
   const drop = () => {
     const d = dragRef.current;
     if (!d) return;
     dragRef.current = null;
     setDrag(null);
-    const anchor = subtaskMoveAnchor(d.base, d.sid, d.order.indexOf(d.sid));
-    if (anchor)
-      mutate('task/updateSubtaskOrder', [
+    const current = (live.current.task?.subtasks ?? []).map(s => s.sid);
+    const anchor = dropAnchor(current, d.order, d.sid);
+    if (!anchor) return;
+    try {
+      live.current.mutate('task/updateSubtaskOrder', [
         tid,
         d.sid,
         anchor.anchorId,
         anchor.after,
       ]);
+    } catch {}
+  };
+  // The system took the touch: the row goes back where it was.
+  const cancelDrag = () => {
+    dragRef.current = null;
+    setDrag(null);
   };
   // A lift released without moving: the row goes back down.
   const released = () => {
@@ -442,6 +476,7 @@ export default function TaskDetailScreen() {
                 }
               />
               <TextInput
+                ref={titleInput}
                 value={title}
                 onChangeText={setTitle}
                 onFocus={() => focused('title')}
@@ -554,7 +589,7 @@ export default function TaskDetailScreen() {
               }}
               onResponderMove={event => dragTo(event.nativeEvent.pageY)}
               onResponderRelease={drop}
-              onResponderTerminate={drop}
+              onResponderTerminate={cancelDrag}
               onResponderTerminationRequest={() => !dragRef.current}
             >
               {shown.map(sub => (
@@ -636,6 +671,7 @@ export default function TaskDetailScreen() {
 
             <SectionHeader label="메모" />
             <TextInput
+              ref={memoInput}
               value={memo}
               onChangeText={setMemo}
               onLayout={event => {
