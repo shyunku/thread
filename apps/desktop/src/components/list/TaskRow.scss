@@ -136,6 +136,8 @@ $accent-hover: #7aa5ff;
     text-align: right;
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
+    // A text longer than the column ends in "…" instead of running into the star (#111).
+    .when, .left { overflow: hidden; text-overflow: ellipsis; }
     .when { display: block; font-size: 13px; line-height: 20px; color: var(--secondary); }
     .left { display: block; font-size: 12px; line-height: 18px; margin-top: 2px; color: var(--muted); }
     .when.over { color: var(--danger); }
