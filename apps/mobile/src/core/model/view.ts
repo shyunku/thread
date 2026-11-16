@@ -24,6 +24,7 @@ export type SubtaskRow = {
   tid: string;
   title: string;
   done: boolean;
+  doneAt: number;
   dueDate: number | null;
   createdAt: number;
 };
@@ -96,6 +97,7 @@ export function buildModel(lists: Lists) {
       tid: s.tid,
       title: s.title ?? '',
       done: !!s.done,
+      doneAt: num(s.done_at),
       dueDate: num(s.due_date) || null,
       createdAt: num(s.created_at),
     };
