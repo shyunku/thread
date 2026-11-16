@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thread 모바일 2.2.0 하위 할 일 시안</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet">
+<style>
+  :root {
+    --page: #0b0d10;
+    /* apps/mobile/src/ui/theme.tsx (dark). */
+    --canvas: #101216; --panel: #15181e; --surface: #1c2028; --hover: #252b36; --border: #2b303b;
+    --text: #edf1f7; --secondary: #a0aaba; --muted: #8792a4; --accent: #6294ff; --accent-text: #fff;
+    --selected: #253858; --success: #70d5a0; --danger: #f0838b; --star: #f2c14e;
+    --kbh: 300px;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; overflow: hidden; background: var(--page); color: var(--text); font: 14px/1.5 Pretendard, "Malgun Gothic", "Segoe UI", sans-serif; word-break: keep-all; }
+  button, input, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  svg { display: block; flex: none; }
+
+  /* One screen: the phone at real size (390 × 844), notes on the right at full height. */
+  .stage { display: flex; gap: 20px; align-items: flex-start; height: 100%; padding: 16px; }
+  .pieces { flex: 1; min-width: 0; height: 100%; display: flex; justify-content: center; align-items: flex-start; overflow-y: auto; scrollbar-width: none; }
+
+  .notes { display: flex; flex-direction: column; width: 400px; height: 100%; min-height: 0; flex: none; padding: 14px 0 0; border: 1px solid #2b303b; border-radius: 12px; background: #12151b; color: #a0aaba; font-size: 13px; }
+  .notes .n-top { display: flex; align-items: center; gap: 10px; padding: 0 16px 10px; border-bottom: 1px solid #242a35; }
+  .notes .n-copy { flex: none; padding: 6px 12px; border: 0; border-radius: 8px; background: #3d6fe0; color: #fff; font-size: 12.5px; font-weight: 600; }
+  .notes .n-copy.done { background: #2f9e6a; }
+  .notes .hint { margin: 0; color: #8b95a7; font-size: 12px; line-height: 1.45; }
+  .notes kbd { padding: 0 4px; border: 1px solid #3a4252; border-radius: 4px; font: inherit; font-size: 11px; color: #cfd6e2; }
+  .notes .n-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 0 10px; scrollbar-width: thin; scrollbar-color: #2b303b transparent; }
+  .notes .n-item { padding: 12px 0 10px; }
+  .notes .n-item + .n-item { border-top: 1px solid #2a303c; }
+  .notes h4 { margin: 2px 6px 4px; font-size: 13px; color: #edf1f7; font-weight: 600; }
+  .notes .n-row { display: grid; gap: 2px; width: 100%; cursor: pointer; margin: 2px 0; padding: 7px 8px; border-radius: 8px; color: #cfd6e2; font-size: 12.5px; }
+  .notes .n-row:hover { background: #1c222c; }
+  .notes .n-row.on { background: #22324f; color: #fff; }
+  .notes .n-nm { font-weight: 600; }
+  .notes .n-ds { color: #8b95a7; font-size: 12px; }
+  .notes .n-row.on .n-ds { color: #b9c6dc; }
+  .notes .n-cm { display: block; margin-top: 6px; width: 100%; min-height: 30px; padding: 5px 8px; border: 1px solid #3a4a66; border-radius: 6px; background: #151b26; color: #edf1f7; font-size: 12.5px; line-height: 1.5; outline: none; resize: none; overflow: hidden; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .notes .n-cm:focus { border-color: #6fa0ff; }
+  .badge { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 9px; font-size: 10.5px; font-weight: 600; line-height: 17px; vertical-align: 1px; }
+  .badge.old { background: #2c323d; color: #aab4c4; }
+  .badge.rec { background: #1d4a35; color: #7fe0ae; }
+  .notes .n-new { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-top: 1px solid #242a35; cursor: pointer; user-select: none; }
+  .notes .n-new input { accent-color: #3ddc84; }
+  body.show-new .pieces .is-new { outline: 2px solid #3ddc84; outline-offset: -2px; }
+
+  /* Shift + hover pickers. */
+  body.shift-on .pieces .hot { outline: 1px dashed #9aa4b699; outline-offset: -1px; }
+  body.shift-on .pieces .ck.hot { outline-offset: 3px; }
+  body.shift-on .pieces [data-opts] { outline: 2px dashed #6fa0ff; outline-offset: -2px; }
+  .opt-pop { position: fixed; z-index: 500; display: none; min-width: 180px; max-width: 420px; padding: 8px; border: 1px solid #3a5486; border-radius: 10px; background: #161b24f5; box-shadow: 0 12px 32px #000b; font-size: 12.5px; color: #cfd6e2; }
+  .opt-pop.on { display: block; }
+  .opt-pop b { display: block; margin: 0 4px 6px; font-size: 11.5px; color: #8b95a7; font-weight: 600; }
+  .opt-pop button { display: block; width: 100%; margin: 2px 0; padding: 6px 10px; border: 0; border-radius: 7px; background: transparent; color: inherit; font: inherit; text-align: left; }
+  .opt-pop button:hover { background: #232a37; }
+  .opt-pop button.on { background: #253858; color: #fff; }
+
+  /* ---------- Phone: 390 × 844 logical px, Android edge to edge, gesture navigation ---------- */
+  .phone, .phone button, .phone input, .phone textarea { font-family: "Noto Sans KR", Pretendard, "Malgun Gothic", sans-serif; }
+  .phone { position: relative; box-sizing: content-box; flex: none; width: 390px; height: 844px; border: 10px solid #23272f; border-radius: 44px; background: var(--canvas); color: var(--text); overflow: hidden; display: flex; flex-direction: column; font-size: 14px; line-height: 1.4; user-select: none; }
+  :where(.phone) :where(button) { appearance: none; margin: 0; padding: 0; border: 0; background: none; text-align: left; }
+  .status { height: 36px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; font-size: 12px; color: var(--secondary); }
+  .gesture { position: absolute; bottom: 8px; left: 50%; width: 110px; height: 4px; margin-left: -55px; border-radius: 4px; background: var(--muted); opacity: .6; z-index: 60; pointer-events: none; }
+  .screen { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  /* The fix: the screen ends at the keyboard (KeyboardAvoidingView). */
+  .phone.kb-open.kb-avoid .screen { padding-bottom: var(--kbh); }
+  .hdr { flex: none; display: flex; align-items: center; padding: 8px 8px 0; }
+  .ib { width: 40px; height: 40px; flex: none; display: grid; place-items: center; border-radius: 12px; color: var(--secondary); cursor: pointer; }
+  .ib:active { opacity: .6; }
+  .ib.m { color: var(--muted); }
+  .scroll { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; padding-bottom: 40px; }
+  .scroll::-webkit-scrollbar { display: none; }
+  .ck { flex: none; display: grid; place-items: center; border-radius: 50%; border: 2px solid var(--muted); color: var(--accent-text); cursor: pointer; }
+  .ck.done { background: var(--accent); border-color: var(--accent); }
+  .ttl { display: flex; align-items: center; gap: 12px; padding: 0 18px; margin-bottom: 10px; }
+  .phone textarea, .phone input { display: block; min-width: 0; margin: 0; padding: 0; border: 0; outline: none; background: none; resize: none; overflow: hidden; color: var(--text); caret-color: var(--accent); user-select: text; }
+  .phone ::placeholder { color: var(--muted); opacity: 1; }
+  .ttl textarea { flex: 1; font-size: 22px; font-weight: 700; line-height: 1.35; }
+  .prop { display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-bottom: 1px solid var(--border); cursor: pointer; }
+  .prop .k { width: 70px; flex: none; color: var(--muted); font-size: 13px; }
+  .prop .v { flex: 1; font-size: 15px; }
+  .prop .h { color: var(--muted); font-size: 12px; }
+  .prop .ib { margin: -9px 0; }
+  .prop .chip { display: inline-block; padding: 2px 8px; border-radius: 6px; background: var(--selected); color: var(--accent); font-size: 12px; font-weight: 600; }
+  .prop .pl { color: var(--muted); }
+  .sec { display: flex; align-items: center; gap: 8px; padding: 14px 18px 8px; color: var(--secondary); font-size: 13px; font-weight: 600; }
+
+  .sub { position: relative; overflow: hidden; }
+  .sub-bg { position: absolute; inset: 0; display: flex; align-items: center; justify-content: flex-end; padding-right: 22px; background: #c9434e; color: #fff; font-size: 13px; font-weight: 600; }
+  .sub-fg { position: relative; display: flex; align-items: center; gap: 10px; padding: 8px 18px; background: var(--canvas); }
+  .sub.snap .sub-fg { transition: transform .18s; }
+  .sub .nm { flex: 1; min-width: 0; font-size: 14px; }
+  .sub .nm.tap { cursor: pointer; }
+  .sub.done .nm { color: var(--muted); text-decoration: line-through; }
+  .sub textarea.nm-in { flex: 1; font-size: 14px; line-height: 1.4; padding: 0 0 1px; border-bottom: 1px solid var(--accent); }
+  .sub.dragging .sub-fg { background: var(--surface); box-shadow: 0 6px 18px #0009; }
+  .sub.dragging { overflow: visible; z-index: 5; }
+  .sub .grip { cursor: grab; touch-action: none; }
+  .sub .ib[disabled] { opacity: .3; cursor: default; }
+  .addrow { display: flex; align-items: center; gap: 10px; padding: 4px 18px; }
+  .addrow .pls { color: var(--muted); }
+  .addrow input { flex: 1; font-size: 14px; padding: 8px 0; line-height: 21px; height: 37px; }
+  .addbtn { flex: none; padding: 6px 12px; border-radius: 10px !important; background: var(--accent) !important; color: var(--accent-text); font-size: 13px; font-weight: 600; }
+  .addbtn.off { background: var(--surface) !important; color: var(--muted); }
+  .phone textarea.memo { width: calc(100% - 36px); margin: 0 18px; min-height: 100px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); font-size: 14px; line-height: 1.5; }
+
+  /* New: the notice after a delete (as the PC's UndoNotice: 5 s, a bar that drains). */
+  .toast { position: absolute; left: 12px; right: 12px; bottom: 26px; z-index: 20; display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 6px 0 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); box-shadow: 0 8px 24px #0009; font-size: 14px; overflow: hidden; }
+  .phone.kb-open.kb-avoid .toast { bottom: calc(var(--kbh) + 10px); }
+  .toast span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .toast button { flex: none; height: 40px; padding: 0 12px; color: var(--accent); font-weight: 700; }
+  .toast i { position: absolute; left: 0; bottom: 0; height: 2px; width: 100%; background: var(--accent); transform-origin: left; animation: drain 5s linear forwards; }
+  @keyframes drain { to { transform: scaleX(0); } }
+
+  /* Alert.alert on Android. */
+  .dlg-scrim { position: absolute; inset: 0; z-index: 70; display: grid; place-items: center; background: #0009; }
+  .dlg { width: 312px; padding: 22px 24px 12px; border-radius: 24px; background: #262a32; }
+  .dlg h5 { margin: 0 0 10px; font-size: 19px; font-weight: 600; }
+  .dlg p { margin: 0 0 14px; color: var(--secondary); font-size: 14px; line-height: 1.5; }
+  .dlg .bt { display: flex; justify-content: flex-end; gap: 4px; }
+  .dlg .bt button { height: 40px; padding: 0 14px; border-radius: 20px; color: var(--accent); font-size: 14px; font-weight: 600; }
+  .dlg .bt button.dg { color: var(--danger); }
+
+  /* The on-screen keyboard (drawn, 두벌식). Typing goes through the real keyboard. */
+  .kb { position: absolute; left: 0; right: 0; bottom: 0; height: var(--kbh); z-index: 50; display: flex; flex-direction: column; padding: 0 3px 26px; background: #1a1c20; border-top: 1px solid #000; transform: translateY(100%); transition: transform .22s cubic-bezier(.2, .8, .2, 1); }
+  .phone.kb-open .kb { transform: none; }
+  .kb .strip { height: 42px; flex: none; display: flex; align-items: center; justify-content: space-around; color: #8d939d; font-size: 13px; }
+  .kb .r { flex: 1; display: flex; justify-content: center; gap: 5px; padding: 4px 1px; }
+  .kb .r span { flex: 1; max-width: 34px; display: grid; place-items: center; border-radius: 6px; background: #30343b; color: #e8eaed; font-size: 18px; }
+  .kb .r span.w { flex: 1.5; max-width: 52px; background: #23262b; font-size: 14px; }
+  .kb .r span.sp { flex: 5; max-width: none; font-size: 12px; color: #8d939d; }
+  .kb .r span.go { flex: 1.6; max-width: 58px; background: #8ab4f8; color: #10131a; font-size: 14px; font-weight: 700; cursor: pointer; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="pieces"><div class="phone" id="phone">
+    <div class="status"><span>9:41</span><span>▂▄▆ ◔ ▮</span></div>
+    <div class="screen" id="screen"></div>
+    <div id="over"></div>
+    <div class="kb" id="kb"></div>
+    <div class="gesture"></div>
+  </div></div>
+  <aside class="notes" id="notes"></aside>
+</div>
+<div class="opt-pop" id="optpop"></div>
+<script>
+// lucide icons (the app's lucide-react-native).
+const sv = (d, z = 16, w = 2) => `<svg width="${z}" height="${z}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+const STAR = 'M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z';
+const I = {
+  back: sv('<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>', 22),
+  star: on => `<svg width="22" height="22" viewBox="0 0 24 24" fill="${on ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${STAR}"/></svg>`,
+  trash: sv('<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><path d="M10 11v6M14 11v6"/>', 20),
+  x: sv('<path d="M18 6 6 18"/><path d="m6 6 12 12"/>', 16),
+  plus: sv('<path d="M5 12h14"/><path d="M12 5v14"/>', 18),
+  check: z => sv('<path d="M20 6 9 17l-5-5"/>', z, 3),
+  pencil: sv('<path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/>', 16),
+  up: sv('<path d="m18 15-6-6-6 6"/>', 18),
+  down: sv('<path d="m6 9 6 6 6-6"/>', 18),
+  grip: sv('<circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/>', 18),
+};
+const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// ---------- Data (synthetic) ----------
+const task = {
+  title: '제주 여행 준비', done: false, important: true,
+  memo: '비 예보 있으면 우비 챙기기.\n렌터카 인수는 10시.',
+  subs: [
+    { id: 's1', t: '항공권 예매 확인', done: true },
+    { id: 's2', t: '숙소 체크인 시간 문의', done: false },
+    { id: 's3', t: '렌터카 예약하고 완전자차 보험이 포함인지, 공항 셔틀 타는 곳이 어디인지 확인', done: false },
+    { id: 's4', t: '여행자 보험 가입', done: true },
+    { id: 's5', t: '짐 싸기', done: false },
+    { id: 's6', t: '고양이 맡길 곳 알아보기', done: false },
+  ],
+};
+let nextId = 7;
+
+// ---------- State ----------
+// Defaults = the recommended candidates. focus: the field the keyboard is up for
+// ('title' | 'memo' | 'add' | 'sub:<id>'); drafts: what is typed and not saved yet.
+const s = { edit: 'tap', empty: 'revert', del: 'undo', add: 'blur', order: 'none', kbfix: 'avoid', focus: null, toast: null, dialog: null, drag: null, showNew: false };
+const drafts = {};
+let wantFocus = false, eatClick = false, toastTimer = 0;
+const subOf = f => f && f.startsWith('sub:') ? task.subs.find(x => x.id === f.slice(4)) : null;
+const fieldValue = f => drafts[f] != null ? drafts[f] : f === 'title' ? task.title : f === 'memo' ? task.memo : f === 'add' ? '' : (subOf(f) || { t: '' }).t;
+
+// ---------- Model changes ----------
+function removeSub(id, ask) {
+  const i = task.subs.findIndex(x => x.id === id); if (i < 0) return;
+  if (ask && s.del === 'confirm') { s.dialog = id; return; }
+  const [sub] = task.subs.splice(i, 1);
+  delete drafts['sub:' + id];
+  if (s.focus === 'sub:' + id) s.focus = null;
+  if (s.del === 'undo') {
+    clearTimeout(toastTimer);
+    s.toast = { sub, i, n: (s.toast ? s.toast.n : 0) + 1 };
+    toastTimer = setTimeout(() => { s.toast = null; render(); }, 5000);
+  }
+}
+function addSub(text) {
+  const t = text.trim(); delete drafts.add;
+  if (!t) return false;
+  task.subs.push({ id: 's' + nextId++, t, done: false });
+  return true;
+}
+// why: 'done' (the keyboard's 완료 key) or 'blur' (a tap elsewhere).
+function commit(f, why) {
+  const v = fieldValue(f);
+  if (f === 'add') { if (why === 'done' || s.add === 'blur') addSub(v); return; }
+  delete drafts[f];
+  if (f === 'title') { if (v.trim()) task.title = v.trim(); return; }
+  if (f === 'memo') { task.memo = v; return; }
+  const sub = subOf(f); if (!sub) return;
+  if (v.trim()) sub.t = v.trim();
+  else if (s.empty === 'delete') removeSub(sub.id, false);
+}
+function blurField() { const f = s.focus; if (!f) return; s.focus = null; commit(f, 'blur'); }
+function doneKey() {
+  const f = s.focus; if (!f || f === 'memo') return;
+  commit(f, 'done');
+  if (f !== 'add') s.focus = null; else wantFocus = true; // the add field stays up for the next one
+}
+function startEdit(id) { if (s.focus === 'sub:' + id) return; blurField(); if (!task.subs.some(x => x.id === id)) return; s.focus = 'sub:' + id; wantFocus = true; }
+
+// ---------- Phone ----------
+function subRow(sub, i) {
+  const f = 'sub:' + sub.id, editing = s.focus === f && s.edit !== 'none';
+  const name = editing
+    ? `<textarea class="nm-in is-new" rows="1" data-fk="${f}" spellcheck="false" autocomplete="off">${esc(fieldValue(f))}</textarea>`
+    : `<div class="nm ${s.edit === 'tap' ? 'tap' : ''}" ${s.edit === 'tap' ? `data-act="edit" data-id="${sub.id}"` : s.edit === 'long' ? `data-long="${sub.id}"` : ''}>${esc(sub.t)}</div>`;
+  const mv = editing && s.order === 'updown' ? `<button class="ib m mv is-new" data-act="up" data-id="${sub.id}" ${i === 0 ? 'disabled' : ''}>${I.up}</button><button class="ib m mv is-new" data-act="down" data-id="${sub.id}" ${i === task.subs.length - 1 ? 'disabled' : ''}>${I.down}</button>` : '';
+  const pencil = s.edit === 'pencil' && !editing ? `<button class="ib m pen is-new" data-act="edit" data-id="${sub.id}">${I.pencil}</button>` : '';
+  const x = s.del === 'swipe' ? '' : `<button class="ib m x" data-act="x" data-id="${sub.id}">${I.x}</button>`;
+  const grip = s.order === 'drag' ? `<span class="ib m grip is-new" data-grip="${sub.id}">${I.grip}</span>` : '';
+  return `<div class="sub ${sub.done ? 'done' : ''} ${s.drag === sub.id ? 'dragging' : ''}" data-sub="${sub.id}">${s.del === 'swipe' ? '<div class="sub-bg">삭제</div>' : ''}
+    <div class="sub-fg"><button class="ck ${sub.done ? 'done' : ''}" style="width:20px;height:20px" data-act="ck" data-id="${sub.id}">${sub.done ? I.check(12) : ''}</button>${name}${mv}${pencil}${x}${grip}</div></div>`;
+}
+function screen() {
+  const doneN = task.subs.filter(x => x.done).length, addV = fieldValue('add');
+  return `<div class="hdr"><button class="ib">${I.back}</button><span style="flex:1"></span><button class="ib" data-act="star" style="${task.important ? 'color:var(--star)' : ''}">${I.star(task.important)}</button><button class="ib">${I.trash}</button></div>
+  <div class="scroll" id="scroll">
+    <div class="ttl"><button class="ck ${task.done ? 'done' : ''}" style="width:24px;height:24px" data-act="tck">${task.done ? I.check(14) : ''}</button><textarea rows="1" data-fk="title" spellcheck="false">${esc(fieldValue('title'))}</textarea></div>
+    <div class="prop"><span class="k">기한</span><span class="v">11월 21일 (토) 오전 9:00</span><span class="h">5일 남음</span><button class="ib m">${I.x}</button></div>
+    <div class="prop"><span class="k">반복</span><span class="v">없음</span></div>
+    <div class="prop"><span class="k">카테고리</span><span class="v"><span class="chip">개인</span></span><span class="pl">${I.plus}</span></div>
+    <div class="sec sec-sub">하위 할 일 ${doneN}/${task.subs.length}</div>
+    <div class="subs ${s.del === 'swipe' ? 'swipe' : ''}">${task.subs.map(subRow).join('')}</div>
+    <div class="addrow"><span class="pls">${I.plus}</span><input data-fk="add" placeholder="하위 할 일 추가" value="${esc(addV)}" spellcheck="false" autocomplete="off" enterkeyhint="done">${s.add === 'btn' ? `<button class="addbtn is-new ${addV.trim() ? '' : 'off'}" data-act="add">추가</button>` : ''}</div>
+    <div class="sec">메모</div>
+    <textarea class="memo" data-fk="memo" placeholder="메모할 내용을 적어주세요." spellcheck="false">${esc(fieldValue('memo'))}</textarea>
+  </div>`;
+}
+function overlays() {
+  const d = s.dialog && task.subs.find(x => x.id === s.dialog);
+  return (s.toast ? `<div class="toast is-new" data-n="${s.toast.n}"><span>하위 할 일을 삭제했어요</span><button data-act="undo">되돌리기</button><i></i></div>` : '')
+    + (d ? `<div class="dlg-scrim"><div class="dlg is-new"><h5>하위 할 일 삭제</h5><p>"${esc(d.t)}"을(를) 삭제할까요?</p><div class="bt"><button data-act="dno">취소</button><button class="dg" data-act="dyes">삭제</button></div></div></div>` : '');
+}
+const KEYS = ['ㅂㅈㄷㄱㅅㅛㅕㅑㅐㅔ', 'ㅁㄴㅇㄹㅎㅗㅓㅏㅣ', 'ㅋㅌㅊㅍㅠㅜㅡ'];
+const keyboard = () => `<div class="strip"><span>▦</span><span>☺</span><span>GIF</span><span>⚙</span><span>🎤</span></div>
+  <div class="r">${[...KEYS[0]].map(k => `<span>${k}</span>`).join('')}</div>
+  <div class="r">${[...KEYS[1]].map(k => `<span>${k}</span>`).join('')}</div>
+  <div class="r"><span class="w">⇧</span>${[...KEYS[2]].map(k => `<span>${k}</span>`).join('')}<span class="w">⌫</span></div>
+  <div class="r"><span class="w">!#1</span><span class="w">한/영</span><span class="sp">한국어</span><span class="w">.</span><span class="go" data-kbdone>${s.focus === 'memo' ? '↵' : '완료'}</span></div>`;
+
+// ---------- Notes ----------
+const OPTS = [
+  { key: 'edit', title: '하위 할 일 이름 고치기', at: '.sub .nm, .sub .pen',
+    show() { if (s.edit === 'tap') { s.focus = 'sub:' + (task.subs[1] || task.subs[0] || {}).id; } else s.focus = null; },
+    items: [
+      ['none', '기능 없음', '이름은 읽기만 해요. 고치려면 지우고 다시 적어야 해요.', 'old'],
+      ['tap', '이름을 누르면 바로 편집', '이름을 누르면 그 자리에서 입력 칸이 되고 키보드가 올라와요. 완료 키나 다른 곳을 누르면 저장돼요.', 'rec'],
+      ['long', '길게 눌러 편집', '이름을 0.5초쯤 누르고 있으면 편집이 시작돼요. 실수로 열릴 일은 적지만 찾기 어려워요.'],
+      ['pencil', '줄 끝 연필 아이콘', '줄마다 연필 버튼이 생겨요. 눈에 잘 띄지만 이름 칸이 좁아져요.'],
+    ] },
+  { key: 'empty', title: '이름을 비우고 끝내면', at: '.sub .nm-in',
+    show() { if (s.empty === 'none') { s.edit = 'none'; s.focus = null; return; } if (s.edit === 'none') s.edit = 'tap'; const sub = task.subs[1] || task.subs[0]; if (sub) { s.focus = 'sub:' + sub.id; drafts[s.focus] = ''; } },
+    items: [
+      ['none', '기능 없음', '지금은 이름을 고칠 수 없어서 정해진 동작이 없어요. 고르면 1번도 기능 없음으로 보여 줘요.', 'old'],
+      ['revert', '원래 이름으로 되돌림', '다 지우고 끝내면 고치기 전 이름이 그대로 남아요. 실수로 사라질 일이 없어요.', 'rec'],
+      ['delete', '그 하위 할 일 삭제', '다 지우고 끝내면 그 줄이 지워져요. 삭제 방식(3번)의 되돌리기 알림을 같이 써요.'],
+    ] },
+  { key: 'del', title: '하위 할 일 삭제', at: '.sub .x, .subs.swipe .sub',
+    show() { s.focus = null; s.dialog = null; },
+    items: [
+      ['now', 'X를 누르면 바로 삭제', '확인도 되돌리기도 없이 바로 지워져요.', 'old'],
+      ['undo', '삭제 후 "되돌리기" 알림 5초', '바로 지우고 아래에 알림을 5초 띄워요. 되돌리기를 누르면 제자리로 돌아와요. PC와 같아요.', 'rec'],
+      ['confirm', '삭제 전에 확인 창', 'X를 누르면 "삭제할까요?" 창이 먼저 떠요. 안전하지만 매번 한 번 더 눌러야 해요.'],
+      ['swipe', '왼쪽으로 밀어서 삭제', 'X 버튼이 없어지고 줄을 왼쪽으로 밀면 지워져요. 이름 칸이 넓어지지만 알기 어려워요.'],
+    ] },
+  { key: 'add', title: '하위 할 일 추가 칸', at: '.addrow',
+    show() { s.focus = 'add'; if (!(drafts.add || '').trim()) drafts.add = '우산 챙기기'; },
+    items: [
+      ['key', '키보드 완료 키로만 추가', '글을 적고 다른 곳을 누르면 추가되지 않고 글만 칸에 남아요.', 'old'],
+      ['blur', '다른 곳을 눌러도 추가', '적은 글이 있으면 완료 키를 안 눌러도 다른 곳을 누를 때 추가돼요.', 'rec'],
+      ['btn', '칸 오른쪽에 추가 버튼', '칸 옆에 "추가" 버튼이 생겨요. 다른 곳을 누르면 지금처럼 글만 남아요.'],
+    ] },
+  { key: 'order', title: '순서 바꾸기', at: '.sec-sub, .sub .mv, .sub .grip',
+    show() { if (s.order === 'updown') { if (s.edit === 'none') s.edit = 'tap'; const sub = task.subs[1] || task.subs[0]; s.focus = sub ? 'sub:' + sub.id : null; } else s.focus = null; },
+    items: [
+      ['none', '기능 없음 (이번엔 안 함)', 'PC에서 정한 순서대로 보이기만 해요. 순서는 PC에서 끌어서 바꿀 수 있어요.', 'old', 'rec'],
+      ['updown', '편집 중 위·아래 버튼', '이름을 편집하는 동안 그 줄에 위·아래 버튼이 나와요. 새 부품 없이 만들 수 있어요.'],
+      ['drag', '손잡이를 끌어서', '줄 끝 손잡이를 잡고 위아래로 끌어요. 끌기 부품을 새로 넣어야 해요.'],
+    ] },
+  { key: 'kbfix', title: '키보드가 올라올 때', at: '.kb, .memo',
+    show() { if (!s.focus) s.focus = 'add'; },
+    items: [
+      ['none', '입력 칸이 키보드에 가려짐', '화면은 그대로이고 키보드가 위를 덮어요. 추가 칸과 메모가 안 보여요.', 'old'],
+      ['avoid', '화면이 키보드 위로 줄고 입력 칸이 보이게 스크롤', '쓰는 칸이 키보드 바로 위에 와요. 메모, 이름 편집, 이어서 추가할 때도 같아요.', 'rec'],
+    ] },
+];
+const comments = {};
+const tags = it => it.slice(3).map(t => t === 'old' ? '<span class="badge old">기존</span>' : t === 'rec' ? '<span class="badge rec">추천</span>' : '').join('');
+function notes() {
+  return `<div class="n-top"><button class="n-copy" data-ncopy>결과 복사</button><p class="hint"><kbd>Shift</kbd>를 누른 채 파란 점선에 마우스를 올리면 후보가 떠요. 폰 화면은 앱처럼 눌러 볼 수 있어요.</p></div>
+    <div class="n-scroll">${OPTS.map((o, i) => `<section class="n-item"><h4>${i + 1}. ${o.title}</h4>${o.items.map(it => { const [v, nm, dsc] = it;
+      return `<div class="n-row ${s[o.key] === v ? 'on' : ''}" role="button" tabindex="0" data-no="${i}" data-v="${v}"><span class="n-nm">${nm}${tags(it)}</span><span class="n-ds">${dsc}</span>${s[o.key] === v ? `<textarea class="n-cm" rows="1" data-cm="${i}:${v}" data-fk="cm:${i}:${v}" placeholder="추가 의견 (선택)" spellcheck="false">${esc(comments[i + ':' + v] || '')}</textarea>` : ''}</div>`; }).join('')}</section>`).join('')}</div>
+    <label class="n-new"><input type="checkbox" data-nnew ${s.showNew ? 'checked' : ''}>새로 생기는 부분 표시</label>`;
+}
+const grow = el => { const box = el.closest('.n-scroll, .scroll'), top = box ? box.scrollTop : 0; el.style.height = 'auto'; el.style.height = el.scrollHeight + (el.offsetHeight - el.clientHeight) + 'px'; if (box) box.scrollTop = top; };
+
+// ---------- Render ----------
+const phone = document.getElementById('phone');
+function render() {
+  if (s.focus && s.focus.startsWith('sub:') && (!subOf(s.focus) || s.edit === 'none')) { delete drafts[s.focus]; s.focus = null; }
+  const a = document.activeElement, fk = a && a.dataset && a.dataset.fk ? [a.dataset.fk, a.selectionStart, a.selectionEnd] : null;
+  const keep = ['.n-scroll', '#scroll'].map(q => [q, document.querySelector(q)?.scrollTop ?? 0]);
+  const toastN = document.querySelector('.toast')?.dataset.n, toastAnim = document.querySelector('.toast i')?.getAnimations()[0]?.currentTime;
+  document.getElementById('screen').innerHTML = screen();
+  document.getElementById('over').innerHTML = overlays();
+  document.getElementById('kb').innerHTML = keyboard();
+  document.getElementById('notes').innerHTML = notes();
+  phone.classList.toggle('kb-open', !!s.focus);
+  phone.classList.toggle('kb-avoid', s.kbfix === 'avoid');
+  document.querySelectorAll('.n-cm, .phone textarea').forEach(grow);
+  for (const [q, v] of keep) { const el = document.querySelector(q); if (el) el.scrollTop = v; }
+  // The same notice keeps draining over a redraw.
+  const bar = document.querySelector('.toast i');
+  if (bar && toastN === String(s.toast.n) && toastAnim != null) { const an = bar.getAnimations()[0]; if (an) an.currentTime = toastAnim; }
+  document.body.classList.toggle('show-new', s.showNew);
+  markHot();
+  let to = null;
+  if (wantFocus && s.focus) to = [s.focus, 1e6, 1e6]; else if (fk) to = fk;
+  wantFocus = false;
+  if (to) { const el = document.querySelector(`[data-fk="${to[0]}"]`); if (el) { el.focus({ preventScroll: true }); try { el.setSelectionRange(to[1], to[2]); } catch (e) {} } }
+  reveal();
+}
+// The fix: the field in use sits just above the keyboard.
+function reveal() {
+  if (!s.focus || s.kbfix !== 'avoid') return;
+  const sc = document.getElementById('scroll'), f = document.querySelector(`.phone [data-fk="${s.focus}"]`); if (!f) return;
+  const el = f.closest('.sub, .addrow, .ttl') || f;
+  const r = el.getBoundingClientRect(), sr = sc.getBoundingClientRect();
+  if (r.bottom > sr.bottom - 10) sc.scrollTop += r.bottom - sr.bottom + 10;
+  else if (r.top < sr.top) sc.scrollTop -= sr.top - r.top + 8;
+}
+
+// ---------- Phone events ----------
+const shiftHeld = () => document.body.classList.contains('shift-on');
+phone.addEventListener('click', e => {
+  if (eatClick) { eatClick = false; return; }
+  if (e.target.closest('.opt-pop') || shiftHeld()) return;
+  const t = e.target;
+  if (t.closest('.kb')) { if (t.closest('[data-kbdone]')) { doneKey(); render(); } return; }
+  if (s.dialog) {
+    const b = t.closest('[data-act]');
+    if (b && b.dataset.act === 'dyes') { const id = s.dialog; s.dialog = null; removeSub(id, false); }
+    else if (!t.closest('.dlg') || b) s.dialog = null;
+    return render();
+  }
+  if (t.closest('[data-fk]')) return; // a field: focusin does it
+  const a = t.closest('[data-act]');
+  if (!a) { if (s.focus) { blurField(); render(); } return; }
+  if (a.disabled) return;
+  const k = a.dataset.act, id = a.dataset.id, i = task.subs.findIndex(x => x.id === id);
+  // A button works with the keyboard up and leaves it up (keyboardShouldPersistTaps="handled").
+  if (k === 'ck') task.subs[i].done = !task.subs[i].done;
+  else if (k === 'tck') task.done = !task.done;
+  else if (k === 'star') task.important = !task.important;
+  else if (k === 'x') removeSub(id, true);
+  else if (k === 'edit') startEdit(id);
+  else if (k === 'add') { addSub(fieldValue('add')); s.focus = 'add'; wantFocus = true; }
+  else if (k === 'up' || k === 'down') { const j = i + (k === 'up' ? -1 : 1); if (j >= 0 && j < task.subs.length) { const f = s.focus; if (f) drafts[f] = fieldValue(f); task.subs.splice(j, 0, task.subs.splice(i, 1)[0]); wantFocus = true; } }
+  else if (k === 'undo' && s.toast) { clearTimeout(toastTimer); task.subs.splice(Math.min(s.toast.i, task.subs.length), 0, s.toast.sub); s.toast = null; }
+  render();
+});
+// The keys of the drawn keyboard never take the focus.
+phone.addEventListener('mousedown', e => { if (e.target.closest('.kb') || (s.focus && e.target.closest('button[data-act]'))) e.preventDefault(); });
+phone.addEventListener('focusin', e => {
+  const fk = e.target.dataset && e.target.dataset.fk;
+  if (!fk || fk === s.focus) return;
+  blurField(); s.focus = fk; wantFocus = !subOf(fk) ? false : true;
+  const sel = [e.target.selectionStart, e.target.selectionEnd];
+  render();
+  const el = document.querySelector(`.phone [data-fk="${fk}"]`);
+  if (el) { el.focus({ preventScroll: true }); try { el.setSelectionRange(sel[0], sel[1]); } catch (err) {} }
+});
+phone.addEventListener('input', e => {
+  const fk = e.target.dataset.fk; if (!fk) return;
+  drafts[fk] = e.target.value;
+  if (e.target.tagName === 'TEXTAREA') grow(e.target);
+  if (fk === 'add') { const b = document.querySelector('.addbtn'); if (b) b.classList.toggle('off', !e.target.value.trim()); }
+  reveal();
+});
+phone.addEventListener('keydown', e => {
+  const fk = e.target.dataset && e.target.dataset.fk; if (!fk) return;
+  if (e.key === 'Enter' && fk !== 'memo' && !e.isComposing) { e.preventDefault(); if (s.focus !== fk) s.focus = fk; doneKey(); render(); }
+});
+// Long press, swipe to delete and the drag handle.
+phone.addEventListener('pointerdown', e => {
+  eatClick = false;
+  if (shiftHeld() || s.dialog || e.button) return;
+  const grip = e.target.closest('[data-grip]');
+  if (grip) {
+    e.preventDefault();
+    const id = grip.dataset.grip; s.drag = id; render();
+    const move = ev => {
+      const rows = [...document.querySelectorAll('.sub')], from = task.subs.findIndex(x => x.id === id);
+      let to = rows.findIndex(r => { const b = r.getBoundingClientRect(); return ev.clientY < b.top + b.height / 2; });
+      if (to < 0) to = rows.length; if (to > from) to--;
+      if (to !== from) { task.subs.splice(to, 0, task.subs.splice(from, 1)[0]); render(); }
+    };
+    const up = () => { s.drag = null; eatClick = true; setTimeout(() => { eatClick = false; }, 0); removeEventListener('pointermove', move); removeEventListener('pointerup', up); render(); };
+    addEventListener('pointermove', move); addEventListener('pointerup', up);
+    return;
+  }
+  const lp = e.target.closest('[data-long]');
+  if (lp) {
+    const x0 = e.clientX, y0 = e.clientY;
+    const timer = setTimeout(() => { eatClick = true; startEdit(lp.dataset.long); render(); end(); }, 500);
+    const move = ev => { if (Math.hypot(ev.clientX - x0, ev.clientY - y0) > 8) end(); };
+    const end = () => { clearTimeout(timer); removeEventListener('pointermove', move); removeEventListener('pointerup', end); };
+    addEventListener('pointermove', move); addEventListener('pointerup', end);
+  }
+  const row = e.target.closest('.subs.swipe .sub');
+  if (row && !e.target.closest('button, textarea')) {
+    const x0 = e.clientX, fg = row.querySelector('.sub-fg'); let dx = 0;
+    row.classList.remove('snap');
+    const move = ev => { dx = Math.min(0, ev.clientX - x0); if (dx < -6) { eatClick = true; fg.style.transform = `translateX(${dx}px)`; } };
+    const up = () => {
+      removeEventListener('pointermove', move); removeEventListener('pointerup', up);
+      if (dx < -6) setTimeout(() => { eatClick = false; }, 0);
+      if (dx < -110) { removeSub(row.dataset.sub, false); render(); }
+      else { row.classList.add('snap'); fg.style.transform = ''; }
+    };
+    addEventListener('pointermove', move); addEventListener('pointerup', up);
+  }
+});
+
+// ---------- Shift + hover pickers and the notes ----------
+const choose = (o, v) => { s[o.key] = v; o.show(); render(); };
+let shiftOn = false;
+function markHot() {
+  document.querySelectorAll('.pieces .hot').forEach(el => el.classList.remove('hot'));
+  document.querySelectorAll('.pieces [data-opts]').forEach(el => delete el.dataset.opts);
+  OPTS.forEach((o, i) => document.querySelectorAll(o.at).forEach(el => { if (!el.dataset.opts && el.closest('.pieces')) el.dataset.opts = i; }));
+  if (!shiftOn) return;
+  document.querySelectorAll('.phone *').forEach(el => {
+    if (el.dataset.opts) return;
+    const cs = getComputedStyle(el);
+    if (el.matches('input, textarea, button') || cs.cursor === 'pointer' && getComputedStyle(el.parentElement).cursor !== 'pointer') el.classList.add('hot');
+  });
+}
+// Shift + hover opens the candidates where the mouse is; it stays open when the mouse moves onto
+// it or Shift is released; a click elsewhere, Esc or another area closes it.
+const optPop = document.getElementById('optpop');
+let optAt = null;
+const hideOpt = () => { optPop.classList.remove('on'); optAt = null; };
+function showOpt(el, x, y) {
+  const i = +el.dataset.opts, o = OPTS[i]; optAt = el;
+  optPop.innerHTML = '<b>' + o.title + '</b>' + o.items.map(it => '<button class="' + (s[o.key] === it[0] ? 'on' : '') + '" data-v="' + it[0] + '">' + it[1] + tags(it) + '</button>').join('');
+  optPop.dataset.o = i; optPop.classList.add('on');
+  const w = optPop.offsetWidth, h = optPop.offsetHeight;
+  optPop.style.left = Math.max(8, Math.min(innerWidth - w - 8, x - 12)) + 'px';
+  optPop.style.top = Math.max(8, Math.min(innerHeight - h - 8, y - 12)) + 'px';
+}
+(() => {
+  const setShift = on => { if (shiftOn === on) return; shiftOn = on; document.body.classList.toggle('shift-on', on); markHot(); };
+  document.addEventListener('keydown', e => { if (e.key === 'Shift') setShift(true); if (e.key === 'Escape') hideOpt(); });
+  document.addEventListener('keyup', e => { if (e.key === 'Shift') setShift(false); });
+  window.addEventListener('blur', () => setShift(false));
+  document.addEventListener('mousemove', e => {
+    if (!e.shiftKey || optPop.contains(e.target)) return;
+    if (!shiftOn) setShift(true);
+    const el = e.target.closest && e.target.closest('.pieces [data-opts]');
+    if (el && el !== optAt) showOpt(el, e.clientX, e.clientY);
+  });
+  document.addEventListener('pointerdown', e => { if (optAt && !optPop.contains(e.target)) hideOpt(); }, true);
+  optPop.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    e.stopPropagation();
+    const i = +optPop.dataset.o, x = parseFloat(optPop.style.left) + 12, y = parseFloat(optPop.style.top) + 12;
+    choose(OPTS[i], b.dataset.v);
+    const el = document.querySelector('.pieces [data-opts="' + i + '"]');
+    if (el) showOpt(el, x, y); else hideOpt();
+  });
+})();
+document.addEventListener('input', e => { if (e.target.matches('.n-cm')) { comments[e.target.dataset.cm] = e.target.value; grow(e.target); } });
+document.addEventListener('click', e => {
+  if (e.target.closest('.n-cm')) return;
+  const row = e.target.closest('.n-row');
+  if (!row) return;
+  const o = OPTS[+row.dataset.no];
+  if (row.classList.contains('on')) { o.show(); render(); } else choose(o, row.dataset.v);
+  const f = document.querySelector(`.n-cm[data-cm="${row.dataset.no}:${row.dataset.v}"]`);
+  if (f) { f.focus({ preventScroll: true }); f.setSelectionRange(f.value.length, f.value.length); }
+});
+function resultText() {
+  return '모바일 2.2.0 하위 할 일 시안\n' + OPTS.map((o, i) => { const it = o.items.find(([v]) => v === s[o.key]); const c = (comments[i + ':' + it[0]] || '').trim(); return `${i + 1}. ${o.title}: ${it[1]}${c ? ` (의견: ${c})` : ''}`; }).join('\n');
+}
+document.addEventListener('click', e => {
+  const copy = e.target.closest('[data-ncopy]');
+  if (!copy) return;
+  const text = resultText();
+  const done = () => { copy.textContent = '복사됨'; copy.classList.add('done'); setTimeout(() => { copy.textContent = '결과 복사'; copy.classList.remove('done'); }, 1400); };
+  const fallback = () => { const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); done(); };
+  if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
+});
+document.addEventListener('change', e => { if (e.target.matches('[data-nnew]')) { s.showNew = e.target.checked; render(); } });
+addEventListener('resize', render);
+render();
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => render());
+</script>
+</body>
+</html>
