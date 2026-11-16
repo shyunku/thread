@@ -1,15 +1,17 @@
+import { longDate } from "../../../utils/dateFormat";
+
 export function relativeTime(ms, now = Date.now()) {
   if (!Number.isFinite(ms)) return null;
   const elapsed = Math.max(0, now - ms);
   if (elapsed < 60 * 1000) return "방금";
   if (elapsed < 60 * 60 * 1000) return `${Math.floor(elapsed / 60000)}분 전`;
   if (elapsed < 24 * 60 * 60 * 1000) return `${Math.floor(elapsed / 3600000)}시간 전`;
-  return shortDate(ms);
+  return shortDate(ms, now);
 }
 
-export function shortDate(ms) {
-  const date = new Date(ms);
-  return `${date.getMonth() + 1}월 ${date.getDate()}일`;
+// "11월 9일", with the year in another year ("2025년 11월 9일", #111).
+export function shortDate(ms, now = Date.now()) {
+  return longDate(ms, now);
 }
 
 // 64-char hex codes are compared by people; group them for reading.
