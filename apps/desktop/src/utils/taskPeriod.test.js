@@ -1,7 +1,7 @@
 import Task from "../objects/Task";
 import {
   alertName, alertsLabel, DEFAULT_ALERT_SETTINGS, hasStartTime, isMultiDayPeriod, normalAlertSettings, periodCoversDay,
-  periodOffset, periodStartedBy, periodStatus, taskAlerts, taskPeriod, taskStart,
+  periodOffset, periodStartedBy, periodStatus, startMinute, taskAlerts, taskPeriod, taskStart,
 } from "./taskPeriod";
 
 // Synthetic times around the mock's now, Tue 2026-11-10 13:20 (local).
@@ -55,6 +55,22 @@ describe("periods", () => {
     expect(hasStartTime(day0(11, 9))).toBe(false);
     expect(hasStartTime(at(11, 9, 0, 30))).toBe(true);
     expect(hasStartTime(at(11, 9, 9, 0))).toBe(true);
+  });
+
+  test("a chosen 00:00 is stored at 00:00:00.001 (#111): a time, counted from its minute", () => {
+    const zero = day0(11, 12) + 1;
+    expect(hasStartTime(zero)).toBe(true);
+    expect(hasStartTime(day0(11, 12))).toBe(false);
+    expect(hasStartTime(day0(11, 12) + 2)).toBe(false);
+    expect(startMinute(zero)).toBe(day0(11, 12));
+    expect(startMinute(at(11, 12, 9, 30) + 1)).toBe(at(11, 12, 9, 30));
+    const p = period(zero, at(11, 12, 3, 0));
+    expect(taskStart(p)).toBe(zero);
+    expect(periodStatus(p, at(11, 12, 1, 30))).toMatchObject({ state: "running", start: day0(11, 12), elapsed: 1.5 * H, progress: 0.5 });
+    expect(periodStatus(p, NOW).untilStart).toBe(day0(11, 12) - NOW);
+    // The start side rings like any timed start.
+    const [start] = taskAlerts(p, DEFAULT_ALERT_SETTINGS);
+    expect(start).toMatchObject({ side: "start", alertable: true });
   });
 
   test("status: before the start, running, ended, with the durations", () => {

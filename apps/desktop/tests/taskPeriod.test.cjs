@@ -187,3 +187,17 @@ test("an offset left without a due (an older app cleared only due_date) does not
  assert.equal(command("task/updateTaskPeriod",["p",{due,start}],orphan).changes.start_offset,3*DAY);
  assert.equal(Object.hasOwn(command("task/updateTaskDueDate",["p",due+DAY],view({due_date:due,start_offset:DAY})).changes,"start_offset"),false);
 });
+
+test("a chosen 0:00 start keeps its 1 ms (PC 2.6.2): stored and moved with the due",t=>{
+ const {app}=adapter(t);
+ const midnight=new Date(2026,9,21).getTime(),end=midnight+3*H,zero=midnight+1;
+ app.mutate("task/addTask",[{tid:"z",title:"Z",due_date:end}]);
+ app.mutate("task/updateTaskPeriod",["z",{due:end,start:zero}]);
+ assert.equal(task(app,"z").start_offset,3*H-1);
+ assert.equal(task(app,"z").due_date-task(app,"z").start_offset,zero);
+ app.mutate("task/updateTaskDueDate",["z",end+DAY]);
+ assert.equal(task(app,"z").due_date-task(app,"z").start_offset,zero+DAY);
+ // A date-only start stays whole.
+ app.mutate("task/updateTaskPeriod",["z",{due:end,start:midnight}]);
+ assert.equal(task(app,"z").start_offset,3*H);
+});

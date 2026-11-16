@@ -89,10 +89,11 @@ export function startFieldOf(start) {
   return { day: midnight(d), on, minutes: on ? d.getHours() * 60 + d.getMinutes() : 0 };
 }
 
-// The start timestamp for a day and a time; no time is 00:00 (하루 시작).
+// The start timestamp for a day and a time; no time is 00:00 (하루 시작). A chosen 00:00 is
+// 00:00:00.001 so it stays a time (#111, utils/taskPeriod hasStartTime).
 export function composeStart(day, on, minutes) {
   const d = midnight(day);
-  if (on) d.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
+  if (on) d.setHours(Math.floor(minutes / 60), minutes % 60, 0, minutes === 0 ? 1 : 0);
   return d.getTime();
 }
 

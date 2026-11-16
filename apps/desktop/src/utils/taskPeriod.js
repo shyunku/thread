@@ -9,10 +9,18 @@ const startOfDay = (value) => new Date(value).setHours(0, 0, 0, 0);
 const dueOf = (task) => dueMs(task?.dueDate ?? task?.due_date);
 const offsetOf = (task) => task?.startOffset ?? task?.start_offset;
 
-// A start (ms) without a chosen time is stored at 00:00.
+// A start (ms) without a chosen time is stored at 00:00:00.000; a chosen 00:00 at 00:00:00.001
+// (#111, so the two differ).
 export function hasStartTime(start) {
   const date = new Date(start);
-  return !(date.getHours() === 0 && date.getMinutes() === 0);
+  return date.getHours() !== 0 || date.getMinutes() !== 0 || date.getMilliseconds() === 1;
+}
+
+// The start down to its minute (drops the .001 of a chosen 00:00) for lengths: 0:00 ~ 3:00 is 3시간.
+export function startMinute(start) {
+  const date = new Date(start);
+  date.setSeconds(0, 0);
+  return date.getTime();
 }
 
 // The start as ms, or null when the task has no period.
@@ -48,7 +56,7 @@ export function isMultiDayPeriod(task) {
 export function periodStatus(task, now = Date.now()) {
   const p = taskPeriod(task);
   if (!p) return null;
-  const { start, end } = p;
+  const start = startMinute(p.start), end = p.end;
   const state = now < start ? "before" : now <= end ? "running" : "ended";
   return {
     state, start, end,

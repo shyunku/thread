@@ -110,3 +110,12 @@ test("start alert wording, with and without content",()=>{
  // The end texts are unchanged.
  assert.deepEqual(reminderText({kind:"before",due:at(0,15),minutes:10,title:"회의"}),{title:"회의",body:"오후 3:00까지 · 10분 남음"});
 });
+
+test("a chosen 0:00 start (stored 00:00:00.001, PC 2.6.2) rings on the minute; a date-only 00:00 start stays silent",()=>{
+ const zero=day0(1)+1,plan=planReminders({tasks:[period("zero",zero,at(1,3)),period("date",day0(1),at(1,3))]},ALL,{now:NOW,periods:true});
+ assert.deepEqual(plan.filter(p=>p.tid==="zero").map(p=>[p.id,p.at]),[["zero:start-before",day0(1)-5*60000],["zero:start",day0(1)],["zero:before",at(1,2,50)],["zero:due",at(1,3)]]);
+ assert.equal(plan.find(p=>p.id==="zero:start").start,day0(1));
+ assert.deepEqual(plan.filter(p=>p.tid==="date").map(p=>p.id),["date:before","date:due"]);
+ // The phone's plan (no periods) is the same for both.
+ assert.deepEqual(planReminders({tasks:[period("zero",zero,at(1,3))]},ALL,{now:NOW}).map(p=>p.id),["zero:before","zero:due"]);
+});

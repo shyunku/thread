@@ -37,10 +37,17 @@ const hasChosenTime = (ms) => {
   const d = new Date(ms);
   return !(d.getHours() === 23 && d.getMinutes() === 59);
 };
-// A start without a chosen time is stored at 00:00 (하루 시작) and gets no alert.
+// A start without a chosen time is stored at 00:00:00.000 (하루 시작) and gets no alert; a chosen
+// 00:00 is stored at 00:00:00.001 (PC 2.6.2).
 const hasStartTime = (ms) => {
   const d = new Date(ms);
-  return !(d.getHours() === 0 && d.getMinutes() === 0);
+  return d.getHours() !== 0 || d.getMinutes() !== 0 || d.getMilliseconds() === 1;
+};
+// The start down to its minute, so a chosen 00:00 rings on the minute.
+const startMinute = (ms) => {
+  const d = new Date(ms);
+  d.setSeconds(0, 0);
+  return d.getTime();
 };
 // The period start of a task row (ms), or null. start_offset counts only with a due date and
 // when it leaves the start strictly before the due.
@@ -91,8 +98,9 @@ function planReminders(lists, settings, { now = Date.now(), limit = Infinity, pe
       const override = alertOverride(task.alert_end);
       for (const a of sideAlerts("end", s, override)) push(task, title, a.kind, due - a.minutes * 60000, a.minutes, { override });
     }
-    const start = taskStart(task);
-    if (start !== null && hasStartTime(start)) {
+    const raw = taskStart(task);
+    if (raw !== null && hasStartTime(raw)) {
+      const start = startMinute(raw);
       const override = alertOverride(task.alert_start);
       for (const a of sideAlerts("start", s, override))
         push(task, title, a.kind, start - a.minutes * 60000, a.minutes, { start, override });
