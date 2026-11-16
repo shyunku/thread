@@ -90,6 +90,9 @@ export type AppValue = {
 
 // How long an unlock waits for its first sync before opening the stored data (#112).
 export const FIRST_SYNC_WAIT = 5000;
+// Without stored data the wait has no list to open early; it still ends after this long
+// (the server may never answer) and the list says it waits for the first sync.
+export const FIRST_SYNC_LIMIT = 20000;
 
 // Exported for the dev-only store preview (src/preview/storePreview.tsx).
 export const AppContext = createContext<AppValue | null>(null);
@@ -113,7 +116,7 @@ export function AppProvider({
   const [waitExpired, setWaitExpired] = useState(false);
   const gate = useRef<{
     seen: boolean;
-    timer: ReturnType<typeof setTimeout>;
+    timers: ReturnType<typeof setTimeout>[];
   } | null>(null);
   const beginWaitRef = useRef<(() => void) | null>(null);
   const [, setVersion] = useState(0);
@@ -178,17 +181,26 @@ export function AppProvider({
       setWaiting(false);
       return;
     }
-    // Each unlock waits for one finished sync run (or FIRST_SYNC_WAIT with stored data).
-    const endWait = () => {
-      if (gate.current) clearTimeout(gate.current.timer);
+    // A resume that ends after this account was replaced must not touch the new one.
+    let alive = true;
+    // Each unlock waits for one finished sync run (or FIRST_SYNC_WAIT with stored data,
+    // FIRST_SYNC_LIMIT without: then the list shows that it waits for the first sync).
+    const clearGate = () => {
+      if (gate.current) gate.current.timers.forEach(clearTimeout);
       gate.current = null;
+    };
+    const endWait = () => {
+      clearGate();
       setWaiting(false);
     };
     const beginWait = () => {
-      if (gate.current) clearTimeout(gate.current.timer);
+      clearGate();
       gate.current = {
         seen: account.sync.status().syncing,
-        timer: setTimeout(() => setWaitExpired(true), FIRST_SYNC_WAIT),
+        timers: [
+          setTimeout(() => setWaitExpired(true), FIRST_SYNC_WAIT),
+          setTimeout(endWait, FIRST_SYNC_LIMIT),
+        ],
       };
       setWaitExpired(false);
       setWaiting(true);
@@ -229,14 +241,15 @@ export function AppProvider({
       .start()
       .catch(() => false)
       .then(() => {
+        if (!alive) return;
         readSetup(account.session.phase());
         setStarting(false);
       });
     return () => {
+      alive = false;
       offSession();
       offSync();
-      if (gate.current) clearTimeout(gate.current.timer);
-      gate.current = null;
+      clearGate();
       beginWaitRef.current = null;
     };
   }, [account, refresh]);
@@ -271,7 +284,7 @@ export function AppProvider({
 
   // The logo screen (#112): until the account is restored and the vault reopened, then
   // after each unlock until the first sync run ends. With stored data it opens after
-  // FIRST_SYNC_WAIT at the latest; a first connection without data waits for the sync.
+  // FIRST_SYNC_WAIT at the latest; without (a first connection) after FIRST_SYNC_LIMIT.
   const loading =
     !ready ||
     (!!user &&
