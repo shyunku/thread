@@ -373,7 +373,7 @@ function home() {
   const apps = [['전화', I.phone, '#3d9a5a'], ['메시지', I.msg, '#3d6fe0'], ['카메라', I.cam, '#5a6274'], ['사진', I.img, '#c9673e'], ['지도', I.map, '#2e8a8a'], ['메모', I.note, '#b28a2a'], ['시계', I.clock, '#4b5568']];
   return `<div class="full home"><div class="h-clock">9:41</div><div class="h-date">11월 16일 월요일</div>
     <div class="h-grid">${apps.map(([n, ic, bg]) => `<div class="h-app"><div class="h-ic" style="background:${bg}">${ic}</div>${n}</div>`).join('')}
-      <div class="h-app"><div class="h-ic thr" data-act="launch" data-o2>${`<img src="${LOGO}" alt="">`}</div>Thread</div></div>
+      <div class="h-app"><div class="h-ic thr" data-act="launch">${`<img src="${LOGO}" alt="">`}</div>Thread</div></div>
     <div class="h-dock"></div></div>`;
 }
 function waitScreen() {
@@ -383,19 +383,19 @@ function waitScreen() {
   const say = v.btn || st === 'offline';
   if (look === 'skeleton') {
     const card = w => `<div class="sk-card"><span class="sk-bar" style="width:22px;height:22px;border-radius:50%"></span><div style="flex:1"><span class="sk-bar" style="width:${w}%;height:14px"></span><span class="sk-bar" style="width:28%;height:10px;margin-top:8px"></span></div></div>`;
-    return `<div class="full app wait is-new" data-o1>
+    return `<div class="full app wait is-new">
       <div class="abar"><span class="sk-bar" style="width:130px;height:24px"></span><span class="sk-bar" style="width:30px;height:22px;margin-left:4px"></span></div>
       <div class="sline"><span class="sk-bar" style="width:190px;height:10px"></span></div>
       <div class="chips">${[62, 72, 84, 72].map(w => `<span class="sk-bar" style="width:${w}px;height:30px;border-radius:99px"></span>`).join('')}</div>
       <div class="lst"><div class="sh"><span class="sk-bar" style="width:80px;height:12px"></span></div>${[62, 74, 40, 30, 52, 66].map(card).join('')}</div>
       ${tabs()}
-      ${say ? `<div class="w-msg sk is-new" data-o3><p>${msg}</p>${btn}</div>` : ''}</div>`;
+      ${say ? `<div class="w-msg sk is-new"><p>${msg}</p>${btn}</div>` : ''}</div>`;
   }
-  return `<div class="full wait is-new" style="background:var(--canvas)" data-o1>
+  return `<div class="full wait is-new" style="background:var(--canvas)">
     <img class="logo-c" src="${LOGO}" alt="">
     <div class="w-spin">${spinner()}</div>
     ${look === 'logotext' && !say ? `<div class="w-txt">${st === 'open' ? '여는 중…' : '동기화하는 중…'}</div>` : ''}
-    ${say ? `<div class="w-msg is-new" data-o3><p>${msg}</p>${btn}</div>` : ''}</div>`;
+    ${say ? `<div class="w-msg is-new"><p>${msg}</p>${btn}</div>` : ''}</div>`;
 }
 function lockScreen() {
   return `<div class="full lock">
@@ -424,22 +424,22 @@ function listScreen() {
   const card = x => `<div class="card ${fl && x.fresh ? 'chg' : ''}"><span class="ck"></span><div><div class="nm">${esc(x.t)}</div><div class="meta"><i style="background:${x.c}"></i>${x.due ? `<span class="${x.late ? 'late' : ''}">${x.due}</span>` : ''}</div></div></div>`;
   return `<div class="full app">
     <div class="abar"><span class="t">모든 할 일</span><span class="cnt">${todo.length}</span><span class="chev">${I.chev}</span><span class="sr">${I.search}</span></div>
-    <div class="sline" data-o3><i style="background:${L[1]}"></i>${L[0]}${d ? ` · ${total}개의 할 일 · ${doneN}개 완료` : ''}</div>
+    <div class="sline"><i style="background:${L[1]}"></i>${L[0]}${d ? ` · ${total}개의 할 일 · ${doneN}개 완료` : ''}</div>
     <div class="chips">${['기한 순', '중요도 순', '남은 기한 순', '생성일 순'].map((c, i) => `<span class="chip ${i ? '' : 'on'}">${c}</span>`).join('')}</div>
     <div class="lst">${d ? `<div class="sh"><span class="tri">▼</span>해야할 일 (${todo.length})</div>${todo.map(card).join('')}
       <div class="sh ${fl ? 'chg' : ''}"><span class="tri">▶</span>완료됨 (${doneN})</div>` : `<div class="empty-msg">처음 동기화를 기다리는 중…</div>`}</div>
     <div class="fab ${d ? '' : 'off'}">${I.plus}</div>
     ${tabs()}
-    ${v.pc ? `<div class="pcov is-new" data-o3>${spinner()}<span>동기화하는 중입니다. 잠시만 기다려주세요...</span></div>` : ''}
+    ${v.pc ? `<div class="pcov is-new">${spinner()}<span>동기화하는 중입니다. 잠시만 기다려주세요...</span></div>` : ''}
   </div>`;
 }
 function phoneHTML() {
   switch (v.scr) {
     case 'home': return home();
-    case 'sysOld': return `<div class="full sys-old" data-o4><div class="circ"><img src="${LOGO}" alt=""></div></div>`;
-    case 'grey': return `<div class="full grey" data-o4></div>`;
-    case 'sysNew': return `<div class="full" style="background:var(--canvas)" data-o4><img class="logo-c" src="${LOGO}" alt=""></div>`;
-    case 'spin': return `<div class="full" style="background:var(--canvas);display:grid;place-items:center" data-o1>${spinner(true)}</div>`;
+    case 'sysOld': return `<div class="full sys-old"><div class="circ"><img src="${LOGO}" alt=""></div></div>`;
+    case 'grey': return `<div class="full grey"></div>`;
+    case 'sysNew': return `<div class="full" style="background:var(--canvas)"><img class="logo-c" src="${LOGO}" alt=""></div>`;
+    case 'spin': return `<div class="full" style="background:var(--canvas);display:grid;place-items:center">${spinner(true)}</div>`;
     case 'lock': return lockScreen();
     case 'wait': return waitScreen();
     case 'list': return listScreen();
@@ -454,28 +454,13 @@ function renderPhone() {
 }
 
 // ---------- Notes ----------
-const OPTS = [
-  { key: 'look', title: '기다리는 동안 화면', at: '[data-o1]', play: true, items: [
-    ['old', '기존', '작은 스피너 → 잠금 화면과 빨간 오류가 잠깐 → 저장된 목록이 먼저 열리고, 동기화가 끝나면 목록이 바뀜. 이걸 고르면 2·3번은 안 쓰임', 'old'],
-    ['logo', '로고 화면', '앱 배경에 로고를 가운데 두고 아래에 작은 진행 표시', 'rec'],
-    ['logotext', '로고 + "동기화하는 중…"', '로고 화면 아래에 지금 하는 일을 한 줄로'],
-    ['skeleton', '목록 모양 뼈대', '할 일 목록 자리에 회색 막대가 반짝임. 아래 탭은 그대로'],
-  ] },
-  { key: 'when', title: '언제 기다리나', at: '[data-o2]', items: [
-    ['old', '기다리지 않음', '저장된 데이터로 바로 열고 뒤에서 동기화. 1번 화면은 잠금 여는 짧은 순간에만 보임', 'old'],
-    ['every', '앱을 켤 때마다 (PC와 같음)', '켤 때마다 첫 동기화가 끝나야 목록이 열림', 'rec'],
-    ['first', '처음 연결한 뒤 한 번만', '저장된 데이터가 없을 때만 기다림. 그 뒤엔 저장된 목록으로 바로 열고 뒤에서 동기화'],
-  ] },
-  { key: 'slow', title: '동기화가 오래 걸리거나 오프라인일 때', at: '[data-o3]', items: [
-    ['timeout', '5초 뒤 저장된 데이터로 열기', '5초가 지나면 저장된 목록을 열고 맨 위 줄에 "동기화 중"·"오프라인" 표시. 연결이 안 되면 바로 열림', 'rec'],
-    ['pc', 'PC와 똑같이 가림막', '5초 뒤 목록을 흐리게 보여 주고 "동기화하는 중" 가림막(PC는 최대 30초). 연결이 안 되면 바로 열림'],
-    ['button', '기다리다가 "저장된 데이터로 열기" 버튼', '계속 기다리고 5초 뒤 버튼이 나옴. 누르면 저장된 목록으로'],
-    ['none', '끝날 때까지 기다림', '시간 제한 없음. 오프라인이면 연결될 때까지 안 열림', 'none'],
-  ] },
-  { key: 'splash', title: 'Android 시스템 스플래시 (앱 코드가 뜨기 전)', at: '[data-o4]', items: [
-    ['old', '기존', '시스템 기본: 회색 바탕에 흰 원 아이콘, 이어서 회색 빈 화면이 잠깐', 'old'],
-    ['logo', '같은 로고 화면으로 이어지게', '앱 배경색에 같은 자리·같은 크기의 로고. 앱이 뜨면 아래에 진행 표시만 생김', 'rec'],
-  ] },
+// Every decision is made (all recommended picks); nothing left to pick.
+const OPTS = [];
+const FINAL = [
+  ['기다리는 동안 화면', '로고 화면'],
+  ['언제 기다리나', '앱을 켤 때마다 (PC와 같음)'],
+  ['동기화가 오래 걸리거나 오프라인일 때', '5초 뒤 저장된 데이터로 열기'],
+  ['Android 시스템 스플래시', '같은 로고 화면으로 이어지게'],
 ];
 const comments = {};
 const tags = it => it.slice(3).map(t => t === 'old' ? '<span class="badge old">기존</span>' : t === 'none' ? '<span class="badge old">기능 없음</span>' : t === 'rec' ? '<span class="badge rec">추천</span>' : '').join('');
@@ -484,9 +469,8 @@ function playBox() {
     <div class="n-pl"><button class="n-launch" data-launch>▶ 앱 켜기</button><span id="pstat"></span></div><div class="n-trail" id="ptrail"></div></div>`;
 }
 function notes() {
-  return `<div class="n-top"><button class="n-copy" data-ncopy>결과 복사</button><p class="hint"><kbd>Shift</kbd>를 누르면 바꿀 수 있는 곳이 보이고, 누르는 동안 재생이 멈춰요.</p></div>
-    <div class="n-scroll">${OPTS.map((o, i) => `<section class="n-item"><h4>${i + 1}. ${o.title}</h4>${o.play ? playBox() : ''}${o.items.map(it => { const [val, nm, dsc] = it;
-      return `<div class="n-row ${s[o.key] === val ? 'on' : ''}" role="button" tabindex="0" data-no="${i}" data-v="${val}"><span class="n-nm">${nm}${tags(it)}</span><span class="n-ds">${dsc}</span>${s[o.key] === val ? `<textarea class="n-cm" rows="1" data-cm="${i}:${val}" placeholder="추가 의견 (선택)" spellcheck="false">${esc(comments[i + ':' + val] || '')}</textarea>` : ''}</div>`; }).join('')}</section>`).join('')}</div>
+  return `<div class="n-top"><button class="n-copy" data-ncopy>결과 복사</button><p class="hint">정할 것은 모두 정했어요. 확정된 모습이에요.</p></div>
+    <div class="n-scroll"><section class="n-item">${playBox()}</section></div>
     <label class="n-new"><input type="checkbox" data-nnew ${s.showNew ? 'checked' : ''}>새로 생기는 부분 표시</label>`;
 }
 const grow = el => { const box = el.closest('.n-scroll'), top = box ? box.scrollTop : 0; el.style.height = 'auto'; el.style.height = el.scrollHeight + (el.offsetHeight - el.clientHeight) + 'px'; if (box) box.scrollTop = top; };
@@ -571,7 +555,7 @@ document.addEventListener('click', e => {
   if (f) { f.focus({ preventScroll: true }); f.setSelectionRange(f.value.length, f.value.length); }
 });
 function resultText() {
-  return '모바일 2.2.0 시작 로딩 시안\n' + OPTS.map((o, i) => { const it = o.items.find(([val]) => val === s[o.key]); const c = (comments[i + ':' + it[0]] || '').trim(); return `${i + 1}. ${o.title}: ${it[1]}${c ? ` (의견: ${c})` : ''}`; }).join('\n');
+  return '모바일 2.2.0 시작 로딩 시안 (확정)\n' + FINAL.map(([t, v], i) => `${i + 1}. ${t}: ${v}`).join('\n');
 }
 document.addEventListener('click', e => {
   const copy = e.target.closest('[data-ncopy]');
