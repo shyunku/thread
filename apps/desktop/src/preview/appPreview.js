@@ -38,7 +38,8 @@ function fillerTasks(count) {
 // its tasks stay out of the counts and lists until it is unlocked.
 // empty=1 keeps only the done tasks (the list's empty state).
 // notime=1 adds a task due today without a chosen time (23:59, "하루 끝").
-function previewView(long = false, count = 0, empty = false, noTime = false, period = false) {
+function previewView(long = false, count = 0, empty = false, noTime = false, period = false, dates = false) {
+  if (dates) return previewRows(datesPreviewView());
   if (period) return previewRows(periodPreviewView());
   const categories = [
     { cid: "work", title: "업무", color: "#6294ff", secret: false, locked: false, created_at: at(-30, 9) + 60000 },
@@ -142,6 +143,48 @@ function periodPreviewView() {
   return { categories, tasks, subtasks };
 }
 
+// dates=1 (#111): the tasks of docs/designs/pc-2.6.2-feedback-mock.html around today (the mock's
+// today is Mon 11/16 13:20): one-day periods today, tomorrow, this week and later, periods over
+// several days, dates in other years and a period over a new year. Plus a period that starts at
+// 0:00 (stored 00:00:00.001) three days on.
+function datesPreviewView() {
+  const y = new Date().getFullYear();
+  const on = (yearOffset, month, day, hour = 0, minute = 0) => new Date(y + yearOffset, month - 1, day, hour, minute).getTime();
+  const endOn = (yearOffset, month, day) => on(yearOffset, month, day, 23, 59) + 59000;
+  const categories = [
+    { cid: "work", title: "업무", color: "#4fc3d9" },
+    { cid: "home", title: "개인", color: "#44c98b" },
+    { cid: "study", title: "공부", color: "#f2c14e" },
+    { cid: "gym", title: "운동", color: "#ff9f5a" },
+  ].map((c, i) => ({ secret: false, locked: false, ...c, created_at: at(-30, 9) + (i + 1) * 60000 }));
+  const tasks = [
+    { tid: "a0", title: "세탁물 찾기", due: at(0, 12), cats: ["home"] },
+    { tid: "a4", title: "코드 리뷰", start: at(0, 13), due: at(0, 15), cats: ["work"] },
+    { tid: "a1", title: "팀 회의", start: at(0, 15), due: at(0, 16), cats: ["work"] },
+    { tid: "a2", title: "장보기 · 우유, 달걀", due: at(0, 20), cats: ["home"] },
+    { tid: "a3", title: "자격증 준비", start: dayStartAt(-14), due: endOn(1, 2, 28), cats: ["study"], memo: "필기는 1월, 실기는 2월 말." },
+    { tid: "b1", title: "치과 진료", start: at(1, 10), due: at(1, 11), cats: ["home"] },
+    { tid: "b2", title: "보고서 제출", due: at(1, 18), cats: ["work"], important: true },
+    { tid: "c1", title: "저녁 약속 · 민지", start: at(2, 19), due: at(2, 21), cats: ["home"] },
+    { tid: "c2", title: "팀 워크숍", start: dayStartAt(3), due: dayEndAt(4), cats: ["work"] },
+    { tid: "c3", title: "도서관 책 반납", due: at(4, 18), cats: ["study"] },
+    { tid: "c4", title: "부모님 댁 방문", start: at(2, 10), due: at(4, 18), cats: ["home"] },
+    { tid: "c5", title: "분기 예산 검토 회의 · 재무팀 자료 미리 받아 두기", start: at(2, 11, 30), due: at(2, 13, 30), cats: ["work"] },
+    { tid: "c6", title: "서버 점검", start: dayStartAt(3) + 1, due: at(3, 3), cats: ["work"] },
+    { tid: "d1", title: "건강검진", start: at(17, 9), due: at(17, 11), cats: ["home"] },
+    { tid: "d2", title: "사내 세미나", start: dayStartAt(19), due: dayEndAt(21), cats: ["work"] },
+    { tid: "e1", title: "연말 정산 상담", start: on(1, 12, 20, 10, 30), due: on(1, 12, 20, 12, 30), cats: ["work"] },
+    { tid: "e2", title: "겨울 가족 여행", start: on(1, 12, 30), due: endOn(2, 1, 2), cats: ["home"], important: true },
+    { tid: "e3", title: "여권 갱신", due: endOn(2, 3, 1), cats: ["home"] },
+    { tid: "e4", title: "학회 출장", start: on(2, 3, 1), due: endOn(2, 3, 5), cats: ["work"], memo: "항공권은 1월에 예매." },
+    { tid: "e5", title: "적금 만기", due: on(5, 7, 15, 10), cats: ["home"] },
+    { tid: "n1", title: "읽을 책 목록 정리", due: null, cats: ["study"] },
+    { tid: "z1", title: "분기 보고서 작성", due: at(-3, 18), cats: ["work"], done: true, doneAt: at(-3, 16) },
+    { tid: "z2", title: "회의실 예약", due: at(2, 9), cats: ["work"], done: true, doneAt: at(-1, 11) },
+  ];
+  return { categories, tasks, subtasks: [] };
+}
+
 // update=<status> (available, downloading, installing, failed, ready) shows a synthetic
 // pending update in the title bar and the update dialog (#100 screenshots).
 export function installAppPreviewIpc(IpcSender, params = new URLSearchParams()) {
@@ -189,7 +232,7 @@ function PreviewRoot() {
   const [states, syncStatus, undoKind, initialQuery] = useMemo(() => {
     const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
     return [
-      fromSyncV2View(previewView(params.get("long") === "1", Number(params.get("count")) || 0, params.get("empty") === "1", params.get("notime") === "1", params.get("period") === "1")),
+      fromSyncV2View(previewView(params.get("long") === "1", Number(params.get("count")) || 0, params.get("empty") === "1", params.get("notime") === "1", params.get("period") === "1", params.get("dates") === "1")),
       previewSyncStatus(params.get("sync")),
       ["done", "del"].includes(params.get("undo")) ? params.get("undo") : null,
       params.get("q") || "",
