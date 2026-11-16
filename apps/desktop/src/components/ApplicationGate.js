@@ -35,8 +35,9 @@ export default function ApplicationGate({uid,children}){
   if(screen.mode!=="CHECKING")IpcSender.vault.windowMode?.(screen.mode==="E2EE"?"app":plainLock?"lock":"setup",()=>{});
  },[screen.mode,plainLock]);
  useEffect(()=>()=>{IpcSender.vault.windowMode?.("app",()=>{});},[]);
- const unlock=async(method,password)=>{
-  await invoke("unlock",method,password);
+ // remember: the lock screen's "이 PC에서 다시 묻지 않기" (#111).
+ const unlock=async(method,password,remember)=>{
+  await invoke(remember?"unlockRemember":"unlock",method,password);
   if(live.current)await refresh();
   return true;
  };
@@ -50,7 +51,7 @@ export default function ApplicationGate({uid,children}){
   {!plainLock&&!flow&&<header className="application-gate__header"><div className="application-gate__heading"><h1>{title}</h1>{["ERROR","RECOVERY_REQUIRED"].includes(screen.mode)&&<button type="button" className="application-gate__refresh" aria-label="상태 다시 확인" title="상태 다시 확인" onClick={()=>void refresh()}><VscRefresh aria-hidden="true"/></button>}</div></header>}
   {screen.mode==="CHECKING"?<div className="application-gate__checking" role="status"><CircularProgress color="#6294ff" width="32px" height="32px"/><p>계정의 저장소를 확인하고 있습니다…</p></div>:
    plainLock?<LockScreen osAvailable={screen.status?.osAvailable} passwordAvailable={screen.status?.passwordAvailable}
-    onOSUnlock={()=>unlock("os")} onPasswordUnlock={password=>unlock("password",password)}/>:
+    onOSUnlock={remember=>unlock("os",undefined,remember)} onPasswordUnlock={(password,remember)=>unlock("password",password,remember)}/>:
    screen.mode==="SETUP_REQUIRED"?<DeviceConnect key={uid} onConnected={()=>void refresh()}/>:
    screen.mode==="NEW_ACCOUNT_SETUP"?<NewAccountSetup key={uid} uid={uid} onContinue={()=>void refresh()}/>:
    screen.mode==="RECOVERY_REQUIRED"?<p role="alert">데이터 파일 확인이 필요합니다. 초기화하거나 기존 데이터를 삭제하지 마세요.</p>:

@@ -63,6 +63,46 @@
       &:focus-visible { outline: 2px solid #9dbbff; outline-offset: 2px; }
     }
 
+    // "이 PC에서 다시 묻지 않기" (#111 mock .lk-ck, look a): small and quiet under the button.
+    &__remember {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 0;
+      margin: 12px 0 0;
+      padding: 3px 6px;
+      border: 0;
+      border-radius: 6px;
+      background: none;
+      color: #8792a4;
+      font: inherit;
+      font-size: 12px;
+      line-height: 1.4;
+      cursor: pointer;
+      transition: color .12s;
+
+      &:hover:not(:disabled), &.on { color: #c7d0dd; }
+      &:hover:not(:disabled) .lock-screen__box { border-color: #8792a4; }
+      &.on .lock-screen__box { background: #6294ff; border-color: #6294ff; }
+      &:disabled { opacity: .5; cursor: default; }
+      &:focus-visible { outline: 2px solid #83aaff; outline-offset: 1px; }
+      + .lock-screen__switch { margin-top: 6px; }
+    }
+    &__box {
+      box-sizing: border-box;
+      display: grid;
+      place-items: center;
+      width: 14px;
+      height: 14px;
+      flex: none;
+      border: 1.5px solid #5a6475;
+      border-radius: 4px;
+      color: #fff;
+      transition: border-color .12s, background .12s;
+
+      svg { display: block; }
+    }
+
     &__switch {
       min-height: 0;
       margin-top: 12px;

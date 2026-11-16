@@ -61,7 +61,7 @@ const SettingData = ({ modalRef, preview = false, previewPanel = null, panel = n
   const sync = <SyncStatus uid={uid} preview={preview} />;
 
   return (
-    <SettingsPage title="데이터" description="내 데이터는 기기에서 암호화되어 저장·동기화됩니다."
+    <SettingsPage title="데이터 및 보안" description="내 데이터는 기기에서 암호화되어 저장·동기화됩니다."
       action={(unlocked || loading) && (
         <SettingsButton disabled={preview || locking || loading} onClick={lock}>
           <IoLockClosedOutline aria-hidden="true" style={{ marginRight: 6 }} />앱 잠금
@@ -69,7 +69,7 @@ const SettingData = ({ modalRef, preview = false, previewPanel = null, panel = n
       )}>
       <div className="settings data-settings">
         {unlocked || loading ? (
-          <DataOverview uid={uid} vault={vault} ready={unlocked} sync={sync} initialDialog={preview ? previewPanel : panel} />
+          <DataOverview uid={uid} vault={vault} ready={unlocked} sync={sync} initialDialog={preview ? previewPanel : panel} preview={preview} />
         ) : (
           <>
             <SettingsSection title="동기화">{sync}</SettingsSection>

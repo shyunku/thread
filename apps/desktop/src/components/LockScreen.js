@@ -4,9 +4,20 @@ import PasswordField from "./PasswordField";
 import { osAuthLabel } from "../modals/settings/data/format";
 import "./LockScreen.scss";
 
-// Compact unlock screen (#74): OS authentication first, password on request.
+// The tick inside "이 PC에서 다시 묻지 않기" (#111 mock tick9).
+const Tick = () => (
+  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+    <path d="M20 6 9 17l-5-5" />
+  </svg>
+);
+
+// Compact unlock screen (#74): OS authentication first, password on request. Under the unlock
+// button a small "이 PC에서 다시 묻지 않기" (#111): an unlock with it checked also turns on 설정 >
+// 데이터 및 보안 > 앱을 다시 켤 때 잠금 화면 건너뛰기 (the unlock is the identity check). The
+// actions get (remember) / (password, remember).
 export default function LockScreen({ osAvailable = false, passwordAvailable = true, onOSUnlock, onPasswordUnlock }) {
   const [usePassword, setUsePassword] = useState(!osAvailable && passwordAvailable);
+  const [remember, setRemember] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const password = useRef(null);
@@ -25,7 +36,7 @@ export default function LockScreen({ osAvailable = false, passwordAvailable = tr
     if (password.current) password.current.value = "";
     try {
       const action = method === "os" ? onOSUnlock : onPasswordUnlock;
-      if (typeof action !== "function" || (await (method === "os" ? action() : action(value))) !== true) throw Error("UNVERIFIED_UNLOCK");
+      if (typeof action !== "function" || (await (method === "os" ? action(remember) : action(value, remember))) !== true) throw Error("UNVERIFIED_UNLOCK");
     } catch {
       if (mounted.current) setError(method === "os"
         ? `본인 확인이 취소됐어요.${passwordAvailable ? " 비밀번호로도 열 수 있어요." : ""}`
@@ -52,6 +63,13 @@ export default function LockScreen({ osAvailable = false, passwordAvailable = tr
       ) : (
         <button type="button" className="lock-screen__primary" disabled={busy} onClick={() => void run("os")}>
           {busy ? "확인 중…" : `${osAuthLabel()}로 열기`}
+        </button>
+      )}
+      {(osAvailable || passwordAvailable) && (
+        <button type="button" role="checkbox" aria-checked={remember} disabled={busy}
+          className={"lock-screen__remember" + (remember ? " on" : "")} onClick={() => setRemember((value) => !value)}>
+          <span className="lock-screen__box" aria-hidden="true">{remember && <Tick />}</span>
+          이 PC에서 다시 묻지 않기
         </button>
       )}
       {osAvailable && passwordAvailable && (

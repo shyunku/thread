@@ -10,6 +10,7 @@ import DeviceNameDialog from "./DeviceNameDialog";
 import KeyChangeDialog from "./KeyChangeDialog";
 import BackupDialog from "./BackupDialog";
 import RecoverySetupDialog from "./RecoverySetupDialog";
+import LockSkipSection from "./LockSkipSection";
 
 const ROTATION_PENDING = ["RECOVERY_UNCONFIRMED", "RECOVERY_CONFIRMED", "COMMITTING"];
 const REENCRYPTION_ACTIVE = ["READY", "WAITING", "PAUSED"];
@@ -25,7 +26,7 @@ const overviewCache = new Map();
 const PREVIEW_DIALOGS = { pair: { type: "add" }, add: { type: "add" }, rotation: { type: "key", mode: "renew" },
   renew: { type: "key", mode: "renew" }, backup: { type: "backup" }, recovery: { type: "recovery" } };
 
-export default function DataOverview({ uid, vault, ready = true, sync, initialDialog = null }) {
+export default function DataOverview({ uid, vault, ready = true, sync, initialDialog = null, preview = false }) {
   const cached = overviewCache.get(uid) || {};
   const [identity, setIdentity] = useState(cached.identity);
   const [devices, setDevices] = useState(cached.devices);
@@ -122,6 +123,7 @@ export default function DataOverview({ uid, vault, ready = true, sync, initialDi
         ) : <Callout tone="info">기존 데이터를 새 열쇠로 다시 보호하고 있어요 · {reencryption.count ?? 0}개 처리</Callout>
       )}
 
+      <LockSkipSection vault={vault} preview={preview} />
       <SettingsSection title="동기화">{sync}</SettingsSection>
 
       <SettingsSection title="연결된 기기"
