@@ -696,6 +696,9 @@
   .rp-agenda.row-right .rp-nm, .rp-agenda.row-rightSmall .rp-nm { order: 2; }
   .rp-agenda.row-right .rp-tm, .rp-agenda.row-rightSmall .rp-tm { order: 3; width: auto; margin-left: auto; text-align: right; }
   .rp-agenda.row-rightSmall .rp-tm { font-size: 11px; }
+  /* Final: the selected day's times are muted; blue only for a period in progress now. */
+  .rp-agenda .rp-tm.span { color: var(--muted); }
+  .rp-agenda .rp-tm.now { color: #8fb0f0; }
 </style>
 </head>
 <body>
@@ -814,6 +817,7 @@ function periodTxt(t) {
 const CATS = { work: { title: '업무', color: '#4fc3d9' }, home: { title: '개인', color: '#44c98b' }, study: { title: '공부', color: '#f2c14e' }, gym: { title: '운동', color: '#ff9f5a' } };
 const TASKS0 = [
   { id: 'a0', t: '세탁물 찾기', cat: 'home', end: at(2026, 11, 16, 12, 0) },
+  { id: 'a4', t: '코드 리뷰', cat: 'work', start: at(2026, 11, 16, 13, 0), end: at(2026, 11, 16, 15, 0) },
   { id: 'a1', t: '팀 회의', cat: 'work', start: at(2026, 11, 16, 15, 0), end: at(2026, 11, 16, 16, 0) },
   { id: 'a2', t: '장보기 · 우유, 달걀', cat: 'home', end: at(2026, 11, 16, 20, 0) },
   { id: 'a3', t: '자격증 준비', cat: 'study', start: day0(2026, 11, 2), end: at(2027, 2, 28), memo: '필기는 1월, 실기는 2월 말.' },
@@ -842,9 +846,10 @@ const TASKS0 = [
 // in the panel head; the lock skip is a toggle that always skips, kept off after a manual lock.
 // The picker fields write their dates with the date setting (round 3); the lock checkbox is small and
 // quiet, 16px under the button; the selected day's list shows a one-day period's range ("오후 7시 ~ 9시")
-// and a period's last day as "~오후 6시" (round 4). Open: the layout of that list's rows (dayRow).
+// and a period's last day as "~오후 6시" (round 4); that list puts the time at the row's right end in 11px, blue only for a period in progress
+// now (round 5). Nothing is open.
 const s = {
-  ckLook: 'a', field: 'num', dayTm: 'range', lastTm: 'tilde', dayRow: 'left', calDay: TODAY,
+  ckLook: 'a', field: 'num', dayTm: 'range', lastTm: 'tilde', dayRow: 'rightSmall', calDay: TODAY,
   fmt: { sep: '.', digits: 2, pad: true }, // the user's setting (설정 > 일반 > 시간 표시)
   prefs: { group: 'date', noneTop: false, sort: 'due', density: 'normal', showRemain: true, hideDone: false, dueFormat: 'group', remainFormat: 'normal' },
   tasks: TASKS0.map(x => ({ start: null, ...x })), sel: null, vmOpen: false, picker: null, undo: null,
@@ -985,8 +990,8 @@ function calendarTab() {
   const list = s.tasks.filter(covers).sort((a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0) || key(a) - key(b));
   return `<div class="rp-box">${miniMonth({ y: 2026, m: 10, picked: [day], act: 'data-act="calday" data-day', nav: 'data-noop', marks })}</div>
     <div class="rp-block-h">${d.getMonth() + 1}월 ${d.getDate()}일 (${WD[d.getDay()]})${day === TODAY ? ' · 오늘' : ''}<span>${list.filter(t => !t.done).length}개 남음</span></div>
-    <div class="rp-box rp-agenda row-${s.dayRow} ${s.dayRow !== 'left' ? 'is-new' : ''}">${list.length ? list.map(t => { const m = dayTm(t, day), oyr = m.kind === 'span' && otherYear(t.end), over = !t.done && t.end < NOW;
-      return `<div class="rp-ai ${t.done ? 'done' : ''}" data-act="sel" data-tid="${t.id}"><span class="rp-tm ${m.kind} ${over ? 'over' : ''} ${oyr ? 'oyr' : ''} ${m.kind === 'span' || m.changed ? 'is-new' : ''}">${m.txt}</span><span class="rp-dot" style="background:${CATS[t.cat].color}"></span><span class="rp-nm">${esc(t.t)}</span></div>`; }).join('') : '<div class="rp-none">이날은 할 일이 없어요</div>'}</div>`;
+    <div class="rp-box rp-agenda row-${s.dayRow} ${s.dayRow !== 'left' ? 'is-new' : ''}">${list.length ? list.map(t => { const m = dayTm(t, day), oyr = m.kind === 'span' && otherYear(t.end), over = !t.done && t.end < NOW, now = !t.done && isPeriod(t) && t.start <= NOW && NOW <= t.end;
+      return `<div class="rp-ai ${t.done ? 'done' : ''}" data-act="sel" data-tid="${t.id}"><span class="rp-tm ${m.kind} ${over ? 'over' : ''} ${now ? 'now' : ''} ${oyr ? 'oyr' : ''} ${m.kind === 'span' || m.changed ? 'is-new' : ''}">${m.txt}</span><span class="rp-dot" style="background:${CATS[t.cat].color}"></span><span class="rp-nm">${esc(t.t)}</span></div>`; }).join('') : '<div class="rp-none">이날은 할 일이 없어요</div>'}</div>`;
 }
 const endDetail = ms => hasT(ms) ? `${ymd(ms)} ${clockL(ms)}` : `${ymd(ms)} · 하루 끝`;
 const startDetail = ms => hasST(ms) ? `${ymd(ms)} ${clockL(ms)}` : `${ymd(ms)} · 하루 시작`;
@@ -1217,17 +1222,12 @@ const mainWin = () => (s.gate ? gateHtml() : `<div class="win" style="width:1280
 // ---------- Notes ----------
 const closePops = () => { s.vmOpen = false; s.more = false; s.picker = null; s.settings = false; s.gate = null; s.hello = false; s.cap = ''; };
 const toList = () => { closePops(); s.sel = null; };
-const OPTS = [
-  { at: '.rp-agenda', key: 'dayRow', title: '캘린더 탭 선택한 날 목록의 줄 모양', show: () => { closePops(); s.sel = null; s.calDay = day0(2026, 11, 18); s.cap = '캘린더 탭 · 11월 18일'; },
-    items: [['left', '시각 칸 왼쪽', '지금 모습. 시각 칸이 가장 긴 시각에 맞춰 넓어짐 (이날 보통 74px, "오전 11:30 ~ 오후 1:30"이 있으면 117px), 이름은 그 오른쪽 모든 줄이 195px, 117px일 땐 모든 줄이 152px로 줄어듦', 'old'],
-      ['right', '시각을 맨 오른쪽으로, 폭 제한 없음', '점 · 이름이 왼쪽에서 남는 폭을 다 쓰고 시각은 줄 끝에 오른쪽 맞춤. 이름이 시각에 밀려 줄어듦 (긴 기간 줄만 152px, 나머지는 195 ~ 238px)', 'rec'],
-      ['rightSmall', '맨 오른쪽 + 작은 시각', '위와 같고 시각을 11px로 줄임. 이름 폭이 조금 늘지만 시각이 덜 읽힘 (161 ~ 241px)', '']] },
-];
+const OPTS = [];
 const comments = {};
 function notes() {
   const sim = '<div class="n-sim">해 보기:<button data-sim="restart">앱 다시 켜기</button><button data-sim="lock">지금 잠그기</button></div>';
   return `<aside class="notes">
-    <div class="n-top"><button class="n-copy" data-ncopy>결과 복사</button><p class="hint"><kbd>Shift</kbd>+마우스로 파란 점선의 후보 보기</p></div>
+    <div class="n-top"><button class="n-copy" data-ncopy>결과 복사</button><p class="hint">정할 것은 모두 정했어요. 확정된 모습이에요.</p></div>
     <div class="n-scroll">${OPTS.map((o, i) => `<section class="n-item"><h4>${i + 1}. ${o.title}</h4>${o.sim ? sim : ''}${o.items.map(([v, nm, dsc, tag]) =>
       `<div class="n-row ${s[o.key] === v ? 'on' : ''}" role="button" tabindex="0" data-no="${i}" data-v="${v}"><span class="n-nm">${esc(nm)}${/old/.test(tag) ? '<span class="badge old">기존</span>' : ''}${/rec/.test(tag) ? '<span class="badge rec">추천</span>' : ''}</span><span class="n-ds">${esc(dsc)}</span>${s[o.key] === v ? `<textarea class="n-cm" rows="1" data-cm="${i}:${v}" data-fk="cm:${i}:${v}" placeholder="추가 의견 (선택)" spellcheck="false">${esc(comments[i + ':' + v] || '')}</textarea>` : ''}</div>`).join('')}</section>`).join('')}</div>
     <label class="n-new"><input type="checkbox" data-nnew ${s.showNew ? 'checked' : ''}>새로 생기는 부분 표시</label>
@@ -1385,7 +1385,8 @@ document.addEventListener('click', e => {
   if (f) { f.focus({ preventScroll: true }); f.setSelectionRange(f.value.length, f.value.length); }
 });
 function resultText() {
-  return 'PC 2.6.2 시안 선택 (5차)\n' + OPTS.map((o, i) => { const it = o.items.find(([v]) => v === s[o.key]); const c = (comments[i + ':' + it[0]] || '').trim(); return `${i + 1}. ${o.title}: ${it[1]}${c ? ` (의견: ${c})` : ''}`; }).join('\n');
+  if (!OPTS.length) return 'PC 2.6.2 시안 (확정)\n정할 것은 모두 정했어요.';
+  return 'PC 2.6.2 시안 선택\n' + OPTS.map((o, i) => { const it = o.items.find(([v]) => v === s[o.key]); const c = (comments[i + ':' + it[0]] || '').trim(); return `${i + 1}. ${o.title}: ${it[1]}${c ? ` (의견: ${c})` : ''}`; }).join('\n');
 }
 document.addEventListener('click', e => {
   const copy = e.target.closest('[data-ncopy]');
