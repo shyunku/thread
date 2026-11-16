@@ -181,3 +181,22 @@ test("in the drawer the panel closes after the delete", () => {
   expect(panel()).toBeNull();
   expect(screen.getByRole("status")).toHaveTextContent("지웠어요");
 });
+
+test("after the delete, focus goes to 되돌리기, not the page (#111 review)", () => {
+  view();
+  select("first");
+  trash().focus();
+  fireEvent.click(trash());
+  act(() => { jest.advanceTimersByTime(0); });
+  expect(document.activeElement).toBe(screen.getByRole("button", { name: /되돌리기/ }));
+});
+
+test("in the drawer, focus also lands on 되돌리기", () => {
+  view(960);
+  select("first");
+  trash().focus();
+  fireEvent.click(trash());
+  act(() => { jest.advanceTimersByTime(0); });
+  expect(panel()).toBeNull();
+  expect(document.activeElement).toBe(screen.getByRole("button", { name: /되돌리기/ }));
+});

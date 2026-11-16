@@ -33,6 +33,17 @@ export function panelTab({ view, selectedId, hold }) {
 
 const tabId = (id) => `rp-tab-${id}`;
 
+// After 할 일 삭제 the bin is gone: focus goes to the notice's 되돌리기 (else the list) once the
+// screen has caught up, unless the user already moved it somewhere.
+function focusAfterDelete() {
+  setTimeout(() => {
+    const active = document.activeElement;
+    if (active && active !== document.body && active.isConnected) return;
+    const target = document.querySelector(".undo-notice .un-btn:not(:disabled)") ?? document.querySelector(".todo-content .task-row[tabindex='0']");
+    target?.focus();
+  }, 0);
+}
+
 // The right panel of the main screen (#102 mock panel()), inside PanelHost.
 // tasks: the screen's shown tasks by id (the day list and the marks); catsOf(task) the categories
 // to show for a task; onTaskContextMenu(event, taskId) the task menu.
@@ -67,7 +78,7 @@ export default function RightPanel({ view, tasks, catsOf, prefs, canStar, onTask
 
   // 할 일 삭제 (#111): the delete with its undo notice (#107). A field being typed in is left first,
   // so its text is saved to the task before it goes; the restore snapshot takes the typed texts
-  // too. In the drawer the panel closes, back to the list and its notice.
+  // too. In the drawer the panel closes, back to the list and its notice; focus goes to 되돌리기.
   const remove = () => {
     const task = selectedTask;
     if (!task) return;
@@ -80,6 +91,7 @@ export default function RightPanel({ view, tasks, catsOf, prefs, canStar, onTask
     actions?.deleteTask(task.id, typed);
     setSelectedTaskId(null);
     if (overlayPanel) setPanelOpen(false);
+    focusAfterDelete();
   };
 
   const choose = (id) => {
