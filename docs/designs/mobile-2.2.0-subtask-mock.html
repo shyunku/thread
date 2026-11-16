@@ -102,7 +102,9 @@
   .sub .nm.tap { cursor: pointer; }
   .sub.done .nm { color: var(--muted); text-decoration: line-through; }
   .sub textarea.nm-in { flex: 1; font-size: 14px; line-height: 1.4; padding: 0 0 1px; border-bottom: 1px solid var(--accent); }
-  .sub.dragging .sub-fg { background: var(--surface); box-shadow: 0 6px 18px #0009; }
+  .sub-fg { transition: transform .12s, box-shadow .12s; }
+  .sub.dragging .sub-fg { background: var(--surface); border-radius: 12px; box-shadow: 0 10px 26px #000c; transform: scale(1.03); }
+  .phone.dragging, .phone.dragging * { cursor: grabbing !important; }
   .sub.dragging { overflow: visible; z-index: 5; }
   .sub .grip { cursor: grab; touch-action: none; }
   .sub .ib[disabled] { opacity: .3; cursor: default; }
@@ -187,9 +189,9 @@ const task = {
 let nextId = 7;
 
 // ---------- State ----------
-// Defaults = the recommended candidates. focus: the field the keyboard is up for
+// The picked options (order 'hold': press a row for 0.4 s, then drag it). focus: the field the keyboard is up for
 // ('title' | 'memo' | 'add' | 'sub:<id>'); drafts: what is typed and not saved yet.
-const s = { edit: 'tap', empty: 'revert', del: 'undo', add: 'blur', order: 'none', kbfix: 'avoid', focus: null, toast: null, dialog: null, drag: null, showNew: false };
+const s = { edit: 'tap', empty: 'revert', del: 'undo', add: 'blur', order: 'hold', kbfix: 'avoid', focus: null, toast: null, dialog: null, drag: null, showNew: false };
 const drafts = {};
 let wantFocus = false, eatClick = false, toastTimer = 0;
 const subOf = f => f && f.startsWith('sub:') ? task.subs.find(x => x.id === f.slice(4)) : null;
@@ -243,7 +245,7 @@ function subRow(sub, i) {
   const pencil = s.edit === 'pencil' && !editing ? `<button class="ib m pen is-new" data-act="edit" data-id="${sub.id}">${I.pencil}</button>` : '';
   const x = s.del === 'swipe' ? '' : `<button class="ib m x" data-act="x" data-id="${sub.id}">${I.x}</button>`;
   const grip = s.order === 'drag' ? `<span class="ib m grip is-new" data-grip="${sub.id}">${I.grip}</span>` : '';
-  return `<div class="sub ${sub.done ? 'done' : ''} ${s.drag === sub.id ? 'dragging' : ''}" data-sub="${sub.id}">${s.del === 'swipe' ? '<div class="sub-bg">삭제</div>' : ''}
+  return `<div class="sub ${sub.done ? 'done' : ''} ${s.drag === sub.id ? 'dragging is-new' : ''}" data-sub="${sub.id}">${s.del === 'swipe' ? '<div class="sub-bg">삭제</div>' : ''}
     <div class="sub-fg"><button class="ck ${sub.done ? 'done' : ''}" style="width:20px;height:20px" data-act="ck" data-id="${sub.id}">${sub.done ? I.check(12) : ''}</button>${name}${mv}${pencil}${x}${grip}</div></div>`;
 }
 function screen() {
@@ -274,55 +276,12 @@ const keyboard = () => `<div class="strip"><span>▦</span><span>☺</span><span
   <div class="r"><span class="w">!#1</span><span class="w">한/영</span><span class="sp">한국어</span><span class="w">.</span><span class="go" data-kbdone>${s.focus === 'memo' ? '↵' : '완료'}</span></div>`;
 
 // ---------- Notes ----------
-const OPTS = [
-  { key: 'edit', title: '하위 할 일 이름 고치기', at: '.sub .nm, .sub .pen',
-    show() { if (s.edit === 'tap') { s.focus = 'sub:' + (task.subs[1] || task.subs[0] || {}).id; } else s.focus = null; },
-    items: [
-      ['none', '기능 없음', '이름은 읽기만 해요. 고치려면 지우고 다시 적어야 해요.', 'old'],
-      ['tap', '이름을 누르면 바로 편집', '이름을 누르면 그 자리에서 입력 칸이 되고 키보드가 올라와요. 완료 키나 다른 곳을 누르면 저장돼요.', 'rec'],
-      ['long', '길게 눌러 편집', '이름을 0.5초쯤 누르고 있으면 편집이 시작돼요. 실수로 열릴 일은 적지만 찾기 어려워요.'],
-      ['pencil', '줄 끝 연필 아이콘', '줄마다 연필 버튼이 생겨요. 눈에 잘 띄지만 이름 칸이 좁아져요.'],
-    ] },
-  { key: 'empty', title: '이름을 비우고 끝내면', at: '.sub .nm-in',
-    show() { if (s.empty === 'none') { s.edit = 'none'; s.focus = null; return; } if (s.edit === 'none') s.edit = 'tap'; const sub = task.subs[1] || task.subs[0]; if (sub) { s.focus = 'sub:' + sub.id; drafts[s.focus] = ''; } },
-    items: [
-      ['none', '기능 없음', '지금은 이름을 고칠 수 없어서 정해진 동작이 없어요. 고르면 1번도 기능 없음으로 보여 줘요.', 'old'],
-      ['revert', '원래 이름으로 되돌림', '다 지우고 끝내면 고치기 전 이름이 그대로 남아요. 실수로 사라질 일이 없어요.', 'rec'],
-      ['delete', '그 하위 할 일 삭제', '다 지우고 끝내면 그 줄이 지워져요. 삭제 방식(3번)의 되돌리기 알림을 같이 써요.'],
-    ] },
-  { key: 'del', title: '하위 할 일 삭제', at: '.sub .x, .subs.swipe .sub',
-    show() { s.focus = null; s.dialog = null; },
-    items: [
-      ['now', 'X를 누르면 바로 삭제', '확인도 되돌리기도 없이 바로 지워져요.', 'old'],
-      ['undo', '삭제 후 "되돌리기" 알림 5초', '바로 지우고 아래에 알림을 5초 띄워요. 되돌리기를 누르면 제자리로 돌아와요. PC와 같아요.', 'rec'],
-      ['confirm', '삭제 전에 확인 창', 'X를 누르면 "삭제할까요?" 창이 먼저 떠요. 안전하지만 매번 한 번 더 눌러야 해요.'],
-      ['swipe', '왼쪽으로 밀어서 삭제', 'X 버튼이 없어지고 줄을 왼쪽으로 밀면 지워져요. 이름 칸이 넓어지지만 알기 어려워요.'],
-    ] },
-  { key: 'add', title: '하위 할 일 추가 칸', at: '.addrow',
-    show() { s.focus = 'add'; if (!(drafts.add || '').trim()) drafts.add = '우산 챙기기'; },
-    items: [
-      ['key', '키보드 완료 키로만 추가', '글을 적고 다른 곳을 누르면 추가되지 않고 글만 칸에 남아요.', 'old'],
-      ['blur', '다른 곳을 눌러도 추가', '적은 글이 있으면 완료 키를 안 눌러도 다른 곳을 누를 때 추가돼요.', 'rec'],
-      ['btn', '칸 오른쪽에 추가 버튼', '칸 옆에 "추가" 버튼이 생겨요. 다른 곳을 누르면 지금처럼 글만 남아요.'],
-    ] },
-  { key: 'order', title: '순서 바꾸기', at: '.sec-sub, .sub .mv, .sub .grip',
-    show() { if (s.order === 'updown') { if (s.edit === 'none') s.edit = 'tap'; const sub = task.subs[1] || task.subs[0]; s.focus = sub ? 'sub:' + sub.id : null; } else s.focus = null; },
-    items: [
-      ['none', '기능 없음 (이번엔 안 함)', 'PC에서 정한 순서대로 보이기만 해요. 순서는 PC에서 끌어서 바꿀 수 있어요.', 'old', 'rec'],
-      ['updown', '편집 중 위·아래 버튼', '이름을 편집하는 동안 그 줄에 위·아래 버튼이 나와요. 새 부품 없이 만들 수 있어요.'],
-      ['drag', '손잡이를 끌어서', '줄 끝 손잡이를 잡고 위아래로 끌어요. 끌기 부품을 새로 넣어야 해요.'],
-    ] },
-  { key: 'kbfix', title: '키보드가 올라올 때', at: '.kb, .memo',
-    show() { if (!s.focus) s.focus = 'add'; },
-    items: [
-      ['none', '입력 칸이 키보드에 가려짐', '화면은 그대로이고 키보드가 위를 덮어요. 추가 칸과 메모가 안 보여요.', 'old'],
-      ['avoid', '화면이 키보드 위로 줄고 입력 칸이 보이게 스크롤', '쓰는 칸이 키보드 바로 위에 와요. 메모, 이름 편집, 이어서 추가할 때도 같아요.', 'rec'],
-    ] },
-];
+// Every decision is made; nothing left to pick.
+const OPTS = [];
 const comments = {};
 const tags = it => it.slice(3).map(t => t === 'old' ? '<span class="badge old">기존</span>' : t === 'rec' ? '<span class="badge rec">추천</span>' : '').join('');
 function notes() {
-  return `<div class="n-top"><button class="n-copy" data-ncopy>결과 복사</button><p class="hint"><kbd>Shift</kbd>를 누른 채 파란 점선에 마우스를 올리면 후보가 떠요. 폰 화면은 앱처럼 눌러 볼 수 있어요.</p></div>
+  return `<div class="n-top"><button class="n-copy" data-ncopy>결과 복사</button><p class="hint">정할 것은 모두 정했어요. 확정된 모습이에요.</p></div>
     <div class="n-scroll">${OPTS.map((o, i) => `<section class="n-item"><h4>${i + 1}. ${o.title}</h4>${o.items.map(it => { const [v, nm, dsc] = it;
       return `<div class="n-row ${s[o.key] === v ? 'on' : ''}" role="button" tabindex="0" data-no="${i}" data-v="${v}"><span class="n-nm">${nm}${tags(it)}</span><span class="n-ds">${dsc}</span>${s[o.key] === v ? `<textarea class="n-cm" rows="1" data-cm="${i}:${v}" data-fk="cm:${i}:${v}" placeholder="추가 의견 (선택)" spellcheck="false">${esc(comments[i + ':' + v] || '')}</textarea>` : ''}</div>`; }).join('')}</section>`).join('')}</div>
     <label class="n-new"><input type="checkbox" data-nnew ${s.showNew ? 'checked' : ''}>새로 생기는 부분 표시</label>`;
@@ -420,18 +379,23 @@ phone.addEventListener('keydown', e => {
 phone.addEventListener('pointerdown', e => {
   eatClick = false;
   if (shiftHeld() || s.dialog || e.button) return;
-  const grip = e.target.closest('[data-grip]');
-  if (grip) {
-    e.preventDefault();
-    const id = grip.dataset.grip; s.drag = id; render();
+  // Press a row for 0.4 s to lift it, then drag it up or down. Off while the keyboard is up.
+  const hold = s.order === 'hold' && !s.focus && !e.target.closest('button, textarea') && e.target.closest('.sub');
+  if (hold) {
+    const id = hold.dataset.sub, x0 = e.clientX, y0 = e.clientY; let lifted = false;
+    const timer = setTimeout(() => { lifted = true; eatClick = true; s.drag = id; phone.classList.add('dragging'); render(); }, 400);
     const move = ev => {
+      if (!lifted) { if (Math.hypot(ev.clientX - x0, ev.clientY - y0) > 8) end(); return; }
       const rows = [...document.querySelectorAll('.sub')], from = task.subs.findIndex(x => x.id === id);
       let to = rows.findIndex(r => { const b = r.getBoundingClientRect(); return ev.clientY < b.top + b.height / 2; });
       if (to < 0) to = rows.length; if (to > from) to--;
       if (to !== from) { task.subs.splice(to, 0, task.subs.splice(from, 1)[0]); render(); }
     };
-    const up = () => { s.drag = null; eatClick = true; setTimeout(() => { eatClick = false; }, 0); removeEventListener('pointermove', move); removeEventListener('pointerup', up); render(); };
-    addEventListener('pointermove', move); addEventListener('pointerup', up);
+    const end = () => {
+      clearTimeout(timer); removeEventListener('pointermove', move); removeEventListener('pointerup', end);
+      if (lifted) { s.drag = null; phone.classList.remove('dragging'); setTimeout(() => { eatClick = false; }, 0); render(); }
+    };
+    addEventListener('pointermove', move); addEventListener('pointerup', end);
     return;
   }
   const lp = e.target.closest('[data-long]');
@@ -516,7 +480,7 @@ document.addEventListener('click', e => {
   if (f) { f.focus({ preventScroll: true }); f.setSelectionRange(f.value.length, f.value.length); }
 });
 function resultText() {
-  return '모바일 2.2.0 하위 할 일 시안\n' + OPTS.map((o, i) => { const it = o.items.find(([v]) => v === s[o.key]); const c = (comments[i + ':' + it[0]] || '').trim(); return `${i + 1}. ${o.title}: ${it[1]}${c ? ` (의견: ${c})` : ''}`; }).join('\n');
+  return '모바일 2.2.0 하위 할 일 시안 (확정)\n' + (OPTS.map((o, i) => { const it = o.items.find(([v]) => v === s[o.key]); const c = (comments[i + ':' + it[0]] || '').trim(); return `${i + 1}. ${o.title}: ${it[1]}${c ? ` (의견: ${c})` : ''}`; }).join('\n') || '남은 결정 없음');
 }
 document.addEventListener('click', e => {
   const copy = e.target.closest('[data-ncopy]');
