@@ -13,7 +13,8 @@ export const VIEWS = [
 ];
 
 // The view options (#102 mock viewMenu), all remembered per device (prefs). It stays open while
-// options change; Esc, a press outside or the button close it.
+// options change; Esc, a press outside or the button close it. A rule and a bold head mark each
+// group (#111).
 const SECTIONS = [
   { head: "묶기", key: "group", items: [["date", "날짜별"], ["none", "묶지 않기 (기한 순)"]] },
   { head: "기한 없음 묶음", key: "noneTop", items: [[false, "맨 아래"], [true, "맨 위"]] },
@@ -21,11 +22,15 @@ const SECTIONS = [
   { head: "줄", key: "density", items: [["normal", "보통 (두 줄)"], ["compact", "촘촘 (한 줄)"]], toggle: ["showRemain", "남은 시간 보이기"] },
 ];
 
+// A radio mark before a single choice, a check box before the two check items (#111 mock vm-marks).
 function MenuItem({ on, label, role, onClick }) {
+  const check = role === "menuitemcheckbox";
   return (
     <button type="button" role={role} aria-checked={on} tabIndex={-1} className={"tp-mi" + (on ? " on" : "")} onClick={onClick}>
+      {check
+        ? <span className={"pk-cbx" + (on ? " on" : "")} aria-hidden="true">{on && <TickIcon size={10} strokeWidth={2.2} />}</span>
+        : <span className="pk-rd" aria-hidden="true" />}
       <span className="tp-lb">{label}</span>
-      {on && <span className="tp-ok"><TickIcon /></span>}
     </button>
   );
 }
@@ -46,7 +51,7 @@ export function ViewMenu({ anchor, ignore, prefs, onPref, onClose }) {
     >
       <div ref={ref}>
         {SECTIONS.map((section) => (
-          <div key={section.key} role="group" aria-label={section.head}>
+          <div key={section.key} className="vm-g" role="group" aria-label={section.head}>
             <div className="tp-hd" aria-hidden="true">{section.head}</div>
             {section.items.map(([value, label]) => (
               <MenuItem key={String(value)} role="menuitemradio" on={prefs[section.key] === value} label={label} onClick={() => onPref({ [section.key]: value })} />

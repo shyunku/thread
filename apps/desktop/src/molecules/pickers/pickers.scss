@@ -497,6 +497,18 @@ $ring: #5a6475;
 .tp-pop .tp-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
 .tp-pop .tp-hd { padding: 8px 10px 2px; font-size: 11.5px; color: var(--muted); }
 .tp-pop .tp-sp { height: 1px; background: var(--line); margin: 4px 6px; }
+// The view options (#111 mock vm-lines, vm-marks): a rule between groups, bold heads, options set
+// in with a radio or check mark, the chosen rows tinted. Only this menu; the task menu keeps the above.
+.tp-pop.tc-viewmenu {
+  .vm-g + .vm-g { margin-top: 4px; padding-top: 2px; border-top: 1px solid var(--line); }
+  .tp-hd { padding: 8px 10px 4px; font-size: 12px; font-weight: 700; color: var(--text); }
+  .tp-mi { padding-left: 12px; }
+  .tp-mi.on { background: #253858aa; color: #fff; }
+  .tp-mi.on:focus-visible { box-shadow: inset 0 0 0 1.5px var(--accent); }
+  .pk-rd { width: 14px; height: 14px; border-radius: 50%; border: 2px solid $ring; flex: none; }
+  .tp-mi.on .pk-rd { border-color: var(--accent); background: var(--accent); box-shadow: inset 0 0 0 2.5px $pop-bg; }
+  .pk-cbx { width: 14px; height: 14px; }
+}
 // A menu item that cannot be used now (#109: 알림 without a due, a side without a time).
 .tp-pop .tp-mi.dis, .tp-pop .tp-mi.dis:hover { background: none; color: var(--faint); cursor: default; }
 .tp-pop .tp-mi.dis .tp-mic { color: #3c4453; }
