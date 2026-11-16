@@ -690,6 +690,12 @@
   .rp-none { padding: 12px var(--in); color: var(--faint); font-size: 12.5px; }
   /* 비밀번호로 열기 at its real size (LockScreen.scss 12.5px); the .lock-win button reset made it 14px before. */
   .lock-win .lock-screen.look-a .lock-screen__switch, .lock-win .lock-screen.look-b .lock-screen__switch, .lock-win .lock-screen.look-c .lock-screen__switch { font-size: 12.5px; line-height: 1.4; }
+  /* Round 5: the selected day's rows, time at the row's right end (open item). */
+  .rp-agenda .rp-ai.done .rp-tm { color: var(--faint); }
+  .rp-agenda.row-right .rp-dot, .rp-agenda.row-rightSmall .rp-dot { order: 1; }
+  .rp-agenda.row-right .rp-nm, .rp-agenda.row-rightSmall .rp-nm { order: 2; }
+  .rp-agenda.row-right .rp-tm, .rp-agenda.row-rightSmall .rp-tm { order: 3; width: auto; margin-left: auto; text-align: right; }
+  .rp-agenda.row-rightSmall .rp-tm { font-size: 11px; }
 </style>
 </head>
 <body>
@@ -807,6 +813,7 @@ function periodTxt(t) {
 // ---------- Data (synthetic) ----------
 const CATS = { work: { title: '업무', color: '#4fc3d9' }, home: { title: '개인', color: '#44c98b' }, study: { title: '공부', color: '#f2c14e' }, gym: { title: '운동', color: '#ff9f5a' } };
 const TASKS0 = [
+  { id: 'a0', t: '세탁물 찾기', cat: 'home', end: at(2026, 11, 16, 12, 0) },
   { id: 'a1', t: '팀 회의', cat: 'work', start: at(2026, 11, 16, 15, 0), end: at(2026, 11, 16, 16, 0) },
   { id: 'a2', t: '장보기 · 우유, 달걀', cat: 'home', end: at(2026, 11, 16, 20, 0) },
   { id: 'a3', t: '자격증 준비', cat: 'study', start: day0(2026, 11, 2), end: at(2027, 2, 28), memo: '필기는 1월, 실기는 2월 말.' },
@@ -816,6 +823,7 @@ const TASKS0 = [
   { id: 'c2', t: '팀 워크숍', cat: 'work', start: day0(2026, 11, 19), end: at(2026, 11, 20) },
   { id: 'c3', t: '도서관 책 반납', cat: 'study', end: at(2026, 11, 20, 18, 0) },
   { id: 'c4', t: '부모님 댁 방문', cat: 'home', start: at(2026, 11, 18, 10, 0), end: at(2026, 11, 20, 18, 0) },
+  { id: 'c5', t: '분기 예산 검토 회의 · 재무팀 자료 미리 받아 두기', cat: 'work', start: at(2026, 11, 18, 11, 30), end: at(2026, 11, 18, 13, 30) },
   { id: 'd1', t: '건강검진', cat: 'home', start: at(2026, 12, 3, 9, 0), end: at(2026, 12, 3, 11, 0) },
   { id: 'd2', t: '사내 세미나', cat: 'work', start: day0(2026, 12, 5), end: at(2026, 12, 7) },
   { id: 'e1', t: '연말 정산 상담', cat: 'work', start: at(2027, 12, 20, 10, 30), end: at(2027, 12, 20, 12, 30) },
@@ -825,16 +833,18 @@ const TASKS0 = [
   { id: 'e5', t: '적금 만기', cat: 'home', end: at(2031, 7, 15, 10, 0) },
   { id: 'n1', t: '읽을 책 목록 정리', cat: 'study', end: null },
   { id: 'z1', t: '분기 보고서 작성', cat: 'work', end: at(2026, 11, 13, 18, 0), done: true },
+  { id: 'z2', t: '회의실 예약', cat: 'work', end: at(2026, 11, 18, 9, 0), done: true },
 ];
 
 // ---------- State ----------
 // Confirmed: one-day periods say their day like a due row; numeric dates follow 시간 표시 (점 · 두 자리 ·
 // 0 채움 by default, this year without the year); view options with radio and check marks; the bin
 // in the panel head; the lock skip is a toggle that always skips, kept off after a manual lock.
-// The picker fields write their dates with the date setting (round 3). Open: the look of the lock
-// screen's checkbox (ckLook) and the times in the selected day's list (dayTm, lastTm).
+// The picker fields write their dates with the date setting (round 3); the lock checkbox is small and
+// quiet, 16px under the button; the selected day's list shows a one-day period's range ("오후 7시 ~ 9시")
+// and a period's last day as "~오후 6시" (round 4). Open: the layout of that list's rows (dayRow).
 const s = {
-  ckLook: 'small', field: 'num', dayTm: 'old', lastTm: 'old', calDay: TODAY,
+  ckLook: 'a', field: 'num', dayTm: 'range', lastTm: 'tilde', dayRow: 'left', calDay: TODAY,
   fmt: { sep: '.', digits: 2, pad: true }, // the user's setting (설정 > 일반 > 시간 표시)
   prefs: { group: 'date', noneTop: false, sort: 'due', density: 'normal', showRemain: true, hideDone: false, dueFormat: 'group', remainFormat: 'normal' },
   tasks: TASKS0.map(x => ({ start: null, ...x })), sel: null, vmOpen: false, picker: null, undo: null,
@@ -975,8 +985,8 @@ function calendarTab() {
   const list = s.tasks.filter(covers).sort((a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0) || key(a) - key(b));
   return `<div class="rp-box">${miniMonth({ y: 2026, m: 10, picked: [day], act: 'data-act="calday" data-day', nav: 'data-noop', marks })}</div>
     <div class="rp-block-h">${d.getMonth() + 1}월 ${d.getDate()}일 (${WD[d.getDay()]})${day === TODAY ? ' · 오늘' : ''}<span>${list.filter(t => !t.done).length}개 남음</span></div>
-    <div class="rp-box rp-agenda">${list.length ? list.map(t => { const m = dayTm(t, day), oyr = m.kind === 'span' && otherYear(t.end);
-      return `<div class="rp-ai ${t.done ? 'done' : ''}" data-act="sel" data-tid="${t.id}"><span class="rp-tm ${m.kind} ${oyr ? 'oyr' : ''} ${m.kind === 'span' || m.changed ? 'is-new' : ''}">${m.txt}</span><span class="rp-dot" style="background:${CATS[t.cat].color}"></span><span class="rp-nm">${esc(t.t)}</span></div>`; }).join('') : '<div class="rp-none">이날은 할 일이 없어요</div>'}</div>`;
+    <div class="rp-box rp-agenda row-${s.dayRow} ${s.dayRow !== 'left' ? 'is-new' : ''}">${list.length ? list.map(t => { const m = dayTm(t, day), oyr = m.kind === 'span' && otherYear(t.end), over = !t.done && t.end < NOW;
+      return `<div class="rp-ai ${t.done ? 'done' : ''}" data-act="sel" data-tid="${t.id}"><span class="rp-tm ${m.kind} ${over ? 'over' : ''} ${oyr ? 'oyr' : ''} ${m.kind === 'span' || m.changed ? 'is-new' : ''}">${m.txt}</span><span class="rp-dot" style="background:${CATS[t.cat].color}"></span><span class="rp-nm">${esc(t.t)}</span></div>`; }).join('') : '<div class="rp-none">이날은 할 일이 없어요</div>'}</div>`;
 }
 const endDetail = ms => hasT(ms) ? `${ymd(ms)} ${clockL(ms)}` : `${ymd(ms)} · 하루 끝`;
 const startDetail = ms => hasST(ms) ? `${ymd(ms)} ${clockL(ms)}` : `${ymd(ms)} · 하루 시작`;
@@ -1208,20 +1218,10 @@ const mainWin = () => (s.gate ? gateHtml() : `<div class="win" style="width:1280
 const closePops = () => { s.vmOpen = false; s.more = false; s.picker = null; s.settings = false; s.gate = null; s.hello = false; s.cap = ''; };
 const toList = () => { closePops(); s.sel = null; };
 const OPTS = [
-  { at: '.lock-win .lk-small, .lock-win .lk-ck', key: 'ckLook', title: '잠금 화면 "이 PC에서 다시 묻지 않기"의 모양', show: () => { closePops(); s.sel = null; s.gate = true; s.lockCk = false; s.cap = '잠금 화면'; }, sim: true,
-    items: [['small', '3차 시안 모양', '버튼에 바로 붙고 14px 흰 글자로 보였음 (시안 스타일이 덮여 의도보다 크고 밝게 나옴)', 'old'],
-      ['a', '작게 · 연하게 · 버튼과 띄움', '12px 연한 회색, 14px 체크 상자. 버튼 아래 16px 띄움. 올리거나 켜면 밝아짐. 셋 중 가장 조용하고, 여는 버튼 바로 밑이라 "열 때 같이 적용"으로 읽힘', 'rec'],
-      ['b', '비밀번호로 열기와 같은 글자', '12.5px 보조 글자색 (비밀번호로 열기와 같음). 버튼 아래 20px 띄움. 같은 무게의 줄이 둘 생김', ''],
-      ['c', '맨 아래로 내림', '13px 연한 회색, 비밀번호로 열기 아래 21px 떨어짐. 여는 버튼과 멀어져 무엇에 붙은 설정인지 덜 보임', '']] },
-  { at: '.rp-agenda .rp-tm.d1', key: 'dayTm', title: '선택한 날 목록의 기간 시각 (하루 안의 기간)', show: () => { closePops(); s.sel = null; s.calDay = day0(2026, 11, 18); s.cap = '캘린더 탭 · 11월 18일 (저녁 약속 오후 7시 ~ 9시)'; },
-    items: [['old', '끝 시각만', '"오후 9시". 2.6.1 지금 모습. 7시 시작이 안 보이고 9시 기한인 할 일과 구분 안 됨', 'old'],
-      ['range', '시작 ~ 끝', '"오후 7시 ~ 9시". 목록 오른쪽 칸과 같은 모양. 시각 칸이 64px → 74px로 넓어지고 이름 칸이 그만큼 줄어듦', 'rec'],
-      ['start', '시작 시각 + ~', '"오후 7시~". 칸은 64px 그대로, 끝 시각은 안 보임', ''],
-      ['compact', '짧게', '"7~9시". 칸은 64px 그대로, 오전 · 오후가 안 보임 (걸치면 "오전 11시~오후 1시")', '']] },
-  { at: '.rp-agenda .rp-tm.dl', key: 'lastTm', title: '선택한 날 목록의 기간 시각 (여러 날 기간의 마지막 날)', show: () => { closePops(); s.sel = null; s.calDay = day0(2026, 11, 20); s.cap = '캘린더 탭 · 11월 20일 (부모님 댁 방문 11.18 ~ 11.20 오후 6시가 끝나는 날)'; },
-    items: [['old', '끝 시각만', '"오후 6시". 2.6.1 지금 모습. 같은 날 오후 6시 기한인 할 일과 똑같아 보임', 'old'],
-      ['tilde', '앞에 ~', '"~오후 6시", 하루 끝이면 "~하루 끝". 첫날 · 중간 날의 "~11.20"과 짝이 맞음. 칸은 64px 그대로', 'rec'],
-      ['until', '뒤에 까지', '"오후 6시까지", 하루 끝이면 "하루 끝까지". 칸은 65px로 1px 넓어짐', '']] },
+  { at: '.rp-agenda', key: 'dayRow', title: '캘린더 탭 선택한 날 목록의 줄 모양', show: () => { closePops(); s.sel = null; s.calDay = day0(2026, 11, 18); s.cap = '캘린더 탭 · 11월 18일'; },
+    items: [['left', '시각 칸 왼쪽', '지금 모습. 시각 칸이 가장 긴 시각에 맞춰 넓어짐 (이날 보통 74px, "오전 11:30 ~ 오후 1:30"이 있으면 117px), 이름은 그 오른쪽 모든 줄이 195px, 117px일 땐 모든 줄이 152px로 줄어듦', 'old'],
+      ['right', '시각을 맨 오른쪽으로, 폭 제한 없음', '점 · 이름이 왼쪽에서 남는 폭을 다 쓰고 시각은 줄 끝에 오른쪽 맞춤. 이름이 시각에 밀려 줄어듦 (긴 기간 줄만 152px, 나머지는 195 ~ 238px)', 'rec'],
+      ['rightSmall', '맨 오른쪽 + 작은 시각', '위와 같고 시각을 11px로 줄임. 이름 폭이 조금 늘지만 시각이 덜 읽힘 (161 ~ 241px)', '']] },
 ];
 const comments = {};
 function notes() {
@@ -1248,7 +1248,7 @@ function render() {
 function place() {
   const win = document.querySelector('.win'); if (!win) return;
   const W = win.getBoundingClientRect();
-  const tms = [...win.querySelectorAll('.rp-agenda .rp-tm')];
+  const tms = [...win.querySelectorAll('.rp-agenda.row-left .rp-tm')];
   if (tms.length) { tms.forEach(el => { el.style.width = ''; }); const wmax = Math.max(64, ...tms.map(el => Math.ceil(el.scrollWidth))); tms.forEach(el => { el.style.width = wmax + 'px'; }); }
   if (s.setScroll) { const sec = win.querySelector('.time-display'), mc = win.querySelector('.menu-content'); if (sec && mc) mc.scrollTop = sec.offsetTop - 20; s.setScroll = false; }
   const vm = win.querySelector('[data-viewmenu]');
@@ -1385,7 +1385,7 @@ document.addEventListener('click', e => {
   if (f) { f.focus({ preventScroll: true }); f.setSelectionRange(f.value.length, f.value.length); }
 });
 function resultText() {
-  return 'PC 2.6.2 시안 선택 (4차)\n' + OPTS.map((o, i) => { const it = o.items.find(([v]) => v === s[o.key]); const c = (comments[i + ':' + it[0]] || '').trim(); return `${i + 1}. ${o.title}: ${it[1]}${c ? ` (의견: ${c})` : ''}`; }).join('\n');
+  return 'PC 2.6.2 시안 선택 (5차)\n' + OPTS.map((o, i) => { const it = o.items.find(([v]) => v === s[o.key]); const c = (comments[i + ':' + it[0]] || '').trim(); return `${i + 1}. ${o.title}: ${it[1]}${c ? ` (의견: ${c})` : ''}`; }).join('\n');
 }
 document.addEventListener('click', e => {
   const copy = e.target.closest('[data-ncopy]');
