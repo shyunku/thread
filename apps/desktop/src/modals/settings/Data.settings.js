@@ -9,6 +9,7 @@ import { SettingsButton, SettingsPage, SettingsSection } from "./SettingsUI";
 import SyncStatus from "./data/SyncStatus";
 import DataOverview from "./data/DataOverview";
 import { vaultCall } from "./data/vaultIpc";
+import Toast from "../../molecules/Toast";
 
 // Vault state decides the layout: unlocked accounts get the data overview;
 // locked/absent/broken vaults keep the existing unlock and setup flows.
@@ -56,7 +57,10 @@ const SettingData = ({ modalRef, preview = false, previewPanel = null, panel = n
   const lock = () => {
     setLocking(true);
     // The settings modal stays mounted after closing, so reset the flag for the next unlock.
-    vaultCall("lock").then(() => modalRef?.current?.close()).catch(() => {}).finally(() => setLocking(false));
+    // LOCK_MARK_FAILED (#111): locked, but the next start may skip the lock screen.
+    vaultCall("lock").then(() => modalRef?.current?.close())
+      .catch(() => Toast.error("잠금을 기록하지 못했어요. 다음에 켤 때 잠금 화면 없이 열릴 수 있어요."))
+      .finally(() => setLocking(false));
   };
   const sync = <SyncStatus uid={uid} preview={preview} />;
 

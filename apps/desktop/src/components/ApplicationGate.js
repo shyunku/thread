@@ -1,6 +1,7 @@
 import {useCallback,useEffect,useRef,useState} from "react";
 import IpcSender from "../utils/IpcSender";
 import LockScreen from "./LockScreen";
+import Toast from "../molecules/Toast";
 import DeviceConnect from "./gate/DeviceConnect";
 import NewAccountSetup from "./gate/NewAccountSetup";
 import UpdateButton,{useReleaseAlert} from "./UpdateButton";
@@ -37,7 +38,9 @@ export default function ApplicationGate({uid,children}){
  useEffect(()=>()=>{IpcSender.vault.windowMode?.("app",()=>{});},[]);
  // remember: the lock screen's "이 PC에서 다시 묻지 않기" (#111).
  const unlock=async(method,password,remember)=>{
-  await invoke(remember?"unlockRemember":"unlock",method,password);
+  const opened=await invoke(remember?"unlockRemember":"unlock",method,password);
+  // Opened, but "이 PC에서 다시 묻지 않기" could not be kept.
+  if(opened?.skipLockFailed)Toast.error("설정을 저장하지 못했어요.");
   if(live.current)await refresh();
   return true;
  };

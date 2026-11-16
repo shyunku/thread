@@ -1,8 +1,12 @@
-const fs=require("node:fs"),path=require("node:path"),{createHash}=require("node:crypto");
+const path=require("node:path"),{createHash}=require("node:crypto");
 const {LocalVault}=require("./localVault"),{createVaultController}=require("./vaultController");
 class VaultWorkspaceService{
  constructor(dependencies){this.dependencies=dependencies;this.active=null;this.generation=0;this.busy=false;this.verifying=false;this.startOpen=true;}
- inject(group){this.group=group;}
+ inject(group){
+  this.group=group;
+  // Main: power events count from app start (the open at start, #111). Tests call watchStart.
+  if(!this.dependencies)try{this.watchStart(require("electron").powerMonitor);}catch{}
+ }
  runtime(){
   if(this.dependencies)return this.dependencies;
   const {app,safeStorage,systemPreferences,powerMonitor}=require("electron");
@@ -11,7 +15,8 @@ class VaultWorkspaceService{
    osAuth:require("./osAuth").createOSAuth({app,systemPreferences}),powerMonitor,
    getWindow:()=>this.group.windowService.mainWindow,getAccount:()=>this.group.userService.getCurrent(),
    notify:data=>{const w=this.group.windowService.mainWindow;if(w&&!w.isDestroyed())w.webContents.send("vault/status",null,{success:true,data});},
-   skipLock:{get:()=>require("../modules/appSettings").getSettings().skipLockOnStart===true,set:value=>require("../modules/appSettings").updateSettings({skipLockOnStart:value===true})}};
+   // Main's own record of the signed-in account (tokens kept by auth/registerAuthInfoSync).
+   signedIn:async uid=>{const db=await this.group.databaseService.getRootDatabaseContext();const [row]=await db.all("SELECT refresh_token FROM users WHERE uid = ?;",[uid]);return !!row?.refresh_token;}};
  }
  reset(){
   this.generation++;this.group?.remindersService?.lock();const old=this.active;this.active=null;
@@ -30,7 +35,7 @@ class VaultWorkspaceService{
    const vault=this.vaultFor(uid);
    const entry={uid,vault,unlocked:false,abort:new AbortController()};
    entry.controller=createVaultController({vault,osAuth:d.osAuth,getWindow:d.getWindow,powerMonitor:d.powerMonitor,
-    clearRenderer:()=>{this.startOpen=false;entry.unlocked=false;this.group?.remindersService?.lock();entry.abort.abort();entry.sync?.close();entry.sync=null;entry.connected=false;clearInterval(entry.poller);entry.poller=null;entry.events=null;entry.published=null;
+    clearRenderer:()=>{this.dropStartOpen();entry.unlocked=false;this.group?.remindersService?.lock();entry.abort.abort();entry.sync?.close();entry.sync=null;entry.connected=false;clearInterval(entry.poller);entry.poller=null;entry.events=null;entry.published=null;
      if(entry.applicationActive&&d.getAccount()===uid){
       this.group?.ipcService.sender("sync-v2/state",null,true,{uid,tasks:[],categories:[],subtasks:[],relations:[]});
       this.group?.ipcService.sender("sync-v2/status",null,true,{uid,ready:false,connected:false,error:"VAULT_LOCKED",pending:null});
@@ -77,32 +82,51 @@ class VaultWorkspaceService{
   const entry=this.context();this.busy=true;
   try{await entry.controller.unlock(method,password);if(entry!==this.active||entry.uid!==this.runtime().getAccount()){entry.controller.lock();throw Error("VAULT_SESSION_CHANGED");}
    entry.unlocked=true;entry.abort=new AbortController();
-   this.releaseLock();
-   if(remember===true)try{this.runtime().skipLock?.set(true);}catch{}
-   return this.publishStatus(await this.status());
+   // This vault was opened by the user: its lock by hand is over (#111).
+   try{entry.vault.setMark("locked-by-user",false);}catch{}
+   let skipLockFailed=false;
+   if(remember===true)try{entry.vault.setMark("skip-lock",true);}catch{skipLockFailed=true;}
+   const value=this.publishStatus(await this.status());
+   return skipLockFailed?{...value,skipLockFailed:true}:value;
   }finally{password=undefined;this.busy=false;}
  }
- // 앱 잠금 / 지금 잠그기, always by hand: the next start stays locked too (#111). A mark that
- // cannot be written turns the skip off instead.
+ // 앱 잠금 / 지금 잠그기, always by hand: no open at start in this run, and this account's next
+ // start stays locked too (#111). The mark goes first; with no account yet there is no vault to
+ // mark. A mark that cannot be written turns this account's skip off; if that fails too, the
+ // lock still happens and the caller hears LOCK_MARK_FAILED.
  lock(){
-  const entry=this.context();
-  try{this.holdLock();}catch{try{this.runtime().skipLock?.set(false);}catch{}}
-  entry.controller.lock();
+  this.dropStartOpen();
+  const uid=this.runtime().getAccount();
+  let marked=true;
+  if(typeof uid==="string"&&uid){
+   const vault=this.active?.uid===uid?this.active.vault:this.vaultFor(uid);
+   if(vault.mark("locked-by-user")!==true)try{vault.setMark("locked-by-user",true);}
+   catch{try{vault.setMark("skip-lock",false);}catch{marked=false;}}
+  }
+  this.context().controller.lock();
+  if(!marked)throw Error("LOCK_MARK_FAILED");
  }
- // The lock-screen skip at start (#111). The mark of a lock by hand lives next to the vaults;
- // one that cannot be read counts as there.
- lockMark(){return path.join(this.runtime().baseDirectory,"locked-by-user");}
- lockHeld(){try{fs.lstatSync(this.lockMark());return true;}catch(error){return error?.code!=="ENOENT";}}
- holdLock(){fs.mkdirSync(path.dirname(this.lockMark()),{recursive:true,mode:0o700});fs.writeFileSync(this.lockMark(),"",{mode:0o600});}
- releaseLock(){try{fs.rmSync(this.lockMark(),{force:true});}catch{}}
- // One chance per run: the first bootstrap takes it, and any lock (by hand, screen lock,
- // suspend, another account) drops it, so a lock in this run is never undone here.
- takeStartOpen(){const first=this.startOpen;this.startOpen=false;return first===true;}
- // Opens this vault with its OS-protected key, no prompt, when the setting is on and the last
- // lock was not by hand. False leaves it locked (the lock screen); never throws.
+ // One chance per run for the open at start (#111): the first bootstrap takes it; a screen lock,
+ // suspend, lock by hand, logout or another account before or after drops it, so a lock in this
+ // run is never undone here. watchStart() follows the power events from app start (main: inject).
+ takeStartOpen(){const first=this.startOpen;this.dropStartOpen();return first===true;}
+ dropStartOpen(){this.startOpen=false;this.unwatchStart?.();this.unwatchStart=null;}
+ watchStart(power){
+  if(!power?.on||this.unwatchStart||!this.startOpen)return;
+  const drop=()=>this.dropStartOpen();
+  power.on("lock-screen",drop);power.on("suspend",drop);
+  this.unwatchStart=()=>{power.removeListener("lock-screen",drop);power.removeListener("suspend",drop);};
+ }
+ // Opens this vault with its OS-protected key, no prompt, when this account turned the skip on,
+ // its last lock was not by hand (a mark that cannot be read counts as one) and it is the
+ // signed-in account in main. False leaves it locked (the lock screen); never throws.
  async openAtStart(entry){
   const d=this.runtime();
-  try{if(this.busy||d.skipLock?.get()!==true||this.lockHeld()||entry.vault.inspect().phase!=="LOCKED")return false;}catch{return false;}
+  try{
+   if(this.busy||entry.vault.mark("skip-lock")!==true||entry.vault.mark("locked-by-user")!==false||entry.vault.inspect().phase!=="LOCKED")return false;
+   if(d.signedIn&&await d.signedIn(entry.uid)!==true)return false;
+  }catch{return false;}
+  if(this.busy||entry!==this.active||entry.unlocked)return false;
   this.busy=true;
   try{
    await entry.controller.openAtStart();
@@ -113,12 +137,18 @@ class VaultWorkspaceService{
   try{this.publishStatus(await this.status());}catch{}
   return true;
  }
- // Turns the skip on after confirming the user the way verifyUser does (input alike); the
- // answer is verifyUser's, plus skipLockOnStart once on. Turning it off asks nothing (settings/set).
- async enableSkipLock(input={}){
+ // This account's skip at start (#111): "get" answers {skipLockOnStart}; "on" confirms the user
+ // the way verifyUser does (input alike) and answers its answer, plus skipLockOnStart once on;
+ // "off" asks nothing.
+ async skipLock(action,input={}){
+  const entry=this.context();
+  if(action==="get")return {skipLockOnStart:entry.vault.mark("skip-lock")===true};
+  if(action==="off"){entry.vault.setMark("skip-lock",false);return {skipLockOnStart:false};}
+  if(action!=="on")throw Error("INVALID_SKIP_LOCK_ACTION");
   const answer=await this.verifyUser(input);
   if(answer?.verified!==true)return answer;
-  this.runtime().skipLock.set(true);
+  if(entry!==this.active)throw Error("VAULT_SESSION_CHANGED");
+  entry.vault.setMark("skip-lock",true);
   return {verified:true,method:answer.method,skipLockOnStart:true};
  }
  // Confirms the user without opening anything new (secret categories, #102). The method

@@ -3,6 +3,7 @@ import { useSelector } from "react-redux";
 import SettingData from "./Data.settings";
 import IpcSender from "../../utils/IpcSender";
 import { SYNCING_MIN_MS } from "./data/SyncStatus";
+import Toast from "../../molecules/Toast";
 
 jest.mock("react-redux", () => ({ useSelector: jest.fn() }));
 jest.mock("../../components/VaultWorkspace", () => () => <nav aria-label="데이터 관리 작업" />);
@@ -260,4 +261,22 @@ test("the rename dialog keeps an error from main and does not save an unchanged 
   expect(screen.getByRole("alert")).toHaveTextContent("이름은 40자까지");
   expect(screen.getByRole("dialog", { name: "기기 이름 바꾸기" })).toBeInTheDocument();
   delete IpcSender.req;
+});
+
+test("a lock whose mark could not be kept says the next start may open (#111)", async () => {
+  const error = jest.spyOn(Toast, "error").mockImplementation(() => {});
+  IpcSender.vault = {
+    status: ok({ uid: "fixture", phase: "UNLOCKED", osAvailable: true, generation: 1 }),
+    identityStatus: ok(null),
+    lock: jest.fn((cb) => cb({ success: false, data: { code: "VAULT_ACTION_FAILED" } })),
+    rotation: okAction({ status: null, devices: [] }),
+    reencryption: okAction({ status: null }),
+    backup: okAction({ last: null }),
+    skipLock: okAction({ get: { skipLockOnStart: true } }),
+  };
+  await act(async () => { render(<SettingData modalRef={{ current: { close: jest.fn() } }} />); });
+  expect(screen.getByRole("switch", { name: "앱을 다시 켤 때 잠금 화면 건너뛰기" })).toHaveAttribute("aria-checked", "true");
+  await act(async () => { fireEvent.click(screen.getByRole("button", { name: /앱 잠금/ })); });
+  expect(error).toHaveBeenCalledWith("잠금을 기록하지 못했어요. 다음에 켤 때 잠금 화면 없이 열릴 수 있어요.");
+  error.mockRestore();
 });

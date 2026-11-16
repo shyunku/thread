@@ -7,6 +7,7 @@ const path = require("node:path");
 const { createHash, randomBytes } = require("node:crypto");
 const { encode } = require("./protocol");
 const { EncryptedStore } = require("./localStore");
+const MARKS = Object.freeze(["skip-lock", "locked-by-user"]);
 function normalizeScope(scope) {
   if (!scope || !["development", "production"].includes(scope.environment) ||
       !["accountId", "vaultId"].every(name => typeof scope[name] === "string" &&
@@ -117,6 +118,23 @@ class LocalVault {
       if (error.code === "ENOENT") throw Error("VAULT_RECOVERY_REQUIRED");
       throw error;
     } finally { key?.fill(0); }
+  }
+  // Marks next to this vault's data for the lock-screen skip at start (#111), per account and
+  // removed with the vault; not secret. "skip-lock": open at start without a prompt (turned on
+  // only after a check in main). "locked-by-user": the last lock was by hand, the next start
+  // stays locked. mark() answers true / false, or null when it cannot be read.
+  mark(name) {
+    if (!MARKS.includes(name)) throw Error("INVALID_VAULT_MARK");
+    try { fs.lstatSync(path.join(this.#directory, name)); return true; }
+    catch (error) { return error?.code === "ENOENT" ? false : null; }
+  }
+  setMark(name, on) {
+    if (!MARKS.includes(name)) throw Error("INVALID_VAULT_MARK");
+    const file = path.join(this.#directory, name);
+    if (!on) { fs.rmSync(file, { force: true }); return; }
+    const directory = fs.lstatSync(this.#directory);
+    if (!directory.isDirectory() || directory.isSymbolicLink()) throw Error("INVALID_VAULT_DIRECTORY");
+    fs.writeFileSync(file, "", { mode: 0o600 });
   }
   // Removes this vault's folder (protected key, password envelope, data). Only for an
   // account the server has deleted (#92); the caller closes any open store first.

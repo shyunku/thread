@@ -98,9 +98,10 @@ const IpcSender = {
     unlock:(method,password,callback)=>sender("vault/unlock",callback,method,password),
     // The same unlock that also turns on the lock-screen skip at start (#111).
     unlockRemember:(method,password,callback)=>sender("vault/unlock",callback,method,password,true),
-    // Turns the skip at start on after confirming the user in main (input like verifyUser).
-    // The reply data is verifyUser's answer, with skipLockOnStart:true once on.
-    skipLock:(input,callback)=>sender("vault/skipLock",callback,input||{}),
+    // This account's skip at start: action "get" / "off" answer {skipLockOnStart}; "on"
+    // confirms the user in main (input like verifyUser) and answers verifyUser's answer, with
+    // skipLockOnStart:true once on.
+    skipLock:(action,input,callback)=>sender("vault/skipLock",callback,action,input||{}),
     // Confirms the user the way the vault opens (secret categories). input: {} for the
     // vault's own method, or {method:"os"} / {method:"password",password}. The reply data
     // is {verified, method, code?, osAvailable?, passwordAvailable?}.

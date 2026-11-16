@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { IoLockClosedOutline } from "react-icons/io5";
-import IpcSender from "../../../utils/IpcSender";
 import ConfirmDialog from "../../../molecules/pickers/ConfirmDialog";
 import { SettingsCard, SettingsRow, SettingsSection, Skeleton, Toggle } from "../SettingsUI";
 import { osAuthLabel } from "./format";
@@ -11,10 +10,10 @@ export const LOCK_SKIP_DESC = "이 PC에서는 본인 확인 없이 바로 열�
 const BUSY = "잠시 뒤에 다시 해 주세요.";
 const FAILED = "설정을 바꾸지 못했어요. 잠시 후 다시 시도해 주세요.";
 
-// 설정 > 데이터 및 보안 > 앱 잠금 (#111 mock dataPage .set-lock). This PC's setting (app-settings.json):
-// turning it on confirms the user once in main (Windows Hello, or the vault password when the
-// vault has no OS check), turning it off asks nothing. A lock by hand still keeps the next start
-// locked (main).
+// 설정 > 데이터 및 보안 > 앱 잠금 (#111 mock dataPage .set-lock). This account's setting on this PC
+// (a mark in its vault folder, main): turning it on confirms the user once in main (Windows
+// Hello, or the vault password when the vault has no OS check), turning it off asks nothing. A
+// lock by hand still keeps the next start locked (main).
 export default function LockSkipSection({ vault, preview = false }) {
   const [on, setOn] = useState(preview ? false : null);
   const [busy, setBusy] = useState(false);
@@ -23,29 +22,24 @@ export default function LockSkipSection({ vault, preview = false }) {
   const live = useRef(true);
   useEffect(() => () => { live.current = false; }, []);
   useEffect(() => {
-    if (preview || !IpcSender.appSettings) return;
-    try {
-      IpcSender.appSettings.get(({ success, data } = {}) => { if (live.current && success) setOn(!!data?.skipLockOnStart); });
-    } catch { /* no IPC bridge */ }
+    if (preview) return;
+    vaultCall("skipLock", "get", {}).then((data) => { if (live.current) setOn(!!data?.skipLockOnStart); }).catch(() => { if (live.current) setOn(false); });
   }, [preview]);
 
   const turnOff = () => {
     setError("");
     if (preview) return setOn(false);
     setBusy(true);
-    IpcSender.appSettings.set({ skipLockOnStart: false }, ({ success, data } = {}) => {
-      if (!live.current) return;
-      setBusy(false);
-      if (success) setOn(!!data?.skipLockOnStart);
-      else setError(FAILED);
-    });
+    vaultCall("skipLock", "off", {}).then((data) => { if (live.current) setOn(!!data?.skipLockOnStart); })
+      .catch(() => { if (live.current) setError(FAILED); })
+      .finally(() => { if (live.current) setBusy(false); });
   };
 
   // The check in main; a refusal is an answer ({ verified: false, code }).
   const confirm = async (input) => {
     setBusy(true);
     setError("");
-    const answer = await vaultCall("skipLock", input).catch(() => null);
+    const answer = await vaultCall("skipLock", "on", input).catch(() => null);
     if (!live.current) return null;
     setBusy(false);
     if (answer?.verified) {

@@ -1,6 +1,7 @@
 import {act,fireEvent,render,screen} from "@testing-library/react";
 import ApplicationGate from "./ApplicationGate";
 import IpcSender from "../utils/IpcSender";
+import Toast from "../molecules/Toast";
 jest.mock("../utils/IpcSender",()=>({onAll:jest.fn(),off:jest.fn(),vault:{bootstrap:jest.fn(),status:jest.fn(),unlock:jest.fn(),unlockRemember:jest.fn()}}));
 jest.mock("./gate/NewAccountSetup",()=>({onContinue})=> <><h1>새 데이터 보호 설정</h1><p>Setup panel</p><button onClick={onContinue}>New account started</button></>);
 jest.mock("./gate/DeviceConnect",()=>()=> <h1>Setup panel</h1>);
@@ -118,4 +119,17 @@ test("an unlock with 이 PC에서 다시 묻지 않기 checked asks main to reme
  expect(await screen.findByText("Private application")).toBeInTheDocument();
  expect(IpcSender.vault.unlockRemember).toHaveBeenCalledWith("os",undefined,expect.any(Function));
  expect(IpcSender.vault.unlock).not.toHaveBeenCalled();
+});
+
+test("an unlock whose 이 PC에서 다시 묻지 않기 could not be kept still opens and says so (#111)",async()=>{
+ const error=jest.spyOn(Toast,"error").mockImplementation(()=>{});
+ IpcSender.vault.bootstrap.mockImplementationOnce((uid,cb)=>cb({success:true,data:{mode:"LOCKED"}}))
+  .mockImplementationOnce((uid,cb)=>cb({success:true,data:{mode:"E2EE"}}));
+ IpcSender.vault.unlockRemember.mockImplementation((method,password,cb)=>cb({success:true,data:{phase:"UNLOCKED",skipLockFailed:true}}));
+ render(<ApplicationGate uid="u"><p>Private application</p></ApplicationGate>);
+ fireEvent.click(await screen.findByRole("checkbox",{name:"이 PC에서 다시 묻지 않기"}));
+ fireEvent.click(screen.getByRole("button",{name:"Windows Hello로 열기"}));
+ expect(await screen.findByText("Private application")).toBeInTheDocument();
+ expect(error).toHaveBeenCalledWith("설정을 저장하지 못했어요.");
+ error.mockRestore();
 });

@@ -43,7 +43,8 @@ module.exports = function (s) {
     // remember: "이 PC에서 다시 묻지 않기" on the lock screen turns the skip at start on (#111).
     "vault/unlock":(method,password,remember)=>s.vaultWorkspaceService.unlock(method,password,remember===true),
     "vault/verifyUser":input=>s.vaultWorkspaceService.verifyUser(input),
-    "vault/skipLock":input=>s.vaultWorkspaceService.enableSkipLock(input),
+    // This account's lock-screen skip at start (#111): get / on (confirms the user) / off.
+    "vault/skipLock":(action,input)=>s.vaultWorkspaceService.skipLock(action,input),
     "vault/lock":()=>{s.vaultWorkspaceService.lock();return true;},
     "vault/revokeOtherSessions":()=>s.vaultWorkspaceService.revokeOtherSessions(),
     "vault/deleteAccount":input=>s.vaultWorkspaceService.deleteAccount(input),
@@ -92,8 +93,6 @@ module.exports = function (s) {
   });
   s.register("settings/set", (event, reqId, patch) => {
     if (event.sender !== s.windowService.mainWindow?.webContents) return s.sender("settings/set", reqId, false, null);
-    // The lock-screen skip turns on only after a check in main (vault/skipLock, #111).
-    if (patch?.skipLockOnStart === true) return s.sender("settings/set", reqId, false, null);
     try {
       const next = appSettings.updateSettings(patch);
       if ("autoStart" in patch && process.env.NODE_ENV === "production")
@@ -295,6 +294,8 @@ module.exports = function (s) {
   );
 
   s.register("auth/deleteAuthInfo", async (event, reqId, userId) => {
+    // Logging out ends this run's open at start (#111).
+    s.vaultWorkspaceService?.dropStartOpen?.();
     try {
       const rootDB = await s.databaseService.getRootDatabaseContext();
       // End the server session first (best effort), then forget the tokens locally.
