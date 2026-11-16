@@ -612,6 +612,21 @@
   .win-cap { align-self: stretch; }
   .hello { top: calc(50% + 200px); }
   .gate { place-items: start center; padding-top: 150px; }
+  /* Round 2: the lock window at its real size (380 x 500), where the main window would be. */
+  .lock-stage { position: relative; width: 1280px; height: 880px; display: grid; place-items: center; }
+  .lock-win { width: 380px; height: 500px; display: flex; flex-direction: column; border: 1px solid #2b303b; border-radius: 10px; overflow: hidden; background: #101216; font-family: "Oxanium", "Noto Sans KR", sans-serif; }
+  .lock-win button { appearance: none; margin: 0; border: 0; background: none; font: inherit; color: inherit; cursor: pointer; }
+  .lock-bar { height: 42px; flex: none; display: flex; align-items: center; padding-left: 16px; border-bottom: 1px solid #2b303b; }
+  .lock-bar img { width: 22px; height: 22px; }
+  .lock-bar .wc { margin-left: auto; display: flex; align-self: stretch; } .lock-bar .wc span { width: 44px; display: grid; place-items: center; color: var(--secondary); }
+  .lock-card { flex: 1; display: grid; place-items: center; padding: 24px 28px; background: #15181e; }
+  .lock-ck { display: flex; align-items: center; gap: 8px; margin-top: 12px; padding: 3px 6px; border-radius: 6px; color: #a0aaba; font-size: 12.5px; }
+  .lock-ck:hover { background: #252b36; color: #edf1f7; }
+  .lock-ck.on { color: #edf1f7; }
+  .lock-stage .hello { top: 50%; left: calc(50% + 400px); }
+  .lock-skip { color: #8fb0f0; }
+  .lock-win .lock-screen__primary { color: #0b1222; }
+  .lock-win .lock-screen__switch { color: #a0aaba; } .lock-win .lock-skip { color: #8fb0f0; }
 </style>
 </head>
 <body>
@@ -692,16 +707,21 @@ function spanTxt(ms) {
 }
 
 // ---------- Dates as the decisions write them ----------
-// Item A2: the year of a date in another year. Short "M/D" (periodDisplay monthDay) gets
-// "2028/3/1" | "28/3/1" | "'28 3/1"; long "M월 D일" gets "2028년 3월 1일". `year` false leaves it out
-// (the second date of a period inside one year).
+// Short numeric dates follow 설정 > 일반 > 시간 표시 (new): the separator (. or /) and the year's
+// digits (2 or 4); open items: the default (def), zero padding (pad) and the year on this year's
+// dates (thisYear). def 'old' = today's "11/18" without any year.
+// `year` false leaves the year out (the second date of a period inside one year).
+const padOn = () => s.pad === 'pad' ? true : s.pad === 'nopad' ? false : s.fmt.pad;
 function mdS(ms, year = true) {
-  const d = new Date(ms), b = `${d.getMonth() + 1}/${d.getDate()}`;
-  if (!year || s.year === 'old' || !otherYear(ms)) return b;
-  const y = d.getFullYear(), yy = String(y).slice(2);
-  return s.year === 'full' ? `${y}/${b}` : s.year === 'yy' ? `${yy}/${b}` : `'${yy} ${b}`;
+  const d = new Date(ms);
+  if (s.def === 'old') return `${d.getMonth() + 1}/${d.getDate()}`;
+  const p = n => padOn() ? pad(n) : n, sep = s.fmt.sep;
+  const b = `${p(d.getMonth() + 1)}${sep}${p(d.getDate())}`;
+  if (!year || !(otherYear(ms) || s.thisYear === 'ymd')) return b;
+  return `${s.fmt.digits === 4 ? d.getFullYear() : String(d.getFullYear()).slice(2)}${sep}${b}`;
 }
-const mdL = ms => { const d = new Date(ms); return `${s.year !== 'old' && otherYear(ms) ? d.getFullYear() + '년 ' : ''}${d.getMonth() + 1}월 ${d.getDate()}일`; };
+// Long Korean form as the app has it ("M월 D일"), with the year in another year.
+const mdL = ms => { const d = new Date(ms); return `${s.def !== 'old' && otherYear(ms) ? d.getFullYear() + '년 ' : ''}${d.getMonth() + 1}월 ${d.getDate()}일`; };
 const rangeS = (a, b) => `${mdS(a)} ~ ${mdS(b, new Date(a).getFullYear() !== new Date(b).getFullYear())}`;
 const ymd = ms => { const d = new Date(ms); return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())}`; };
 // 묶음 맞춤 (timeDisplay formatDue "group").
@@ -713,14 +733,12 @@ function dueGroupTxt(due) {
 }
 const isPeriod = t => t.start != null && t.end != null;
 const multiDay = t => isPeriod(t) && dayDiff(t.end, t.start) >= 1;
-// Item A1: the day of a period inside one day (periodDisplay periodText).
+// A period inside one day says its day like a due row (confirmed): 오늘 the clock only, "내일 …",
+// "수 …" within a week, else the short date.
 function periodTxt(t) {
   if (multiDay(t)) return rangeS(t.start, t.end);
   const clock = hasT(t.end) ? clockRange(t.start, t.end) : `${clockS(t.start)} ~ 하루 끝`;
   const dd = dayDiff(t.start, NOW);
-  if (s.dayfmt === 'old') return clock;
-  if (s.dayfmt === 'md') return dd === 0 ? clock : `${mdS(t.start)} ${clock}`;
-  if (s.dayfmt === 'always') return `${mdS(t.start)} ${clock}`;
   if (dd === 0) return clock; if (dd === 1) return `내일 ${clock}`; if (dd === -1) return `어제 ${clock}`;
   if (dd > 1 && dd < 7) return `${WD[new Date(t.start).getDay()]} ${clock}`;
   return `${mdS(t.start)} ${clock}`;
@@ -737,7 +755,8 @@ const TASKS0 = [
   { id: 'c1', t: '저녁 약속 · 민지', cat: 'home', start: at(2026, 11, 18, 19, 0), end: at(2026, 11, 18, 21, 0) },
   { id: 'c2', t: '팀 워크숍', cat: 'work', start: day0(2026, 11, 19), end: at(2026, 11, 20) },
   { id: 'c3', t: '도서관 책 반납', cat: 'study', end: at(2026, 11, 20, 18, 0) },
-  { id: 'd1', t: '건강검진', cat: 'home', start: at(2026, 11, 24, 9, 0), end: at(2026, 11, 24, 11, 0) },
+  { id: 'd1', t: '건강검진', cat: 'home', start: at(2026, 12, 3, 9, 0), end: at(2026, 12, 3, 11, 0) },
+  { id: 'd2', t: '사내 세미나', cat: 'work', start: day0(2026, 12, 5), end: at(2026, 12, 7) },
   { id: 'e1', t: '연말 정산 상담', cat: 'work', start: at(2027, 12, 20, 10, 30), end: at(2027, 12, 20, 12, 30) },
   { id: 'e2', t: '겨울 가족 여행', cat: 'home', start: day0(2027, 12, 30), end: at(2028, 1, 2), imp: true },
   { id: 'e3', t: '여권 갱신', cat: 'home', end: at(2028, 3, 1) },
@@ -748,11 +767,15 @@ const TASKS0 = [
 ];
 
 // ---------- State ----------
-// Defaults on open = the recommended candidates.
+// Confirmed in round 1: a one-day period says its day like a due row, the view options have radio
+// and check marks, the detail deletes with the bin in the panel head, the lock skip is a toggle
+// that always skips. Defaults on open = the recommended candidates of what is still open.
+const DEFS = { yy: { sep: '.', digits: 2 }, yyyy: { sep: '.', digits: 4 }, slash: { sep: '/', digits: 2 }, old: { sep: '/', digits: 2 } };
 const s = {
-  dayfmt: 'md', year: 'full', vm: 'seg', del: 'stamp', lock: 'toggle', scope: 'boot',
-  tasks: TASKS0.map(x => ({ start: null, ...x })), sel: null, vmOpen: false, more: false, picker: null, undo: null,
-  settings: false, skipOn: true, gate: null, hello: false, cap: '', showNew: false,
+  def: 'yy', pad: 'pad', thisYear: 'md', desc: 'a', lockck: 'ask', manual: 'keep',
+  fmt: { sep: '.', digits: 2, pad: true }, // the user's setting (설정 > 일반 > 시간 표시)
+  tasks: TASKS0.map(x => ({ start: null, ...x })), sel: null, vmOpen: false, picker: null, undo: null,
+  settings: false, setPage: '일반', setScroll: false, skipOn: false, gate: null, hello: false, lockCk: false, manualLocked: false, cap: '', showNew: false,
   qa: { start: null, end: null },
   prefs: { group: 'date', noneTop: false, sort: 'due', density: 'normal', showRemain: true, hideDone: false },
 };
@@ -790,8 +813,8 @@ function rcol(t) {
 function taskRow(t) {
   const c = CATS[t.cat];
   const oneDay = isPeriod(t) && !multiDay(t), oyr = t.end != null && (otherYear(t.end) || (t.start != null && otherYear(t.start)));
-  const newA = (oneDay && s.dayfmt !== 'old' && periodTxt(t) !== clockRange(t.start, t.end)) || (oyr && s.year !== 'old' && !(oneDay && s.dayfmt === 'old'));
-  return `<div class="task-row ${s.sel === t.id ? 'sel' : ''} ${t.done ? 'done' : ''} ${oneDay ? 'oneday' : ''} ${oyr ? 'oyr' : ''}" data-act="sel" data-tid="${t.id}"><button class="ck ${t.done ? 'done' : ''}" data-act="ck" data-tid="${t.id}">${I.check}</button>
+  const newA = (oneDay && dayDiff(t.start, NOW) !== 0) || oyr || multiDay(t);
+  return `<div class="task-row ${s.sel === t.id ? 'sel' : ''} ${t.done ? 'done' : ''} ${isPeriod(t) && !oyr ? 'num' : ''} ${oyr ? 'oyr' : ''}" data-act="sel" data-tid="${t.id}"><button class="ck ${t.done ? 'done' : ''}" data-act="ck" data-tid="${t.id}">${I.check}</button>
     <div class="tx"><div class="t">${esc(t.t)}</div><div class="meta"><span class="cat"><span class="dot" style="background:${c.color}"></span><b>${c.title}</b></span>${t.memo ? `<span>${I.memo}</span>` : ''}</div></div>
     ${rcol(t).replace('class="rcol"', `class="rcol ${newA ? 'is-new' : ''}"`)}<button class="st ${t.imp ? 'on' : ''}" data-act="star" data-tid="${t.id}">${I.star(t.imp, 19)}</button></div>`;
 }
@@ -822,7 +845,7 @@ function qaChip() {
   if (end == null) return `<span class="qa-chip" data-act="qadate">${I.cal}<span>날짜</span></span>`;
   const oyr = otherYear(end) || (start != null && otherYear(start));
   const txt = start == null ? mdL(end) : rangeS(start, end);
-  return `<span class="qa-chip on ${oyr ? 'oyr' : ''} ${oyr && s.year !== 'old' ? 'is-new' : ''}" data-act="qadate">${I.cal}<span>${txt}</span><span class="qa-x" data-act="qax">${I.close(12)}</span></span>`;
+  return `<span class="qa-chip on ${oyr ? 'oyr' : ''} is-new" data-act="qadate">${I.cal}<span>${txt}</span><span class="qa-x" data-act="qax">${I.close(12)}</span></span>`;
 }
 
 // ---------- View options (item B; ListHeader.js SECTIONS) ----------
@@ -834,16 +857,11 @@ const SECTIONS = [
 ];
 function viewMenu() {
   if (!s.vmOpen) return '';
-  const p = s.prefs, v = s.vm;
-  const nw = v === 'old' ? '' : 'is-new';
-  if (v === 'seg') {
-    const sw = (k, l, sub) => `<div class="vm-row"><span class="lb">${l}${sub ? `<small>${sub}</small>` : ''}</span><button class="sw ${p[k] ? 'on' : ''}" data-act="vmset" data-k="${k}" data-v="toggle"><i></i></button></div>`;
-    return `<div class="tp-pop tp-menu tc-viewmenu vm-seg ${nw}" data-viewmenu>${SECTIONS.map(sec =>
-      `<div class="vm-row"><span class="lb">${sec.head.replace(' (묶음 안에서)', '')}${sec.key === 'sort' ? '<small>묶음 안에서</small>' : sec.key === 'density' ? '<small>두 줄 / 한 줄</small>' : ''}</span><span class="vm-2">${sec.items.map(([val, l], i) => `<button class="${p[sec.key] === val ? 'on' : ''}" data-act="vmset" data-k="${sec.key}" data-v="${val}">${sec.short ? sec.short[i] : l}</button>`).join('')}</span></div>${sec.toggle ? sw(sec.toggle[0], sec.toggle[1]) : ''}`).join('')}${sw('hideDone', '완료한 할 일 숨기기')}</div>`;
-  }
-  const mark = (on, check) => v !== 'marks' ? '' : check ? `<span class="pk-cbx ${on ? 'on' : ''}">${on ? I.tick(10) : ''}</span>` : '<span class="pk-rd"></span>';
-  const item = (on, l, k, val, check) => `<button class="tp-mi ${on ? 'on' : ''}" data-act="vmset" data-k="${k}" data-v="${val}">${mark(on, check)}<span class="tp-lb">${l}</span>${on && v !== 'marks' ? `<span class="tp-ok">${I.tick(14)}</span>` : ''}</button>`;
-  return `<div class="tp-pop tp-menu tc-viewmenu ${v === 'old' ? '' : 'vm-lines'} ${v === 'marks' ? 'vm-marks' : ''} ${nw}" data-viewmenu>${SECTIONS.map(sec =>
+  const p = s.prefs;
+  // Confirmed: rules between the groups, bold heads, and a radio or check mark before each option.
+  const mark = (on, check) => check ? `<span class="pk-cbx ${on ? 'on' : ''}">${on ? I.tick(10) : ''}</span>` : '<span class="pk-rd"></span>';
+  const item = (on, l, k, val, check) => `<button class="tp-mi ${on ? 'on' : ''}" data-act="vmset" data-k="${k}" data-v="${val}">${mark(on, check)}<span class="tp-lb">${l}</span></button>`;
+  return `<div class="tp-pop tp-menu tc-viewmenu vm-lines vm-marks is-new" data-viewmenu>${SECTIONS.map(sec =>
     `<div class="vm-g"><div class="tp-hd">${sec.head}</div>${sec.items.map(([val, l]) => item(p[sec.key] === val, l, sec.key, val)).join('')}${sec.toggle ? item(!!p[sec.toggle[0]], sec.toggle[1], sec.toggle[0], 'toggle', true) : ''}</div>`).join('')}
     <div class="tp-sp"></div>${item(!!p.hideDone, '완료한 할 일 숨기기', 'hideDone', 'toggle', true)}</div>`;
 }
@@ -870,7 +888,7 @@ function calendarTab() {
   const tm = t => ds(t.end) !== TODAY ? `~${mdS(t.end)}` : isPeriod(t) && !multiDay(t) ? clockS(t.start) : hasT(t.end) ? clockS(t.end) : '하루 끝';
   return `<div class="rp-box">${miniMonth({ y: 2026, m: 10, picked: [TODAY], act: 'data-noop', nav: 'data-noop', marks })}</div>
     <div class="rp-block-h">11월 16일 (월) · 오늘<span>${list.filter(t => !t.done).length}개 남음</span></div>
-    <div class="rp-box rp-agenda">${list.map(t => { const span = ds(t.end) !== TODAY, oyr = span && otherYear(t.end); return `<div class="rp-ai" data-act="sel" data-tid="${t.id}"><span class="rp-tm ${span ? 'span' : ''} ${oyr ? 'oyr' : ''} ${oyr && s.year !== 'old' ? 'is-new' : ''}">${tm(t)}</span><span class="rp-dot" style="background:${CATS[t.cat].color}"></span><span class="rp-nm">${esc(t.t)}</span></div>`; }).join('')}</div>`;
+    <div class="rp-box rp-agenda">${list.map(t => { const span = ds(t.end) !== TODAY, oyr = span && otherYear(t.end); return `<div class="rp-ai" data-act="sel" data-tid="${t.id}"><span class="rp-tm ${span ? 'span' : ''} ${oyr ? 'oyr' : ''} ${span ? 'is-new' : ''}">${tm(t)}</span><span class="rp-dot" style="background:${CATS[t.cat].color}"></span><span class="rp-nm">${esc(t.t)}</span></div>`; }).join('')}</div>`;
 }
 const endDetail = ms => hasT(ms) ? `${ymd(ms)} ${clockL(ms)}` : `${ymd(ms)} · 하루 끝`;
 const startDetail = ms => hasST(ms) ? `${ymd(ms)} ${clockL(ms)}` : `${ymd(ms)} · 하루 시작`;
@@ -879,23 +897,18 @@ function detail(t) {
   const dates = isPeriod(t)
     ? `<div class="rp-prop date ${open('start')}" data-act="prop" data-k="start"><span class="k">시작</span><span class="v">${startDetail(t.start)}</span></div><div class="rp-prop date ${open('end')}" data-act="prop" data-k="end"><span class="k">끝</span><span class="v">${endDetail(t.end)}</span></div>`
     : `<div class="rp-prop date ${open('end')}" data-act="prop" data-k="end"><span class="k">기한</span><span class="v">${t.end == null ? '<span class="sub">없음</span>' : endDetail(t.end)}</span></div>`;
-  const moreMenu = s.more ? `<div class="tp-pop tp-menu mini" data-more style="right:20px;top:124px">
-      <div class="tp-mi"><span class="tp-mic">${I.sun}</span><span class="tp-lb">오늘</span></div><div class="tp-mi"><span class="tp-mic">${I.week}</span><span class="tp-lb">내일</span></div>
-      <div class="tp-mi"><span class="tp-mic">${I.cal}</span><span class="tp-lb">날짜 · 기간 정하기…</span></div><div class="tp-sp"></div>
-      <div class="tp-mi"><span class="tp-mic">${I.copy}</span><span class="tp-lb">복제</span></div><div class="tp-sp"></div>
-      <button class="tp-mi danger" data-act="del"><span class="tp-mic">${I.trash()}</span><span class="tp-lb">삭제</span><span class="tp-kb">Del</span></button></div>` : '';
-  return `<div class="rp-dt-title"><button class="ck ${t.done ? 'done' : ''}" data-act="ck" data-tid="${t.id}">${I.check}</button><div class="rp-title">${esc(t.t)}</div><button class="st ${t.imp ? 'on' : ''}" data-act="star" data-tid="${t.id}">${I.star(t.imp, 20)}</button>${s.del === 'more' ? `<span class="rp-ic is-new" data-act="more" data-delbtn data-tip="할 일 메뉴">${I.more}</span>` : ''}</div>
+  return `<div class="rp-dt-title"><button class="ck ${t.done ? 'done' : ''}" data-act="ck" data-tid="${t.id}">${I.check}</button><div class="rp-title">${esc(t.t)}</div><button class="st ${t.imp ? 'on' : ''}" data-act="star" data-tid="${t.id}">${I.star(t.imp, 20)}</button></div>
     <div class="rp-box">${dates}<div class="rp-prop"><span class="k">반복</span><span class="v"><span class="sub">안 함</span></span></div>
       <div class="rp-prop"><span class="k">카테고리</span><span class="v"><span class="rp-chip"><span class="rp-dot" style="background:${c.color}"></span>${c.title}</span><span class="rp-chip">${I.plus(14)}</span></span></div></div>
     <div class="rp-block-h">하위 할 일</div><div class="rp-box"><div class="rp-subt add"><i>${I.plus(14)}</i><span>하위 할 일 추가</span></div></div>
     <div class="rp-block-h">메모</div><div class="rp-box rp-memo-box">${t.memo ? esc(t.memo) : '<span style="color:var(--faint)">메모를 적어 두세요</span>'}</div>
     <div class="rp-memo-foot"><span class="n">${(t.memo || '').length} / 10,000</span></div>
-    <div class="rp-stamp"><span>만든 날 11월 2일 · 마지막 수정 오늘 오후 1:05</span>${s.del === 'stamp' ? `<button class="rp-del is-new" data-act="del" data-delbtn data-tip="할 일 삭제">삭제</button>` : ''}</div>${moreMenu}`;
+    <div class="rp-stamp"><span>만든 날 11월 2일 · 마지막 수정 오늘 오후 1:05</span></div>`;
 }
 function panel() {
   const t = s.sel && task(s.sel);
   return `<div class="home-panel"><div class="rp-tabs"><span class="rp-tab ${t ? 'on' : 'off'}">할 일 상세</span><span class="rp-tab ${t ? '' : 'on'}" data-act="unsel">캘린더</span>
-    ${t && s.del === 'head' ? `<span class="rp-ic del is-new" data-act="del" data-delbtn data-tip="할 일 삭제">${I.trash(16)}</span>` : ''}${t ? `<span class="rp-x" data-act="unsel" data-tip="상세 닫기">${I.close(18)}</span>` : ''}</div>
+    ${t ? `<span class="rp-ic del is-new" data-act="del" data-delbtn data-tip="할 일 삭제">${I.trash(16)}</span>` : ''}${t ? `<span class="rp-x" data-act="unsel" data-tip="상세 닫기">${I.close(18)}</span>` : ''}</div>
     <div class="rp-body">${t ? detail(t) : calendarTab()}</div></div>`;
 }
 
@@ -910,7 +923,7 @@ function openPicker(target, active) {
 }
 function pickerHtml() {
   const p = s.picker; if (!p) return '';
-  const period = p.start != null, nw = s.year !== 'old' && (otherYear(p.end) || (period && otherYear(p.start))) ? 'is-new' : '';
+  const period = p.start != null, nw = 'is-new';
   const fd = k => {
     const ms = p[k], on = p.active === k ? 'on' : '';
     if (ms == null) return `<button class="dp-fd empty ${on}" data-pa="fd:start"><small>시작</small><b>없음</b><span>${on ? '달력에서 골라요' : '눌러서 추가'}</span></button>`;
@@ -958,95 +971,116 @@ function deleteTask(id) {
   undoTimer = setTimeout(() => { s.undo = null; render(); }, 5000);
 }
 function undoDelete() { const u = s.undo; if (!u) return; clearTimeout(undoTimer); s.tasks.splice(u.i, 0, u.t); s.sel = u.t.id; s.undo = null; }
+// The lock window at its real size (vaultWindow.js SIZES.lock 380 × 500; LockScreen.js). New: under the
+// unlock button, a way to stop locking on this PC; unlocking with it turns the setting on.
 function gateHtml() {
-  if (!s.gate) return '';
-  return `<div class="gate"><section class="lock-screen ${s.lock === 'hello' ? 'is-new' : ''}"><div class="lock-screen__icon">${I.lock(24)}</div><h1>Thread가 잠겼어요</h1><p>다시 열려면 본인 확인이 필요해요.</p>
-    <button class="lock-screen__primary" data-act="hello">Windows Hello로 열기</button><button class="lock-screen__switch">비밀번호로 열기</button></section>
-    ${s.hello ? `<div class="hello ${s.lock === 'hello' ? 'is-new' : ''}"><b>Windows 보안</b><p>본인인지 확인하는 중이에요</p><div class="face">☺</div><p style="text-align:center;margin:0">Thread를 열려면 얼굴 · 지문 · PIN으로 확인해 주세요.</p><div class="f"><button class="pri" data-act="unlock">확인</button><button data-act="helloX">취소</button></div></div>` : ''}</div>`;
+  const v = s.lockck;
+  const ck = v === 'none' ? '' : v === 'link'
+    ? `<button class="lock-screen__switch lock-skip is-new" data-act="linkskip">이 PC에서는 잠그지 않고 열기</button>`
+    : `<button class="lock-ck is-new ${s.lockCk ? 'on' : ''}" data-act="lockck"><span class="pk-cbx ${s.lockCk ? 'on' : ''}">${s.lockCk ? I.tick(10) : ''}</span>${v === 'user' ? '이 PC에서 잠금 설정 안 함' : '이 PC에서는 다시 묻지 않기'}</button>`;
+  return `<div class="lock-stage"><div class="lock-win"><div class="lock-bar"><img src="${ICON}" alt=""><span class="wc"><span>${I.min}</span><span>${I.x10}</span></span></div>
+    <div class="lock-card"><section class="lock-screen"><div class="lock-screen__icon">${I.lock(24)}</div><h1>Thread가 잠겼어요</h1><p>다시 열려면 본인 확인이 필요해요.</p>
+      <button class="lock-screen__primary" data-act="hello">Windows Hello로 열기</button>${v === 'link' ? '' : ck}<button class="lock-screen__switch">비밀번호로 열기</button>${v === 'link' ? ck : ''}</section></div></div>
+    ${s.hello ? `<div class="hello"><b>Windows 보안</b><p>본인인지 확인하는 중이에요</p><div class="face">☺</div><p style="text-align:center;margin:0">Thread를 열려면 얼굴 · 지문 · PIN으로 확인해 주세요.</p><div class="f"><button class="pri" data-act="unlock">확인</button><button data-act="helloX">취소</button></div></div>` : ''}</div>`;
 }
-// Item D: what happens when the app starts again (restart: closed and opened in the same Windows
-// session; reboot: first start after Windows restarted; update: restarted by an update).
-function simulate(kind) {
-  closePops(); s.sel = null;
-  const name = { restart: '앱을 껐다 다시 켬', reboot: 'PC를 다시 시작한 뒤 처음 켬', update: '업데이트로 앱이 다시 켜짐' }[kind];
-  let skip = false;
-  if (s.lock === 'toggle' && s.skipOn) skip = s.scope === 'always' || (s.scope === 'boot' && kind !== 'reboot') || (s.scope === 'update' && kind === 'update');
-  if (skip) { s.gate = null; s.cap = `${name} → 잠금 화면 없이 바로 열림 (비밀 카테고리는 잠긴 채)`; }
-  else if (s.lock === 'hello') { s.gate = true; s.hello = true; s.cap = `${name} → 잠금 화면이 뜨고 Windows Hello 창이 저절로 뜸`; }
-  else { s.gate = true; s.hello = false; s.cap = `${name} → 잠금 화면 (버튼을 누르고 Windows Hello 인증)`; }
+// 앱 잠금 in the settings (지금 잠그기): the lock screen now; whether the next start skips it is open.
+function lockNow() { closePops(); s.sel = null; s.gate = true; s.manualLocked = true; s.lockCk = false; s.cap = '직접 잠금 → 잠금 화면'; }
+// The app starts again: straight in when the setting is on (not after a manual lock, when that keeps).
+function simulate() {
+  const wasLocked = s.manualLocked || !!s.gate;
+  closePops(); s.sel = null; s.lockCk = false;
+  const keep = wasLocked && s.manualLocked && s.manual === 'keep';
+  if (s.skipOn && !keep) { s.gate = null; s.manualLocked = false; s.cap = '앱을 껐다 다시 켬 → 잠금 화면 없이 바로 열림 (비밀 카테고리는 잠긴 채)'; }
+  else { s.gate = true; s.cap = s.skipOn ? '앱을 껐다 다시 켬 → 직접 잠갔으므로 잠금 화면' : '앱을 껐다 다시 켬 → 잠금 화면 (설정이 꺼져 있음)'; }
   render();
 }
-const SCOPE_DESC = {
-  always: '앱을 껐다 켜도, PC를 다시 시작해도 잠금 화면 없이 바로 열려요. 이 PC에서 Thread를 여는 사람은 누구나 일반 할 일을 볼 수 있어요. 비밀 카테고리는 계속 잠겨 있어요.',
-  boot: 'PC를 켜고 한 번 잠금을 풀면, PC를 끄거나 다시 시작하기 전까지는 앱을 다시 켜도 바로 열려요(폰과 같아요). 그동안 다른 사람이 이 PC에서 Thread를 열면 일반 할 일이 보여요. 비밀 카테고리는 계속 잠겨 있어요.',
-  update: '업데이트하느라 앱이 다시 켜질 때만 잠금 화면을 건너뛰어요. 직접 껐다 켜면 평소처럼 잠겨요. 비밀 카테고리는 계속 잠겨 있어요.',
+const DESCS = {
+  long: '앱을 껐다 켜도, PC를 다시 시작해도 잠금 화면 없이 바로 열려요. 이 PC에서 Thread를 여는 사람은 누구나 일반 할 일을 볼 수 있어요. 비밀 카테고리는 계속 잠겨 있어요.<br>켤 때 본인 확인을 한 번 해요. 직접 잠근 뒤나 PC 화면이 잠긴 뒤에는 건너뛰지 않아요.',
+  a: '이 PC에서는 본인 확인 없이 바로 열려요. 비밀 카테고리는 계속 잠겨요.',
+  b: '앱을 켜도 잠그지 않아요. 이 PC를 쓰는 다른 사람도 할 일을 볼 수 있어요.',
+  c: '본인 확인 없이 열기 · 비밀 카테고리 제외',
 };
 const srow = (icon, label, desc, ctrl, cls = '') => `<div class="settings-row ${cls}">${icon ? `<div class="settings-row__icon">${icon}</div>` : ''}<div class="settings-row__text"><div class="settings-row__label">${label}</div>${desc ? `<div class="settings-row__desc">${desc}</div>` : ''}</div><div class="settings-row__control">${ctrl}</div></div>`;
-function settingsHtml() {
-  if (!s.settings) return '';
-  const menu = [['일반', I.sGen], ['데이터', I.sData], ['시스템', I.sSys], ['계정', I.sAcc], ['정보', I.sInfo]];
-  const lockCard = s.lock === 'toggle' && s.scope !== 'none'
-    ? `<section class="settings-section set-lock is-new"><div class="settings-section__head"><h3>앱 잠금</h3></div><div class="settings-card">
-        ${srow(I.lock(15), '앱을 다시 켤 때 잠금 화면 건너뛰기', `<span class="set-lock-desc">${SCOPE_DESC[s.scope]}</span><br>켤 때 본인 확인을 한 번 해요. 직접 잠근 뒤나 PC 화면이 잠긴 뒤에는 건너뛰지 않아요.`, `<button class="settings-toggle ${s.skipOn ? 'on' : ''}" data-act="skip"></button>`)}</div></section>`
-    : `<section class="settings-section set-lock"><div class="settings-section__head"><h3>앱 잠금</h3></div><div class="settings-card">
-        ${srow(I.lock(15), '앱을 켤 때마다 잠금', s.lock === 'hello' ? '<span class="is-new">잠금 화면이 뜨면 Windows Hello 창이 저절로 떠요. 버튼을 누를 필요가 없어요.</span>' : '앱을 켜면 잠금 화면이 뜨고, 버튼을 눌러 Windows Hello로 열어요.', '<span class="settings-badge">켜짐</span>')}</div></section>`;
-  return `<div class="set-wrap"><div class="set-scrim" data-act="setX"></div><div class="set-modal"><button class="set-close" data-act="setX">${I.close(18)}</button>
-    <aside class="settings-sidebar"><div class="settings-sidebar__title">설정</div><nav class="set-menu">${menu.map(([l, ic]) => `<button class="set-mi ${l === '데이터' ? 'on' : ''}">${ic}<span>${l}</span></button>`).join('')}</nav></aside>
-    <main class="menu-content"><div class="settings-page"><header class="settings-page__head"><div><h2>데이터</h2><p>내 데이터는 기기에서 암호화되어 저장·동기화됩니다.</p></div><div><button class="settings-button" data-act="lockNow">${I.lock(14)}앱 잠금</button></div></header>
+const seg = (opts, cur, key) => `<div class="settings-segmented">${opts.map(([v, l]) => `<button class="${cur === v ? 'on' : ''}" ${key ? `data-act="fmt" data-k="${key}" data-v="${v}"` : ''}>${l}</button>`).join('')}</div>`;
+function generalPage() {
+  const ex = [at(2026, 11, 18), at(2028, 3, 1)].map(ms => mdS(ms)).join(' · ') + ' · ' + rangeS(day0(2027, 12, 30), at(2028, 1, 2));
+  // New rows in 시간 표시 (hidden for 기존: no setting, "11/18" without a year).
+  const dateRows = s.def === 'old' ? '' : `<div class="set-date is-new">
+      ${srow('', '날짜 구분 기호', `숫자로 쓰는 날짜의 모양 · 예: ${ex}`, seg([['.', '점 ( . )'], ['/', '빗금 ( / )']], s.fmt.sep, 'sep'))}
+      ${srow('', '연도 자릿수', '올해가 아닌 날짜에 붙는 연도', seg([[2, '두 자리 · 28'], [4, '네 자리 · 2028']], s.fmt.digits, 'digits'))}
+      ${s.pad === 'setting' ? srow('', '한 자리 수 앞에 0', '"03.01"처럼 두 자리로 맞춰요', `<button class="settings-toggle ${s.fmt.pad ? 'on' : ''}" data-act="fmt" data-k="pad"></button>`) : ''}</div>`;
+  return `<div class="settings-page"><header class="settings-page__head"><div><h2>일반</h2><p>앱의 기본 동작을 정합니다.</p></div></header>
+    <div class="settings-card">
+      ${srow('', '시작할 때 보기', '앱을 열면 처음 보여 줄 화면', seg([['l', '목록'], ['c', '캘린더'], ['t', '타임라인']], 'l'))}
+      ${srow('', '주 시작 요일', '캘린더의 첫 번째 열', seg([[0, '일요일'], [1, '월요일']], 0))}
+      ${srow('', '시각 형식', '오후 3시 / 15시', seg([['12', '12시간'], ['24', '24시간']], '12'))}
+      ${srow('', '기한 표시', '오후 9시 · 수 오후 7시 · 11월 25일', seg([['g', '묶음 맞춤'], ['s', '간단히'], ['a', '자동'], ['e', '정확히'], ['f', '자세히']], 'g'))}
+      ${srow('', '남은 시간 표시', '3시간 30분 남음 · 1일 4시간 남음', seg([['s', '간단히'], ['n', '보통'], ['d', '자세히'], ['a', '모두']], 'n'))}
+      ${dateRows}
+      ${srow('', '테마<span class="settings-soon">준비 중</span>', '다크, 라이트, 시스템 설정 따르기', seg([['d', '다크'], ['l', '라이트'], ['s', '시스템']], 'd'))}
+    </div></div>`;
+}
+function dataPage() {
+  return `<div class="settings-page"><header class="settings-page__head"><div><h2>데이터</h2><p>내 데이터는 기기에서 암호화되어 저장·동기화됩니다.</p></div><div><button class="settings-button" data-act="lockNow">${I.lock(14)}앱 잠금</button></div></header>
       <div class="settings-card data-summary">${[['복구 키', I.key, '✓ 보관됨', '확인 완료', 'ok'], ['연결된 기기', I.pc, '2대', '이 PC 포함', ''], ['마지막 백업', I.cube, '11월 9일', '31개 항목', '']].map(([a, ic, v, sub, tone]) => `<div class="data-summary__cell"><div class="data-summary__title">${ic}${a}</div><div class="data-summary__value ${tone}">${v}</div><div class="data-summary__sub">${sub}</div></div>`).join('')}</div>
-      ${lockCard}
+      <section class="settings-section set-lock is-new"><div class="settings-section__head"><h3>앱 잠금</h3></div><div class="settings-card">
+        ${srow(I.lock(15), '앱을 다시 켤 때 잠금 화면 건너뛰기', DESCS[s.desc], `<button class="settings-toggle ${s.skipOn ? 'on' : ''}" data-act="skip"></button>`)}</div></section>
       <section class="settings-section"><div class="settings-section__head"><h3>동기화</h3></div><div class="settings-card">${srow(I.sync, '동기화됨', '방금 전 · 모든 기기와 같은 상태예요', '<button class="settings-button">지금 동기화</button>')}</div></section>
       <section class="settings-section"><div class="settings-section__head"><h3>연결된 기기</h3><button class="settings-button">+ 새 기기 추가</button></div><div class="settings-card">
         ${srow(I.pc, '하늘의 PC', '편집 가능 · 현재 사용 중', '<span class="settings-badge">이 기기</span>')}${srow(I.phone, '하늘의 폰', '편집 가능 · 10월 28일 연결', '')}</div></section>
       <section class="settings-section"><div class="settings-section__head"><h3>백업과 복구</h3></div><div class="settings-card">
         ${srow(I.cube, '데이터 백업', '할 일 전체를 암호화된 파일로 내보내거나 불러옵니다.', '<button class="settings-button">백업 관리</button>')}${srow(I.key, '복구 키', '모든 기기를 잃었을 때 데이터를 되찾는 파일과 코드입니다.', '<button class="settings-button">새로 만들기</button>')}</div></section>
-    </div></main></div></div>`;
+    </div>`;
 }
-const mainWin = () => `<div class="win" style="width:1280px;height:880px">${topBar()}<div class="body">${sidebar()}${listPane()}<div class="splitter"></div>${panel()}</div>${viewMenu()}${pickerHtml()}${undoHtml()}${settingsHtml()}${gateHtml()}</div><div class="win-cap">${s.cap}</div>`;
+function settingsHtml() {
+  if (!s.settings) return '';
+  const menu = [['일반', I.sGen], ['데이터', I.sData], ['시스템', I.sSys], ['계정', I.sAcc], ['정보', I.sInfo]];
+  return `<div class="set-wrap"><div class="set-scrim" data-act="setX"></div><div class="set-modal"><button class="set-close" data-act="setX">${I.close(18)}</button>
+    <aside class="settings-sidebar"><div class="settings-sidebar__title">설정</div><nav class="set-menu">${menu.map(([l, ic]) => `<button class="set-mi ${l === s.setPage ? 'on' : ''}" ${l === '일반' || l === '데이터' ? `data-act="setpage" data-p="${l}"` : ''}>${ic}<span>${l}</span></button>`).join('')}</nav></aside>
+    <main class="menu-content">${s.setPage === '데이터' ? dataPage() : generalPage()}</main></div></div>`;
+}
+const mainWin = () => (s.gate ? gateHtml() : `<div class="win" style="width:1280px;height:880px">${topBar()}<div class="body">${sidebar()}${listPane()}<div class="splitter"></div>${panel()}</div>${viewMenu()}${pickerHtml()}${undoHtml()}${settingsHtml()}</div>`) + `<div class="win-cap">${s.cap}</div>`;
 
 // ---------- Notes ----------
 const closePops = () => { s.vmOpen = false; s.more = false; s.picker = null; s.settings = false; s.gate = null; s.hello = false; s.cap = ''; };
 const toList = () => { closePops(); s.sel = null; };
-const toSettings = () => { closePops(); s.settings = true; };
+const toSettings = page => { closePops(); s.settings = true; s.setPage = page; };
 const OPTS = [
-  { at: '.task-row.oneday .rcol', key: 'dayfmt', title: '하루 안 기간의 날짜 (목록 행)', show: toList,
-    items: [['old', '시각만', '지금처럼 "오후 7시 ~ 9시". 며칠인지 안 보임', 'old'],
-      ['md', '날짜 + 시각', '"11/18 오후 7시 ~ 9시". 오늘이면 시각만', 'rec'],
-      ['word', '기한 행과 같은 말', '"내일 오전 10시 ~ 11시", "수 오후 7시 ~ 9시", 7일 뒤부터는 "11/24 …"'],
-      ['always', '오늘도 날짜', '오늘 것도 "11/16 오후 3시 ~ 4시"']] },
-  { at: '.task-row.oyr .rcol, .qa-chip.oyr, [data-picker] .dp-fd, [data-picker] .dp-sum, .rp-tm.oyr', key: 'year', title: '다른 해의 연도 표기',
-    show: () => { closePops(); s.sel = 'e4'; s.qa = { start: day0(2028, 3, 1), end: at(2028, 3, 5) }; openPicker('e4', 'end'); },
-    items: [['old', '연도 없음', '지금처럼 "3/1", "3월 1일". 어느 해인지 안 보임', 'old'],
-      ['full', '"2028/3/1"', '네 자리 연도. 긴 형식은 "2028년 3월 1일", 같은 해 기간은 "2028/3/1 ~ 3/5"', 'rec'],
-      ['yy', '"28/3/1"', '두 자리 연도. 짧지만 날짜와 헷갈릴 수 있음'],
-      ['apos', '"\'28 3/1"', '작은따옴표 + 두 자리 연도']] },
-  { at: '[data-viewmenu], [data-act="vm"]', key: 'vm', title: '보기 옵션 창', show: () => { toList(); s.vmOpen = true; },
-    items: [['old', '기존', '머리말과 옵션이 같은 왼쪽 선 · 같은 굵기', 'old'],
-      ['lines', '구분선 + 굵은 머리말', '묶음마다 구분선, 머리말 굵게, 옵션은 들여쓰기'],
-      ['marks', '라디오 · 체크 표시까지', '위에 더해 옵션 앞에 동그라미 · 네모 표시, 고른 줄에 배경'],
-      ['seg', '한 줄에 라벨 + 전환 버튼', '13줄이 6줄로. 둘 중 하나는 두 칸 버튼, 켜고 끄는 건 스위치(창 너비 236 → 312px)', 'rec']] },
-  { at: '[data-delbtn], .rp-stamp', key: 'del', title: '할 일 상세의 삭제', show: () => { closePops(); s.sel = 'c3'; },
-    items: [['none', '기능 없음', '지금처럼 상세에는 삭제가 없음(오른쪽 클릭 · Del 키로만)', 'old'],
-      ['stamp', '맨 아래 "삭제" 글자', '"만든 날 …" 줄 오른쪽. 잘못 누를 일이 가장 적음', 'rec'],
-      ['head', '머리의 휴지통 아이콘', '패널 위 × 왼쪽'],
-      ['more', '제목 줄 "⋯" 메뉴', '별 옆 ⋯를 누르면 할 일 메뉴가 열리고 거기서 삭제']] },
-  { at: '.set-lock, .lock-screen', key: 'lock', title: '앱을 다시 켤 때 잠금 (설정 > 데이터)', show: () => { toSettings(); if (s.lock === 'hello') simulate('restart'); }, sim: true,
-    items: [['none', '기능 없음', '지금처럼 켤 때마다 잠금 화면 + 버튼 + Windows Hello', 'old'],
-      ['toggle', '건너뛰기 토글', '설정에 "앱을 다시 켤 때 잠금 화면 건너뛰기" (앱 기본값은 끔, 시안은 켠 상태)', 'rec'],
-      ['hello', 'Hello 창 자동', '토글 없이, 잠금 화면이 뜨면 Windows Hello 창을 저절로 띄움']] },
-  { at: '.set-lock-desc', key: 'scope', title: '건너뛰는 범위 (토글일 때)', show: () => { toSettings(); s.lock = 'toggle'; }, sim: true,
-    items: [['none', '기능 없음', '건너뛰지 않음', 'old'],
-      ['always', '항상', 'PC를 다시 시작한 뒤에도 바로 열림'],
-      ['boot', 'PC를 켜 둔 동안만', 'PC를 다시 시작한 뒤 첫 실행은 잠금. 폰과 같은 규칙', 'rec'],
-      ['update', '업데이트 재시작 때만', '업데이트로 다시 켜질 때 한 번만 건너뜀']] },
+  { at: '.set-date, .task-row.oyr .rcol', key: 'def', title: '숫자 날짜의 기본 모양 (설정 > 일반 > 시간 표시)',
+    show: () => { s.fmt = { ...DEFS[s.def], pad: s.fmt.pad }; toSettings('일반'); s.setScroll = true; },
+    items: [['old', '연도 없음 · 11/18', '지금처럼 "11/18", 다른 해도 "3/1". 설정 줄 없음', 'old'],
+      ['yy', '점 · 두 자리 · 28.03.01', '올해는 "11.18", 다른 해는 "28.03.01". 설정에서 바꿀 수 있음', 'rec'],
+      ['yyyy', '점 · 네 자리 · 2028.03.01', '연도를 네 자리로. 글자가 길어짐'],
+      ['slash', '빗금 · 두 자리 · 28/03/01', '지금 쓰는 빗금을 그대로']] },
+  { at: '.task-row.num .rcol, .rp-tm.span', key: 'pad', title: '한 자리 수 앞의 0', show: () => { toList(); s.scrollTo = 'd2'; },
+    items: [['nopad', '안 채움 · 12.5', '지금처럼 "12.5 ~ 12.7", "28.3.1"', 'old'],
+      ['pad', '늘 채움 · 12.05', '"12.05 ~ 12.07", "28.03.01". 자릿수가 맞아 줄이 가지런함', 'rec'],
+      ['setting', '설정으로 고름', '시간 표시에 "한 자리 수 앞에 0" 스위치를 하나 더 둠(기본 켬)']] },
+  { at: '.qa-chip, [data-picker] .dp-sum', key: 'thisYear', title: '올해 날짜에도 연도를 붙일지',
+    show: () => { closePops(); s.sel = 'c2'; s.qa = { start: day0(2026, 11, 19), end: at(2026, 11, 20) }; openPicker('c2', 'end'); },
+    items: [['md', '올해는 월.일만 · 11.18', '올해가 아닐 때만 연도. 지금 앱의 규칙과 같음', 'oldrec'],
+      ['ymd', '항상 연.월.일 · 26.11.18', '올해 날짜에도 연도. 글자가 길어짐']] },
+  { at: '.set-lock', key: 'desc', title: '"잠금 화면 건너뛰기" 설명 글 (설정 > 데이터)', show: () => toSettings('데이터'), sim: true,
+    items: [['long', '긴 설명', '1차 시안의 세 줄 설명', 'old'],
+      ['a', '바로 열림 + 비밀 카테고리', '"이 PC에서는 본인 확인 없이 바로 열려요. 비밀 카테고리는 계속 잠겨요."', 'rec'],
+      ['b', '다른 사람도 볼 수 있음', '"앱을 켜도 잠그지 않아요. 이 PC를 쓰는 다른 사람도 할 일을 볼 수 있어요."'],
+      ['c', '아주 짧게', '"본인 확인 없이 열기 · 비밀 카테고리 제외"']] },
+  { at: '.lock-win', key: 'lockck', title: '잠금 화면에서 바로 끄기', show: () => { closePops(); s.sel = null; s.gate = true; s.lockCk = false; s.cap = '잠금 화면'; }, sim: true,
+    items: [['none', '기능 없음', '잠금 화면에는 없고 설정에서만 바꿈', 'old'],
+      ['ask', '체크 "이 PC에서는 다시 묻지 않기"', '체크하고 열면 설정이 켜져서 다음부터 바로 열림', 'rec'],
+      ['user', '체크 "이 PC에서 잠금 설정 안 함"', '같은 동작, 요청한 문구 그대로'],
+      ['link', '글자 링크', '비밀번호로 열기 아래 "이 PC에서는 잠그지 않고 열기". 누르면 본인 확인 뒤 설정이 켜짐']] },
+  { at: '[data-act="lockNow"]', key: 'manual', title: '직접 잠근 뒤 앱을 다시 켜면', show: () => toSettings('데이터'), sim: true,
+    items: [['keep', '잠금 유지', '"앱 잠금"으로 직접 잠갔으면 다시 켜도 잠금 화면. 잠그려고 누른 뜻을 지킴', 'rec'],
+      ['skip', '건너뜀', '직접 잠갔어도 다시 켜면 바로 열림']] },
 ];
 const comments = {};
 function notes() {
-  const sim = '<div class="n-sim">해 보기:<button data-sim="restart">앱 다시 켜기</button><button data-sim="reboot">PC 재시작 뒤</button><button data-sim="update">업데이트 재시작</button></div>';
+  const sim = '<div class="n-sim">해 보기:<button data-sim="restart">앱 다시 켜기</button><button data-sim="lock">지금 잠그기</button></div>';
   return `<aside class="notes">
     <div class="n-top"><button class="n-copy" data-ncopy>결과 복사</button><p class="hint"><kbd>Shift</kbd>+마우스로 파란 점선의 후보 보기</p></div>
     <div class="n-scroll">${OPTS.map((o, i) => `<section class="n-item"><h4>${i + 1}. ${o.title}</h4>${o.sim ? sim : ''}${o.items.map(([v, nm, dsc, tag]) =>
-      `<div class="n-row ${s[o.key] === v ? 'on' : ''}" role="button" tabindex="0" data-no="${i}" data-v="${v}"><span class="n-nm">${esc(nm)}${tag === 'old' ? '<span class="badge old">기존</span>' : tag === 'rec' ? '<span class="badge rec">추천</span>' : ''}</span><span class="n-ds">${esc(dsc)}</span>${s[o.key] === v ? `<textarea class="n-cm" rows="1" data-cm="${i}:${v}" data-fk="cm:${i}:${v}" placeholder="추가 의견 (선택)" spellcheck="false">${esc(comments[i + ':' + v] || '')}</textarea>` : ''}</div>`).join('')}</section>`).join('')}</div>
+      `<div class="n-row ${s[o.key] === v ? 'on' : ''}" role="button" tabindex="0" data-no="${i}" data-v="${v}"><span class="n-nm">${esc(nm)}${/old/.test(tag) ? '<span class="badge old">기존</span>' : ''}${/rec/.test(tag) ? '<span class="badge rec">추천</span>' : ''}</span><span class="n-ds">${esc(dsc)}</span>${s[o.key] === v ? `<textarea class="n-cm" rows="1" data-cm="${i}:${v}" data-fk="cm:${i}:${v}" placeholder="추가 의견 (선택)" spellcheck="false">${esc(comments[i + ':' + v] || '')}</textarea>` : ''}</div>`).join('')}</section>`).join('')}</div>
     <label class="n-new"><input type="checkbox" data-nnew ${s.showNew ? 'checked' : ''}>새로 생기는 부분 표시</label>
   </aside>`;
 }
@@ -1063,7 +1097,9 @@ function render() {
   if (fk) { const el = document.querySelector(`[data-fk="${fk[0]}"]`); if (el) { el.focus({ preventScroll: true }); try { el.setSelectionRange(fk[1], fk[2]); } catch (e) {} } }
 }
 function place() {
-  const win = document.querySelector('.win'), W = win.getBoundingClientRect();
+  const win = document.querySelector('.win'); if (!win) return;
+  const W = win.getBoundingClientRect();
+  if (s.setScroll) { const sec = win.querySelector('.set-date'), mc = win.querySelector('.menu-content'); if (sec && mc) mc.scrollTop = sec.offsetTop - 140; s.setScroll = false; }
   const vm = win.querySelector('[data-viewmenu]');
   if (vm) { const b = win.querySelector('[data-act="vm"]').getBoundingClientRect(), row = win.querySelector('.tc-row1').getBoundingClientRect(); vm.style.left = (row.right - W.left - vm.offsetWidth) + 'px'; vm.style.top = (b.bottom - W.top + 4) + 'px'; }
   const dp = win.querySelector('[data-picker]');
@@ -1084,7 +1120,7 @@ document.addEventListener('click', e => {
   if (s.picker && !e.target.closest('[data-picker], [data-act="prop"], [data-act="qadate"]')) { s.picker = null; dirty = true; }
   const pa = e.target.closest('.win [data-pa]');
   if (pa) { pickerAct(pa.dataset.pa + (pa.dataset.day ? ':' + pa.dataset.day : pa.dataset.d ? ':' + pa.dataset.d : '')); return; }
-  const a = e.target.closest('.win [data-act]');
+  const a = e.target.closest('.pieces [data-act]');
   if (!a) { if (dirty) render(); return; }
   const k = a.dataset.act, tid = a.dataset.tid;
   if (k === 'sel') { s.sel = tid; s.more = false; }
@@ -1095,16 +1131,19 @@ document.addEventListener('click', e => {
   else if (k === 'vmset') { const key = a.dataset.k, v = a.dataset.v; s.prefs[key] = v === 'toggle' ? !s.prefs[key] : v === 'true' ? true : v === 'false' ? false : v; }
   else if (k === 'prop') { if (s.picker && s.picker.target === s.sel && s.picker.active === a.dataset.k) s.picker = null; else openPicker(s.sel, a.dataset.k); }
   else if (k === 'qadate') { if (e.target.closest('[data-act="qax"]')) { s.qa = { start: null, end: null }; s.picker = null; } else if (s.picker && s.picker.target === 'qa') s.picker = null; else openPicker('qa', 'end'); }
-  else if (k === 'more') s.more = !s.more;
   else if (k === 'del') deleteTask(s.sel);
   else if (k === 'undo') undoDelete();
-  else if (k === 'gear') { closePops(); s.settings = true; }
+  else if (k === 'gear') { closePops(); s.settings = true; s.setPage = '일반'; }
+  else if (k === 'setpage') s.setPage = a.dataset.p;
+  else if (k === 'fmt') { const key = a.dataset.k, v = a.dataset.v; s.fmt[key] = key === 'digits' ? +v : key === 'pad' ? !s.fmt.pad : v; }
+  else if (k === 'lockck') s.lockCk = !s.lockCk;
+  else if (k === 'linkskip') { s.lockCk = true; s.hello = true; }
   else if (k === 'setX') s.settings = false;
   else if (k === 'skip') s.skipOn = !s.skipOn;
-  else if (k === 'lockNow') { closePops(); s.gate = true; s.cap = '앱 잠금을 누름 → 잠금 화면'; }
+  else if (k === 'lockNow') { lockNow(); }
   else if (k === 'hello') s.hello = true;
   else if (k === 'helloX') s.hello = false;
-  else if (k === 'unlock') { s.gate = null; s.hello = false; s.cap = '본인 확인 → 앱이 열림'; }
+  else if (k === 'unlock') { s.gate = null; s.hello = false; s.manualLocked = false; if (s.lockCk) s.skipOn = true; s.cap = s.lockCk ? '본인 확인 → 앱이 열림 · 설정의 "잠금 화면 건너뛰기"가 켜짐' : '본인 확인 → 앱이 열림'; s.lockCk = false; }
   render();
 });
 document.addEventListener('keydown', e => {
@@ -1139,9 +1178,9 @@ let shiftOn = false;
 function markHot() {
   document.querySelectorAll('.pieces .hot').forEach(el => el.classList.remove('hot'));
   document.querySelectorAll('.pieces [data-opts]').forEach(el => delete el.dataset.opts);
-  OPTS.forEach((o, i) => document.querySelectorAll(o.at).forEach(el => { if (!el.dataset.opts && el.closest('.win')) el.dataset.opts = i; }));
+  OPTS.forEach((o, i) => document.querySelectorAll(o.at).forEach(el => { if (!el.dataset.opts && el.closest('.pieces')) el.dataset.opts = i; }));
   if (!shiftOn) return;
-  document.querySelectorAll('.win *').forEach(el => {
+  document.querySelectorAll('.win *, .lock-win *').forEach(el => {
     if (el.dataset.opts) return;
     const cs = getComputedStyle(el);
     if (el.matches('input, button') || cs.cursor === 'pointer' && getComputedStyle(el.parentElement).cursor !== 'pointer') el.classList.add('hot');
@@ -1154,7 +1193,7 @@ let optAt = null;
 const hideOpt = () => { optPop.classList.remove('on'); optAt = null; };
 function showOpt(el, x, y) {
   const i = +el.dataset.opts, o = OPTS[i]; optAt = el;
-  optPop.innerHTML = '<b>' + o.title + '</b>' + o.items.map(([v, nm, , tag]) => '<button class="' + (s[o.key] === v ? 'on' : '') + '" data-v="' + v + '">' + esc(nm) + (tag === 'old' ? '<span class="badge old">기존</span>' : tag === 'rec' ? '<span class="badge rec">추천</span>' : '') + '</button>').join('');
+  optPop.innerHTML = '<b>' + o.title + '</b>' + o.items.map(([v, nm, , tag]) => '<button class="' + (s[o.key] === v ? 'on' : '') + '" data-v="' + v + '">' + esc(nm) + (/old/.test(tag) ? '<span class="badge old">기존</span>' : '') + (/rec/.test(tag) ? '<span class="badge rec">추천</span>' : '') + '</button>').join('');
   optPop.dataset.o = i; optPop.classList.add('on');
   const w = optPop.offsetWidth, h = optPop.offsetHeight;
   optPop.style.left = Math.max(8, Math.min(innerWidth - w - 8, x - 12)) + 'px';
@@ -1168,7 +1207,7 @@ function showOpt(el, x, y) {
   document.addEventListener('mousemove', e => {
     if (!e.shiftKey || optPop.contains(e.target)) return;
     if (!shiftOn) setShift(true);
-    const el = e.target.closest('.win [data-opts]');
+    const el = e.target.closest('.pieces [data-opts]');
     if (el && el !== optAt) showOpt(el, e.clientX, e.clientY);
   });
   document.addEventListener('pointerdown', e => { if (optAt && !optPop.contains(e.target)) hideOpt(); }, true);
@@ -1177,14 +1216,14 @@ function showOpt(el, x, y) {
     e.stopPropagation();
     const i = +optPop.dataset.o, x = parseFloat(optPop.style.left) + 12, y = parseFloat(optPop.style.top) + 12;
     choose(OPTS[i], b.dataset.v);
-    const el = document.querySelector('.win [data-opts="' + i + '"]');
+    const el = document.querySelector('.pieces [data-opts="' + i + '"]');
     if (el) showOpt(el, x, y); else hideOpt();
   });
 })();
 document.addEventListener('input', e => { if (e.target.matches('.n-cm')) { comments[e.target.dataset.cm] = e.target.value; grow(e.target); } });
 document.addEventListener('click', e => {
   const sim = e.target.closest('[data-sim]');
-  if (sim) { simulate(sim.dataset.sim); return; }
+  if (sim) { if (sim.dataset.sim === 'lock') { lockNow(); render(); } else simulate(); return; }
   if (e.target.closest('.n-cm')) return;
   const row = e.target.closest('.n-row');
   if (!row) return;
@@ -1194,7 +1233,7 @@ document.addEventListener('click', e => {
   if (f) { f.focus({ preventScroll: true }); f.setSelectionRange(f.value.length, f.value.length); }
 });
 function resultText() {
-  return 'PC 2.6.2 시안 선택\n' + OPTS.map((o, i) => { const it = o.items.find(([v]) => v === s[o.key]); const c = (comments[i + ':' + it[0]] || '').trim(); return `${i + 1}. ${o.title}: ${it[1]}${c ? ` (의견: ${c})` : ''}`; }).join('\n');
+  return 'PC 2.6.2 시안 선택 (2차)\n' + OPTS.map((o, i) => { const it = o.items.find(([v]) => v === s[o.key]); const c = (comments[i + ':' + it[0]] || '').trim(); return `${i + 1}. ${o.title}: ${it[1]}${c ? ` (의견: ${c})` : ''}`; }).join('\n');
 }
 document.addEventListener('click', e => {
   const copy = e.target.closest('[data-ncopy]');
