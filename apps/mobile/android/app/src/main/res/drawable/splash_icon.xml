@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Android 12+ splash icon (#112): the icon area is 288dp, so 80dp on each side leaves
-     the logo at 128dp like the window background. -->
+<!-- Android 12+ splash icon (#112): the icon area is 288dp, so a 27.8% inset on each side
+     leaves the logo at 128dp like the window background. A dp inset is not used: the
+     system scales the drawable, and 80dp left only a dot on an API 36 emulator. -->
 <inset xmlns:android="http://schemas.android.com/apk/res/android"
     android:drawable="@drawable/splash_logo"
-    android:inset="80dp" />
+    android:inset="27.8%" />
