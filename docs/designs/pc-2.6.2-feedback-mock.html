@@ -676,6 +676,20 @@
   .lk-quiet:hover { background: #1c2028; color: #c7d0dd; }
   .lk-quiet.on { color: #a9c3ff; } .lk-quiet.on svg { color: var(--accent); }
   .lock-screen.look-small .lock-screen__switch, .lock-screen.look-quiet .lock-screen__switch, .lock-screen.look-switch .lock-screen__switch { margin-top: 6px; }
+  /* Round 4: the lock checkbox, calmer looks. .lock-win .lock-screen beats the .lock-win button reset. */
+  .lock-win .lock-screen .lk-ck { display: inline-flex; align-items: center; gap: 7px; margin: 12px 0 0; padding: 3px 6px; border-radius: 6px; color: #8792a4; font-size: 12px; line-height: 1.4; transition: color .12s; }
+  .lock-win .lock-screen .lk-ck .bx { width: 14px; height: 14px; box-sizing: border-box; display: grid; place-items: center; flex: none; border: 1.5px solid #5a6475; border-radius: 4px; color: #fff; transition: border-color .12s, background .12s; }
+  .lock-win .lock-screen .lk-ck:hover, .lock-win .lock-screen .lk-ck.on { color: #c7d0dd; }
+  .lock-win .lock-screen .lk-ck:hover .bx { border-color: #8792a4; }
+  .lock-win .lock-screen .lk-ck.on .bx { background: var(--accent); border-color: var(--accent); }
+  .lock-win .lock-screen .lk-ck.ck-b { margin-top: 15px; color: #a0aaba; font-size: 12.5px; }
+  .lock-win .lock-screen .lk-ck.ck-b:hover, .lock-win .lock-screen .lk-ck.ck-b.on { color: #edf1f7; }
+  .lock-win .lock-screen .lk-ck.ck-c { margin-top: 16px; font-size: 13px; }
+  .lock-win .lock-screen.look-a .lock-screen__switch, .lock-win .lock-screen.look-b .lock-screen__switch { margin-top: 6px; }
+  .lock-win .lock-screen.look-c .lock-screen__switch { margin-top: 12px; }
+  .rp-none { padding: 12px var(--in); color: var(--faint); font-size: 12.5px; }
+  /* 비밀번호로 열기 at its real size (LockScreen.scss 12.5px); the .lock-win button reset made it 14px before. */
+  .lock-win .lock-screen.look-a .lock-screen__switch, .lock-win .lock-screen.look-b .lock-screen__switch, .lock-win .lock-screen.look-c .lock-screen__switch { font-size: 12.5px; line-height: 1.4; }
 </style>
 </head>
 <body>
@@ -801,6 +815,7 @@ const TASKS0 = [
   { id: 'c1', t: '저녁 약속 · 민지', cat: 'home', start: at(2026, 11, 18, 19, 0), end: at(2026, 11, 18, 21, 0) },
   { id: 'c2', t: '팀 워크숍', cat: 'work', start: day0(2026, 11, 19), end: at(2026, 11, 20) },
   { id: 'c3', t: '도서관 책 반납', cat: 'study', end: at(2026, 11, 20, 18, 0) },
+  { id: 'c4', t: '부모님 댁 방문', cat: 'home', start: at(2026, 11, 18, 10, 0), end: at(2026, 11, 20, 18, 0) },
   { id: 'd1', t: '건강검진', cat: 'home', start: at(2026, 12, 3, 9, 0), end: at(2026, 12, 3, 11, 0) },
   { id: 'd2', t: '사내 세미나', cat: 'work', start: day0(2026, 12, 5), end: at(2026, 12, 7) },
   { id: 'e1', t: '연말 정산 상담', cat: 'work', start: at(2027, 12, 20, 10, 30), end: at(2027, 12, 20, 12, 30) },
@@ -816,9 +831,10 @@ const TASKS0 = [
 // Confirmed: one-day periods say their day like a due row; numeric dates follow 시간 표시 (점 · 두 자리 ·
 // 0 채움 by default, this year without the year); view options with radio and check marks; the bin
 // in the panel head; the lock skip is a toggle that always skips, kept off after a manual lock.
-// Open: the look of the lock screen's checkbox (ckLook) and the picker fields' date (field).
+// The picker fields write their dates with the date setting (round 3). Open: the look of the lock
+// screen's checkbox (ckLook) and the times in the selected day's list (dayTm, lastTm).
 const s = {
-  ckLook: 'small', field: 'num',
+  ckLook: 'small', field: 'num', dayTm: 'old', lastTm: 'old', calDay: TODAY,
   fmt: { sep: '.', digits: 2, pad: true }, // the user's setting (설정 > 일반 > 시간 표시)
   prefs: { group: 'date', noneTop: false, sort: 'due', density: 'normal', showRemain: true, hideDone: false, dueFormat: 'group', remainFormat: 'normal' },
   tasks: TASKS0.map(x => ({ start: null, ...x })), sel: null, vmOpen: false, picker: null, undo: null,
@@ -926,15 +942,41 @@ function miniMonth({ y, m, picked, range, act, nav, marks, minWeeks = 0 }) {
   return `<div class="tp-mm"><div class="tp-mm-h"><span>${y}년 ${m + 1}월</span><span class="tp-mm-nav"><button class="tp-mm-arrow" ${nav}="-1">${I.prev}</button><button class="tp-mm-arrow" ${nav}="1">${I.next}</button></span></div>
     <div class="tp-mm-g">${[...WD].map((w, i) => `<span class="tp-mm-w ${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}">${w}</span>`).join('')}${cells}</div></div>`;
 }
+// Compact one-day range: "7~9시" inside one half of the day, else both clocks.
+function compactRange(a, b) {
+  const x = new Date(a), y = new Date(b), half = d => d.getHours() < 12;
+  if (half(x) !== half(y)) return `${clockS(a)}~${clockS(b)}`;
+  const c = d => `${d.getHours() % 12 || 12}${d.getMinutes() ? ':' + pad(d.getMinutes()) : ''}`;
+  return `${c(x)}~${c(y)}${y.getMinutes() ? '' : '시'}`;
+}
+// The time of a day's item (CalendarTab.js ~86-87 prints the due whenever the item ends that day).
+// kind: 'span' a period ending later ("~11.20", follows the date setting), 'd1' a period inside the
+// day (open item dayTm), 'dl' a period's last day (open item lastTm).
+function dayTm(t, day) {
+  if (ds(t.end) !== day) return { txt: `~${mdS(t.end)}`, kind: 'span' };
+  const endTxt = hasT(t.end) ? clockS(t.end) : '하루 끝';
+  if (!isPeriod(t)) return { txt: endTxt, kind: '' };
+  if (multiDay(t)) return { txt: s.lastTm === 'tilde' ? `~${endTxt}` : s.lastTm === 'until' ? `${endTxt}까지` : endTxt, kind: 'dl', changed: s.lastTm !== 'old' };
+  const v = s.dayTm;
+  const txt = v === 'range' ? (hasT(t.end) ? clockRange(t.start, t.end) : `${clockS(t.start)} ~ 하루 끝`)
+    : v === 'start' ? `${clockS(t.start)}~`
+    : v === 'compact' ? (hasT(t.end) ? compactRange(t.start, t.end) : `${clockS(t.start)}~`)
+    : endTxt;
+  return { txt, kind: 'd1', changed: v !== 'old' };
+}
 function calendarTab() {
-  const marks = new Set(s.tasks.filter(t => !t.done && t.end != null).map(t => ds(t.end)));
-  const list = s.tasks.filter(t => t.end != null && (ds(t.end) === TODAY || (multiDay(t) && ds(t.start) <= TODAY && TODAY <= ds(t.end))))
-    .sort((a, b) => (ds(a.end) === TODAY ? a.end : a.start) - (ds(b.end) === TODAY ? b.end : b.start));
-  // CalendarTab.js: the time of a day's item; a period over other days shows where it ends ("~11/12").
-  const tm = t => ds(t.end) !== TODAY ? `~${mdS(t.end)}` : isPeriod(t) && !multiDay(t) ? clockS(t.start) : hasT(t.end) ? clockS(t.end) : '하루 끝';
-  return `<div class="rp-box">${miniMonth({ y: 2026, m: 10, picked: [TODAY], act: 'data-noop', nav: 'data-noop', marks })}</div>
-    <div class="rp-block-h">11월 16일 (월) · 오늘<span>${list.filter(t => !t.done).length}개 남음</span></div>
-    <div class="rp-box rp-agenda">${list.map(t => { const span = ds(t.end) !== TODAY, oyr = span && otherYear(t.end); return `<div class="rp-ai" data-act="sel" data-tid="${t.id}"><span class="rp-tm ${span ? 'span' : ''} ${oyr ? 'oyr' : ''} ${span ? 'is-new' : ''}">${tm(t)}</span><span class="rp-dot" style="background:${CATS[t.cat].color}"></span><span class="rp-nm">${esc(t.t)}</span></div>`; }).join('')}</div>`;
+  const day = s.calDay, d = new Date(day);
+  // Dots under every day of an open task (dayMarks).
+  const marks = new Set();
+  s.tasks.forEach(t => { if (t.done || t.end == null) return; for (let k = ds(t.start ?? t.end); k <= ds(t.end); k = addDays(k, 1)) marks.add(k); });
+  // dayTasks: due that day or a period covering it; open first, then by the due (ends that day) or the start.
+  const covers = t => t.end != null && !(s.prefs.hideDone && t.done) && (ds(t.end) === day || (isPeriod(t) && ds(t.start) <= day && day <= ds(t.end)));
+  const key = t => ds(t.end) === day ? t.end : t.start;
+  const list = s.tasks.filter(covers).sort((a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0) || key(a) - key(b));
+  return `<div class="rp-box">${miniMonth({ y: 2026, m: 10, picked: [day], act: 'data-act="calday" data-day', nav: 'data-noop', marks })}</div>
+    <div class="rp-block-h">${d.getMonth() + 1}월 ${d.getDate()}일 (${WD[d.getDay()]})${day === TODAY ? ' · 오늘' : ''}<span>${list.filter(t => !t.done).length}개 남음</span></div>
+    <div class="rp-box rp-agenda">${list.length ? list.map(t => { const m = dayTm(t, day), oyr = m.kind === 'span' && otherYear(t.end);
+      return `<div class="rp-ai ${t.done ? 'done' : ''}" data-act="sel" data-tid="${t.id}"><span class="rp-tm ${m.kind} ${oyr ? 'oyr' : ''} ${m.kind === 'span' || m.changed ? 'is-new' : ''}">${m.txt}</span><span class="rp-dot" style="background:${CATS[t.cat].color}"></span><span class="rp-nm">${esc(t.t)}</span></div>`; }).join('') : '<div class="rp-none">이날은 할 일이 없어요</div>'}</div>`;
 }
 const endDetail = ms => hasT(ms) ? `${ymd(ms)} ${clockL(ms)}` : `${ymd(ms)} · 하루 끝`;
 const startDetail = ms => hasST(ms) ? `${ymd(ms)} ${clockL(ms)}` : `${ymd(ms)} · 하루 시작`;
@@ -961,11 +1003,10 @@ function panel() {
 // ---------- The due / period picker, dates only (DatePicker.js fields and summary) ----------
 // dayLabel "M월 D일 (요일)" in the fields and fieldDay "M/D (요일)" in the summary get the year too.
 const wdOf = ms => WD[new Date(ms).getDay()];
-// A field's date (open item): the numeric setting (a period with another year shows it on both),
-// or the long Korean form with or without the weekday.
+// A field's date: the numeric date setting (confirmed), separator, year digits and zero padding
+// included; a period with another year shows the year on both.
 function fieldDay(ms, p) {
-  if (s.field === 'num') return `${numDate(ms, p.start != null ? rangeYear(p.start, p.end) : otherYear(ms))} (${wdOf(ms)})`;
-  return s.field === 'long' ? mdL(ms) : `${mdL(ms)} (${wdOf(ms)})`;
+  return `${numDate(ms, p.start != null ? rangeYear(p.start, p.end) : otherYear(ms))} (${wdOf(ms)})`;
 }
 function openPicker(target, active) {
   const src = target === 'qa' ? s.qa : task(target);
@@ -1025,19 +1066,20 @@ function deleteTask(id) {
 }
 function undoDelete() { const u = s.undo; if (!u) return; clearTimeout(undoTimer); s.tasks.splice(u.i, 0, u.t); s.sel = u.t.id; s.undo = null; }
 // The lock window at its real size (vaultWindow.js SIZES.lock 380 × 500; LockScreen.js). Under the
-// unlock button "이 PC에서 다시 묻지 않기" (confirmed wording); unlocking with it on turns the setting
-// on. Open: its look (ckLook).
+// unlock button "이 PC에서 다시 묻지 않기" (confirmed wording, a small checkbox); unlocking with it on
+// turns the setting on. Open: its size, colour and place (ckLook). 'small' is round 3's look as it
+// rendered (.lock-win button reset its size, colour and margin: 14px, #edf1f7, no gap).
+const tick9 = sv('<path d="M20 6 9 17l-5-5"/>', 9, 3.4);
 function lockCheck() {
   const on = s.lockCk, l = '이 PC에서 다시 묻지 않기';
-  if (s.ckLook === 'old') return `<button class="lock-ck is-new ${on ? 'on' : ''}" data-act="lockck"><span class="pk-cbx ${on ? 'on' : ''}">${on ? I.tick(10) : ''}</span>${l}</button>`;
   if (s.ckLook === 'small') return `<button class="lk-small is-new ${on ? 'on' : ''}" data-act="lockck" role="checkbox" aria-checked="${on}"><span class="bx">${on ? I.tick(9) : ''}</span>${l}</button>`;
-  if (s.ckLook === 'switch') return `<button class="lk-switch is-new ${on ? 'on' : ''}" data-act="lockck" role="switch" aria-checked="${on}"><span>${l}</span><i class="sw2"><b></b></i></button>`;
-  return `<button class="lk-quiet is-new ${on ? 'on' : ''}" data-act="lockck" role="checkbox" aria-checked="${on}">${on ? I.tick(12) : ''}<span>${l}</span></button>`;
+  return `<button class="lk-ck ck-${s.ckLook} is-new ${on ? 'on' : ''}" data-act="lockck" role="checkbox" aria-checked="${on}"><span class="bx">${on ? tick9 : ''}</span>${l}</button>`;
 }
 function gateHtml() {
+  const low = s.ckLook === 'c';
   return `<div class="lock-stage"><div class="lock-win"><div class="lock-bar"><img src="${ICON}" alt=""><span class="wc"><span>${I.min}</span><span>${I.x10}</span></span></div>
     <div class="lock-card"><section class="lock-screen look-${s.ckLook}"><div class="lock-screen__icon">${I.lock(24)}</div><h1>Thread가 잠겼어요</h1><p>다시 열려면 본인 확인이 필요해요.</p>
-      <button class="lock-screen__primary" data-act="hello">Windows Hello로 열기</button>${lockCheck()}<button class="lock-screen__switch">비밀번호로 열기</button></section></div></div>
+      <button class="lock-screen__primary" data-act="hello">Windows Hello로 열기</button>${low ? '' : lockCheck()}<button class="lock-screen__switch">비밀번호로 열기</button>${low ? lockCheck() : ''}</section></div></div>
     ${s.hello ? `<div class="hello"><b>Windows 보안</b><p>본인인지 확인하는 중이에요</p><div class="face">☺</div><p style="text-align:center;margin:0">Thread를 열려면 얼굴 · 지문 · PIN으로 확인해 주세요.</p><div class="f"><button class="pri" data-act="unlock">확인</button><button data-act="helloX">취소</button></div></div>` : ''}</div>`;
 }
 // 앱 잠금 (지금 잠그기): the lock screen now, and the next start stays locked (confirmed).
@@ -1166,15 +1208,20 @@ const mainWin = () => (s.gate ? gateHtml() : `<div class="win" style="width:1280
 const closePops = () => { s.vmOpen = false; s.more = false; s.picker = null; s.settings = false; s.gate = null; s.hello = false; s.cap = ''; };
 const toList = () => { closePops(); s.sel = null; };
 const OPTS = [
-  { at: '.lock-win', key: 'ckLook', title: '잠금 화면 "이 PC에서 다시 묻지 않기"의 모양', show: () => { closePops(); s.sel = null; s.gate = true; s.lockCk = false; s.cap = '잠금 화면'; }, sim: true,
-    items: [['old', '2차 시안 모양', '16px 체크 상자 + 보통 글자, 버튼 바로 아래', 'old'],
-      ['small', '작고 연한 체크', '14px 얇은 체크 상자, 연한 작은 글자, 가운데. 체크할 수 있는 항목으로 바로 읽히면서 버튼보다 눈에 덜 띔', 'rec'],
-      ['switch', '작은 스위치 줄', '글자 옆에 작은 스위치', ''],
-      ['quiet', '글자만, 켜면 ✓', '평소엔 연한 글자만. 누르면 앞에 ✓가 붙고 밝아짐. 꺼져 있을 때 누를 수 있는지 잘 안 보임', '']] },
-  { at: '[data-picker] .dp-fd', key: 'field', title: '날짜 고르기 창 시작 · 끝 칸의 날짜', show: () => { closePops(); s.sel = 'e2'; openPicker('e2', 'end'); },
-    items: [['old', '긴 한글 + 요일', '"2027년 12월 30일 (목)". 칸이 좁아 끝이 잘림', 'old'],
-      ['num', '숫자 날짜 설정 따름', '"27.12.30 (목)", 올해는 "11.19 (목)". 목록과 같은 모양', 'rec'],
-      ['long', '긴 한글, 요일 없이', '"2027년 12월 30일"']] },
+  { at: '.lock-win .lk-small, .lock-win .lk-ck', key: 'ckLook', title: '잠금 화면 "이 PC에서 다시 묻지 않기"의 모양', show: () => { closePops(); s.sel = null; s.gate = true; s.lockCk = false; s.cap = '잠금 화면'; }, sim: true,
+    items: [['small', '3차 시안 모양', '버튼에 바로 붙고 14px 흰 글자로 보였음 (시안 스타일이 덮여 의도보다 크고 밝게 나옴)', 'old'],
+      ['a', '작게 · 연하게 · 버튼과 띄움', '12px 연한 회색, 14px 체크 상자. 버튼 아래 16px 띄움. 올리거나 켜면 밝아짐. 셋 중 가장 조용하고, 여는 버튼 바로 밑이라 "열 때 같이 적용"으로 읽힘', 'rec'],
+      ['b', '비밀번호로 열기와 같은 글자', '12.5px 보조 글자색 (비밀번호로 열기와 같음). 버튼 아래 20px 띄움. 같은 무게의 줄이 둘 생김', ''],
+      ['c', '맨 아래로 내림', '13px 연한 회색, 비밀번호로 열기 아래 21px 떨어짐. 여는 버튼과 멀어져 무엇에 붙은 설정인지 덜 보임', '']] },
+  { at: '.rp-agenda .rp-tm.d1', key: 'dayTm', title: '선택한 날 목록의 기간 시각 (하루 안의 기간)', show: () => { closePops(); s.sel = null; s.calDay = day0(2026, 11, 18); s.cap = '캘린더 탭 · 11월 18일 (저녁 약속 오후 7시 ~ 9시)'; },
+    items: [['old', '끝 시각만', '"오후 9시". 2.6.1 지금 모습. 7시 시작이 안 보이고 9시 기한인 할 일과 구분 안 됨', 'old'],
+      ['range', '시작 ~ 끝', '"오후 7시 ~ 9시". 목록 오른쪽 칸과 같은 모양. 시각 칸이 64px → 74px로 넓어지고 이름 칸이 그만큼 줄어듦', 'rec'],
+      ['start', '시작 시각 + ~', '"오후 7시~". 칸은 64px 그대로, 끝 시각은 안 보임', ''],
+      ['compact', '짧게', '"7~9시". 칸은 64px 그대로, 오전 · 오후가 안 보임 (걸치면 "오전 11시~오후 1시")', '']] },
+  { at: '.rp-agenda .rp-tm.dl', key: 'lastTm', title: '선택한 날 목록의 기간 시각 (여러 날 기간의 마지막 날)', show: () => { closePops(); s.sel = null; s.calDay = day0(2026, 11, 20); s.cap = '캘린더 탭 · 11월 20일 (부모님 댁 방문 11.18 ~ 11.20 오후 6시가 끝나는 날)'; },
+    items: [['old', '끝 시각만', '"오후 6시". 2.6.1 지금 모습. 같은 날 오후 6시 기한인 할 일과 똑같아 보임', 'old'],
+      ['tilde', '앞에 ~', '"~오후 6시", 하루 끝이면 "~하루 끝". 첫날 · 중간 날의 "~11.20"과 짝이 맞음. 칸은 64px 그대로', 'rec'],
+      ['until', '뒤에 까지', '"오후 6시까지", 하루 끝이면 "하루 끝까지". 칸은 65px로 1px 넓어짐', '']] },
 ];
 const comments = {};
 function notes() {
@@ -1242,6 +1289,7 @@ document.addEventListener('click', e => {
   else if (k === 'fmt') { const key = a.dataset.k, v = a.dataset.v; s.fmt[key] = key === 'digits' ? +v : key === 'pad' ? !s.fmt.pad : v; }
   else if (k === 'pref') { const key = a.dataset.k; s.prefs[key] = key === 'showRemain' ? !s.prefs.showRemain : a.dataset.v; }
   else if (k === 'lockck') s.lockCk = !s.lockCk;
+  else if (k === 'calday') { s.calDay = +a.dataset.day; s.cap = ''; }
   else if (k === 'setX') s.settings = false;
   else if (k === 'skip') s.skipOn = !s.skipOn;
   else if (k === 'lockNow') { lockNow(); }
@@ -1337,7 +1385,7 @@ document.addEventListener('click', e => {
   if (f) { f.focus({ preventScroll: true }); f.setSelectionRange(f.value.length, f.value.length); }
 });
 function resultText() {
-  return 'PC 2.6.2 시안 선택 (3차)\n' + OPTS.map((o, i) => { const it = o.items.find(([v]) => v === s[o.key]); const c = (comments[i + ':' + it[0]] || '').trim(); return `${i + 1}. ${o.title}: ${it[1]}${c ? ` (의견: ${c})` : ''}`; }).join('\n');
+  return 'PC 2.6.2 시안 선택 (4차)\n' + OPTS.map((o, i) => { const it = o.items.find(([v]) => v === s[o.key]); const c = (comments[i + ':' + it[0]] || '').trim(); return `${i + 1}. ${o.title}: ${it[1]}${c ? ` (의견: ${c})` : ''}`; }).join('\n');
 }
 document.addEventListener('click', e => {
   const copy = e.target.closest('[data-ncopy]');
