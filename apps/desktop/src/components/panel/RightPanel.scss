@@ -456,9 +456,11 @@ $picked: #3d6fe6;
       &:hover { background: var(--raise); }
       &:focus-visible { box-shadow: inset 0 0 0 2px #6294ff80; }
     }
-    .rp-tm { width: 64px; flex: none; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    // The time at the row's right end, small and as wide as it needs (#111); blue only while a
+    // period is on now.
+    .rp-tm { flex: none; margin-left: auto; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
     .rp-tm.over { color: var(--danger); }
-    .rp-tm.span { color: #8fb0f0; }
+    .rp-tm.run { color: #8fb0f0; }
     .rp-nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .rp-ai.done .rp-nm { color: var(--muted); text-decoration: line-through; }
     .rp-ai.done .rp-tm { color: var(--faint); }

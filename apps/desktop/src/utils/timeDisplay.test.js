@@ -96,7 +96,8 @@ describe("due dates", () => {
     expect(formatDue(at(6, 19), now, "group", "24")).toBe("화 19:00");
     expect(formatDue(at(7, 19), now, "group")).toBe("10월 14일");
     expect(formatDue(at(-2, 19), now, "group")).toBe("10월 5일");
-    expect(formatDue(new Date(2027, 0, 3, 12).valueOf(), now, "group")).toBe("1월 3일");
+    // Another year has its year (#111).
+    expect(formatDue(new Date(2027, 0, 3, 12).valueOf(), now, "group")).toBe("2027년 1월 3일");
   });
 
   test("simple counts calendar days", () => {
@@ -132,7 +133,9 @@ test("task time follows the prefs and falls back to defaults", () => {
   expect(formatTaskTime(due, now, { showRemain: false })).toBe("오후 5:58");
   expect(formatTaskTime(due, now, { showRemain: false, dueFormat: "auto" })).toBe("오늘 오후 5시 58분");
   expect(formatTaskTime(due, now, { showRemain: false, dueFormat: "exact", timeFormat: "24" })).toBe("26.10.07 17:58");
-  expect(timeDisplayOptions({ timeDisplay: "x", remainFormat: 3, dueFormat: null })).toEqual({ showRemain: true, timeDisplay: "remain", remainFormat: "normal", dueFormat: "group", timeFormat: "12" });
+  expect(timeDisplayOptions({ timeDisplay: "x", remainFormat: 3, dueFormat: null })).toEqual({
+    showRemain: true, timeDisplay: "remain", remainFormat: "normal", dueFormat: "group", timeFormat: "12", dateSep: ".", yearDigits: 2, datePad: true,
+  });
   // Prefs from before #102 that never went through the migration.
   expect(timeDisplayOptions({ timeDisplay: "due" })).toMatchObject({ showRemain: false, timeDisplay: "due" });
   expect(timeDisplayOptions({ timeDisplay: "due", showRemain: true })).toMatchObject({ showRemain: true, timeDisplay: "remain" });

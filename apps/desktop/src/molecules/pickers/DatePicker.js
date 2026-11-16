@@ -1,8 +1,9 @@
 import { useId, useRef, useState } from "react";
+import { isOtherYear, numericDate, rangeHasYear } from "utils/dateFormat";
 import { dayLabel, quickDays } from "utils/dateGroups";
 import { hasStartTime } from "utils/taskPeriod";
 import { dueMs, formatClock, formatMinuteOfDay, hasDueTime } from "utils/timeDisplay";
-import { useTimeFormat, useWeekStart } from "utils/timeFormat";
+import { useDateFormat, useTimeFormat, useWeekStart } from "utils/timeFormat";
 import { CloseIcon, TickIcon } from "./icons";
 import MiniMonth from "./MiniMonth";
 import parseDue, { parsePeriod } from "./parseDue";
@@ -122,7 +123,7 @@ export default function DatePicker({
   value = null, start: startValue = null, focus = "end", initialDay, now, timeFormat, weekStart, onChange, onCancel,
   anchor, placement = "bottom-start", offset, gap, returnFocus, ignoreOutside,
 }) {
-  const prefTf = useTimeFormat(), prefWs = useWeekStart();
+  const prefTf = useTimeFormat(), prefWs = useWeekStart(), df = useDateFormat();
   const tf = timeFormat === "24" || timeFormat === "12" ? timeFormat : prefTf;
   const ws = weekStart === 0 || weekStart === 1 ? weekStart : prefWs;
   const [today] = useState(() => (now ?? Date.now()));
@@ -264,13 +265,18 @@ export default function DatePicker({
 
   const clockOf = (mins) => formatClock(new Date(2000, 0, 1, Math.floor(mins / 60), mins % 60), tf);
   const shortOf = (mins) => formatMinuteOfDay(mins, tf, true);
-  const fieldDay = (f) => `${f.day.getMonth() + 1}/${f.day.getDate()} (${WEEKDAYS[f.day.getDay()]})${f.on ? ` ${shortOf(f.minutes)}` : ""}`;
+  // The fields' dates (#111): numeric as the date setting says, the year on both when either side
+  // is not this year (only the end's year without a start).
+  const withYear = period ? rangeHasYear(start.day, end.day, today) : isOtherYear(end.day, today);
+  const fieldDate = (day) => `${numericDate(day, withYear, df)} (${WEEKDAYS[day.getDay()]})`;
+  const fieldDay = (f) => `${fieldDate(f.day)}${f.on ? ` ${shortOf(f.minutes)}` : ""}`;
+  // A period's summary may wrap between its two sides (a four-digit year), never inside one.
   const summary = period
-    ? `${fieldDay(start)} ~ ${sameDay(start.day, end.day) ? (end.on ? shortOf(end.minutes) : "하루 끝") : fieldDay(end)}`
-    : `${dayLabel(end.day)}${end.on ? ` ${clockOf(end.minutes)}` : " · 하루 끝까지"}`;
+    ? <><span className="nw">{fieldDay(start)}</span> ~ <span className="nw">{sameDay(start.day, end.day) ? (end.on ? shortOf(end.minutes) : "하루 끝") : fieldDay(end)}</span></>
+    : `${dayLabel(end.day, today)}${end.on ? ` ${clockOf(end.minutes)}` : " · 하루 끝까지"}`;
   // 오늘 · 내일 only: the text field takes the place of the other quick days (#106.7).
   const quick = quickDays(today, ws).filter((q) => q.id === "today" || q.id === "tomorrow");
-  const dayText = (d, mins, short) => `${dayLabel(d)}${mins !== null ? ` ${short ? shortOf(mins) : clockOf(mins)}` : ""}`;
+  const dayText = (d, mins, short) => `${dayLabel(d, today)}${mins !== null ? ` ${short ? shortOf(mins) : clockOf(mins)}` : ""}`;
   const fieldText = (f) => dayText(f.day, f.on ? f.minutes : null, true);
   const line = parsed === false && showBad
     ? <span>알아듣지 못했어요 · 예: 내일 3시, 11/20, 11/20~11/23</span>
@@ -298,8 +304,8 @@ export default function DatePicker({
     }
     const time = f.on ? clockOf(f.minutes) : k === "start" ? "하루 시작" : "하루 끝";
     return (
-      <div role="button" tabIndex={0} className={"dp-fd" + (isOn ? " on" : "")} aria-pressed={isOn} aria-label={`${name} ${dayLabel(f.day)} ${time}`} onClick={() => choose(k)} onKeyDown={keys}>
-        <small>{name}</small><b>{dayLabel(f.day)}</b><span>{time}</span>
+      <div role="button" tabIndex={0} className={"dp-fd" + (isOn ? " on" : "")} aria-pressed={isOn} aria-label={`${name} ${dayLabel(f.day, today)} ${time}`} onClick={() => choose(k)} onKeyDown={keys}>
+        <small>{name}</small><b>{fieldDate(f.day)}</b><span>{time}</span>
         {k === "start" && (
           <button type="button" className="fx" aria-label="시작 빼기" data-tip="시작 빼기" onClick={(event) => { event.stopPropagation(); removeStart(); }}>
             <CloseIcon size={12} />

@@ -1,5 +1,6 @@
 // Calendar-week helpers and the list's date groups (#102). Pure functions; `weekStart` is the
 // 주 시작 요일 pref (0 = Sunday, 1 = Monday) and `now` is any time on the current day.
+import { longDate } from "./dateFormat";
 import { dayDifference } from "./timeDisplay";
 
 const WEEKDAYS = "일월화수목금토";
@@ -56,10 +57,10 @@ export function dateGroupOf(due, now, weekStart = 0) {
   return "later";
 }
 
-// "10월 24일 (토)", used for the quick-day tooltips.
-export function dayLabel(date) {
+// "10월 24일 (토)", used for the quick-day tooltips; the year in another year (#111).
+export function dayLabel(date, now = Date.now()) {
   const d = new Date(date);
-  return `${d.getMonth() + 1}월 ${d.getDate()}일 (${WEEKDAYS[d.getDay()]})`;
+  return `${longDate(d, now)} (${WEEKDAYS[d.getDay()]})`;
 }
 
 // The date picker's quick days. 이번 주 토요일 is left out when it is today or tomorrow, or
@@ -77,6 +78,6 @@ export function quickDays(now, weekStart = 0) {
   ];
   return days.map((day) => {
     const date = addDays(now, day.offset);
-    return { ...day, date, tip: dayLabel(date) };
+    return { ...day, date, tip: dayLabel(date, now) };
   });
 }

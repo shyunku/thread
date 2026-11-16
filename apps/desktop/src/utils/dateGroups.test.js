@@ -102,6 +102,8 @@ describe("date picker quick days", () => {
     expect(today).toMatchObject({ id: "today", offset: 0, tip: "10월 21일 (수)" });
     expect(new Date(today.date).getHours()).toBe(0);
     expect(saturday).toMatchObject({ id: "saturday", offset: 3, tip: "10월 24일 (토)" });
-    expect(dayLabel(day(25))).toBe("10월 25일 (일)");
+    expect(dayLabel(day(25), day(21))).toBe("10월 25일 (일)");
+    // Another year has its year (#111).
+    expect(dayLabel(new Date(2027, 0, 1), day(21))).toBe("2027년 1월 1일 (금)");
   });
 });

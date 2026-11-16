@@ -9,7 +9,7 @@ import { periodChipText } from "utils/periodDisplay";
 import { endOfDay, normalRepeat, repeatName } from "utils/repeatRule";
 import { periodOffset } from "utils/taskPeriod";
 import { dueMs, formatDueChip } from "utils/timeDisplay";
-import { useTimeFormat } from "utils/timeFormat";
+import { useDateFormat, useTimeFormat } from "utils/timeFormat";
 
 // What the chips start with, from the screen (#102): 오늘 and 다음 7일 → today; calendar /
 // timeline → the picked day (`day`); a category screen → that category (a secret one only while
@@ -86,7 +86,7 @@ const reconcile = (state, screenKey, defaults) => {
 // onAdd(task); onCreateCategory(name, color) → Promise<id> (the picker's 새 카테고리).
 // canStar false hides 중요 (the star would be dropped).
 export default function QuickAdd({ defaults, contextKey, categories = [], onAdd, onCreateCategory, timeFormat, canStar = true, store }) {
-  const prefTf = useTimeFormat();
+  const prefTf = useTimeFormat(), df = useDateFormat();
   const tf = timeFormat === "24" || timeFormat === "12" ? timeFormat : prefTf;
   const own = useState(null);
   const [stored, setStored] = store ?? own;
@@ -122,7 +122,7 @@ export default function QuickAdd({ defaults, contextKey, categories = [], onAdd,
   const due = dueMs(draft.due);
   const start = due === null ? null : dueMs(draft.start);
   const repeat = due === null ? null : normalRepeat(draft.repeat);
-  const dateText = due === null ? "" : start !== null ? periodChipText(start, due, tf) : formatDueChip(due, tf);
+  const dateText = due === null ? "" : start !== null ? periodChipText(start, due, tf, Date.now(), df) : formatDueChip(due, tf, Date.now());
 
   const add = () => {
     const text = title.trim();

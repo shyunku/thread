@@ -287,7 +287,7 @@ test("periods (#109): a block splitting one hour's tasks, and the band; no dupli
   expect(bodyText(column(container, 0))).toEqual(["지금 오후 2:30", "오후 3시", "15시 일", "오후 3:10 ~ 4시", "블록", "오후 3시", "15시 반"]);
   expect(column(container, 0).querySelector(".tv-task.blk")).toHaveTextContent("오후 3:10 ~ 4:00 · 50분");
   const seg = column(container, 0).querySelector(".tv-band .tv-seg");
-  expect(seg).toHaveTextContent("◂여행~10/23");
+  expect(seg).toHaveTextContent("◂여행~10.23");
   expect(seg).toHaveClass("cl", "br");
   expect(errors.mock.calls.filter((c) => String(c[0]).includes("same key"))).toEqual([]);
   errors.mockRestore();
@@ -345,11 +345,11 @@ describe("two rows (#110)", () => {
     const { container } = setup({ filteredTaskMap: { m: period("m", "학회", at(1, 0), at(4, 23, 59)) } });
     const segs = (i) => [...column(container, i).querySelectorAll(".tv-band .tv-seg")];
     expect(segs(0)).toHaveLength(0);
-    expect(segs(1)[0]).toHaveTextContent("학회~10/25");
+    expect(segs(1)[0]).toHaveTextContent("학회~10.25");
     expect(segs(1)[0]).not.toHaveClass("cl");
     expect(segs(2)[0]).toHaveClass("cl", "cr");
     expect(segs(2)[0]).not.toHaveClass("br");
-    expect(segs(3)[0]).toHaveTextContent("◂학회~10/25");
+    expect(segs(3)[0]).toHaveTextContent("◂학회~10.25");
     expect(segs(3)[0]).toHaveClass("cl", "br");
     expect(segs(4)[0]).not.toHaveClass("cr");
     expect(column(container, 5).querySelector(".tv-seg")).toBeNull();

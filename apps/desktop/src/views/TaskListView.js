@@ -49,8 +49,11 @@ export default function TaskListView({
   const { group, noneTop, sort, hideDone, weekStart, density } = prefs;
   const closed = prefs.groupClosed ?? { done: true };
   const timeOptions = useMemo(
-    () => ({ showRemain: prefs.showRemain, remainFormat: prefs.remainFormat, dueFormat: prefs.dueFormat, timeFormat: prefs.timeFormat }),
-    [prefs.showRemain, prefs.remainFormat, prefs.dueFormat, prefs.timeFormat]
+    () => ({
+      showRemain: prefs.showRemain, remainFormat: prefs.remainFormat, dueFormat: prefs.dueFormat, timeFormat: prefs.timeFormat,
+      dateSep: prefs.dateSep, yearDigits: prefs.yearDigits, datePad: prefs.datePad,
+    }),
+    [prefs.showRemain, prefs.remainFormat, prefs.dueFormat, prefs.timeFormat, prefs.dateSep, prefs.yearDigits, prefs.datePad]
   );
   const sections = useMemo(
     () => (search || locked ? [] : listSections(tasks, { now: Math.max(Date.now(), day), weekStart, group, noneTop, sort, hideDone })),

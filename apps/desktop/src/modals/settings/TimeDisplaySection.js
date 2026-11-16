@@ -1,6 +1,8 @@
 import { useId, useState } from "react";
 import { IoRepeat, IoStar, IoStarOutline } from "react-icons/io5";
 import useClock from "hooks/UseClock";
+import { dateExamples } from "utils/dateFormat";
+import { periodLeft, periodText } from "utils/periodDisplay";
 import { formatTaskTimes, timeDisplayExamples, timeDisplayOptions } from "utils/timeDisplay";
 import { Toggle } from "./SettingsUI";
 import "./TimeDisplaySection.scss";
@@ -18,6 +20,9 @@ const REMAIN_CHOICES = [
   { value: "detailed", label: "자세히" },
   { value: "all", label: "모두" },
 ];
+// Numeric dates (#111).
+const SEP_CHOICES = [{ value: ".", label: "점" }, { value: "/", label: "빗금" }];
+const DIGIT_CHOICES = [{ value: 2, label: "두 자리" }, { value: 4, label: "네 자리" }];
 
 const SECOND = 1000, MINUTE = 60 * SECOND, HOUR = 60 * MINUTE, DAY = 24 * HOUR;
 
@@ -30,15 +35,21 @@ function previewTasks(base) {
       category: { title: "업무", color: "#6294ff" }, important: true, subtasks: "2/3" },
     { id: "workout", title: "운동 30분", due: base + DAY + 4 * HOUR + 12 * MINUTE + 8 * SECOND,
       category: { title: "생활", color: "#44c98b" }, repeat: "매일" },
+    // A period over a new year shows the date setting (#111).
+    { id: "trip", title: "겨울 가족 여행", start: new Date(new Date(base).getFullYear() + 1, 11, 30).getTime(),
+      due: new Date(new Date(base).getFullYear() + 2, 0, 2, 23, 59, 59).getTime(), category: { title: "생활", color: "#44c98b" } },
   ];
 }
 
 // A list row reduced to what the setting changes: the right column, due on top and the
-// remaining time below.
+// remaining time below; a period as the list writes it.
 const PreviewRow = ({ task, options }) => {
+  const period = task.start ? { dueDate: task.due, startOffset: task.due - task.start } : null;
   // useClock needs primitive results, so each part is read on its own.
-  const due = useClock((now) => formatTaskTimes(task.due, now, options).due);
-  const remain = useClock((now) => formatTaskTimes(task.due, now, options).remain);
+  const due = useClock((now) => (period ? periodText(period, options.timeFormat, now, options) : formatTaskTimes(task.due, now, options).due));
+  const remain = useClock((now) => (period
+    ? (options.showRemain ? periodLeft(period, now, options.remainFormat)?.text ?? null : null)
+    : formatTaskTimes(task.due, now, options).remain));
   const overdue = useClock((now) => task.due < now);
   return (
     <div className="time-preview__row">
@@ -62,7 +73,7 @@ const PreviewRow = ({ task, options }) => {
   );
 };
 
-const ChoiceGroup = ({ label, choices, current, kind, today, timeFormat, onPick }) => {
+const ChoiceGroup = ({ label, choices, current, examples, onPick }) => {
   const id = useId();
   return (
     <div className="time-display__choices" role="radiogroup" aria-label={label}>
@@ -77,7 +88,7 @@ const ChoiceGroup = ({ label, choices, current, kind, today, timeFormat, onPick 
             {choice.tag && <em className="time-display__tag">{choice.tag}</em>}
           </span>
           <span className="time-display__examples" id={`${id}-${choice.value}`}>
-            {timeDisplayExamples(kind, choice.value, today, timeFormat)}
+            {examples(choice.value)}
           </span>
         </button>
       ))}
@@ -86,10 +97,11 @@ const ChoiceGroup = ({ label, choices, current, kind, today, timeFormat, onPick 
 };
 
 // 설정 > 일반 > 시간 표시 (#101, #102): how the task list's right column words the due and the
-// remaining time, and whether the remaining time shows (also in the list's view menu).
+// remaining time, and whether the remaining time shows (also in the list's view menu); the look of
+// numeric dates (#111: separator, year digits, zero padding).
 const TimeDisplaySection = ({ prefs, set }) => {
   const options = timeDisplayOptions(prefs);
-  const { showRemain, remainFormat, dueFormat, timeFormat } = options;
+  const { showRemain, remainFormat, dueFormat, timeFormat, dateSep, yearDigits, datePad } = options;
   const [preview] = useState(() => previewTasks(Date.now()));
   // Examples depend only on today's date.
   const today = useClock((now) => new Date(now).setHours(0, 0, 0, 0));
@@ -98,15 +110,15 @@ const TimeDisplaySection = ({ prefs, set }) => {
     <div className="time-display">
       <div className="settings-row__text">
         <div className="settings-row__label">시간 표시</div>
-        <div className="settings-row__desc">할 일 목록 오른쪽 칸 위에는 기한, 아래에는 남은 시간을 연하게 보여 줘요.</div>
+        <div className="settings-row__desc">할 일 목록 오른쪽 칸 위에는 기한, 아래에는 남은 시간을 연하게 보여 줘요. 숫자로 쓰는 날짜의 모양도 여기서 정해요.</div>
       </div>
       <div className="time-display__label">미리 보기</div>
       <div className="time-display__preview time-preview" aria-hidden="true">
         {preview.map((task) => <PreviewRow key={task.id} task={task} options={options} />)}
       </div>
       <div className="time-display__label">기한</div>
-      <ChoiceGroup label="기한 표시 방식" choices={DUE_CHOICES} current={dueFormat} kind="due"
-        today={today} timeFormat={timeFormat} onPick={(value) => set({ dueFormat: value })} />
+      <ChoiceGroup label="기한 표시 방식" choices={DUE_CHOICES} current={dueFormat}
+        examples={(value) => timeDisplayExamples("due", value, today, timeFormat, options)} onPick={(value) => set({ dueFormat: value })} />
       <div className="time-display__label time-display__label--switch">
         남은 시간
         <span className="time-display__switch">
@@ -114,8 +126,24 @@ const TimeDisplaySection = ({ prefs, set }) => {
           <span aria-hidden="true">보이기</span>
         </span>
       </div>
-      <ChoiceGroup label="남은 시간 표시 방식" choices={REMAIN_CHOICES} current={remainFormat} kind="remain"
-        today={today} timeFormat={timeFormat} onPick={(value) => set({ remainFormat: value })} />
+      <ChoiceGroup label="남은 시간 표시 방식" choices={REMAIN_CHOICES} current={remainFormat}
+        examples={(value) => timeDisplayExamples("remain", value, today)} onPick={(value) => set({ remainFormat: value })} />
+      <div className="time-display__label">날짜 구분 기호</div>
+      <ChoiceGroup label="날짜 구분 기호" choices={SEP_CHOICES} current={dateSep}
+        examples={(value) => dateExamples(options, today, { dateSep: value })} onPick={(value) => set({ dateSep: value })} />
+      <div className="time-display__label">
+        연도 자릿수<span className="time-display__note">올해가 아닌 날짜에만 붙어요</span>
+      </div>
+      <ChoiceGroup label="연도 자릿수" choices={DIGIT_CHOICES} current={yearDigits}
+        examples={(value) => dateExamples(options, today, { yearDigits: value })} onPick={(value) => set({ yearDigits: value })} />
+      <div className="time-display__label time-display__label--switch">
+        한 자리 수 앞에 0
+        <span className="time-display__switch">
+          <Toggle label="한 자리 수 앞에 0 채우기" checked={datePad} onChange={(value) => set({ datePad: value })} />
+          <span aria-hidden="true">채우기</span>
+        </span>
+      </div>
+      <div className="time-display__hint">{dateExamples(options, today)}</div>
     </div>
   );
 };

@@ -24,13 +24,14 @@ export function Highlighted({ text, query }) {
 // The right column (#102 mock rightCol): due on top in 설정 > 시간 표시's format, the remaining time
 // below (muted; left out when 남은 시간 보이기 is off or the task is done). Red when overdue.
 // Re-renders only when its text changes (shared clock).
-// A period (#109) shows "11/9 ~ 11/12" on top and "N 뒤 시작" / "N 뒤 종료" / "N 지남" below.
+// A period (#109) shows "11.09 ~ 11.12" (inside one day "내일 오후 7시 ~ 9시", #111) on top and "N 뒤 시작" /
+// "N 뒤 종료" / "N 지남" below.
 function TimeColumn({ due, done, options, task, start }) {
   const text = useClock((now) => {
     if (start !== null) {
       const o = timeDisplayOptions(options);
       const left = !done && o.showRemain ? periodLeft(task, now, o.remainFormat) : null;
-      return [periodText(task, o.timeFormat), left?.text ?? "", !done && due < now ? "1" : "", left?.tone ?? ""].join(SEP);
+      return [periodText(task, o.timeFormat, now, o), left?.text ?? "", !done && due < now ? "1" : "", left?.tone ?? ""].join(SEP);
     }
     const t = formatTaskTimes(due, now, options);
     return [t.due, done ? "" : t.remain ?? "", !done && t.overdue ? "1" : "", due - now < 0 ? "over" : ""].join(SEP);

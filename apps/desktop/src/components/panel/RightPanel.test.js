@@ -997,7 +997,7 @@ test("the picked day follows today past midnight until another day is picked", (
 test("a period: the row's text, 시작 · 끝 with bells, 진행, and the bell's popover (#109)", () => {
   tasks.first.startOffset = at(0, 18).getTime() - at(-1, 9).getTime();
   view();
-  expect(row("first").querySelector(".rcol .when")).toHaveTextContent("10/20 ~ 10/21");
+  expect(row("first").querySelector(".rcol .when")).toHaveTextContent("10.20 ~ 10.21");
   expect(row("first").querySelector(".rcol .left")).toHaveTextContent("3시간 30분 뒤 종료");
   select("first");
   expect(inPanel().getByRole("button", { name: "시작: 2026.10.20 오전 9:00" })).toBeInTheDocument();

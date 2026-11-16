@@ -1,6 +1,7 @@
 const { createSlice } = require("@reduxjs/toolkit");
 const { REHYDRATE } = require("redux-persist/lib/constants");
 const { DUE_FORMATS, REMAIN_FORMATS, TIME_DISPLAYS } = require("utils/timeDisplay");
+const { DATE_SEPS, YEAR_DIGITS } = require("utils/dateFormat");
 
 // Display preferences (persisted with the rest of the root store, this device only).
 export const START_VIEWS = ["list", "calendar", "timeline"];
@@ -21,6 +22,10 @@ const initialState = Object.freeze({
   remainFormat: "normal", // "simple" | "normal" | "detailed" | "all"
   dueFormat: "group", // "group" (묶음 맞춤) | "simple" | "auto" | "exact" | "full"
   showRemain: true, // 남은 시간 보이기 (settings and the list's view menu)
+  // Numeric dates (#111, 시간 표시): "28.03.01" by default; this year's dates leave the year out.
+  dateSep: ".", // "." (점) | "/" (빗금)
+  yearDigits: 2, // 2 | 4
+  datePad: true, // 한 자리 수 앞에 0
   // List view options (#102).
   group: "date",
   noneTop: false, // 기한 없음 group on top instead of at the bottom
@@ -40,6 +45,9 @@ function applyPatch(state, patch) {
   if (patch.timeFormat === "12" || patch.timeFormat === "24") state.timeFormat = patch.timeFormat;
   if (REMAIN_FORMATS.includes(patch.remainFormat)) state.remainFormat = patch.remainFormat;
   if (DUE_FORMATS.includes(patch.dueFormat)) state.dueFormat = patch.dueFormat;
+  if (DATE_SEPS.includes(patch.dateSep)) state.dateSep = patch.dateSep;
+  if (YEAR_DIGITS.includes(patch.yearDigits)) state.yearDigits = patch.yearDigits;
+  if (typeof patch.datePad === "boolean") state.datePad = patch.datePad;
   if (typeof patch.showRemain === "boolean") state.showRemain = patch.showRemain;
   // The pre-#102 choice still arrives from old dev preview links: 기한 = no remaining time.
   else if (TIME_DISPLAYS.includes(patch.timeDisplay)) state.showRemain = patch.timeDisplay !== "due";
@@ -106,7 +114,7 @@ export function prefsFromParams(params) {
   const patch = {};
   for (const [key, value] of params) {
     if (value === "true" || value === "false") patch[key] = value === "true";
-    else if (key === "weekStart" || key === "panelWidth") patch[key] = Number(value);
+    else if (key === "weekStart" || key === "panelWidth" || key === "yearDigits") patch[key] = Number(value);
     else if (key === "groupClosed") {
       try { patch[key] = JSON.parse(value); } catch { /* ignored like any other bad value */ }
     } else patch[key] = value;

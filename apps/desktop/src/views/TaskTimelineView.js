@@ -15,8 +15,9 @@ import Toast from "molecules/Toast";
 import { prefsSelector } from "store/prefsSlice";
 import { categoryColor } from "utils/categoryColors";
 import { isOverdue } from "utils/menuFilters";
-import { clockRange, monthDay, periodText } from "utils/periodDisplay";
-import { isMultiDayPeriod, taskStart } from "utils/taskPeriod";
+import { shortDate } from "utils/dateFormat";
+import { clockRange, periodClockText, periodText } from "utils/periodDisplay";
+import { isMultiDayPeriod, startMinute, taskStart } from "utils/taskPeriod";
 import { dueMs, formatClock, formatClockShort, formatSpan, hasDueTime } from "utils/timeDisplay";
 import { CategoryMark, JumpTitle, ViewHeader, ViewNav, WEEKDAYS, addDays, barStyle, dayStart, markCategory, periodLanes, taskCategories, tasksByDay, useElementSize, useWindowHeight } from "./viewParts";
 
@@ -53,9 +54,9 @@ export function hourGroups(tasks) {
   return groups;
 }
 
-// A block's time: "오후 2:00 ~ 5:00 · 3시간".
+// A block's time: "오후 2:00 ~ 5:00 · 3시간" (the length from the start's minute, #111).
 export function blockTimeText(task, timeFormat = "12") {
-  const start = taskStart(task), end = dueMs(task.dueDate);
+  const start = startMinute(taskStart(task)), end = dueMs(task.dueDate);
   const range = hasDueTime(end) ? clockRange(start, end, timeFormat, true) : `${formatClock(new Date(start), timeFormat)} ~ 하루 끝`;
   return `${range} · ${formatSpan(end - start)}`;
 }
@@ -351,7 +352,7 @@ const TaskTimelineView = ({ filteredTaskMap, categories, catsOf, header, renderQ
             let nowDrawn = !isToday;
             for (const group of groups) {
               if (!nowDrawn && group.hour > nowHour) { body.push(nowLine); nowDrawn = true; }
-              const label = group.block ? periodText(group.tasks[0], timeFormat) : hourLabel(group.hour, timeFormat);
+              const label = group.block ? periodClockText(group.tasks[0], timeFormat, now, prefs) : hourLabel(group.hour, timeFormat);
               body.push(
                 <div key={`${group.block ? "b" : "h"}${group.hour}-${group.tasks[0].id}`} className="tv-group">
                   <div className={"tv-hour" + (group.block ? " blkh" : "")}>{label}</div>
@@ -399,17 +400,17 @@ const TaskTimelineView = ({ filteredTaskMap, categories, catsOf, header, renderQ
                     {segs.map((g) => {
                       const contL = col > g.a || dayStart(g.start) < band.first, contR = col < g.b || dayStart(g.end) > rowLast;
                       const mark = markCategory(taskCategories(g.task, categories, catsOf));
-                      const range = `~${monthDay(g.end)}${hasDueTime(g.end) ? ` ${formatClockShort(new Date(g.end), timeFormat)}` : ""}`;
+                      const range = `~${shortDate(g.end, now, prefs)}${hasDueTime(g.end) ? ` ${formatClockShort(new Date(g.end), timeFormat)}` : ""}`;
                       return (
                         <div
                           key={g.task.id}
                           className={"tv-seg" + (contL ? " cl" : "") + (contR ? " cr" : "") + (col < g.b ? " br" : "") + (g.task.done ? " done" : "")}
                           style={{ top: g.lane * 24, ...barStyle(mark, g.task.done) }}
                           data-task-id={g.task.id}
-                          data-tip={`${g.task.title} · ${periodText(g.task, timeFormat)}`}
+                          data-tip={`${g.task.title} · ${periodText(g.task, timeFormat, now, prefs)}`}
                           role="button"
                           tabIndex={col === g.a ? 0 : -1}
-                          aria-label={col === g.a ? `${g.task.title} ${periodText(g.task, timeFormat)}` : undefined}
+                          aria-label={col === g.a ? `${g.task.title} ${periodText(g.task, timeFormat, now, prefs)}` : undefined}
                           aria-hidden={col === g.a ? undefined : "true"}
                           onClick={() => open(g.task.id)}
                           onContextMenu={(event) => { if (!onTaskContextMenu) return; event.preventDefault(); onTaskContextMenu(event, g.task.id); }}

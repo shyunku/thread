@@ -42,7 +42,7 @@ test("시간 표시 picks the due and remaining formats and the 보이기 switch
   try {
     const { store: s } = wrap(<SettingCommon />);
     expect(screen.getByRole("radiogroup", { name: "시각 형식" })).toBeInTheDocument();
-    expect(screen.getByText("할 일 목록 오른쪽 칸 위에는 기한, 아래에는 남은 시간을 연하게 보여 줘요.")).toBeInTheDocument();
+    expect(screen.getByText("할 일 목록 오른쪽 칸 위에는 기한, 아래에는 남은 시간을 연하게 보여 줘요. 숫자로 쓰는 날짜의 모양도 여기서 정해요.")).toBeInTheDocument();
     // The old 남은 시간 / 기한 choice is gone.
     expect(screen.queryByRole("radiogroup", { name: "시간 표시" })).toBeNull();
 
@@ -86,6 +86,40 @@ test("시간 표시 picks the due and remaining formats and the 보이기 switch
     fireEvent.click(within(due).getByRole("radio", { name: "정확히" }));
     expect(s.getState().prefs).toMatchObject({ showRemain: false, remainFormat: "all", dueFormat: "exact", timeFormat: "24" });
     expect(row("분기 회고 자료 정리").querySelector(".time-preview__due")).toHaveTextContent("26.10.07 17:58");
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
+test("시간 표시 > 날짜: the separator, the year's digits and the 0 padding, with live examples and preview (#111)", () => {
+  jest.useFakeTimers().setSystemTime(new Date(2026, 10, 16, 13, 20));
+  try {
+    const { store: s } = wrap(<SettingCommon />);
+    const sep = screen.getByRole("radiogroup", { name: "날짜 구분 기호" });
+    const digits = screen.getByRole("radiogroup", { name: "연도 자릿수" });
+    expect(within(sep).getByRole("radio", { name: "점" })).toHaveAttribute("aria-checked", "true");
+    expect(within(sep).getByRole("radio", { name: "점" })).toHaveAccessibleDescription("11.18 · 28.03.01 · 26.11.02 ~ 27.02.28");
+    expect(within(sep).getByRole("radio", { name: "빗금" })).toHaveAccessibleDescription("11/18 · 28/03/01 · 26/11/02 ~ 27/02/28");
+    expect(within(digits).getByRole("radio", { name: "두 자리" })).toHaveAttribute("aria-checked", "true");
+    expect(within(digits).getByRole("radio", { name: "네 자리" })).toHaveAccessibleDescription("11.18 · 2028.03.01 · 2026.11.02 ~ 2027.02.28");
+    expect(screen.getByText("올해가 아닌 날짜에만 붙어요")).toBeInTheDocument();
+    const hint = document.querySelector(".time-display__hint");
+    expect(hint).toHaveTextContent("11.18 · 28.03.01 · 26.11.02 ~ 27.02.28");
+    // The preview's period over the new year has its years on both ends.
+    const trip = [...document.querySelectorAll(".time-preview__row")].find((el) => el.textContent.includes("겨울 가족 여행"));
+    expect(trip.querySelector(".time-preview__due")).toHaveTextContent("27.12.30 ~ 28.01.02");
+    expect(trip.querySelector(".time-preview__remain")).toHaveTextContent(/뒤 시작$/);
+
+    fireEvent.click(within(sep).getByRole("radio", { name: "빗금" }));
+    fireEvent.click(within(digits).getByRole("radio", { name: "네 자리" }));
+    fireEvent.click(screen.getByRole("switch", { name: "한 자리 수 앞에 0 채우기" }));
+    expect(s.getState().prefs).toMatchObject({ dateSep: "/", yearDigits: 4, datePad: false });
+    expect(hint).toHaveTextContent("11/18 · 2028/3/1 · 2026/11/2 ~ 2027/2/28");
+    expect(trip.querySelector(".time-preview__due")).toHaveTextContent("2027/12/30 ~ 2028/1/2");
+    // 정확히 always writes the year with the setting.
+    fireEvent.click(within(screen.getByRole("radiogroup", { name: "기한 표시 방식" })).getByRole("radio", { name: "정확히" }));
+    expect(within(screen.getByRole("radiogroup", { name: "기한 표시 방식" })).getByRole("radio", { name: "정확히" }))
+      .toHaveAccessibleDescription("2026/11/16 오후 9:00 · 2026/11/18 오후 7:00 · 2026/11/25 오후 6:00");
   } finally {
     jest.useRealTimers();
   }

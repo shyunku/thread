@@ -1,5 +1,7 @@
+import { useMemo } from "react";
 import { useSelector } from "react-redux";
 import { prefsSelector } from "store/prefsSlice";
+import { dateFormatOptions } from "./dateFormat";
 
 // Converts a 12-hour moment pattern ("a h:mm", "A h시") to 24-hour when requested.
 export function withTimeFormat(pattern, timeFormat) {
@@ -15,4 +17,10 @@ export function useTimeFormat() {
 // 설정 > 일반 > 주 시작 요일 (0 = Sunday, 1 = Monday).
 export function useWeekStart() {
   return useSelector(prefsSelector).weekStart === 1 ? 1 : 0;
+}
+
+// 설정 > 일반 > 시간 표시's numeric dates (#111): { dateSep, yearDigits, datePad }.
+export function useDateFormat() {
+  const { dateSep, yearDigits, datePad } = useSelector(prefsSelector);
+  return useMemo(() => dateFormatOptions({ dateSep, yearDigits, datePad }), [dateSep, yearDigits, datePad]);
 }

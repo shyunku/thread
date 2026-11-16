@@ -257,7 +257,9 @@ $ring: #5a6475;
   background: $pop-bg;
   border-radius: 0 0 12px 12px;
 }
-.tp-pop .dp-sum { flex: 1; min-width: 0; color: var(--secondary); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+// The summary wraps between a period's two sides (#111, a four-digit year) instead of cutting them.
+.tp-pop .dp-sum { flex: 1; min-width: 0; color: var(--secondary); font-size: 12.5px; line-height: 1.4; overflow: hidden; }
+.tp-pop .dp-sum .nw { white-space: nowrap; }
 .tp-pop .dp-btn {
   height: 30px;
   padding: 0 12px;

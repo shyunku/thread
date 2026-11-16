@@ -1,5 +1,5 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
-import DatePicker, { composeDue, datePickerStart } from "./DatePicker";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import DatePicker, { composeDue, composeStart, datePickerStart, startFieldOf } from "./DatePicker";
 import { monthCells } from "./MiniMonth";
 
 let mockPrefs = { weekStart: 0, timeFormat: "12" };
@@ -388,7 +388,7 @@ describe("periods (#109)", () => {
     expect(startField()).toHaveClass("empty");
     expect(startField()).toHaveTextContent("시작없음눌러서 추가");
     expect(endField()).toHaveClass("on");
-    expect(endField()).toHaveTextContent("끝10월 25일 (일)오후 6:00");
+    expect(endField()).toHaveTextContent("끝10.25 (일)오후 6:00");
     expect(title()).toBe("기한 정하기");
   });
 
@@ -405,7 +405,7 @@ describe("periods (#109)", () => {
     expect(day("2026-10-23")).toHaveClass("inr");
     expect(day("2026-10-25")).toHaveClass("re", "picked");
     expect(day("2026-10-25").querySelector(".band")).not.toBeNull();
-    expect(summary()).toBe("10/22 (목) ~ 10/25 (일) 오후 6시");
+    expect(summary()).toBe("10.22 (목) ~ 10.25 (일) 오후 6시");
     ok();
     expect(onChange).toHaveBeenCalledWith(at(10, 25, 18), at(10, 22, 0));
   });
@@ -429,7 +429,7 @@ describe("periods (#109)", () => {
 
   test("a period opens with both fields; × takes the start out (start null)", () => {
     const { onChange } = open({ value: at(10, 25, 23, 59, 59), start: at(10, 22, 0) });
-    expect(startField()).toHaveTextContent("시작10월 22일 (목)하루 시작");
+    expect(startField()).toHaveTextContent("시작10.22 (목)하루 시작");
     expect(endField()).toHaveTextContent("하루 끝");
     fireEvent.click(screen.getByRole("button", { name: "시작 빼기" }));
     expect(startField()).toHaveClass("empty");
@@ -455,7 +455,7 @@ describe("periods (#109)", () => {
     expect(onChange).not.toHaveBeenCalled();
     // A later start day moves the end along.
     fireEvent.click(day("2026-10-28"));
-    expect(endField()).toHaveTextContent("10월 28일 (수)");
+    expect(endField()).toHaveTextContent("10.28 (수)");
   });
 
   test("the text field reads a period, else a date for the active field, on Enter", () => {
@@ -465,13 +465,13 @@ describe("periods (#109)", () => {
     expect(document.querySelector(".dp-line")).toHaveTextContent("11월 20일 (금) ~ 11월 23일 (월)");
     expect(startField()).toHaveClass("empty"); // a preview only
     fireEvent.keyDown(field, { key: "Enter" });
-    expect(startField()).toHaveTextContent("11월 20일 (금)");
-    expect(endField()).toHaveTextContent("11월 23일 (월)하루 끝");
+    expect(startField()).toHaveTextContent("11.20 (금)");
+    expect(endField()).toHaveTextContent("11.23 (월)하루 끝");
     expect(endField()).toHaveClass("on");
     fireEvent.change(field, { target: { value: "11/25" } });
     fireEvent.keyDown(field, { key: "Enter" });
-    expect(startField()).toHaveTextContent("11월 20일 (금)");
-    expect(endField()).toHaveTextContent("11월 25일 (수)하루 끝");
+    expect(startField()).toHaveTextContent("11.20 (금)");
+    expect(endField()).toHaveTextContent("11.25 (수)하루 끝");
     fireEvent.change(field, { target: { value: "내일부터 금요일까지" } });
     fireEvent.keyDown(field, { key: "Enter" });
     expect(onChange).not.toHaveBeenCalled();
@@ -485,17 +485,84 @@ describe("periods (#109)", () => {
     fireEvent.change(field, { target: { value: "10/30" } });
     fireEvent.click(startField());
     expect(field).toHaveValue("");
-    expect(endField()).toHaveTextContent("10월 25일 (일)"); // 10/30 was never entered
+    expect(endField()).toHaveTextContent("10.25 (일)"); // 10/30 was never entered
     fireEvent.change(field, { target: { value: "10/26" } });
     expect(startField()).toHaveClass("on");
     fireEvent.keyDown(field, { key: "Enter" });
     expect(startField()).toHaveClass("on");
-    expect(startField()).toHaveTextContent("10월 26일 (월)");
+    expect(startField()).toHaveTextContent("10.26 (월)");
     fireEvent.click(endField());
     fireEvent.change(field, { target: { value: "10/30" } });
     fireEvent.keyDown(field, { key: "Enter" });
-    expect(endField()).toHaveTextContent("10월 30일 (금)");
+    expect(endField()).toHaveTextContent("10.30 (금)");
     ok();
     expect(onChange).toHaveBeenCalledWith(at(10, 30, 18), at(10, 26, 0));
+  });
+});
+
+describe("numeric dates and a start at 0:00 (#111)", () => {
+  const startField = () => document.querySelector(".dp-fields .dp-fd");
+  const endField = () => document.querySelectorAll(".dp-fields .dp-fd")[1];
+  const y = (year, m, d, h = 12, min = 0, s = 0) => new Date(year, m - 1, d, h, min, s).getTime();
+
+  test("the fields follow the date setting; a period with another year has it on both sides", () => {
+    open({ value: y(2028, 1, 2, 23, 59, 59), start: y(2027, 12, 30, 0) });
+    expect(startField()).toHaveTextContent("시작27.12.30 (목)하루 시작");
+    expect(endField()).toHaveTextContent("끝28.01.02 (일)하루 끝");
+    expect(summary()).toBe("27.12.30 (목) ~ 28.01.02 (일)");
+    // The two sides never break inside; the summary may wrap between them.
+    expect(document.querySelectorAll(".dp-sum .nw")).toHaveLength(2);
+  });
+
+  test("this year: month and day only; four digits, a slash and no padding from the prefs", () => {
+    open({ value: at(11, 5, 18), start: at(11, 3, 9) });
+    expect(startField()).toHaveTextContent("11.03 (화)");
+    expect(summary()).toBe("11.03 (화) 오전 9시 ~ 11.05 (목) 오후 6시");
+    cleanup();
+    mockPrefs = { weekStart: 0, timeFormat: "12", dateSep: "/", yearDigits: 4, datePad: false };
+    open({ value: y(2027, 3, 5, 18), start: at(11, 3, 9) });
+    expect(startField()).toHaveTextContent("2026/11/3 (화)");
+    expect(endField()).toHaveTextContent("2027/3/5 (금)");
+  });
+
+  test("a due in another year keeps the long summary with its year", () => {
+    open({ value: y(2028, 3, 1, 23, 59, 59) });
+    expect(endField()).toHaveTextContent("끝28.03.01 (수)하루 끝");
+    expect(summary()).toBe("2028년 3월 1일 (수) · 하루 끝까지");
+  });
+
+  test("a chosen 00:00 start is stored at 00:00:00.001 and opens with its time on", () => {
+    const { onChange } = open({ value: at(10, 25, 3), focus: "addStart" });
+    fireEvent.click(screen.getByRole("button", { name: "오늘" }));
+    fireEvent.click(timeSwitch());
+    fireEvent.click(screen.getByRole("button", { name: "오후" }));
+    fireEvent.click(screen.getByRole("button", { name: "오전" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "시" }), { target: { value: "12" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "분" }), { target: { value: "00" } });
+    expect(startField()).toHaveTextContent("오전 12:00");
+    ok();
+    const start = onChange.mock.calls[0][1];
+    expect(start).toBe(new Date(2026, 9, 21, 0, 0, 0, 1).getTime());
+    cleanup();
+    open({ value: at(10, 21, 3), start, focus: "start" });
+    expect(startField()).toHaveTextContent("오전 12:00");
+    expect(timeSwitch()).toHaveAttribute("aria-checked", "true");
+  });
+
+  test("direct input 0시~3시 keeps the 0:00 start a time; a date-only start stays .000", () => {
+    const { onChange } = open({ value: at(10, 25, 18) });
+    const field = screen.getByRole("textbox", { name: "날짜 직접 입력" });
+    fireEvent.change(field, { target: { value: "0시~3시" } });
+    fireEvent.keyDown(field, { key: "Enter" });
+    expect(startField()).toHaveTextContent("오전 12:00");
+    fireEvent.keyDown(field, { key: "Enter" });
+    const [due, start] = onChange.mock.calls[0];
+    expect(due - start).toBe(3 * 3600000 - 1);
+    expect(new Date(start).getMilliseconds()).toBe(1);
+    expect(composeStart(new Date(2026, 9, 22), false, 0)).toBe(new Date(2026, 9, 22).getTime());
+    expect(composeStart(new Date(2026, 9, 22), true, 0)).toBe(new Date(2026, 9, 22).getTime() + 1);
+    expect(composeStart(new Date(2026, 9, 22), true, 90)).toBe(new Date(2026, 9, 22, 1, 30).getTime());
+    expect(startFieldOf(new Date(2026, 9, 22).getTime() + 1)).toMatchObject({ on: true, minutes: 0 });
+    expect(startFieldOf(new Date(2026, 9, 22).getTime())).toMatchObject({ on: false, minutes: 0 });
   });
 });

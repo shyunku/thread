@@ -188,7 +188,7 @@ test("a period from the picker is one chip and goes in the new task; the title r
   fireEvent.change(text, { target: { value: "11/20~11/23" } });
   fireEvent.keyDown(text, { key: "Enter" }); // fills the fields
   fireEvent.keyDown(text, { key: "Enter" }); // the empty field applies
-  expect(chipOf("기간 11/20 ~ 11/23")).toHaveClass("on");
+  expect(chipOf("기간 11.20 ~ 11.23")).toHaveClass("on");
   type(input, "워크숍 내일부터 금요일까지");
   const entity = onAdd.mock.calls[0][0].toEntity();
   const due = new Date(2026, 10, 23, 23, 59, 59).getTime();
@@ -215,7 +215,7 @@ test("a picked period does not follow another picked day by its end (#109 review
   fireEvent.click(screen.getByRole("button", { name: "정하기" }));
   rerender(ui(day(new Date(2026, 9, 29))));
   rerender(ui(day(new Date(2026, 9, 20))));
-  expect(chipOf("기간 10/22 ~ 10/25")).toHaveClass("on");
+  expect(chipOf("기간 10.22 ~ 10.25")).toHaveClass("on");
   type(screen.getByRole("textbox", { name: "새 할 일" }), "x");
   const due = new Date(2026, 9, 25, 23, 59, 59).getTime();
   expect(onAdd.mock.calls[0][0].toEntity()).toMatchObject({ due_date: due, start_offset: due - new Date(2026, 9, 22).getTime() });

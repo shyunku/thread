@@ -4,8 +4,9 @@ import MiniMonth from "molecules/pickers/MiniMonth";
 import { ShieldIcon } from "molecules/pickers/icons";
 import { categoryColor } from "utils/categoryColors";
 import { isOverdue } from "utils/menuFilters";
-import { monthDay } from "utils/periodDisplay";
-import { periodCoversDay, taskStart } from "utils/taskPeriod";
+import { longDate, shortDate } from "utils/dateFormat";
+import { clockRange } from "utils/periodDisplay";
+import { hasStartTime, periodCoversDay, taskStart } from "utils/taskPeriod";
 import { dueMs, formatClockShort, hasDueTime } from "utils/timeDisplay";
 import { markCategory } from "views/viewParts";
 import { startOfDay, usePickedDay } from "./pickedDay";
@@ -44,9 +45,27 @@ export function dayMarks(tasks, now) {
   return marks;
 }
 
+// A task's time on `day` in the picked day's list (#111): a due its clock (하루 끝 without one); a
+// period inside the day its clocks ("오후 7시 ~ 9시"); a period's last day, or one inside the day
+// that starts without a time, "~오후 6시" ("~하루 끝"); a
+// day before the end "~11.20" (numeric dates). tone: "run" while the period is on now, "over" when
+// overdue, else "" (done ones are faded by the row).
+export function dayTime(task, day, now, timeFormat = "12", dateFormat) {
+  const due = dueMs(task.dueDate), start = taskStart(task);
+  const tone = task.done ? "" : isOverdue(task, now) ? "over" : start !== null && start <= now && now <= due ? "run" : "";
+  const endText = hasDueTime(due) ? formatClockShort(new Date(due), timeFormat) : "하루 끝";
+  let text;
+  if (startOfDay(due) !== startOfDay(day)) text = `~${shortDate(due, now, dateFormat)}`;
+  else if (start === null || !hasStartTime(start)) text = start === null ? endText : `~${endText}`;
+  else if (startOfDay(start) !== startOfDay(due)) text = `~${endText}`;
+  else text = hasDueTime(due) ? clockRange(start, due, timeFormat) : `${formatClockShort(new Date(start), timeFormat)} ~ 하루 끝`;
+  return { text, tone };
+}
+
 // The picked day's list (#102 mock dayList): the header with the open count, then each task with
-// its clock time (하루 끝 without a chosen time; "~11/12" for a period that ends on a later day,
-// #109) and category (the shield when any of its categories is secret). Clicking opens its detail; right-click opens the task menu.
+// the category mark and the name taking the room left, its time (dayTime) small at the row's right
+// end (#111; the shield when any of its categories is secret). Clicking opens its detail;
+// right-click opens the task menu.
 export function DayList({ tasks, catsOf, prefs, onOpen, onMenu }) {
   const { pickedDay } = usePickedDay();
   const tf = prefs?.timeFormat === "24" ? "24" : "12";
@@ -58,15 +77,13 @@ export function DayList({ tasks, catsOf, prefs, onOpen, onMenu }) {
   return (
     <>
       <div className="rp-block-h">
-        {d.getMonth() + 1}월 {d.getDate()}일 ({WEEKDAYS[d.getDay()]}){pickedDay === today ? " · 오늘" : ""}
+        {longDate(d, today)} ({WEEKDAYS[d.getDay()]}){pickedDay === today ? " · 오늘" : ""}
         <span>{left}개 남음</span>
       </div>
       <div className="rp-box rp-agenda" role="list" aria-label="이날 할 일">
         {list.length ? list.map((task) => {
           const first = markCategory(catsOf?.(task) ?? []);
-          const due = dueMs(task.dueDate);
-          const over = isOverdue(task, minute * 60000);
-          const endsHere = startOfDay(due) === startOfDay(pickedDay);
+          const time = dayTime(task, pickedDay, minute * 60000, tf, prefs);
           return (
             <div
               key={task.id}
@@ -83,15 +100,13 @@ export function DayList({ tasks, catsOf, prefs, onOpen, onMenu }) {
                 onOpen?.(task.id);
               }}
             >
-              <span className={"rp-tm" + (over ? " over" : "") + (endsHere ? "" : " span")}>
-                {!endsHere ? `~${monthDay(due)}` : hasDueTime(due) ? formatClockShort(new Date(due), tf) : "하루 끝"}
-              </span>
               {first?.secret ? (
                 <span className="rp-shield" style={{ color: categoryColor(first) }} role="img" aria-label="비밀 카테고리"><ShieldIcon size={11} /></span>
               ) : (
                 <span className="rp-dot" style={{ background: first ? categoryColor(first) : "var(--faint)" }} />
               )}
               <span className="rp-nm">{task.title}</span>
+              <span className={"rp-tm" + (time.tone ? ` ${time.tone}` : "")}>{time.text}</span>
             </div>
           );
         }) : <div className="rp-none">이날은 할 일이 없어요</div>}

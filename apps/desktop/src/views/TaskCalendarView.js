@@ -289,7 +289,7 @@ const TaskCalendarView = ({ filteredTaskMap, categories, catsOf, header, renderQ
         key={`${task.id}-${from}`}
         className={"cv-bar" + (contL ? " cl" : "") + (contR ? " cr" : "") + (task.done ? " done" : "")}
         data-task-id={task.id}
-        data-tip={`${task.title} · ${periodText(task, prefs.timeFormat === "24" ? "24" : "12")}`}
+        data-tip={`${task.title} · ${periodText(task, prefs.timeFormat === "24" ? "24" : "12", today, prefs)}`}
         aria-hidden="true"
         style={{ gridRow: w + 2, gridColumn: `${from + 1} / ${to + 2}`, marginTop: DAY_HEAD - 4 + lane * LINE, ...barStyle(mark, task.done, [16, 18, 22]) }}
         onClick={(event) => {
