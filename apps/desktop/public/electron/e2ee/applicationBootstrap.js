@@ -42,9 +42,15 @@ async function bootstrap(service,uid){
  const entry=service.context(),generation=service.generation;
  const check=()=>{if(entry!==service.active||uid!==service.runtime().getAccount()||generation!==service.generation)throw Error("VAULT_SESSION_CHANGED");};
  const local=entry.vault.inspect();
+ // The lock-screen skip (#111) has one chance: this run's first bootstrap.
+ const first=service.takeStartOpen?.()===true;
  if(local.phase==="RECOVERY_REQUIRED")return {mode:"RECOVERY_REQUIRED"};
- // A locked vault never unlocks here; unlocking asks again.
- if(local.phase!=="ABSENT"&&!entry.unlocked)return {mode:"LOCKED"};
+ // A locked vault never unlocks here, unlocking asks again; only the first bootstrap may open
+ // it without a prompt (setting on, not locked by hand). After any lock it stays locked.
+ if(local.phase!=="ABSENT"&&!entry.unlocked){
+  if(!first||!await service.openAtStart(entry))return {mode:"LOCKED"};
+  check();
+ }
  if(entry.unlocked&&entry.controller.use(pinnedApplication)){
   selectApplication(service,entry);return {mode:"E2EE"};
  }

@@ -40,8 +40,10 @@ module.exports = function (s) {
     "vault/confirmRecovery":code=>s.vaultWorkspaceService.confirmRecovery(code),
     "vault/getStatus":()=>s.vaultWorkspaceService.status(),
     "vault/create":password=>s.vaultWorkspaceService.create(password),
-    "vault/unlock":(method,password)=>s.vaultWorkspaceService.unlock(method,password),
+    // remember: "이 PC에서 다시 묻지 않기" on the lock screen turns the skip at start on (#111).
+    "vault/unlock":(method,password,remember)=>s.vaultWorkspaceService.unlock(method,password,remember===true),
     "vault/verifyUser":input=>s.vaultWorkspaceService.verifyUser(input),
+    "vault/skipLock":input=>s.vaultWorkspaceService.enableSkipLock(input),
     "vault/lock":()=>{s.vaultWorkspaceService.lock();return true;},
     "vault/revokeOtherSessions":()=>s.vaultWorkspaceService.revokeOtherSessions(),
     "vault/deleteAccount":input=>s.vaultWorkspaceService.deleteAccount(input),
@@ -90,6 +92,8 @@ module.exports = function (s) {
   });
   s.register("settings/set", (event, reqId, patch) => {
     if (event.sender !== s.windowService.mainWindow?.webContents) return s.sender("settings/set", reqId, false, null);
+    // The lock-screen skip turns on only after a check in main (vault/skipLock, #111).
+    if (patch?.skipLockOnStart === true) return s.sender("settings/set", reqId, false, null);
     try {
       const next = appSettings.updateSettings(patch);
       if ("autoStart" in patch && process.env.NODE_ENV === "production")

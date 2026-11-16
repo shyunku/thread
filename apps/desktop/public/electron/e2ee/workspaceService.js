@@ -1,7 +1,7 @@
-const path=require("node:path"),{createHash}=require("node:crypto");
+const fs=require("node:fs"),path=require("node:path"),{createHash}=require("node:crypto");
 const {LocalVault}=require("./localVault"),{createVaultController}=require("./vaultController");
 class VaultWorkspaceService{
- constructor(dependencies){this.dependencies=dependencies;this.active=null;this.generation=0;this.busy=false;this.verifying=false;}
+ constructor(dependencies){this.dependencies=dependencies;this.active=null;this.generation=0;this.busy=false;this.verifying=false;this.startOpen=true;}
  inject(group){this.group=group;}
  runtime(){
   if(this.dependencies)return this.dependencies;
@@ -10,7 +10,8 @@ class VaultWorkspaceService{
    environment:app.isPackaged?"production":"development",protector:require("../modules/keyProtection").createKeyProtection({app,safeStorage}),
    osAuth:require("./osAuth").createOSAuth({app,systemPreferences}),powerMonitor,
    getWindow:()=>this.group.windowService.mainWindow,getAccount:()=>this.group.userService.getCurrent(),
-   notify:data=>{const w=this.group.windowService.mainWindow;if(w&&!w.isDestroyed())w.webContents.send("vault/status",null,{success:true,data});}};
+   notify:data=>{const w=this.group.windowService.mainWindow;if(w&&!w.isDestroyed())w.webContents.send("vault/status",null,{success:true,data});},
+   skipLock:{get:()=>require("../modules/appSettings").getSettings().skipLockOnStart===true,set:value=>require("../modules/appSettings").updateSettings({skipLockOnStart:value===true})}};
  }
  reset(){
   this.generation++;this.group?.remindersService?.lock();const old=this.active;this.active=null;
@@ -29,7 +30,7 @@ class VaultWorkspaceService{
    const vault=this.vaultFor(uid);
    const entry={uid,vault,unlocked:false,abort:new AbortController()};
    entry.controller=createVaultController({vault,osAuth:d.osAuth,getWindow:d.getWindow,powerMonitor:d.powerMonitor,
-    clearRenderer:()=>{entry.unlocked=false;this.group?.remindersService?.lock();entry.abort.abort();entry.sync?.close();entry.sync=null;entry.connected=false;clearInterval(entry.poller);entry.poller=null;entry.events=null;entry.published=null;
+    clearRenderer:()=>{this.startOpen=false;entry.unlocked=false;this.group?.remindersService?.lock();entry.abort.abort();entry.sync?.close();entry.sync=null;entry.connected=false;clearInterval(entry.poller);entry.poller=null;entry.events=null;entry.published=null;
      if(entry.applicationActive&&d.getAccount()===uid){
       this.group?.ipcService.sender("sync-v2/state",null,true,{uid,tasks:[],categories:[],subtasks:[],relations:[]});
       this.group?.ipcService.sender("sync-v2/status",null,true,{uid,ready:false,connected:false,error:"VAULT_LOCKED",pending:null});
@@ -71,14 +72,55 @@ class VaultWorkspaceService{
   if(value?.uid)this.runtime().notify?.({uid:value.uid,phase:value.phase,generation:value.generation,osAvailable:value.osAvailable});
   return value;
  }
- async unlock(method,password){
+ async unlock(method,password,remember){
   if(this.busy)throw Error("VAULT_BUSY");
   const entry=this.context();this.busy=true;
   try{await entry.controller.unlock(method,password);if(entry!==this.active||entry.uid!==this.runtime().getAccount()){entry.controller.lock();throw Error("VAULT_SESSION_CHANGED");}
-   entry.unlocked=true;entry.abort=new AbortController();return this.publishStatus(await this.status());
+   entry.unlocked=true;entry.abort=new AbortController();
+   this.releaseLock();
+   if(remember===true)try{this.runtime().skipLock?.set(true);}catch{}
+   return this.publishStatus(await this.status());
   }finally{password=undefined;this.busy=false;}
  }
- lock(){this.context().controller.lock();}
+ // 앱 잠금 / 지금 잠그기, always by hand: the next start stays locked too (#111). A mark that
+ // cannot be written turns the skip off instead.
+ lock(){
+  const entry=this.context();
+  try{this.holdLock();}catch{try{this.runtime().skipLock?.set(false);}catch{}}
+  entry.controller.lock();
+ }
+ // The lock-screen skip at start (#111). The mark of a lock by hand lives next to the vaults;
+ // one that cannot be read counts as there.
+ lockMark(){return path.join(this.runtime().baseDirectory,"locked-by-user");}
+ lockHeld(){try{fs.lstatSync(this.lockMark());return true;}catch(error){return error?.code!=="ENOENT";}}
+ holdLock(){fs.mkdirSync(path.dirname(this.lockMark()),{recursive:true,mode:0o700});fs.writeFileSync(this.lockMark(),"",{mode:0o600});}
+ releaseLock(){try{fs.rmSync(this.lockMark(),{force:true});}catch{}}
+ // One chance per run: the first bootstrap takes it, and any lock (by hand, screen lock,
+ // suspend, another account) drops it, so a lock in this run is never undone here.
+ takeStartOpen(){const first=this.startOpen;this.startOpen=false;return first===true;}
+ // Opens this vault with its OS-protected key, no prompt, when the setting is on and the last
+ // lock was not by hand. False leaves it locked (the lock screen); never throws.
+ async openAtStart(entry){
+  const d=this.runtime();
+  try{if(this.busy||d.skipLock?.get()!==true||this.lockHeld()||entry.vault.inspect().phase!=="LOCKED")return false;}catch{return false;}
+  this.busy=true;
+  try{
+   await entry.controller.openAtStart();
+   if(entry!==this.active||entry.uid!==d.getAccount()){entry.controller.lock();return false;}
+   entry.unlocked=true;entry.abort=new AbortController();
+  }catch{return false;}
+  finally{this.busy=false;}
+  try{this.publishStatus(await this.status());}catch{}
+  return true;
+ }
+ // Turns the skip on after confirming the user the way verifyUser does (input alike); the
+ // answer is verifyUser's, plus skipLockOnStart once on. Turning it off asks nothing (settings/set).
+ async enableSkipLock(input={}){
+  const answer=await this.verifyUser(input);
+  if(answer?.verified!==true)return answer;
+  this.runtime().skipLock.set(true);
+  return {verified:true,method:answer.method,skipLockOnStart:true};
+ }
  // Confirms the user without opening anything new (secret categories, #102). The method
  // follows how this vault opens: OS auth when it is available, otherwise the vault
  // password. A refusal is an answer ({verified:false,code}), not an error; only a

@@ -14,6 +14,10 @@ const DEFAULTS = Object.freeze({
   // Due reminders (#91): this PC's own choice, not synced. With the start group (#109):
   // startBefore, startMinutes, startAt.
   reminders: Object.freeze(normalPeriodReminders()),
+  // Open the vault without the lock screen when the app starts again (#111). Turning it on
+  // confirms the user in main (vault/skipLock, an unlock with "이 PC에서 다시 묻지 않기");
+  // settings/set only turns it off.
+  skipLockOnStart: false,
 });
 
 function settingsFile(app) {
