@@ -122,9 +122,11 @@ export function taskAlerts(task, settings) {
   if (end === null) return [];
   const s = normalAlertSettings(settings), start = taskStart(task);
   const sides = start === null ? [["end", end]] : [["start", start], ["end", end]];
-  return sides.map(([side, time]) => {
+  return sides.map(([side, stored]) => {
     const mode = override(side === "start" ? task.alertStart ?? task.alert_start : task.alertEnd ?? task.alert_end) ?? "follow";
-    const alertable = side === "start" ? hasStartTime(time) : hasDueTime(time);
+    const alertable = side === "start" ? hasStartTime(stored) : hasDueTime(stored);
+    // A chosen 00:00 start (.001, #111) shows and rings on its minute.
+    const time = side === "start" ? startMinute(stored) : stored;
     const global = settingsAlerts(side, s), minutes = side === "start" ? s.startMinutes : s.minutes;
     const list = mode === "off" ? [] : mode === "on" && !global.length ? [{ kind: "before", minutes }] : global;
     const alerts = list.map((a) => ({ ...a, at: time - a.minutes * 60000 }));

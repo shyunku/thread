@@ -71,6 +71,10 @@ describe("periods", () => {
     // The start side rings like any timed start.
     const [start] = taskAlerts(p, DEFAULT_ALERT_SETTINGS);
     expect(start).toMatchObject({ side: "start", alertable: true });
+    // Its time and ring times are on the minute, without the .001.
+    expect(start.time).toBe(day0(11, 12));
+    expect(start.alerts.every((a) => a.at % 60000 === 0)).toBe(true);
+    expect(start.alerts[0].at).toBe(day0(11, 12) - start.alerts[0].minutes * 60000);
   });
 
   test("status: before the start, running, ended, with the durations", () => {
