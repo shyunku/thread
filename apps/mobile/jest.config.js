@@ -1,6 +1,8 @@
 module.exports = {
   preset: '@react-native/jest-preset',
   setupFiles: ['<rootDir>/jest.setup.js'],
+  // One-off scripts and captures in .local are not part of the suite.
+  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/.local/'],
   // packages/e2ee (linked, outside this app) resolves its imports from this app's node_modules.
   modulePaths: ['<rootDir>/node_modules'],
   moduleNameMapper: {
